@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 
 import { dashboardPath } from "@/features/businesses/routes";
 import { requireSession } from "@/lib/auth/session";
+import { buildCheckoutSuccessPath } from "@/lib/auth/redirects";
 import { syncSubscriptionFromPolar } from "@/lib/billing/subscription-service";
 import { requireBusinessContextForUser } from "@/lib/db/business-access";
 import { getBusinessBillingCacheTags } from "@/lib/cache/shell-tags";
@@ -81,11 +82,5 @@ export default async function AccountBillingCheckoutPage({
     // Best-effort — the webhook will handle it if this fails.
   }
 
-  const url = new URL(returnTo, "http://placeholder.local");
-  url.searchParams.set("upgrade", "success");
-  if (activePlan && activePlan !== "free") {
-    url.searchParams.set("plan", activePlan);
-  }
-
-  redirect(`${url.pathname}${url.search}`);
+  redirect(buildCheckoutSuccessPath(returnTo, activePlan));
 }
