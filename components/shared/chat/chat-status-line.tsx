@@ -1,4 +1,4 @@
-import { AgentThinking } from "@/components/application/agent-thinking/agent-thinking";
+import { AgentThinking } from "@/components/shared/agent-thinking";
 
 /**
  * The single in-progress line shown while a turn runs — "Thinking", or the

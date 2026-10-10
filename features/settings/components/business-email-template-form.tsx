@@ -7,7 +7,7 @@ import {
   FloatingFormActions,
   useFloatingUnsavedChanges,
 } from "@/components/shared/floating-form-actions";
-import { Tab, TabList, Tabs } from "@/components/base/tabs/tabs";
+import { Tab, TabList, Tabs } from "@/components/shared/tabs";
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
 import { useHashTab } from "@/hooks/use-hash-tab";
 import {

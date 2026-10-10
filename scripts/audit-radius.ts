@@ -38,14 +38,7 @@ const SCAN_ROOTS = ["app", "components", "features"];
 
 /** Design-system-owned micro-geometry; exempt from the arbitrary check. */
 function isDesignSystem(rel: string): boolean {
-  const normalized = rel.replace(/\\/g, "/");
-  // Transitional: the legacy trees still exist until the follow-up migration
-  // commit removes them; keep their exemptions alongside the shared allowlist.
-  return (
-    isDesignSystemFile(normalized) ||
-    normalized.startsWith("components/base/") ||
-    normalized.startsWith("components/application/")
-  );
+  return isDesignSystemFile(rel);
 }
 
 function isTsxFile(absPath: string, rel: string): boolean {

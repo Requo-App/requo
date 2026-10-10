@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { BellRing, Square } from "lucide-react";
-import { toast } from "@/components/base/notification/notify";
+import { toast } from "@/components/shared/notify";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

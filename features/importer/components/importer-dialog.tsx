@@ -2,7 +2,7 @@
 
 import { useId, useRef, useState, useTransition } from "react";
 import { FileUp, Sparkles, X } from "lucide-react";
-import { toast } from "@/components/base/notification/notify";
+import { toast } from "@/components/shared/notify";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";

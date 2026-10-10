@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   DashboardSidebar,
   type DashboardNavItem,
-} from "@/components/application/dashboard/dashboard-sidebar";
+} from "@/components/shared/dashboard-sidebar";
 import {
   getDashboardNavigation,
   isDashboardNavigationItemActive,

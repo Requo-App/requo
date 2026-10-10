@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { toast } from "@/components/base/notification/notify";
+import { toast } from "@/components/shared/notify";
 
 type AuthFormFeedbackProps = {
   error?: string;

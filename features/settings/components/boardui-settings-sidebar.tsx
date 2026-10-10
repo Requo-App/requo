@@ -22,7 +22,7 @@ import { usePathname } from "next/navigation";
 import {
   DashboardSidebar,
   type DashboardNavGroup,
-} from "@/components/application/dashboard/dashboard-sidebar";
+} from "@/components/shared/dashboard-sidebar";
 import type { SettingsNavigationGroup } from "@/features/settings/navigation";
 
 /**

@@ -1,9 +1,14 @@
 # ADR 015: BoardUI Compat Freeze
 
-**Status**: Accepted
+**Status**: Superseded
 **Date**: 2026-09-22
 **Deciders**: Owner + implementation team
 **Context**: Issue #73 — BoardUI / shadcn duality; `DESIGN.md` Known inconsistencies; `docs/technical-debt.md` §3
+
+> **Superseded.** The freeze ended when all 40 BoardUI modules were recreated
+> 1:1 under `components/shared/*` and the legacy `components/base/` +
+> `components/application/` + `components/foundations/` trees were deleted.
+> Current guidance lives in `DESIGN.md` and `docs/technical-debt.md` §3.
 
 ---
 

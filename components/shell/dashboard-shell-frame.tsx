@@ -15,7 +15,7 @@ import { NavBadgeProvider } from "@/components/shell/nav-badge-context";
 import {
   Breadcrumb,
   BreadcrumbItem,
-} from "@/components/base/breadcrumb/breadcrumb";
+} from "@/components/shared/breadcrumb";
 import { MobileFloatingDock } from "@/components/shell/mobile-floating-dock";
 import { MobileFullscreenNav } from "@/components/shell/mobile-fullscreen-nav";
 import { MobileGlobalSearch } from "@/components/shell/mobile-global-search";

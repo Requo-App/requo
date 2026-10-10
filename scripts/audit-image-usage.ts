@@ -33,13 +33,7 @@ const SKIP_FILE_PATTERNS = [
 
 /** Design-system-owned files are exempt like the email/og-image modules above. */
 function isBoardUiTree(file: string): boolean {
-  // Transitional: the legacy trees still exist until the follow-up migration
-  // commit removes them; keep their exemptions alongside the shared allowlist.
-  return (
-    isDesignSystemFile(path.relative(ROOT, file)) ||
-    file.includes("components" + path.sep + "base" + path.sep) ||
-    file.includes("components" + path.sep + "application" + path.sep)
-  );
+  return isDesignSystemFile(path.relative(ROOT, file));
 }
 
 type Offender = {

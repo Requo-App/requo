@@ -6,7 +6,7 @@ import {
   StatCards,
   type Stat,
   type StatTone,
-} from "@/components/application/dashboard/stat-cards";
+} from "@/components/shared/stat-cards";
 
 /**
  * Home KPI row on the dashboard, rendered with the BoardUI StatCards block.

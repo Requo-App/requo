@@ -31,7 +31,7 @@ import {
 import type {
   DashboardNavGroup,
   DashboardNavItem,
-} from "@/components/application/dashboard/dashboard-sidebar";
+} from "@/components/shared/dashboard-sidebar";
 
 /** Icon shape accepted by the shared sidebar rows. */
 export type AdminNavIcon = ComponentType<{

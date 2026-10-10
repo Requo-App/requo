@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { DashboardSidebar } from "@/components/application/dashboard/dashboard-sidebar";
+import { DashboardSidebar } from "@/components/shared/dashboard-sidebar";
 import { BusinessAvatar } from "@/components/shared/business-avatar";
 
 vi.mock("@/components/theme-provider", () => ({

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { Smartphone } from "lucide-react";
-import { toast } from "@/components/base/notification/notify";
+import { toast } from "@/components/shared/notify";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";

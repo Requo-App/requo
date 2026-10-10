@@ -25,7 +25,7 @@ import type { LucideIcon } from "lucide-react";
 
 import { authClient } from "@/lib/auth/client";
 import { getDisplayFirstName } from "@/features/account/name";
-import { ChevronDownSmall } from "@/components/foundations/icons/chevrons";
+import { ChevronDownSmall } from "@/components/shared/chevrons";
 import { AppearanceMenuSubmenu } from "@/features/theme/components/appearance-menu";
 import { clearPersistedThemePreference } from "@/features/theme/persistence";
 import { themeUserStorageKey } from "@/features/theme/types";
@@ -53,7 +53,7 @@ import { getBusinessDashboardPath } from "@/features/businesses/routes";
 import {
   Breadcrumb,
   BreadcrumbItem,
-} from "@/components/base/breadcrumb/breadcrumb";
+} from "@/components/shared/breadcrumb";
 import { getDashboardBreadcrumbs } from "@/components/shell/dashboard-navigation";
 import { MobileFloatingDock } from "@/components/shell/mobile-floating-dock";
 import { MobileFullscreenNav } from "@/components/shell/mobile-fullscreen-nav";

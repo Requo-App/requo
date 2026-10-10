@@ -9,7 +9,7 @@ import {
   useTransition,
   type ReactNode,
 } from "react";
-import { toast } from "@/components/base/notification/notify";
+import { toast } from "@/components/shared/notify";
 
 import { PlanSelectionSheet } from "@/features/billing/components/plan-selection-sheet";
 import { startPolarCheckout } from "@/features/billing/start-checkout";

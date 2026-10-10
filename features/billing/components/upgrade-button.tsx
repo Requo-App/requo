@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { ArrowUpRight } from "lucide-react";
-import { toast } from "@/components/base/notification/notify";
+import { toast } from "@/components/shared/notify";
 
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";

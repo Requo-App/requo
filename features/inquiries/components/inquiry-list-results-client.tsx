@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
-import { toast } from "@/components/base/notification/notify";
+import { toast } from "@/components/shared/notify";
 import {
   getLocallyViewedInquiriesServerSnapshot,
   getLocallyViewedInquiriesSnapshot,

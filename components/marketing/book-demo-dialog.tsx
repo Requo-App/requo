@@ -11,7 +11,7 @@ import {
 } from "react";
 import { CheckCircle2 } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
-import { toast } from "@/components/base/notification/notify";
+import { toast } from "@/components/shared/notify";
 
 import {
   requestDemo,

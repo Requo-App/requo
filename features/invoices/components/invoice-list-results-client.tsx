@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { toast } from "@/components/base/notification/notify";
+import { toast } from "@/components/shared/notify";
 
 import { BulkActionBar } from "@/components/shared/bulk-action-bar";
 import { DataListPagination } from "@/components/shared/data-list-pagination";

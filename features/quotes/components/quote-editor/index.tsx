@@ -10,7 +10,7 @@ import {
   useState,
 } from "react";
 import { ChevronDown, FileText, Plus, Sparkles } from "lucide-react";
-import { toast } from "@/components/base/notification/notify";
+import { toast } from "@/components/shared/notify";
 
 import {
   DashboardMetaPill,

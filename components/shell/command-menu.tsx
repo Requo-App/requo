@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { cx } from "@/utils/cx";
+import { cn } from "@/lib/utils";
 import {
   clearRecentSearchRecords,
   getRecentSearchRecords,
@@ -101,7 +101,7 @@ function ResultRow({
       href={result.href}
       prefetch={true}
       onClick={() => onSelect(result)}
-      className={cx(
+      className={cn(
         "flex min-h-11 items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
         "text-foreground hover:bg-muted",
         "outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring",

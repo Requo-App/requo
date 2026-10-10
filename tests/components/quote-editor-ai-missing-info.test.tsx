@@ -25,7 +25,7 @@ vi.mock("@/features/ai/actions", () => ({
   generateQuoteDraftAction: generateQuoteDraftActionMock,
 }));
 
-vi.mock("@/components/base/notification/notify", () => ({
+vi.mock("@/components/shared/notify", () => ({
   toast: {
     error: toastErrorMock,
     success: toastSuccessMock,

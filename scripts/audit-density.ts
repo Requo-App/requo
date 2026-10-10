@@ -122,13 +122,6 @@ function isTypographyExempt(normalizedRel: string): boolean {
 function isPrimitive(rel: string): boolean {
   const normalized = rel.replace(/\\/g, "/");
   if (isDesignSystemFile(normalized)) return true;
-  // Transitional: the legacy trees still exist until the follow-up migration
-  // commit removes them; keep their exemptions alongside the shared allowlist.
-  if (
-    normalized.startsWith("components/base/") ||
-    normalized.startsWith("components/application/")
-  )
-    return true;
   if (normalized === "components/select.tsx") return true;
   if (normalized === "app/globals.css") return true;
   return false;

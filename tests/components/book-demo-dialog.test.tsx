@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { renderToString } from "react-dom/server";
 import { hydrateRoot } from "react-dom/client";
 
-vi.mock("@/components/base/notification/notify", () => ({
+vi.mock("@/components/shared/notify", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
 }));
 
