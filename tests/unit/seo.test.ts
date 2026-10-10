@@ -468,6 +468,30 @@ describe("Sitemap", () => {
     expect(paths).toContain("/inquire/acme-co");
     expect(paths.some((pathname) => pathname.startsWith("/b/"))).toBe(false);
   });
+
+  it("falls back to static entries when the inquiry query fails", async () => {
+    vi.resetModules();
+    process.env.BETTER_AUTH_URL = "https://example.com";
+
+    const { listPublicInquirySitemapEntries } = await import("@/features/inquiries/queries");
+    vi.mocked(listPublicInquirySitemapEntries).mockRejectedValueOnce(
+      new Error("database unavailable"),
+    );
+
+    const sitemapModule = await import("@/app/sitemap");
+    const entries = await sitemapModule.default();
+
+    const paths = entries.map((entry) => new URL(entry.url).pathname);
+    expect(paths).toContain("/");
+    expect(paths).toContain("/pricing");
+    expect(paths).toContain("/privacy");
+    expect(paths.some((pathname) => pathname.startsWith("/inquire"))).toBe(false);
+    const rootEntry = entries.find((e) => new URL(e.url).pathname === "/");
+    expect(rootEntry).toBeDefined();
+    expect(rootEntry!.images).toBeDefined();
+    expect(Array.isArray(rootEntry!.images)).toBe(true);
+    expect(rootEntry!.images!.length).toBeGreaterThan(0);
+  });
 });
 
 // ---------------------------------------------------------------------------
