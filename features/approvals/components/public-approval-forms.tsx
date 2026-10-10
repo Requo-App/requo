@@ -49,7 +49,7 @@ export function PublicApprovalDecideForms({ token }: { token: string }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <form action={approveFormAction} className="soft-panel flex flex-col gap-3 p-4">
+      <form action={approveFormAction} className="soft-panel flex flex-col gap-3">
         <input type="hidden" name="decision" value="approved" />
         <h2 className="text-sm font-semibold text-foreground">Approve</h2>
         <div className="flex flex-col gap-1 text-sm">
@@ -62,7 +62,7 @@ export function PublicApprovalDecideForms({ token }: { token: string }) {
         </div>
       </form>
 
-      <form action={changesFormAction} className="soft-panel flex flex-col gap-3 p-4">
+      <form action={changesFormAction} className="soft-panel flex flex-col gap-3">
         <input type="hidden" name="decision" value="changes_requested" />
         <h2 className="text-sm font-semibold text-foreground">Request changes</h2>
         <div className="flex flex-col gap-1 text-sm">
@@ -86,7 +86,7 @@ export function PublicChangeOrderDecideForms({ token }: { token: string }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <form action={approveFormAction} className="soft-panel flex flex-col gap-3 p-4">
+      <form action={approveFormAction} className="soft-panel flex flex-col gap-3">
         <input type="hidden" name="decision" value="approved" />
         <h3 className="text-sm font-semibold text-foreground">Approve this change</h3>
         <div className="flex flex-col gap-1 text-sm">
@@ -99,7 +99,7 @@ export function PublicChangeOrderDecideForms({ token }: { token: string }) {
         </div>
       </form>
 
-      <form action={rejectFormAction} className="soft-panel flex flex-col gap-3 p-4">
+      <form action={rejectFormAction} className="soft-panel flex flex-col gap-3">
         <input type="hidden" name="decision" value="rejected" />
         <h3 className="text-sm font-semibold text-foreground">Decline this change</h3>
         <div className="flex flex-col gap-1 text-sm">
