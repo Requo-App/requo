@@ -5,8 +5,8 @@ import type {
   EmailTemplateKind,
 } from "@/features/settings/email-templates";
 
-import { BlockControls } from "./BlockControls";
-import { BlockEditor } from "./BlockEditor";
+import { BlockControls } from "./block-controls";
+import { BlockEditor } from "./block-editor";
 import { EMAIL_BUILDER_BLOCK_META } from "./builder-types";
 
 const EDITABLE_TYPES: ReadonlySet<EmailTemplateBlock["type"]> = new Set([

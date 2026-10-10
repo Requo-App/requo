@@ -271,7 +271,7 @@ describe("email template builder (direct canvas)", () => {
 
   it("disables adding at the 20-block limit", async () => {
     const { AddBlock } = await import(
-      "@/features/settings/components/email-template-builder/AddBlock"
+      "@/features/settings/components/email-template-builder/add-block"
     );
     const { unmount } = render(
       <AddBlock index={20} blockCount={20} variant="end" onInsert={vi.fn()} />,

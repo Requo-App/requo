@@ -12,7 +12,7 @@ import type {
 } from "@/features/settings/email-templates";
 import { cn } from "@/lib/utils";
 
-import { BlockContent } from "./BlockContent";
+import { BlockContent } from "./block-content";
 import {
   EMAIL_BUILDER_BLOCK_META,
   isDeletableBlockType,

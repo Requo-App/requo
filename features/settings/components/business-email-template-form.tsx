@@ -33,8 +33,8 @@ import type {
   BusinessSettingsView,
 } from "@/features/settings/types";
 
-import { EmailCanvas } from "./email-template-builder/EmailCanvas";
-import { EmailTemplateInspector } from "./email-template-builder/EmailTemplateInspector";
+import { EmailCanvas } from "./email-template-builder/email-canvas";
+import { EmailTemplateInspector } from "./email-template-builder/email-template-inspector";
 import {
   createDividerBlock,
   createSpacerBlock,

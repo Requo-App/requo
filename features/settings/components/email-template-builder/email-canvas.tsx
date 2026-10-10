@@ -22,9 +22,9 @@ import {
 
 import type { EmailTemplateBlock } from "@/features/settings/email-templates";
 
-import { AddBlock } from "./AddBlock";
-import { BlockContent } from "./BlockContent";
-import { SortableEmailBlock } from "./SortableEmailBlock";
+import { AddBlock } from "./add-block";
+import { BlockContent } from "./block-content";
+import { SortableEmailBlock } from "./sortable-email-block";
 
 const EMAIL_CANVAS_DND_CONTEXT_ID = "quote-email-template-canvas-dnd";
 const EMAIL_CANVAS_SORTABLE_CONTEXT_ID = "quote-email-template-canvas-sortable";
