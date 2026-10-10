@@ -1,0 +1,756 @@
+"use client";
+
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ComponentType,
+  type ReactNode,
+} from "react";
+import {
+  RiAsterisk,
+  RiBankLine,
+  RiCalendarLine,
+  RiChatAiLine,
+  RiCloseLine,
+  RiCustomerServiceLine,
+  RiHomeLine,
+  RiImageAiLine,
+  RiMegaphoneLine,
+  RiSearchLine,
+  RiSettings4Line,
+  RiSideBarFill,
+  RiUserSmileLine,
+} from "@remixicon/react";
+import Link from "next/link";
+import { cn } from "@/lib/utils";
+import { SettingsModal } from "./settings-modal";
+import { ThemeToggle } from "./theme-toggle";
+import { Badge } from "@/components/shared/badge";
+import { CloseButton } from "@/components/shared/close-button";
+import { DashboardTeamMenu } from "./dashboard-team-menu";
+import { DashboardUserMenu } from "./dashboard-user-menu";
+
+/**
+ * Floating sidebar panel. Expanded: 260px wide, p 12, radius/3xl (24px),
+ * white 1px border, sidebar-elevation shadow, secondary bg. Collapsed: 60px
+ * wide (36px icon items + 12px padding); collapse button sits centered above
+ * the workspace avatar, quick search becomes a 36px square, nav items become
+ * icon-only squares, the team card reduces to its avatar.
+ *
+ * The two states morph into each other: the panel width animates while
+ * labels / badges / kbd collapse via max-width + opacity.
+ */
+
+type IconComponent = ComponentType<{
+  className?: string;
+  "aria-hidden"?: boolean | "true" | "false";
+}>;
+
+/**
+ * Collapsible text/badge slot: blurs + fades + shrinks away when the rail
+ * closes, and blurs back in on expand. The icons/rows themselves stay pinned in
+ * place — only these label/badge slots animate — so nothing jumps to center.
+ */
+function Collapsible({ collapsed, children, className }: { collapsed: boolean; children: ReactNode; className?: string }) {
+  return (
+    <span
+      className={cn(
+        "flex min-w-0 items-center overflow-hidden transition-[max-width,opacity,filter] duration-300 ease-in-out",
+        // Expanded, the cap is the row itself: a fixed cap (it was 160px)
+        // clipped any label wider than it, "Components and Blocks" included.
+        collapsed ? "max-w-0 opacity-0 blur-[3px]" : "max-w-full opacity-100 blur-0",
+        className,
+      )}
+    >
+      {children}
+    </span>
+  );
+}
+
+function NavItem({
+  icon: Icon,
+  label,
+  badge,
+  badgeLabel,
+  isSelected = false,
+  collapsed = false,
+  href = "#",
+  onClick,
+}: {
+  icon: IconComponent;
+  label: string;
+  badge?: ReactNode;
+  badgeLabel?: string;
+  isSelected?: boolean;
+  collapsed?: boolean;
+  href?: string;
+  /** Action rows (e.g. Settings → modal) intercept the navigation. */
+  onClick?: () => void;
+}) {
+  const accessibleLabel = badgeLabel ? `${label}, ${badgeLabel}` : label;
+  const content = (
+    <>
+      {/* Collapsed: drop the gap too — it still offsets the icon next to the
+          zero-width (invisible) label, leaving the icon off-center. */}
+      <span className={cn("flex min-w-0 items-center gap-2", collapsed && "gap-0")}>
+        <Icon
+          className={cn("size-4.5 shrink-0", isSelected ? "text-sidebar-foreground" : "text-muted-foreground")}
+          aria-hidden
+        />
+        <Collapsible collapsed={collapsed}>
+          <span
+            className={cn(
+              "whitespace-nowrap text-sm leading-6 font-medium",
+              isSelected ? "text-sidebar-foreground" : "text-muted-foreground",
+            )}
+          >
+            {label}
+          </span>
+        </Collapsible>
+      </span>
+      {badge && <Collapsible collapsed={collapsed}>{badge}</Collapsible>}
+    </>
+  );
+  const className = cn(
+    "flex items-center justify-between gap-2 overflow-hidden rounded-md px-2 py-1.5",
+    "transition-[width,background-color] duration-300 ease-in-out",
+    collapsed ? "w-9 justify-center gap-0 px-0" : "w-full",
+    // Selected state mirrors the previous Requo sidebar: muted text that
+    // turns sidebar-foreground on hover/select, with a quiet black/8
+    // (white/10 in dark mode) pill behind the active row.
+    "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground",
+    isSelected && "bg-black/[0.08] font-medium text-sidebar-foreground dark:bg-white/10",
+  );
+
+  if (onClick) {
+    return (
+      <a
+        href={href}
+        onClick={(event) => {
+          event.preventDefault();
+          onClick();
+        }}
+        aria-current={isSelected ? "page" : undefined}
+        aria-label={accessibleLabel}
+        title={collapsed ? label : undefined}
+        className={className}
+      >
+        {content}
+      </a>
+    );
+  }
+
+  // Internal routes use Next.js Link so dashboard navigation stays
+  // client-side (instant navigation + prefetch). External links and
+  // decoration-only rows (href="#") keep a plain anchor.
+  if (href.startsWith("/") && !href.startsWith("//")) {
+    return (
+      <Link
+        href={href}
+        prefetch
+        aria-current={isSelected ? "page" : undefined}
+        aria-label={accessibleLabel}
+        title={collapsed ? label : undefined}
+        className={className}
+      >
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <a
+      href={href}
+      aria-current={isSelected ? "page" : undefined}
+      aria-label={accessibleLabel}
+      title={collapsed ? label : undefined}
+      className={className}
+    >
+      {content}
+    </a>
+  );
+}
+
+/** A primary navigation row. Rows without an `href` are decoration only. */
+export interface DashboardNavItem {
+  key: string;
+  label: string;
+  icon: IconComponent;
+  href?: string;
+  badge?: string | number;
+  /**
+   * Screen-reader suffix for the badge (e.g. "4 unread"). The visible badge
+   * is otherwise hidden from assistive tech because the row sets an explicit
+   * `aria-label` from `label` alone.
+   */
+  badgeLabel?: string;
+}
+
+/** A labeled section of navigation rows (e.g. User / Workspace / Other). */
+export interface DashboardNavGroup {
+  label: string;
+  items: DashboardNavItem[];
+}
+
+/** Kept as a name for callers that typed their `selected` prop; any key works. */
+export type DashboardNavKey = string;
+
+/** The Pro dashboard's navigation, the default set. */
+export const DASHBOARD_NAV: DashboardNavItem[] = [
+  { key: "home", label: "Home", icon: RiHomeLine, href: "/templates/dashboard", badge: 152 },
+  { key: "marketing", label: "Marketing", icon: RiMegaphoneLine, href: "/templates/marketing" },
+  { key: "calendar", label: "Calendar", icon: RiCalendarLine, href: "/templates/calendar" },
+  { key: "finance", label: "Finance", icon: RiBankLine, href: "/templates/finance" },
+  { key: "medical", label: "Medical Report", icon: RiAsterisk, href: "/templates/medical-profile" },
+  { key: "ai-chat", label: "AI Chat", icon: RiChatAiLine, href: "/templates/ai-chat" },
+  { key: "ai-image", label: "AI Image Generation", icon: RiImageAiLine, href: "/templates/ai-image-generation" },
+  { key: "profile", label: "Profile", icon: RiUserSmileLine, href: "/templates/ai-profile" },
+];
+
+/**
+ * The primary rows. A component of its own so the closures over `collapsed`
+ * and the search query live here: built inline in the sidebar, the compiler
+ * could not tell they leave `mobile` untouched and dropped the sidebar's
+ * manual memoization.
+ */
+function NavRows({
+  items,
+  query,
+  selected,
+  collapsed,
+  secondaryMatch,
+}: {
+  items: DashboardNavItem[];
+  query: string;
+  selected: string;
+  collapsed: boolean;
+  /** Whether Support or Settings matches, so "No results" only shows when nothing does. */
+  secondaryMatch: boolean;
+}) {
+  const shown = items.filter((item) => item.label.toLocaleLowerCase().includes(query));
+  if (shown.length === 0 && !secondaryMatch && !collapsed) {
+    return <p className="px-2 py-3 text-body-regular text-muted-foreground">No results</p>;
+  }
+  return shown.map((item) => {
+      const isSelected = selected === item.key;
+      return (
+        <NavItem
+          key={item.key}
+          icon={item.icon}
+          label={item.label}
+          href={item.href}
+          isSelected={isSelected}
+          collapsed={collapsed}
+          badge={
+            item.badge !== undefined ? (
+              <Badge color="neutral">{item.badge}</Badge>
+            ) : undefined
+          }
+          badgeLabel={item.badgeLabel}
+        />
+      );
+    });
+}
+
+function GroupedNavRows({
+  groups,
+  query,
+  selected,
+  collapsed,
+  secondaryMatch,
+}: {
+  groups: DashboardNavGroup[];
+  query: string;
+  selected: string;
+  collapsed: boolean;
+  /** Whether Support or Settings matches, so "No results" only shows when nothing does. */
+  secondaryMatch: boolean;
+}) {
+  const filtered = groups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) =>
+        item.label.toLocaleLowerCase().includes(query),
+      ),
+    }))
+    .filter((group) => group.items.length > 0);
+  if (filtered.length === 0 && !secondaryMatch && !collapsed) {
+    return <p className="px-2 py-3 text-body-regular text-muted-foreground">No results</p>;
+  }
+  return filtered.map((group) => (
+    <div key={group.label} className={cn("flex w-full flex-col gap-1", collapsed && "items-center")}>
+      {collapsed ? null : (
+        <span className="px-2 pt-2 text-body-2-medium text-muted-foreground/60">
+          {group.label}
+        </span>
+      )}
+      {group.items.map((item) => {
+        const isSelected = selected === item.key;
+        return (
+          <NavItem
+            key={item.key}
+            icon={item.icon}
+            label={item.label}
+            href={item.href}
+            isSelected={isSelected}
+            collapsed={collapsed}
+            badge={
+              item.badge !== undefined ? (
+                <Badge color="neutral">{item.badge}</Badge>
+              ) : undefined
+            }
+            badgeLabel={item.badgeLabel}
+          />
+        );
+      })}
+    </div>
+  ));
+}
+
+export function DashboardSidebar({
+  mobile = false,
+  onClose,
+  fluid = false,
+  showThemeToggle = true,
+  selected = "home",
+  items = DASHBOARD_NAV,
+  groups,
+  flat = false,
+  className,
+  topSlot,
+  bottomSlot,
+  settingsHref,
+  supportHref,
+  hideSecondaryNav = false,
+  onQuickSearch,
+}: {
+  /** Rendered inside the mobile drawer: always expanded, close button instead of collapse. */
+  mobile?: boolean;
+  onClose?: () => void;
+  /** Expanded width fills its container below `lg` instead of the fixed
+   *  260px (e.g. the landing page, where the sidebar isn't in a drawer).
+   *  Collapsed width stays the fixed 60px rail at every breakpoint — the
+   *  whole point of collapsing is to shrink, so it must never get
+   *  overridden back to full width. */
+  fluid?: boolean;
+  /** Hide the app-level theme control when the sidebar is used as marketing artwork. */
+  showThemeToggle?: boolean;
+  /** Which nav item shows the selected (filled blue) state. */
+  selected?: DashboardNavKey;
+  /** Primary navigation rows. The Pro dashboard's set unless a screen brings its own. */
+  items?: DashboardNavItem[];
+  /** Grouped navigation sections (e.g. User / Workspace / Other). Takes precedence over `items` when provided. */
+  groups?: DashboardNavGroup[];
+  /** Removes the floating panel treatment for a sidebar revealed beneath mobile content. */
+  flat?: boolean;
+  className?: string;
+  /** Replaces the demo workspace switcher at the top (e.g. with a business switcher). */
+  topSlot?: ReactNode;
+  /** Replaces the demo team card at the bottom (e.g. with the app user menu). */
+  bottomSlot?: ReactNode;
+  /** When provided, the Settings secondary row links here instead of opening the demo SettingsModal. */
+  settingsHref?: string;
+  /** When provided, the Support secondary row links here (otherwise it stays decorative). */
+  supportHref?: string;
+  /** Hides the demo Support/Settings secondary rows (e.g. inside the settings shell, which owns its own nav). */
+  hideSecondaryNav?: boolean;
+  /**
+   * When provided, the Search row opens the global record search dialog
+   * instead of filtering nav items.
+   */
+  onQuickSearch?: () => void;
+} = {}) {
+  const [collapsedState, setCollapsed] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [suppressUserHover, setSuppressUserHover] = useState(false);
+  const [searchActive, setSearchActive] = useState(false);
+  const [query, setQuery] = useState("");
+  const searchTriggerRef = useRef<HTMLButtonElement>(null);
+  const searchFieldRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const collapsed = mobile ? false : collapsedState;
+  const normalizedQuery = query.trim().toLocaleLowerCase();
+  const matches = (label: string) => label.toLocaleLowerCase().includes(normalizedQuery);
+  const secondaryLabels = ["Support", "Settings"];
+  const secondaryMatch = secondaryLabels.some(matches);
+
+  const activateSearch = useCallback(() => {
+    if (onQuickSearch) {
+      onQuickSearch();
+      return;
+    }
+    if (!mobile) setCollapsed(false);
+    setSearchActive(true);
+  }, [mobile, onQuickSearch]);
+
+  const deactivateSearch = useCallback((restoreFocus: boolean) => {
+    setQuery("");
+    setSearchActive(false);
+    if (restoreFocus) {
+      window.requestAnimationFrame(() => searchTriggerRef.current?.focus());
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!searchActive) return;
+    const frame = window.requestAnimationFrame(() => searchInputRef.current?.focus());
+    return () => window.cancelAnimationFrame(frame);
+  }, [searchActive]);
+
+  useEffect(() => {
+    if (!searchActive) return;
+
+    const onOutsideClick = (event: MouseEvent) => {
+      const target = event.target;
+      if (target instanceof Node && searchFieldRef.current?.contains(target)) return;
+      deactivateSearch(false);
+    };
+
+    document.addEventListener("click", onOutsideClick);
+    return () => document.removeEventListener("click", onOutsideClick);
+  }, [deactivateSearch, searchActive]);
+
+  useEffect(() => {
+    const onShortcut = (event: KeyboardEvent) => {
+      if (event.key.toLocaleLowerCase() === "l" && (event.metaKey || event.ctrlKey)) {
+        event.preventDefault();
+        activateSearch();
+      }
+    };
+
+    window.addEventListener("keydown", onShortcut);
+    return () => window.removeEventListener("keydown", onShortcut);
+  }, [activateSearch]);
+
+  return (
+    <aside
+      data-collapsed={collapsed}
+      className={cn(
+        "group/sidebar flex h-full shrink-0 flex-col overflow-hidden",
+        flat
+          ? "bg-background"
+          : // Flush to the screen's left edge: no left border or inset gap,
+            // with rounding kept only on the top-right/bottom-right corners.
+            // Depth comes from the sidebar surface + border + elevation shadow
+            // (all flip in dark mode via CSS vars), matching the reference rail.
+            "rounded-l-none rounded-r-3xl border border-l-0 border-sidebar-border bg-sidebar shadow-[var(--surface-shadow-md)]",
+        "transition-[width] duration-300 ease-in-out",
+        // Collapsed rail keeps the 60px spec: 1px border + 11px padding on each
+        // side leaves an exactly 36px column so the w-9 (36px) icon items center.
+        collapsed
+          ? "w-[3.75rem] px-[0.6875rem] py-3"
+          : fluid
+            ? "w-full p-3 lg:w-[14.5rem]"
+            : "w-[14.5rem] p-3",
+        className,
+      )}
+    >
+      {/* Pinned header: the workspace switcher and search stay put while
+          only the primary nav below scrolls. Horizontal bleed (`-mx-2` +
+          `w-[calc(100%+1rem)]` + `px-2`) matches the nav scroller so all rows
+          align; no vertical negative margin here so it never overlaps the
+          scroller. */}
+      <div
+        className="-mx-2 flex w-[calc(100%+1rem)] shrink-0 flex-col gap-3 px-2 pt-2 pb-1"
+      >
+        {/* Workspace switcher / collapse control */}
+        <div
+          className={cn(
+            "flex w-full transition-[gap] duration-300 ease-in-out",
+            collapsed
+              ? "flex-col-reverse items-center justify-center gap-2.5"
+              : "flex-row items-center justify-between",
+          )}
+        >
+          {/* The clip is here to hide the label as `max-width` animates shut,
+              but it also cropped the trigger's hover pill down to four corner
+              arcs. Same trick as the scroller: pad the clip box out by the
+              pill's 8px reach and pull it back with a negative margin, so the
+              widths below are 16px larger than the footprint they produce. */}
+          <div
+            className={cn(
+              "min-w-0 transition-[max-width,opacity,transform] duration-300 ease-in-out",
+              // Collapsed: the slot stays mounted in a centered 36px column.
+              // Expanded-only rows hide themselves via
+              // `group-data-[collapsed=true]/sidebar` (the aside carries
+              // `group/sidebar` + `data-collapsed`); avatar-only collapsed
+              // triggers do the reverse. Never `hidden` here — that would
+              // remove the collapsed business avatar too.
+              collapsed
+                ? "flex w-9 items-center justify-center"
+                : // `flex-1` (capped by the `max-w` below) fixes the slot to
+                  // the full header width so the trigger never resizes with
+                  // the business name length — long names truncate instead.
+                  "-m-2 min-w-0 flex-1 overflow-hidden p-2",
+              !collapsed &&
+                (mobile && flat && searchActive
+                  ? "max-w-0 scale-95 opacity-0"
+                  : "max-w-[12.875rem] scale-100 opacity-100"),
+            )}
+          >
+            {topSlot ? (
+              <div className="w-full min-w-0">{topSlot}</div>
+            ) : (
+              <DashboardUserMenu
+                collapsed={collapsed}
+                suppressHover={suppressUserHover}
+                onHoverSuppressionEnd={() => setSuppressUserHover(false)}
+                avatarClassName={
+                  flat
+                    ? "bg-sidebar-accent"
+                    : undefined
+                }
+              />
+            )}
+          </div>
+          {mobile && flat ? (
+            <div
+              ref={searchFieldRef}
+              className={cn(
+                "flex h-9 items-center overflow-hidden rounded-full bg-sidebar-accent transition-[width,box-shadow] duration-300 ease-in-out",
+                searchActive
+                  ? "w-full gap-2 pr-2.5 pl-2 ring-2 ring-inset ring-sidebar-ring"
+                  : "w-9 gap-0 px-2",
+              )}
+            >
+              <button
+                ref={searchTriggerRef}
+                type="button"
+                aria-label="Search"
+                onClick={activateSearch}
+                className="flex size-5 shrink-0 cursor-pointer items-center justify-center text-muted-foreground"
+              >
+                <RiSearchLine className="size-5" aria-hidden />
+              </button>
+              <input
+                ref={searchInputRef}
+                type="search"
+                aria-label="Filter template navigation"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") {
+                    event.preventDefault();
+                    deactivateSearch(true);
+                  }
+                }}
+                placeholder="Search..."
+                tabIndex={searchActive ? 0 : -1}
+                className={cn(
+                  "min-w-0 bg-transparent text-body-medium tracking-[-0.015em] text-foreground outline-none placeholder:text-muted-foreground",
+                  "transition-[width,opacity] duration-200 ease-in-out",
+                  searchActive
+                    ? "w-full flex-1 opacity-100 delay-100"
+                    : "pointer-events-none w-0 flex-none opacity-0 delay-0",
+                )}
+              />
+              <CloseButton
+                size="2xs"
+                aria-label="Clear navigation search"
+                onClick={() => deactivateSearch(true)}
+                className={cn(
+                  "shrink-0 bg-sidebar-accent transition-opacity duration-150",
+                  searchActive ? "opacity-100 delay-150" : "pointer-events-none opacity-0 delay-0",
+                )}
+              />
+            </div>
+          ) : mobile ? (
+            <button
+              type="button"
+              aria-label="Close sidebar"
+              onClick={onClose}
+              className="cursor-pointer text-muted-foreground"
+            >
+              <RiCloseLine className="size-5" aria-hidden />
+            </button>
+          ) : (
+            <button
+              type="button"
+              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              aria-expanded={!collapsed}
+              onClick={() => {
+                const isExpanding = collapsedState;
+                if (!isExpanding) deactivateSearch(false);
+                setCollapsed(!collapsedState);
+                setSuppressUserHover(isExpanding);
+              }}
+              className={cn(
+                "cursor-pointer text-muted-foreground transition-transform duration-300 ease-in-out",
+                collapsed && "flex w-9 items-center justify-center",
+              )}
+            >
+              <RiSideBarFill
+                className={cn("size-5 transition-transform duration-300 ease-in-out", !collapsed && "-scale-x-100")}
+                aria-hidden
+              />
+            </button>
+          )}
+        </div>
+
+        <div className={cn("flex w-full flex-col gap-3", collapsed && "items-center")}>
+          {/* Quick search */}
+          {!flat && (searchActive && !collapsed ? (
+            <div
+              ref={searchFieldRef}
+              className="flex w-full items-center gap-2 rounded-full bg-sidebar-accent py-2 pr-2.5 pl-2 ring-2 ring-inset ring-sidebar-ring transition-[background-color,box-shadow] duration-[var(--input-transition-ms)] ease"
+            >
+              <RiSearchLine className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+              <input
+                ref={searchInputRef}
+                type="search"
+                aria-label="Filter template navigation"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") {
+                    event.preventDefault();
+                    deactivateSearch(true);
+                  }
+                }}
+                placeholder="Search navigation…"
+                className="min-w-0 flex-1 bg-transparent text-body-medium text-foreground outline-none placeholder:text-muted-foreground"
+              />
+              <CloseButton
+                size="2xs"
+                aria-label="Clear navigation search"
+                onClick={() => deactivateSearch(true)}
+                className="bg-sidebar-accent"
+              />
+            </div>
+          ) : (
+            <button
+              ref={searchTriggerRef}
+              type="button"
+              aria-label="Search"
+              title={collapsed ? "Search" : undefined}
+              onClick={activateSearch}
+              className={cn(
+                "flex cursor-pointer items-center hover:bg-sidebar-accent/70",
+                "transition-[width,border-radius,background-color] duration-300 ease-in-out",
+                collapsed
+                  ? "size-9 justify-center gap-0 rounded-full bg-sidebar-accent p-0"
+                  : "w-full gap-2 rounded-full bg-sidebar-accent px-2 py-1.5",
+              )}
+            >
+              <span
+                className={cn(
+                  "flex min-w-0 items-center gap-2",
+                  collapsed ? "gap-0" : "flex-1",
+                )}
+              >
+                <RiSearchLine className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+                <Collapsible collapsed={collapsed}>
+                  <span className="whitespace-nowrap text-sm leading-6 font-medium text-muted-foreground">
+                    Search
+                  </span>
+                </Collapsible>
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+        {/* Primary nav scroller — the only scroll region in the rail. The
+            header (switcher + search) above and the footer below stay pinned
+            while this scrolls. `overflow-y: auto` forces the x axis to clip
+            too, so padding moves the clip edge out and the matching negative
+            margin borrows that space back from the rail's own padding,
+            leaving every child exactly where it was (this keeps the selected
+            item's 1px ring and focus rings unclipped). */}
+        <div
+          className="-mx-2 flex min-h-0 w-[calc(100%+1rem)] flex-1 flex-col overflow-y-auto px-2 py-2 [scrollbar-width:none]"
+        >
+          {/* Primary nav. The 2px inset is for the expanded rail only: the
+              collapsed column is exactly as wide as a 36px item, so padding
+              here pushes every item 2px right and the rail's own clip shaves
+              that much off its selected fill and hover state. */}
+          <nav
+            aria-label="Primary"
+            className={cn("flex w-full flex-col gap-1", collapsed ? "items-center" : "px-0.5")}
+          >
+            {groups && groups.length > 0 ? (
+              <GroupedNavRows
+                groups={groups}
+                query={normalizedQuery}
+                selected={selected}
+                collapsed={collapsed}
+                secondaryMatch={secondaryMatch}
+              />
+            ) : (
+              <NavRows
+                items={items}
+                query={normalizedQuery}
+                selected={selected}
+                collapsed={collapsed}
+                secondaryMatch={secondaryMatch}
+              />
+            )}
+          </nav>
+        </div>
+
+      <div className={cn("flex w-full shrink-0 flex-col gap-3", collapsed && "items-center")}>
+        {showThemeToggle &&
+          (collapsed ? (
+            <ThemeToggle collapsed />
+          ) : (
+            <ThemeToggle
+              appearance="sidebar-segmented"
+              className={flat ? "!bg-sidebar-accent" : undefined}
+            />
+          ))}
+        {/* Secondary nav */}
+        {hideSecondaryNav ? null : (
+          <nav className={cn("flex w-full flex-col gap-1", collapsed && "items-center")}>
+            {matches("Support") && (
+              <NavItem
+                icon={RiCustomerServiceLine}
+                label="Support"
+                collapsed={collapsed}
+                href={supportHref}
+              />
+            )}
+            {matches("Settings") &&
+              (settingsHref ? (
+                <NavItem
+                  icon={RiSettings4Line}
+                  label="Settings"
+                  collapsed={collapsed}
+                  href={settingsHref}
+                />
+              ) : (
+                <NavItem
+                  icon={RiSettings4Line}
+                  label="Settings"
+                  collapsed={collapsed}
+                  onClick={() => setSettingsOpen(true)}
+                />
+              ))}
+          </nav>
+        )}
+
+        {/* Team card → opens the profile menu next to the sidebar. Stays
+            mounted when collapsed: expanded-only rows hide via
+            `group-data-[collapsed=true]/sidebar`, avatar-only collapsed
+            triggers do the reverse. */}
+        {bottomSlot ? (
+          <div className={cn("w-full min-w-0", collapsed && "flex w-9 justify-center")}>
+            {bottomSlot}
+          </div>
+        ) : (
+          <DashboardTeamMenu
+            collapsed={collapsed}
+            className={flat ? "!bg-sidebar-accent" : undefined}
+          />
+        )}
+      </div>
+
+      <SettingsModal
+        isOpen={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        planArtSrc="/templates/settings-plan-art.png"
+      />
+    </aside>
+  );
+}

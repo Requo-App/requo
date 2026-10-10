@@ -122,3 +122,59 @@ export function exitIfOffenders(
   printOffenders(auditName, offenders);
   if (offenders.length > 0) process.exit(1);
 }
+
+/**
+ * Design-system-owned files exempt from micro-geometry audits: the shadcn
+ * primitives plus the 1:1 shadcn recreations of the former BoardUI system
+ * (same geometry, now under components/shared/).
+ */
+const DESIGN_SYSTEM_SHARED_FILES = new Set([
+  "agent-thinking.tsx",
+  "avatar.tsx",
+  "badge.tsx",
+  "breadcrumb.tsx",
+  "button.tsx",
+  "checkbox-glyph.tsx",
+  "checkbox.tsx",
+  "chevrons.tsx",
+  "chip.tsx",
+  "close-button.tsx",
+  "dashboard-sidebar.tsx",
+  "dashboard-team-menu.tsx",
+  "dashboard-user-menu.tsx",
+  "date-picker-shared.tsx",
+  "date-picker.tsx",
+  "dropdown-menu-styles.ts",
+  "dropdown.tsx",
+  "file-upload.tsx",
+  "hint-text.tsx",
+  "icon-button.tsx",
+  "input.tsx",
+  "label.tsx",
+  "notification-toaster.tsx",
+  "notification.tsx",
+  "notify.ts",
+  "pagination.tsx",
+  "pill-tab.tsx",
+  "plan-art-flame.tsx",
+  "select.tsx",
+  "settings-general.tsx",
+  "settings-modal.tsx",
+  "settings-profile.tsx",
+  "settings-rows.tsx",
+  "settings-storage.tsx",
+  "settings-tools.tsx",
+  "stat-cards.tsx",
+  "switch.tsx",
+  "tabs.tsx",
+  "theme-toggle.tsx",
+  "tooltip.tsx",
+]);
+
+export function isDesignSystemFile(rel: string): boolean {
+  const normalized = rel.replace(/\\/g, "/");
+  if (normalized.startsWith("components/ui/")) return true;
+  if (!normalized.startsWith("components/shared/")) return false;
+  const base = normalized.slice("components/shared/".length);
+  return !base.includes("/") && DESIGN_SYSTEM_SHARED_FILES.has(base);
+}

@@ -15,6 +15,8 @@
 import fs from "node:fs";
 import path from "node:path";
 
+import { isDesignSystemFile } from "./audit-lib";
+
 const ROOT = process.cwd();
 const SCAN_DIRS = [path.join(ROOT, "app"), path.join(ROOT, "components")];
 
@@ -29,11 +31,12 @@ const SKIP_FILE_PATTERNS = [
   /[/\\]seo[/\\]social-preview-image\.tsx$/,
 ];
 
-/** BoardUI-installed component trees are source-owned design-system code; their
- *  internal markup (registry-packaged SVG icons, WebGL fallbacks) follows the
- *  BoardUI Figma source and is exempt like the email/og-image modules above. */
+/** Design-system-owned files are exempt like the email/og-image modules above. */
 function isBoardUiTree(file: string): boolean {
+  // Transitional: the legacy trees still exist until the follow-up migration
+  // commit removes them; keep their exemptions alongside the shared allowlist.
   return (
+    isDesignSystemFile(path.relative(ROOT, file)) ||
     file.includes("components" + path.sep + "base" + path.sep) ||
     file.includes("components" + path.sep + "application" + path.sep)
   );
