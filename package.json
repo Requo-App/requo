@@ -41,7 +41,7 @@
     "test:unit": "vitest run tests/unit/",
     "test:components": "vitest run tests/components/",
     "test:e2e": "npm run test:e2e:full",
-    "test:e2e:smoke": "node scripts/test/check-db-if-local.mjs && playwright test --grep \"@smoke\"",
+    "test:e2e:smoke": "node scripts/test/check-db.mjs --if-local && playwright test --grep \"@smoke\"",
     "test:e2e:full": "playwright test",
     "screenshots": "playwright test --config playwright.screenshots.config.ts",
     "db:generate": "drizzle-kit generate",

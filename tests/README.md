@@ -101,7 +101,7 @@ Unit, component, integration, and local smoke runs all complete successfully wit
 
 ### Required only for local integration and e2e against a live database
 
-`DATABASE_URL` must point at a reachable Postgres instance. `npm run test:integration` and the local path of `npm run test:e2e:smoke` both short-circuit through `scripts/test/check-db.mjs` (integration) and `scripts/test/check-db-if-local.mjs` (smoke), which exit non-zero with a message naming `DATABASE_URL` when the host is unreachable within 10 seconds.
+`DATABASE_URL` must point at a reachable Postgres instance. `npm run test:integration` and the local path of `npm run test:e2e:smoke` both short-circuit through `scripts/test/check-db.mjs` (integration) and `scripts/test/check-db.mjs` (smoke uses `--if-local`), which exit non-zero with a message naming `DATABASE_URL` when the host is unreachable within 10 seconds.
 
 ### Required only for demo seeding (`npm run db:seed`)
 
@@ -109,7 +109,7 @@ The development seed reads `DATABASE_URL` and the normal application environment
 
 ### Optional for Playwright preview runs
 
-- `PLAYWRIGHT_BASE_URL` — when set, Playwright uses it as the `baseURL`, skips the local `webServer` block, and skips the migrate/seed step. `scripts/test/check-db-if-local.mjs` also short-circuits to exit 0 so preview runs do not require a local Postgres.
+- `PLAYWRIGHT_BASE_URL` — when set, Playwright uses it as the `baseURL`, skips the local `webServer` block, and skips the migrate/seed step. `scripts/test/check-db.mjs --if-local` also short-circuits to exit 0 so preview runs do not require a local Postgres.
 
 ## Structural guards
 

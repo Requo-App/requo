@@ -14,6 +14,15 @@ import { createConnection } from "node:net";
 const TIMEOUT_MS = 10_000;
 const SUPPORTED_PROTOCOLS = new Set(["postgres:", "postgresql:"]);
 
+// `--if-local`: skip when PLAYWRIGHT_BASE_URL targets a deployed env
+// (local Postgres guard does not apply to preview runs).
+if (
+  process.argv.includes("--if-local") &&
+  process.env.PLAYWRIGHT_BASE_URL?.trim()
+) {
+  process.exit(0);
+}
+
 /**
  * @param {string} message
  */
