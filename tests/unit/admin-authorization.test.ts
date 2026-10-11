@@ -2,10 +2,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
   const dbRows: Array<{ role: string | null; banned: boolean }> = [];
+  const limit = vi.fn(async () => dbRows);
   const select = vi.fn(() => ({
     from: () => ({
       where: () => ({
-        limit: async () => dbRows,
+        limit,
       }),
     }),
   }));
@@ -15,6 +16,7 @@ const mocks = vi.hoisted(() => {
     redirectMock: vi.fn(),
     dbRows,
     selectMock: select,
+    limitMock: limit,
   };
 });
 
@@ -62,6 +64,7 @@ const {
   redirectMock,
   dbRows,
   selectMock,
+  limitMock,
 } = mocks;
 
 const adminUser = {
@@ -191,6 +194,39 @@ describe("features/admin/access requireAdminUser", () => {
 
     await expect(requireAdminUser()).rejects.toThrow("NEXT_FORBIDDEN");
     expect(forbiddenMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuses a banned administrator without a database lookup", async () => {
+    // Regression: the role fast path used to return before checking the
+    // ban, admitting a banned admin while the session still carried the
+    // admin role.
+    getOptionalSessionMock.mockResolvedValue(
+      makeSession({ ...adminUser, banned: true }),
+    );
+
+    await expect(requireAdminUser()).rejects.toThrow("NEXT_FORBIDDEN");
+    expect(forbiddenMock).toHaveBeenCalledTimes(1);
+    expect(selectMock).not.toHaveBeenCalled();
+  });
+
+  it("refuses a demoted administrator whose database row agrees", async () => {
+    getOptionalSessionMock.mockResolvedValue(
+      makeSession({ ...memberUser, role: "user" }),
+    );
+    setDbRows([{ role: "user", banned: false }]);
+
+    await expect(requireAdminUser()).rejects.toThrow("NEXT_FORBIDDEN");
+    expect(forbiddenMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("grants nothing when the eligibility lookup itself fails", async () => {
+    getOptionalSessionMock.mockResolvedValue(
+      makeSession({ ...memberUser, role: null }),
+    );
+    limitMock.mockRejectedValueOnce(new Error("connect ECONNREFUSED"));
+
+    await expect(requireAdminUser()).rejects.toThrow("connect ECONNREFUSED");
+    expect(forbiddenMock).not.toHaveBeenCalled();
   });
 });
 

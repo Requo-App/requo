@@ -9,7 +9,7 @@ import {
   extractLastName,
   isSingleTokenName,
 } from "@/features/account/name";
-import { getAccountProfileForUser } from "@/features/account/queries";
+import { getAccountProfileForUser, hasGoogleAccountLinked } from "@/features/account/queries";
 import { isSupportedBusinessCountryCode } from "@/features/businesses/locale";
 import { dashboardPath } from "@/features/businesses/routes";
 import { completeOnboardingAction } from "@/features/onboarding/actions";
@@ -65,21 +65,7 @@ async function OnboardingPageContent() {
         getUiScalePreferenceForUser(session.user.id),
         getBusinessMembershipsForUser(session.user.id),
         getAccountProfileForUser(session.user.id),
-        import("@/lib/db/client").then(({ db }) =>
-          import("@/lib/db/schema").then(({ account }) =>
-            import("drizzle-orm").then(({ eq }) =>
-              db
-                .select({ providerId: account.providerId })
-                .from(account)
-                .where(eq(account.userId, session.user.id))
-                .limit(10)
-                .then((rows) =>
-                  rows.some((row) => row.providerId === "google"),
-                )
-                .catch(() => false),
-            ),
-          ),
-        ),
+        hasGoogleAccountLinked(session.user.id),
       ]),
     );
 
