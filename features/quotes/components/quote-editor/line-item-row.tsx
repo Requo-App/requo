@@ -111,7 +111,7 @@ export function LineItemCard({
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.6 : 1,
+    opacity: isDragging ? 0.95 : 1,
     zIndex: isDragging ? 10 : undefined,
   };
 
@@ -120,7 +120,8 @@ export function LineItemCard({
       ref={setNodeRef}
       style={style}
       className={cn(
-        "group/line-item rounded-lg border border-border/60 bg-background px-3 py-2.5 transition-colors hover:border-border",
+        "group/line-item rounded-lg border border-border/60 bg-background px-3 py-2.5 transition-[border-color,box-shadow,background-color] duration-150 hover:border-border",
+        isDragging && "border-primary/40 shadow-[var(--overlay-surface-shadow)]",
         item.isAiGenerated && "ai-glow-border",
       )}
     >

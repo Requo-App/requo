@@ -1,4 +1,4 @@
-import type { MotionState } from "@/hooks/use-animated-list";
+import type { ItemRefCallback, MotionState } from "@/hooks/use-animated-list";
 import { MobileRecordRow } from "@/components/shared/mobile-record-row";
 import { InvoiceStatusBadge } from "@/features/invoices/components/invoice-status-badge";
 import { formatQuoteMoney } from "@/features/invoices/utils";
@@ -12,6 +12,7 @@ type InvoiceListCardsProps = {
   isAtLimit?: boolean;
   onToggle?: (id: string) => void;
   getMotionState?: (id: string) => MotionState;
+  getItemRef?: ItemRefCallback;
 };
 
 export function InvoiceListCards({
@@ -21,6 +22,7 @@ export function InvoiceListCards({
   isAtLimit,
   onToggle,
   getMotionState,
+  getItemRef,
 }: InvoiceListCardsProps) {
   return (
     <div className="flex flex-col gap-2.5 p-4 xl:hidden">
@@ -37,6 +39,7 @@ export function InvoiceListCards({
             isSelectionDisabled={disabled}
             onToggleSelect={onToggle}
             motionState={getMotionState?.(invoice.id)}
+            itemRef={getItemRef?.(invoice.id)}
             title={
               <span className="truncate">
                 {invoice.invoiceNumber} <span className="text-muted-foreground font-normal">· {invoice.title}</span>

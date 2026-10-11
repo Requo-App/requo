@@ -54,7 +54,7 @@ export function QuoteListResultsClient({
     [displayPage, effectiveCachedPages],
   );
 
-  const { items: quotes, getMotionState, removeItems } = useAnimatedList(quotesFromCache);
+  const { items: quotes, getMotionState, getItemRef, removeItems } = useAnimatedList(quotesFromCache);
   const cachedPageNumbers = useMemo(
     () =>
       Object.keys(effectiveCachedPages)
@@ -130,6 +130,7 @@ export function QuoteListResultsClient({
         isAtLimit={isAtLimit}
         onToggle={toggle}
         getMotionState={getMotionState}
+        getItemRef={getItemRef}
       />
       <QuoteListTable
         quotes={quotes}
@@ -140,6 +141,7 @@ export function QuoteListResultsClient({
         allOnPageSelected={allOnPageSelected}
         onSelectAllOnPage={handleSelectAllOnPage}
         getMotionState={getMotionState}
+        getItemRef={getItemRef}
       />
       <DataListPagination
         cachedPages={cachedPageNumbers}

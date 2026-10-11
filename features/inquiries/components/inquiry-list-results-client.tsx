@@ -95,6 +95,7 @@ export function InquiryListResultsClient({
   const {
     items: inquiries,
     getMotionState,
+    getItemRef,
     removeItems,
   } = useAnimatedList(effectiveInquiriesFromCache);
 
@@ -172,6 +173,7 @@ export function InquiryListResultsClient({
         isAtLimit={isAtLimit}
         onToggle={toggle}
         getMotionState={getMotionState}
+        getItemRef={getItemRef}
       />
       <InquiryListTable
         inquiries={inquiries}
@@ -182,6 +184,7 @@ export function InquiryListResultsClient({
         allOnPageSelected={allOnPageSelected}
         onSelectAllOnPage={handleSelectAllOnPage}
         getMotionState={getMotionState}
+        getItemRef={getItemRef}
       />
       <DataListPagination
         cachedPages={cachedPageNumbers}

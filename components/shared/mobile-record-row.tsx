@@ -19,6 +19,7 @@ export type MobileRecordRowProps = {
   isSelectionDisabled?: boolean;
   onToggleSelect?: (id: string) => void;
   motionState?: MotionState;
+  itemRef?: (node: HTMLElement | null) => void;
   className?: string;
 };
 
@@ -38,12 +39,14 @@ export function MobileRecordRow({
   isSelectionDisabled = false,
   onToggleSelect,
   motionState,
+  itemRef,
   className,
 }: MobileRecordRowProps) {
   const hasCheckbox = Boolean(onToggleSelect);
 
   return (
     <div
+      ref={itemRef}
       className={cn(
         "motion-list-item relative flex items-stretch rounded-xl border border-border/80 bg-background shadow-xs transition-colors hover:border-border hover:bg-accent/20 active:bg-accent/30",
         isSelected && "border-primary/40 bg-primary/5",

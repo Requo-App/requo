@@ -409,7 +409,7 @@ export function DashboardUserMenu({
               <span className="flex min-w-0 flex-1 items-center gap-2">
                 <Avatar className="rounded-full border-0 bg-transparent">
                   {user.avatarSrc ? (
-                    <AvatarImage alt={`${displayName} avatar`} src={user.avatarSrc} loading="eager" decoding="async" fetchPriority="high" />
+                    <AvatarImage alt={`${displayName} avatar`} src={user.avatarSrc} loading="lazy" decoding="async" fetchPriority="low" />
                   ) : null}
                   <AvatarFallback className="border-0 bg-transparent text-foreground">
                     {getInitials(displayName)}
@@ -437,7 +437,7 @@ export function DashboardUserMenu({
               <div className="flex items-center gap-3">
                 <Avatar className="rounded-lg">
                   {user.avatarSrc ? (
-                    <AvatarImage alt={`${displayName} avatar`} src={user.avatarSrc} loading="eager" decoding="async" fetchPriority="high" />
+                    <AvatarImage alt={`${displayName} avatar`} src={user.avatarSrc} loading="lazy" decoding="async" fetchPriority="low" />
                   ) : null}
                   <AvatarFallback className="rounded-lg">
                     {getInitials(displayName)}
@@ -796,7 +796,7 @@ export function MobileUserMenu({
         >
           <Avatar className="size-8 rounded-lg">
             {user.avatarSrc ? (
-              <AvatarImage alt={`${displayName} avatar`} src={user.avatarSrc} loading="eager" decoding="async" fetchPriority="high" />
+              <AvatarImage alt={`${displayName} avatar`} src={user.avatarSrc} loading="lazy" decoding="async" fetchPriority="low" />
             ) : null}
             <AvatarFallback className="rounded-lg text-xs">
               {getInitials(displayName)}
@@ -812,7 +812,7 @@ export function MobileUserMenu({
           <div className="flex items-center gap-3">
             <Avatar className="rounded-lg">
               {user.avatarSrc ? (
-                <AvatarImage alt={`${displayName} avatar`} src={user.avatarSrc} loading="eager" decoding="async" fetchPriority="high" />
+                <AvatarImage alt={`${displayName} avatar`} src={user.avatarSrc} loading="lazy" decoding="async" fetchPriority="low" />
               ) : null}
               <AvatarFallback className="rounded-lg">
                 {getInitials(displayName)}

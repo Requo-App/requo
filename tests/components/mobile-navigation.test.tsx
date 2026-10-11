@@ -279,6 +279,29 @@ describe("MobileFullscreenNav", () => {
     ).toBeDefined();
   });
 
+  it("dismisses on Escape and reports its open state", async () => {
+    const user = userEvent.setup();
+    const onOpenChange = vi.fn();
+    render(
+      <MobileFullscreenNav
+        open={true}
+        onOpenChange={onOpenChange}
+        businessSlug="demo"
+        variant="main"
+      />,
+    );
+
+    const dialog = screen.getByRole("dialog", {
+      name: "Workspace navigation",
+    });
+    await waitFor(() => {
+      expect(dialog.getAttribute("data-state")).toBe("open");
+    });
+
+    await user.keyboard("{Escape}");
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
   it("strips theme chrome from the settings nav", () => {
     render(
       <MobileFullscreenNav

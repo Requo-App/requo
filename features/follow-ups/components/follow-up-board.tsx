@@ -2,6 +2,7 @@
 
 import {
   useCallback,
+  useEffect,
   useMemo,
   useOptimistic,
   useRef,
@@ -24,6 +25,7 @@ import {
   Sunrise,
 } from "lucide-react";
 import { useProgressiveReveal } from "@/hooks/use-progressive-reveal";
+import { LIST_EXIT_MS, useListFlip } from "@/hooks/use-animated-list";
 
 import { OptimisticPendingIndicator } from "@/components/shared/optimistic-pending-indicator";
 import { Badge } from "@/components/ui/badge";
@@ -53,6 +55,7 @@ import type { QuoteStatus } from "@/features/quotes/types";
 import { quoteStatuses } from "@/features/quotes/types";
 import {
   formatFollowUpDate,
+  formatQuoteAmount,
   getFollowUpChannelLabel,
   followUpRecurrenceLabels,
 } from "@/features/follow-ups/utils";
@@ -97,23 +100,6 @@ type BoardColumnKey = keyof BoardColumns;
 type BoardAction =
   | { type: "remove"; id: string }
   | { type: "restore"; followUp: FollowUpView; column: BoardColumnKey };
-
-function formatQuoteAmount(totalInCents: number | null, currency: string | null) {
-  if (totalInCents === null || totalInCents === undefined) {
-    return null;
-  }
-
-  try {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: currency || "USD",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(totalInCents / 100);
-  } catch {
-    return `${(totalInCents / 100).toFixed(0)}`;
-  }
-}
 
 const columns = [  {
     key: "overdue" as const,
@@ -205,7 +191,17 @@ export function FollowUpBoard({
   const [selectedFollowUp, setSelectedFollowUp] = useState<FollowUpView | null>(null);
 
   const exitingIds = useRef(new Set<string>());
+  const exitTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
   const [, forceRender] = useState(0);
+  const { getItemRef, bumpFlip } = useListFlip();
+
+  useEffect(() => {
+    const timers = exitTimers.current;
+    return () => {
+      for (const timer of timers.values()) clearTimeout(timer);
+      timers.clear();
+    };
+  }, []);
 
   const getMotionState = useCallback((id: string) => {
     if (exitingIds.current.has(id)) return "exiting" as const;
@@ -221,17 +217,21 @@ export function FollowUpBoard({
 
       const { followUp, column } = located;
 
+      const prev = exitTimers.current.get(id);
+      if (prev) clearTimeout(prev);
+
       exitingIds.current.add(id);
       forceRender((n) => n + 1);
 
-      // Keep EXIT_DURATION_MS in sync with the motion-list-item exit animation.
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         exitingIds.current.delete(id);
+        exitTimers.current.delete(id);
         forceRender((n) => n + 1);
 
         startTransition(() => {
           setOptimisticBoard({ type: "remove", id });
         });
+        bumpFlip();
 
         if (!mutation) {
           return;
@@ -247,9 +247,11 @@ export function FollowUpBoard({
           mutation,
           pendingKey: id,
         });
-      }, 280);
+      }, LIST_EXIT_MS);
+
+      exitTimers.current.set(id, timer);
     },
-    [optimisticBoard, runMutation, setOptimisticBoard, startTransition],
+    [optimisticBoard, runMutation, setOptimisticBoard, startTransition, bumpFlip],
   );
 
   return (
@@ -286,6 +288,7 @@ export function FollowUpBoard({
               autoSequences={column.key === "upcoming" ? autoSequences : []}
               onSelect={setSelectedFollowUp}
               getMotionState={getMotionState}
+              getItemRef={getItemRef}
               onOptimisticRemove={optimisticRemove}
               isPendingKey={isPendingKey}
             />
@@ -311,6 +314,7 @@ function FollowUpColumn({
   autoSequences,
   onSelect,
   getMotionState,
+  getItemRef,
   onOptimisticRemove,
   isPendingKey,
 }: {
@@ -320,6 +324,7 @@ function FollowUpColumn({
   autoSequences: AutoSequenceItem[];
   onSelect: (followUp: FollowUpView) => void;
   getMotionState: (id: string) => "exiting" | undefined;
+  getItemRef: (id: string) => (node: HTMLElement | null) => void;
   onOptimisticRemove: (
     id: string,
     mutation?: () => Promise<OptimisticActionResult>,
@@ -365,6 +370,7 @@ function FollowUpColumn({
             followUp={followUp}
             onSelect={onSelect}
             motionState={getMotionState(followUp.id)}
+            itemRef={getItemRef(followUp.id)}
             onOptimisticRemove={onOptimisticRemove}
             isPendingKey={isPendingKey}
           />
@@ -432,12 +438,14 @@ function FollowUpCard({
   followUp,
   onSelect,
   motionState,
+  itemRef,
   onOptimisticRemove,
   isPendingKey,
 }: {
   followUp: FollowUpView;
   onSelect: (followUp: FollowUpView) => void;
   motionState?: "exiting";
+  itemRef?: (node: HTMLElement | null) => void;
   onOptimisticRemove: (
     id: string,
     mutation?: () => Promise<OptimisticActionResult>,
@@ -466,6 +474,7 @@ function FollowUpCard({
 
   return (
     <div
+      ref={itemRef}
       role="button"
       tabIndex={0}
       onClick={() => onSelect(followUp)}

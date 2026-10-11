@@ -100,7 +100,7 @@ function SheetOverlay({
       data-state={open ? "open" : "closed"}
       data-slot="sheet-overlay"
       className={cn(
-        "modal-backdrop modal-layer-overlay fixed inset-0 pointer-events-auto duration-100 fill-mode-forwards data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+        "modal-backdrop modal-layer-overlay fixed inset-0 pointer-events-auto duration-150 fill-mode-forwards data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
         !open && "pointer-events-none",
         className
       )}

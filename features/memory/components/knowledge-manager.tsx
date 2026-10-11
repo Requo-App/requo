@@ -232,7 +232,7 @@ export function KnowledgeManager({
     return allEntries.filter((e) => e.kind === filter);
   }, [allEntries, filter]);
 
-  const { items: animatedFiltered, getMotionState, removeItem } =
+  const { items: animatedFiltered, getMotionState, getItemRef, removeItem } =
     useAnimatedList(filtered);
 
   return (
@@ -304,6 +304,7 @@ export function KnowledgeManager({
                 entry={entry}
                 key={entry.id}
                 motionState={getMotionState(entry.id)}
+                itemRef={getItemRef(entry.id)}
                 onDelete={() => setDeleteTarget(entry)}
                 onEdit={() => {
                   if (entry.kind === "memory") {
@@ -407,12 +408,14 @@ function StatCard({
 function KnowledgeEntryRow({
   entry,
   motionState,
+  itemRef,
   onDelete,
   onEdit,
   retryAction,
 }: {
   entry: UnifiedKnowledgeEntry;
   motionState?: MotionState;
+  itemRef?: (node: HTMLElement | null) => void;
   onDelete: () => void;
   onEdit: () => void;
   retryAction: (fileId: string) => Promise<KnowledgeFileActionState>;
@@ -443,6 +446,7 @@ function KnowledgeEntryRow({
 
   return (
     <div
+      ref={itemRef}
       className="motion-list-item group flex items-start gap-3 px-4 py-3.5 transition-colors hover:bg-muted/20 sm:items-center sm:gap-4 sm:px-5 sm:py-4"
       data-motion-state={motionState}
     >

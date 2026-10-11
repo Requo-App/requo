@@ -1,12 +1,13 @@
 "use client";
 
-import { type ReactNode, useEffect } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 
 import { BoarduiMainSidebar } from "@/components/shell/boardui-main-sidebar";
 import { BoarduiSettingsSidebar } from "@/features/settings/components/boardui-settings-sidebar";
 import type { SettingsNavigationGroup } from "@/features/settings/navigation";
 import type { BusinessMemberRole } from "@/lib/business-members";
+import { cn } from "@/lib/utils";
 
 export type MobileFullscreenNavProps = {
   open: boolean;
@@ -45,26 +46,77 @@ export function MobileFullscreenNav({
   onQuickSearch,
 }: MobileFullscreenNavProps) {
   const pathname = usePathname();
+  const panelRef = useRef<HTMLDivElement>(null);
+  const restoreFocusRef = useRef<HTMLElement | null>(null);
+  // Two-phase mount so open plays a 240ms slide while route-change closes
+  // stay instant (the pathname effect below unmounts without animating).
+  const [mounted, setMounted] = useState(open);
+  const [visible, setVisible] = useState(false);
+  const unmountTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const rafIds = useRef<number[]>([]);
 
   useEffect(() => {
-    if (!open) {
+    if (open) {
+      if (unmountTimer.current) clearTimeout(unmountTimer.current);
+      restoreFocusRef.current =
+        document.activeElement instanceof HTMLElement
+          ? document.activeElement
+          : null;
+      setMounted(true);
+      rafIds.current.push(
+        requestAnimationFrame(() =>
+          rafIds.current.push(requestAnimationFrame(() => setVisible(true))),
+        ),
+      );
+    } else if (mounted) {
+      // Dismissal: quick 180ms slide-out before unmount.
+      setVisible(false);
+      unmountTimer.current = setTimeout(() => setMounted(false), 200);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mounted is write-only here
+  }, [open ]);
+
+  useEffect(() => {
+    if (!mounted) {
       return;
     }
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         onOpenChange(false);
+        return;
+      }
+      if (event.key !== "Tab" || !panelRef.current) return;
+      const focusable = panelRef.current.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])',
+      );
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
       }
     };
     document.addEventListener("keydown", onKey);
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    panelRef.current?.focus();
+    const restoreTarget = restoreFocusRef.current;
     return () => {
+      for (const id of rafIds.current) cancelAnimationFrame(id);
+      rafIds.current = [];
+      if (unmountTimer.current) clearTimeout(unmountTimer.current);
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = previousOverflow;
+      restoreTarget?.focus?.();
     };
-  }, [open, onOpenChange]);
+  }, [mounted, onOpenChange]);
 
-  // Close the overlay on successful navigation.
+  // Close the overlay on successful navigation — instantly, so stale
+  // navigation never animates over the destination.
   useEffect(() => {
     if (open) {
       onOpenChange(false);
@@ -72,7 +124,7 @@ export function MobileFullscreenNav({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
-  if (!open) {
+  if (!mounted) {
     return null;
   }
 
@@ -92,10 +144,19 @@ export function MobileFullscreenNav({
 
   return (
     <div
+      ref={panelRef}
       role="dialog"
       aria-modal="true"
+      tabIndex={-1}
       aria-label={variant === "main" ? "Workspace navigation" : "Settings navigation"}
-      className="fixed inset-0 z-50 flex flex-col bg-sidebar lg:hidden"
+      data-state={visible ? "open" : "closed"}
+      className={cn(
+        "fixed inset-0 z-50 flex flex-col bg-sidebar outline-none lg:hidden",
+        "transition-[transform,opacity] ease-[var(--motion-ease-emphasized)]",
+        visible
+          ? "translate-x-0 opacity-100 duration-[240ms]"
+          : "-translate-x-4 pointer-events-none opacity-0 duration-[180ms]",
+      )}
     >
       <div className="h-dvh w-full">
         {variant === "main" ? (

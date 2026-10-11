@@ -38,9 +38,9 @@ import { SettingsTools } from "@/components/shared/settings-tools";
  *   content   px 32 (274 + 32 = 306 title inset), title row fixed,
  *             the page itself scrolls when taller than the shell (General).
  *
- * Open/close animation: the panel fades + blurs in from scale 0.85 (300ms),
- * the backdrop cross-fades; the same transition plays in reverse on close,
- * and the modal unmounts only after the exit transition finishes.
+ * Open/close animation: the panel fades in from scale 0.96 + 8px rise
+ * (200ms), the backdrop cross-fades (150ms); the same transition plays in
+ * reverse on close, and the modal unmounts only after the exit finishes.
  */
 
 export type SettingsPage = "general" | "profile" | "storage" | "tools";
@@ -106,7 +106,7 @@ const PAGE_TITLES: Record<SettingsPage, string> = {
 };
 
 const settingsBackdropVariants = cva(
-  "absolute inset-0 cursor-default bg-black/70 transition-opacity duration-300 ease-out",
+  "absolute inset-0 cursor-default bg-black/70 transition-opacity duration-150 ease-out",
   {
     variants: {
       visible: {
@@ -121,15 +121,12 @@ const settingsBackdropVariants = cva(
 );
 
 const settingsShellVariants = cva(
-  "relative transform-gpu transition-[opacity,transform,filter] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-[opacity,transform,filter]",
+  "relative transform-gpu transition-[opacity,transform] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]",
   {
     variants: {
       visible: {
-        // Kept light on purpose: an 8px blur over the full 871×614 panel
-        // forces a huge re-filter every frame of the scale-down, which is
-        // what made the close stutter. 4px + GPU promotion stays smooth.
-        true: "scale-100 opacity-100 blur-0",
-        false: "scale-[0.85] opacity-0 blur-[4px]",
+        true: "scale-100 translate-y-0 opacity-100",
+        false: "scale-[0.96] translate-y-2 opacity-0",
       },
     },
     defaultVariants: {
@@ -196,14 +193,14 @@ const settingsTopFadeVariants = cva(
 );
 
 const settingsSavedToastVariants = cva(
-  "pointer-events-none absolute bottom-0 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1 rounded-full border border-border bg-card py-1 pr-2.5 pl-1.5 shadow-[var(--overlay-surface-shadow)] transition-[opacity,transform,filter] duration-200 ease-out",
+  "pointer-events-none absolute bottom-0 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1 rounded-full border border-border bg-card py-1 pr-2.5 pl-1.5 shadow-[var(--overlay-surface-shadow)] transition-[opacity,transform] duration-200 ease-out",
   {
     variants: {
       phase: {
-        shown: "translate-y-1/2 opacity-100 scale-100 blur-0",
+        shown: "translate-y-1/2 opacity-100 scale-100",
         // Starts below the resting spot, rises in; keeps drifting up on exit.
-        hidden: "translate-y-[calc(50%+12px)] opacity-0 scale-90 blur-[2px]",
-        leaving: "translate-y-[calc(50%-10px)] opacity-0 scale-90 blur-[2px]",
+        hidden: "translate-y-[calc(50%+12px)] opacity-0 scale-90",
+        leaving: "translate-y-[calc(50%-10px)] opacity-0 scale-90",
       },
     },
     defaultVariants: {
@@ -221,11 +218,13 @@ export function SettingsModal({
   const [page, setPage] = useState<SettingsPage>(defaultPage);
 
   // Mount/visible two-phase state so both the enter and the exit play the
-  // full fade + blur + scale transition before the DOM goes away.
+  // full fade + scale transition before the DOM goes away.
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
   const unmountTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const rafIds = useRef<number[]>([]);
   const panelRef = useRef<HTMLDivElement>(null);
+  const restoreFocusRef = useRef<HTMLElement | null>(null);
 
   // "Saved" toast — floats half-out of the panel's bottom edge for ~2s
   // whenever a profile field commits a change (Enter / blur). Three phases
@@ -251,33 +250,67 @@ export function SettingsModal({
   useEffect(() => {
     if (isOpen) {
       if (unmountTimer.current) clearTimeout(unmountTimer.current);
+      restoreFocusRef.current =
+        document.activeElement instanceof HTMLElement
+          ? document.activeElement
+          : null;
       setPage(defaultPage);
       setMounted(true);
       // Double rAF: the panel must commit its hidden state before the
       // transition to visible starts, or the browser skips the animation.
-      requestAnimationFrame(() => requestAnimationFrame(() => setVisible(true)));
+      rafIds.current.push(
+        requestAnimationFrame(() =>
+          rafIds.current.push(
+            requestAnimationFrame(() => setVisible(true)),
+          ),
+        ),
+      );
     } else {
       setVisible(false);
       setSavedPhase("hidden");
-      unmountTimer.current = setTimeout(() => setMounted(false), 320);
+      unmountTimer.current = setTimeout(() => setMounted(false), 230);
     }
     return () => {
+      for (const id of rafIds.current) cancelAnimationFrame(id);
+      rafIds.current = [];
       if (unmountTimer.current) clearTimeout(unmountTimer.current);
       if (savedTimer.current) clearTimeout(savedTimer.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- defaultPage only matters at the open transition
   }, [isOpen]);
 
-  // Escape closes; focus moves into the dialog on open.
+  // Escape closes; focus moves into the dialog once mounted, traps Tab
+  // inside, and restores focus to the opener on close/unmount.
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || !mounted) return;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") {
+        onClose();
+        return;
+      }
+      if (event.key !== "Tab" || !panelRef.current) return;
+      const focusable = panelRef.current.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])',
+      );
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
     document.addEventListener("keydown", onKeyDown);
     panelRef.current?.focus();
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [isOpen, onClose]);
+    const restoreTarget = restoreFocusRef.current;
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      restoreTarget?.focus?.();
+    };
+  }, [isOpen, mounted, onClose]);
 
   if (!mounted || typeof document === "undefined") return null;
 
@@ -294,9 +327,13 @@ export function SettingsModal({
 
       {/* Animated wrapper — carries the open/close transition for the panel
           AND the saved toast, which straddles the panel's bottom edge and so
-          must live outside the panel's overflow-clip. */}
+          must live outside the panel's overflow-clip. Non-interactive while
+          exiting so closing never leaves an invisible interactive layer. */}
       <div
-        className={settingsShellVariants({ visible })}
+        className={cn(
+          settingsShellVariants({ visible }),
+          !visible && "pointer-events-none",
+        )}
       >
       {/* Panel */}
       <div

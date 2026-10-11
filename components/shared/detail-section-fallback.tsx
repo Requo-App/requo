@@ -50,15 +50,25 @@ export function DetailPageHeaderFallback() {
  * covers the page/identity header, never the whole page. Mirrors the
  * proportions of `DashboardDetailPageSkeleton`'s header so the swap is
  * layout-stable.
+ *
+ * `titleClassName`/`descriptionClassName` exist only so the admin detail
+ * fallback can reuse this exact structure with its own title/description
+ * widths. Defaults preserve the existing shared output.
  */
-export function DetailHeaderFallback() {
+export function DetailHeaderFallback({
+  titleClassName = "h-5 w-full max-w-xl rounded-md sm:h-6",
+  descriptionClassName = "h-4 w-full max-w-2xl rounded-md",
+}: {
+  titleClassName?: string;
+  descriptionClassName?: string;
+} = {}) {
   return (
     <header className="dashboard-detail-header">
       <div className="dashboard-detail-header-copy">
         <div className="flex flex-col gap-2">
           <Skeleton className="h-4 w-24 rounded-md" />
-          <Skeleton className="h-5 w-full max-w-xl rounded-md sm:h-6" />
-          <Skeleton className="h-4 w-full max-w-2xl rounded-md" />
+          <Skeleton className={titleClassName} />
+          <Skeleton className={descriptionClassName} />
         </div>
         <div className="dashboard-detail-header-meta">
           <Skeleton className="h-8 w-28 rounded-full" />

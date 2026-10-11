@@ -28,7 +28,7 @@ export function FollowUpListClient({
   businessSlug,
   members,
 }: FollowUpListClientProps) {
-  const { items: followUps, getMotionState, removeItem, removeItems } = useAnimatedList(initialFollowUps);
+  const { items: followUps, getMotionState, getItemRef, removeItem, removeItems } = useAnimatedList(initialFollowUps);
 
   return (
     <>
@@ -45,6 +45,7 @@ export function FollowUpListClient({
             followUp={followUp}
             members={members}
             motionState={getMotionState(followUp.id)}
+            itemRef={getItemRef(followUp.id)}
             onOptimisticRemove={() => removeItem(followUp.id)}
             completeAction={completeFollowUpAction.bind(null, followUp.id)}
             skipAction={skipFollowUpAction.bind(null, followUp.id)}

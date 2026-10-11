@@ -1,4 +1,4 @@
-import type { MotionState } from "@/hooks/use-animated-list";
+import type { ItemRefCallback, MotionState } from "@/hooks/use-animated-list";
 import { Badge } from "@/components/ui/badge";
 import { MobileRecordRow } from "@/components/shared/mobile-record-row";
 import { QuoteRecordStateBadge } from "@/features/quotes/components/quote-record-state-badge";
@@ -18,6 +18,7 @@ type QuoteListCardsProps = {
   isAtLimit?: boolean;
   onToggle?: (id: string) => void;
   getMotionState?: (id: string) => MotionState;
+  getItemRef?: ItemRefCallback;
 };
 
 export function QuoteListCards({
@@ -27,6 +28,7 @@ export function QuoteListCards({
   isAtLimit,
   onToggle,
   getMotionState,
+  getItemRef,
 }: QuoteListCardsProps) {
   return (
     <div className="flex flex-col gap-2.5 p-4 xl:hidden">
@@ -47,6 +49,7 @@ export function QuoteListCards({
             isSelectionDisabled={disabled}
             onToggleSelect={onToggle}
             motionState={getMotionState?.(quote.id)}
+            itemRef={getItemRef?.(quote.id)}
             title={
               <span className="truncate">
                 {quote.quoteNumber} <span className="text-muted-foreground font-normal">· {quote.title}</span>

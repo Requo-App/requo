@@ -56,6 +56,7 @@ import type {
 } from "@/features/follow-ups/types";
 import {
   formatFollowUpDate,
+  formatQuoteAmount,
   getFollowUpChannelLabel,
   followUpRecurrenceLabels,
   followUpTerminationConditionLabels,
@@ -97,23 +98,6 @@ function ChannelIcon({
   }
 }
 
-function formatQuoteAmount(totalInCents: number | null, currency: string | null) {
-  if (totalInCents === null || totalInCents === undefined) {
-    return null;
-  }
-
-  try {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: currency || "USD",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(totalInCents / 100);
-  } catch {
-    return `${(totalInCents / 100).toFixed(0)}`;
-  }
-}
-
 type FollowUpItemProps = {
   businessSlug: string;
   businessName?: string;
@@ -124,6 +108,7 @@ type FollowUpItemProps = {
   showMessage?: boolean;
   aiTone?: "balanced" | "warm" | "direct" | "formal";
   motionState?: MotionState;
+  itemRef?: (node: HTMLElement | null) => void;
   onOptimisticRemove?: () => void;
   completeAction?: (
     state: FollowUpCompleteActionState,
@@ -173,6 +158,7 @@ export function FollowUpItem({
   showMessage = true,
   aiTone = "balanced",
   motionState,
+  itemRef,
   onOptimisticRemove,
   completeAction: completeActionProp,
   skipAction: skipActionProp,
@@ -240,6 +226,7 @@ export function FollowUpItem({
 
   return (
     <div
+      ref={itemRef}
       className={cn(
         "motion-list-item rounded-xl border border-border/60 bg-background transition-colors",
         expanded ? "border-border/80" : "hover:border-border/80",

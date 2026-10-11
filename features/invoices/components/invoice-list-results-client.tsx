@@ -56,7 +56,7 @@ export function InvoiceListResultsClient({
     [displayPage, effectiveCachedPages],
   );
 
-  const { items: invoices, getMotionState, removeItems } = useAnimatedList(invoicesFromCache);
+  const { items: invoices, getMotionState, getItemRef, removeItems } = useAnimatedList(invoicesFromCache);
   const cachedPageNumbers = useMemo(
     () =>
       Object.keys(effectiveCachedPages)
@@ -132,6 +132,7 @@ export function InvoiceListResultsClient({
         isAtLimit={isAtLimit}
         onToggle={toggle}
         getMotionState={getMotionState}
+        getItemRef={getItemRef}
       />
       <InvoiceListTable
         invoices={invoices}
@@ -142,6 +143,7 @@ export function InvoiceListResultsClient({
         allOnPageSelected={allOnPageSelected}
         onSelectAllOnPage={handleSelectAllOnPage}
         getMotionState={getMotionState}
+        getItemRef={getItemRef}
       />
       <DataListPagination
         cachedPages={cachedPageNumbers}

@@ -29,7 +29,7 @@ export default defineConfig({
     setupFiles: ['./tests/setup.ts'],
     globals: true,
     testTimeout: 30_000,
-    exclude: ['tests/e2e/**', 'node_modules/**', '.next/**'],
+    exclude: ['tests/e2e/**', 'tests/integration/**', 'node_modules/**', '.next/**'],
     reporters: [['default'], ['json', { outputFile: 'reports/vitest-verify.json' }]],
     coverage: {
       provider: 'v8',

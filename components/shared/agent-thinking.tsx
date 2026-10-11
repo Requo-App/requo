@@ -71,11 +71,7 @@ const VARIANT_TONE: Record<AgentThinkingVariant, AgentThinkingTone> = {
 const DOTS_GRID = 3;
 const DOTS_SIZE = 4;
 const DOTS_GAP = 2;
-const DOTS_TICK_MS = 80;
-const DOTS_FADE_MS = 220;
-const DOTS_TRAIL = 0.3;
-const DOTS_MIN_OPACITY = 0.12;
-const DOTS_PHASE_STEP = 1 / 8;
+const DOTS_PERIOD_MS = 640;
 
 // Static first frame: identical on server and client, and the resting state
 // under prefers-reduced-motion.
@@ -95,28 +91,19 @@ function dotScalar(variant: "wave" | "spin", col: number, row: number) {
   return (Math.atan2(row - center, col - center) / (2 * Math.PI) + 1) % 1;
 }
 
-function dotOpacities(variant: "wave" | "spin", phase: number) {
-  return Array.from({ length: DOTS_GRID * DOTS_GRID }, (_, i) => {
-    const s = dotScalar(variant, i % DOTS_GRID, Math.floor(i / DOTS_GRID));
-    // Comet: bright head at the phase front, tail fading behind it.
-    const behind = (phase - s + 1) % 1;
-    const lit = Math.max(0, 1 - behind / DOTS_TRAIL) ** 1.5;
-    return DOTS_MIN_OPACITY + (1 - DOTS_MIN_OPACITY) * lit;
-  });
-}
-
 function DotsIndicator({ variant }: { variant: "wave" | "spin" }) {
-  const [opacities, setOpacities] = useState<number[]>(DOTS_SEED);
+  // Static seed on server + first paint (and the resting state under
+  // prefers-reduced-motion). CSS takes over the travel after mount — one
+  // state flip, not a 12fps interval re-render.
+  const [animated, setAnimated] = useState(false);
 
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    let phase = 0;
-    const id = window.setInterval(() => {
-      phase = (phase + DOTS_PHASE_STEP) % 1;
-      setOpacities(dotOpacities(variant, phase));
-    }, DOTS_TICK_MS);
-    return () => window.clearInterval(id);
-  }, [variant]);
+    // Deferred past paint so the static seed commits first (no mismatch,
+    // no cascading render): CSS takes over the travel from here.
+    const id = requestAnimationFrame(() => setAnimated(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
 
   return (
     <span
@@ -127,18 +114,30 @@ function DotsIndicator({ variant }: { variant: "wave" | "spin" }) {
         gap: DOTS_GAP,
       }}
     >
-      {opacities.map((opacity, i) => (
-        <span
-          key={i}
-          className="rounded-[1px] bg-current"
-          style={{
-            width: DOTS_SIZE,
-            height: DOTS_SIZE,
-            opacity,
-            transition: `opacity ${DOTS_FADE_MS}ms ease`,
-          }}
-        />
-      ))}
+      {DOTS_SEED.map((opacity, i) => {
+        const scalar = dotScalar(
+          variant,
+          i % DOTS_GRID,
+          Math.floor(i / DOTS_GRID),
+        );
+        return (
+          <span
+            key={i}
+            className={animated ? "bui-agent-thinking-dot rounded-[1px] bg-current" : "rounded-[1px] bg-current"}
+            style={{
+              width: DOTS_SIZE,
+              height: DOTS_SIZE,
+              opacity,
+              ...(animated
+                ? {
+                    animationDuration: `${DOTS_PERIOD_MS}ms`,
+                    animationDelay: `${-Math.round(scalar * DOTS_PERIOD_MS)}ms`,
+                  }
+                : null),
+            }}
+          />
+        );
+      })}
     </span>
   );
 }

@@ -8,6 +8,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
+import { MotionProvider } from "@/components/shared/motion-provider";
 import {
   getReloadLoadingInitScript,
   ReloadLoadingOverlay,
@@ -197,8 +198,10 @@ export default function RootLayout({
               <ScrollToTop />
               <WebMCPProvider />
             </Suspense>
-            <TooltipProvider>{children}</TooltipProvider>
-            <Toaster />
+            <MotionProvider>
+              <TooltipProvider>{children}</TooltipProvider>
+              <Toaster />
+            </MotionProvider>
           </ThemeProvider>
           <Analytics />
           <SpeedInsights />

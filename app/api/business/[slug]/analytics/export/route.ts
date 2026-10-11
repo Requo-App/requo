@@ -9,7 +9,7 @@ const routeParamsSchema = z.object({
 });
 
 const exportBodySchema = z.object({
-  format: z.enum(["csv", "pdf"]),
+  format: z.enum(["csv"]),
   since: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   until: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
 });
@@ -56,7 +56,7 @@ export async function POST(
     );
   }
 
-  const { format, since, until } = parsedBody.data;
+  const { since, until } = parsedBody.data;
   const sinceDate = new Date(`${since}T00:00:00.000Z`);
   const untilDate = new Date(`${until}T23:59:59.999Z`);
 
@@ -75,28 +75,7 @@ export async function POST(
 
   const generatedAt = new Date().toISOString();
 
-  if (format === "csv") {
-    const csv = generateCsv({
-      businessName,
-      since,
-      until,
-      generatedAt,
-      metrics: analytics,
-    });
-
-    const filename = `analytics-${parsedParams.data.slug}-${since}-to-${until}.csv`;
-
-    return new Response(csv, {
-      status: 200,
-      headers: {
-        "Content-Type": "text/csv; charset=utf-8",
-        "Content-Disposition": `attachment; filename="${filename}"`,
-      },
-    });
-  }
-
-  // PDF: generate a simple text-based report
-  const pdf = generateTextPdf({
+  const csv = generateCsv({
     businessName,
     since,
     until,
@@ -104,14 +83,12 @@ export async function POST(
     metrics: analytics,
   });
 
-  const filename = `analytics-${parsedParams.data.slug}-${since}-to-${until}.txt`;
+  const filename = `analytics-${parsedParams.data.slug}-${since}-to-${until}.csv`;
 
-  // NOTE: For a full PDF implementation, integrate a library like @react-pdf/renderer or pdfkit.
-  // For MVP, we return a formatted plain-text report.
-  return new Response(pdf, {
+  return new Response(csv, {
     status: 200,
     headers: {
-      "Content-Type": "text/plain; charset=utf-8",
+      "Content-Type": "text/csv; charset=utf-8",
       "Content-Disposition": `attachment; filename="${filename}"`,
     },
   });
@@ -188,67 +165,6 @@ function generateCsv(data: ExportData): string {
   for (const [metric, value] of metricRows) {
     lines.push(`${escapeCsvValue(metric)},${escapeCsvValue(value)}`);
   }
-
-  return lines.join("\n");
-}
-
-// ---------------------------------------------------------------------------
-// Text-based PDF report (MVP placeholder)
-// ---------------------------------------------------------------------------
-
-function generateTextPdf(data: ExportData): string {
-  const divider = "=".repeat(60);
-  const lines: string[] = [];
-
-  lines.push(divider);
-  lines.push(`  ANALYTICS REPORT`);
-  lines.push(divider);
-  lines.push(``);
-  lines.push(`  Business:    ${data.businessName}`);
-  lines.push(`  Date Range:  ${data.since} to ${data.until}`);
-  lines.push(`  Generated:   ${data.generatedAt}`);
-  lines.push(``);
-  lines.push(divider);
-  lines.push(`  METRICS SUMMARY`);
-  lines.push(divider);
-  lines.push(``);
-
-  const metrics: [string, string][] = [
-    ["Form Views", String(data.metrics.formViews)],
-    ["Unique Visitors", String(data.metrics.uniqueVisitors)],
-    ["Inquiry Submissions", String(data.metrics.inquirySubmissions)],
-    ["Inquiries with Quote", String(data.metrics.inquiriesWithQuote)],
-    ["Quotes Sent", String(data.metrics.quotesSent)],
-    ["Quotes Viewed", String(data.metrics.quotesViewed)],
-    ["Quotes Accepted", String(data.metrics.quotesAccepted)],
-    ["Quotes Rejected", String(data.metrics.quotesRejected)],
-    [
-      "Form Conversion Rate",
-      `${(data.metrics.formConversionRate * 100).toFixed(1)}%`,
-    ],
-    [
-      "Inquiry to Quote Rate",
-      `${(data.metrics.inquiryToQuoteRate * 100).toFixed(1)}%`,
-    ],
-    [
-      "Quote Acceptance Rate",
-      `${(data.metrics.quoteAcceptanceRate * 100).toFixed(1)}%`,
-    ],
-  ];
-
-  for (const [label, value] of metrics) {
-    lines.push(`  ${label.padEnd(24)} ${value}`);
-  }
-
-  lines.push(``);
-  lines.push(divider);
-  lines.push(``);
-  lines.push(
-    `  NOTE: For full PDF with charts and visual cards, integrate a PDF`,
-  );
-  lines.push(`  rendering library (e.g., @react-pdf/renderer or pdfkit).`);
-  lines.push(``);
-  lines.push(divider);
 
   return lines.join("\n");
 }

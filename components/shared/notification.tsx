@@ -9,7 +9,9 @@ import type {
 import {
   Children,
   isValidElement,
+  useCallback,
   useEffect,
+  useRef,
   useState,
   useSyncExternalStore,
 } from "react";
@@ -219,52 +221,90 @@ export function Notification({
 }: NotificationProps) {
   const [dismissed, setDismissed] = useState(false);
   const Icon = icon ?? STATUS_ICON[status];
-  const hasIntro = introDelay !== undefined;
   const introDelayMs = (introDelay ?? 0) * 1000;
+  const cardRef = useRef<HTMLDivElement | null>(null);
+
+  const setCardRef = (node: HTMLDivElement | null) => {
+    cardRef.current = node;
+    if (typeof ref === "function") {
+      ref(node);
+    } else if (ref) {
+      ref.current = node;
+    }
+  };
+
+  const dismiss = useCallback(() => {
+    // Move focus out before the exit so keyboard users are never stranded
+    // on a control inside a toast that is animating away.
+    const active = document.activeElement as HTMLElement | null;
+    if (active && cardRef.current?.contains(active)) {
+      active.blur();
+    }
+    setDismissed(true);
+  }, []);
+
+  // onDismiss fires from the exit animation's completion. The fallback below
+  // covers environments where animation completion never reports (e.g. a
+  // reduced-motion runtime that suppresses the tween) so an exiting toast
+  // can never stick around indefinitely.
+  const dismissFired = useRef(false);
+  const fireDismiss = useCallback(() => {
+    if (!dismissFired.current) {
+      dismissFired.current = true;
+      onDismiss?.();
+    }
+  }, [onDismiss]);
 
   useEffect(() => {
     if (!autoDismissDuration || autoDismissDuration <= 0) return;
     const timer = window.setTimeout(
-      () => setDismissed(true),
+      () => dismiss(),
       autoDismissDuration + introDelayMs,
     );
     return () => window.clearTimeout(timer);
-  }, [autoDismissDuration, introDelayMs]);
+  }, [autoDismissDuration, introDelayMs, dismiss]);
+
+  useEffect(() => {
+    if (!dismissed) return;
+    const fallback = window.setTimeout(fireDismiss, 400);
+    return () => window.clearTimeout(fallback);
+  }, [dismissed, fireDismiss]);
 
   return (
-    <AnimatePresence onExitComplete={onDismiss}>
-      {!dismissed ? (
         <motion.div
-          ref={ref}
+          ref={setCardRef}
           role={role ?? (status === "error" ? "alert" : "status")}
-          initial={
-            hasIntro
-              ? { opacity: 0, y: 12, scale: 0.97, filter: "blur(4px)" }
-              : false
-          }
+          initial={{ opacity: 0, y: 8, scale: 0.98 }}
           animate={
-            hasIntro
+            dismissed
               ? {
+                  opacity: 0,
+                  y: 8,
+                  scale: 0.96,
+                  transition: { duration: 0.15, ease: "easeOut" },
+                }
+              : {
                   opacity: 1,
                   y: 0,
                   scale: 1,
-                  filter: "blur(0px)",
                   transition: {
-                    duration: 0.25,
+                    duration: 0.2,
                     delay: introDelay,
                     ease: "easeOut",
                   },
                 }
-              : undefined
           }
-          exit={{
-            opacity: 0,
-            y: 8,
-            scale: 0.96,
-            filter: "blur(3px)",
-            transition: { duration: 0.18, ease: "easeOut" },
+          onAnimationComplete={() => {
+            if (dismissed) {
+              fireDismiss();
+            }
           }}
-          className={cn(notificationCardClassName, className)}
+          inert={dismissed}
+          className={cn(
+            notificationCardClassName,
+            dismissed && "pointer-events-none",
+            className,
+          )}
           {...props}
         >
           {avatar ? (
@@ -302,7 +342,7 @@ export function Notification({
             <CloseButton
               size="xs"
               aria-label={closeLabel}
-              onClick={() => setDismissed(true)}
+              onClick={() => dismiss()}
               className={notificationCloseClassName}
             />
           ) : null}
@@ -321,8 +361,6 @@ export function Notification({
             />
           ) : null}
         </motion.div>
-      ) : null}
-    </AnimatePresence>
   );
 }
 

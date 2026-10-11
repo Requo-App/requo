@@ -4,6 +4,7 @@ import { useCallback, useRef, useTransition } from "react";
 import { toast } from "@/components/shared/notify";
 
 import { useDeferredRefresh } from "@/hooks/use-deferred-refresh";
+import { getFirstFieldError } from "@/hooks/use-action-state-with-sonner";
 
 export type OptimisticActionResult = {
   error?: string;
@@ -25,23 +26,6 @@ type UseOptimisticMutationOptions<TResult extends OptimisticActionResult> = {
   successMessage?: string | ((result: TResult) => string | undefined);
   errorMessage?: string | ((result: TResult) => string | undefined);
 };
-
-function getFirstFieldError(
-  fieldErrors: Record<string, string[] | undefined> | undefined,
-) {
-  if (!fieldErrors) {
-    return undefined;
-  }
-
-  for (const key of Object.keys(fieldErrors)) {
-    const message = fieldErrors[key]?.[0];
-    if (message) {
-      return message;
-    }
-  }
-
-  return undefined;
-}
 
 function resolveErrorMessage<TResult extends OptimisticActionResult>(
   result: TResult,
