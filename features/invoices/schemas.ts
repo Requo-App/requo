@@ -1,51 +1,12 @@
 import { z } from "zod";
 import { invoiceStatusFilterValues, paymentMethods, paymentStatusFilterValues } from "@/features/invoices/types";
 import { parseMoneyToCents } from "@/features/invoices/utils";
-
-function emptyToUndefined(value: unknown) {
-  if (value == null) {
-    return undefined;
-  }
-
-  if (typeof value === "string" && value.trim() === "") {
-    return undefined;
-  }
-
-  return value;
-}
-
-function firstString(value: unknown) {
-  if (Array.isArray(value)) {
-    return value[0];
-  }
-
-  return value;
-}
-
-function coercePositiveInteger(fieldLabel: string) {
-  return z.preprocess((value) => {
-    if (typeof value === "number") {
-      return value;
-    }
-
-    if (typeof value !== "string") {
-      return value;
-    }
-
-    const normalized = value.trim();
-
-    if (!normalized) {
-      return Number.NaN;
-    }
-
-    return Number(normalized);
-  }, z.number().int(`${fieldLabel} must be a whole number.`).min(1, `${fieldLabel} must be at least 1.`));
-}
-
-const optionalText = (max: number) => z.preprocess(
-  (value) => typeof value === "string" && !value.trim() ? undefined : value,
-  z.string().trim().max(max).optional(),
-);
+import {
+  coercePositiveInteger,
+  emptyToUndefined,
+  firstString,
+  optionalText,
+} from "@/lib/zod-helpers";
 
 const dateValue = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Enter a valid date.");
 

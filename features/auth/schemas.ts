@@ -43,13 +43,6 @@ export const signupSchema = z.object({
     .max(128, "Use 128 characters or fewer."),
 });
 
-/** Name + email when requesting a magic link from the signup form. */
-export const magicLinkSignupRequestSchema = signupSchema.pick({
-  firstName: true,
-  lastName: true,
-  email: true,
-});
-
 export const forgotPasswordSchema = z.object({
   email: z
     .string()
