@@ -9,6 +9,7 @@ import { hasFeatureAccess } from "@/lib/plans";
 import { checkUsageLimit } from "@/lib/ai";
 import { getEffectivePlan } from "@/lib/billing/subscription-service";
 import type { AiTaskType } from "@/lib/ai/types";
+import { emptyToUndefined, firstString } from "@/lib/zod-helpers";
 
 // ---------------------------------------------------------------------------
 // Server Actions
@@ -48,22 +49,6 @@ const aiGenerateQuoteDraftSchema = z
       });
     }
   });
-
-function emptyToUndefined(value: unknown) {
-  if (typeof value === "string" && value.trim() === "") {
-    return undefined;
-  }
-
-  return value ?? undefined;
-}
-
-function firstString(value: unknown) {
-  if (Array.isArray(value)) {
-    return value[0];
-  }
-
-  return value;
-}
 
 /**
  * Generate an AI-drafted quote for the current business.

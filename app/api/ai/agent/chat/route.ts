@@ -1,28 +1,19 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
 import { agentChatRequestSchema } from "@/features/ai-agent/schemas";
 import { runAgent } from "@/features/ai-agent/orchestrator";
 import {
   ChatAttachmentError,
-  decodeChatFilePart,
 } from "@/lib/ai/chat-attachments";
+import {
+  decodeRequestAttachments,
+  extractUiMessageText,
+  uiMessageSchema,
+} from "@/lib/ai/chat-request";
 import {
   assertPublicActionRateLimit,
   getPublicActionClientIpAddress,
 } from "@/lib/public-action-rate-limit";
 import { headers } from "next/headers";
-
-const uiTextPartSchema = z.object({
-  type: z.string(),
-  text: z.string().optional(),
-});
-
-const uiMessageSchema = z.object({
-  id: z.string().optional(),
-  role: z.enum(["user", "assistant", "system", "tool"]),
-  content: z.string().optional(),
-  parts: z.array(uiTextPartSchema).optional(),
-});
 
 /**
  * AI Agent Chat API Route
@@ -59,29 +50,24 @@ export async function POST(request: Request) {
       mimeType: string;
       bytes: Buffer;
     }> = [];
-    if (attachments && attachments.length > 0) {
-      try {
-        rawAttachments = attachments.map((attachment) =>
-          decodeChatFilePart({
-            mediaType: attachment.mediaType,
-            filename: attachment.filename,
-            url: attachment.dataUrl,
-          }),
+    try {
+      rawAttachments = decodeRequestAttachments(
+        attachments,
+        "Photos can't be read in chat yet. Describe what you need in words, or use the inquiry form.",
+      );
+    } catch (error) {
+      if (error instanceof ChatAttachmentError) {
+        return NextResponse.json(
+          {
+            error:
+              error.code === "image"
+                ? "Photos can't be read in chat yet. Describe what you need in words, or use the inquiry form."
+                : error.message,
+          },
+          { status: 400 },
         );
-      } catch (error) {
-        if (error instanceof ChatAttachmentError) {
-          return NextResponse.json(
-            {
-              error:
-                error.code === "image"
-                  ? "Photos can't be read in chat yet. Describe what you need in words, or use the inquiry form."
-                  : error.message,
-            },
-            { status: 400 },
-          );
-        }
-        throw error;
       }
+      throw error;
     }
     const uiMessages = Array.isArray(
       (body as { messages?: unknown }).messages,
@@ -135,12 +121,7 @@ export async function POST(request: Request) {
       userMessage: content,
       uiMessages: uiMessages?.map((message) => ({
         role: message.role,
-        content:
-          message.content ??
-          (message.parts ?? [])
-            .filter((part) => part.type === "text" && part.text)
-            .map((part) => part.text as string)
-            .join("\n"),
+        content: extractUiMessageText(message),
       })),
       proposedInquiryValues: proposedInquiryValues as
         | Record<string, unknown>

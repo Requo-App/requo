@@ -21,6 +21,9 @@ import {
 } from "@/lib/ai/capacity-selector";
 import { getCatalogEntry } from "@/lib/ai/catalog";
 import type { AiRoutingProfile } from "@/lib/ai/routing-profiles";
+// Re-exported so feature orchestrators route model selection through the
+// router entry-point instead of importing capacity-selector directly.
+export { selectModels } from "@/lib/ai/capacity-selector";
 import { estimateTokens } from "@/lib/ai/token-budget";
 import type {
   AiCompletionRequest,

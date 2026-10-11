@@ -5,22 +5,14 @@ import { getBusinessActionContext } from "@/lib/db/business-access";
 import { assertBusinessActionRateLimit } from "@/lib/rate-limit/redis-rate-limiter";
 import {
   ChatAttachmentError,
-  decodeChatFilePart,
 } from "@/lib/ai/chat-attachments";
+import {
+  decodeRequestAttachments,
+  extractUiMessageText,
+  uiMessageSchema,
+} from "@/lib/ai/chat-request";
 import { runOwnerAssistant } from "@/features/owner-assistant/orchestrator";
 import { getBusinessSettingsForBusiness } from "@/features/settings/queries";
-
-const uiTextPartSchema = z.object({
-  type: z.string(),
-  text: z.string().optional(),
-});
-
-const uiMessageSchema = z.object({
-  id: z.string().optional(),
-  role: z.enum(["user", "assistant", "system", "tool"]),
-  content: z.string().optional(),
-  parts: z.array(uiTextPartSchema).optional(),
-});
 
 // Ephemeral chat attachments ride along as data URLs in the JSON body (never
 // as chat message parts, so history never re-sends bytes). The orchestrator
@@ -43,14 +35,7 @@ const ownerAssistantChatRequestSchema = z.object({
 });
 
 function extractText(message: z.infer<typeof uiMessageSchema>): string {
-  if (typeof message.content === "string" && message.content.trim()) {
-    return message.content;
-  }
-  const text = (message.parts ?? [])
-    .filter((part) => part.type === "text" && part.text)
-    .map((part) => part.text as string)
-    .join("\n");
-  return text;
+  return extractUiMessageText(message, true);
 }
 
 /**
@@ -96,29 +81,24 @@ export async function POST(request: Request) {
       mimeType: string;
       bytes: Buffer;
     }> = [];
-    if (attachments && attachments.length > 0) {
-      try {
-        rawAttachments = attachments.map((attachment) =>
-          decodeChatFilePart({
-            mediaType: attachment.mediaType,
-            filename: attachment.filename,
-            url: attachment.dataUrl,
-          }),
+    try {
+      rawAttachments = decodeRequestAttachments(
+        attachments,
+        "Images aren't supported in chat yet. Paste the key details as text instead.",
+      );
+    } catch (error) {
+      if (error instanceof ChatAttachmentError) {
+        return NextResponse.json(
+          {
+            error:
+              error.code === "image"
+                ? "Images aren't supported in chat yet. Paste the key details as text instead."
+                : error.message,
+          },
+          { status: 400 },
         );
-      } catch (error) {
-        if (error instanceof ChatAttachmentError) {
-          return NextResponse.json(
-            {
-              error:
-                error.code === "image"
-                  ? "Images aren't supported in chat yet. Paste the key details as text instead."
-                  : error.message,
-            },
-            { status: 400 },
-          );
-        }
-        throw error;
       }
+      throw error;
     }
 
     // Validate business access (authoritative source of truth for identity)
