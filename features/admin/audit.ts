@@ -27,11 +27,6 @@ import { newEntityId } from "@/lib/ids";
  * - `runAdminMutationWithAudit` — transaction envelope for destructive
  *   actions. If the audit insert throws, the surrounding mutation is rolled
  *   back (Requirement 10.4).
- *
- * TODO (task 1.2): once `features/admin/access.ts` lands as a shared
- * module, some callers may prefer to resolve the admin context inside
- * these helpers instead of passing it in. For now the helpers accept the
- * context explicitly so this module does not hard-require 1.2.
  */
 
 type DbClient = typeof db;
@@ -46,9 +41,8 @@ export type DbTransaction = Parameters<Parameters<DbClient["transaction"]>[0]>[0
 type DbWriter = DbClient | DbTransaction;
 
 /**
- * Admin identity context the audit writer needs. Mirrors the fields a
- * caller would pull off `requireAdminUser()` once task 1.2 lands, so
- * swapping to the shared helper later is mechanical.
+ * Admin identity context the audit writer needs. Callers pass the fields
+ * off `requireAdminUser()` explicitly.
  */
 export type AdminAuditContext = {
   /** Authoring admin's user id (nullable when the row outlives the user). */

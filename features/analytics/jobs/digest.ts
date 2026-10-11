@@ -13,7 +13,7 @@ import {
 } from "@/lib/db/schema";
 import { sendEmailWithFallback } from "@/lib/email/send-email";
 import { getEmailSender } from "@/lib/email/senders";
-import { isAnalyticsDigestEmailEnabled, isEmailConfigured } from "@/lib/env";
+import { env, isAnalyticsDigestEmailEnabled, isEmailConfigured } from "@/lib/env";
 import { hasFeatureAccess } from "@/lib/plans/entitlements";
 import type { BusinessPlan } from "@/lib/plans/plans";
 
@@ -162,7 +162,7 @@ export async function sendAnalyticsDigestEmails(): Promise<AnalyticsDigestSummar
   let failed = 0;
   const errors: Array<{ businessId: string; error: string }> = [];
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://app.requo.io";
+  const appUrl = env.NEXT_PUBLIC_APP_URL || "https://app.requo.io";
 
   for (const business of entitled) {
     try {

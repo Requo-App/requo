@@ -12,6 +12,7 @@ import {
 import { sendEmailWithFallback } from "@/lib/email/send-email";
 import { getEmailSender } from "@/lib/email/senders";
 import {
+  env,
   isAnalyticsScheduledReportEmailEnabled,
   isEmailConfigured,
 } from "@/lib/env";
@@ -154,7 +155,7 @@ export async function sendAnalyticsScheduledReports(): Promise<AnalyticsSchedule
   let failed = 0;
   const errors: Array<{ reportId: string; error: string }> = [];
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://app.requo.io";
+  const appUrl = env.NEXT_PUBLIC_APP_URL || "https://app.requo.io";
 
   for (const { report, business } of dueReports) {
     try {
