@@ -163,6 +163,48 @@ Notes:
   expecting shared state, and switch `DATABASE_URL` back when you need to read
   real project data.
 
+### Supabase local (full stack: database + realtime + storage)
+
+When the hosted project is unreachable (or you want a fully offline loop),
+run Supabase locally via the CLI (`supabase` devDependency, `npx supabase`).
+Needs a container runtime: Docker Desktop with WSL integration enabled for
+your distro, then `docker ps` must work from this shell.
+
+```bash
+npx supabase start    # first run pulls images; prints URLs and keys
+npx supabase status   # re-print URLs and keys at any time
+npx supabase stop     # stop; database volumes are kept
+```
+
+Point the Supabase envs at the local stack (defaults):
+
+```env
+DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres
+DATABASE_MIGRATION_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres
+NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<ANON_KEY from status>
+SUPABASE_SERVICE_ROLE_KEY=<SERVICE_ROLE_KEY from status>
+SUPABASE_JWT_SECRET=<JWT_SECRET from status>
+```
+
+Then `npm run db:migrate` (buckets come from migration `0034`) and
+`npm run db:seed`. Scripts using bare `dotenv/config` (`db:seed`,
+`db:reset` consumers, e2e fixtures) only read `.env`, so keep a copy:
+`cp .env.local .env`.
+
+Two local-only steps (never as Drizzle migrations — they must not run on
+hosted prod):
+
+- Realtime tables need the `supabase_realtime` publication (Studio SQL
+  editor at `http://127.0.0.1:54323`, or any PG client on port `54322`):
+  `ALTER PUBLICATION supabase_realtime ADD TABLE
+  public.business_notifications, public.business_notification_states,
+  public.inquiries;`
+- Live row events are still gated by the default-deny RLS policies
+  (`drizzle/0007_*`), exactly as on Cloud — the bell subscribes fine but
+  delivery falls back to polling there and here. Making the bell truly live
+  needs permissive policies, which is a product decision, not a local quirk.
+
 ### Email Delivery
 
 - Fallback order is Resend, then Mailtrap, then Brevo.
