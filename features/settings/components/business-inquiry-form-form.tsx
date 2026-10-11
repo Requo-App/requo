@@ -1159,7 +1159,7 @@ function ProjectFieldCard({
       className={cn(
         "flex gap-2",
         fieldIsWide && "sm:col-span-2",
-        isDragging && "relative z-10",
+        isDragging && "relative z-10 drop-shadow-lg",
       )}
       ref={handleCardRef}
       style={sortableStyle}

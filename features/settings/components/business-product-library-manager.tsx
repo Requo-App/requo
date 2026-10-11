@@ -182,7 +182,7 @@ export function BusinessProductLibraryManager({
     });
   }, [quoteLibrary, filter, query, sort]);
 
-  const { items: animatedFiltered, getMotionState, removeItem } = useAnimatedList(filtered);
+  const { items: animatedFiltered, getMotionState, getItemRef, removeItem } = useAnimatedList(filtered);
 
   function openCreate(kind: QuoteLibraryEntryKind) {
     setEditorState({ mode: "create", kind });
@@ -426,6 +426,7 @@ export function BusinessProductLibraryManager({
                       entry={entry}
                       key={entry.id}
                       motionState={getMotionState(entry.id)}
+                      itemRef={getItemRef(entry.id)}
                       onDelete={() => setDeleteTarget(entry)}
                       onEdit={() => openEdit(entry)}
                     />
@@ -441,6 +442,7 @@ export function BusinessProductLibraryManager({
                   entry={entry}
                   key={entry.id}
                   motionState={getMotionState(entry.id)}
+                  itemRef={getItemRef(entry.id)}
                   onDelete={() => setDeleteTarget(entry)}
                   onEdit={() => openEdit(entry)}
                 />
@@ -595,16 +597,18 @@ function ProductRowActions({
 function ProductTableRow({
   entry,
   motionState,
+  itemRef,
   onDelete,
   onEdit,
 }: {
   entry: DashboardQuoteLibraryEntry;
   motionState?: MotionState;
+  itemRef?: (node: HTMLElement | null) => void;
   onDelete: () => void;
   onEdit: () => void;
 }) {
   return (
-    <TableRow className="motion-list-item group/row" data-motion-state={motionState}>
+    <TableRow ref={itemRef} className="motion-list-item group/row" data-motion-state={motionState}>
       <TableCell>
         <div className="flex items-center gap-3">
           <div className="rounded-lg bg-muted/60 p-2">
@@ -645,16 +649,19 @@ function ProductTableRow({
 function ProductMobileRow({
   entry,
   motionState,
+  itemRef,
   onDelete,
   onEdit,
 }: {
   entry: DashboardQuoteLibraryEntry;
   motionState?: MotionState;
+  itemRef?: (node: HTMLElement | null) => void;
   onDelete: () => void;
   onEdit: () => void;
 }) {
   return (
     <div
+      ref={itemRef}
       className="motion-list-item group flex items-start gap-3 px-4 py-3.5"
       data-motion-state={motionState}
     >

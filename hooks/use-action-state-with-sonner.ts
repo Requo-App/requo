@@ -16,7 +16,7 @@ type UseActionStateWithSonnerOptions<State extends SonnerActionState> = {
   getErrorMessage?: (state: State) => string | undefined;
 };
 
-function getFirstFieldError(fieldErrors: Record<string, string[] | undefined> | undefined) {
+export function getFirstFieldError(fieldErrors: Record<string, string[] | undefined> | undefined) {
   if (!fieldErrors) {
     return undefined;
   }

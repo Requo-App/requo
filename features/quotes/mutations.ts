@@ -2561,26 +2561,74 @@ export async function bulkArchiveQuotesForBusiness({
 }): Promise<{ affected: number; skipped: number }> {
   const now = new Date();
 
-  const result = await db
-    .update(quotes)
-    .set({
-      archivedAt: now,
-      archivedBy: actorUserId,
-      updatedAt: now,
-    })
-    .where(
-      and(
-        eq(quotes.businessId, businessId),
-        inArray(quotes.id, quoteIds),
-        isNull(quotes.deletedAt),
-      ),
-    )
-    .returning({ id: quotes.id });
+  return db.transaction(async (tx) => {
+    // Already-archived rows count as affected (preserved contract) but
+    // receive no success event, mirroring single-record unchanged semantics.
+    const previousRows = await tx
+      .select({ id: quotes.id, archivedAt: quotes.archivedAt })
+      .from(quotes)
+      .where(
+        and(
+          eq(quotes.businessId, businessId),
+          inArray(quotes.id, quoteIds),
+          isNull(quotes.deletedAt),
+        ),
+      );
+    const previouslyArchived = new Set(
+      previousRows.filter((row) => row.archivedAt !== null).map((row) => row.id),
+    );
 
-  return {
-    affected: result.length,
-    skipped: quoteIds.length - result.length,
-  };
+    const result = await tx
+      .update(quotes)
+      .set({
+        archivedAt: now,
+        archivedBy: actorUserId,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(quotes.businessId, businessId),
+          inArray(quotes.id, quoteIds),
+          isNull(quotes.deletedAt),
+        ),
+      )
+      .returning({
+        id: quotes.id,
+        inquiryId: quotes.inquiryId,
+        quoteNumber: quotes.quoteNumber,
+        status: quotes.status,
+        validUntil: quotes.validUntil,
+      });
+
+    const newlyArchived = result.filter((row) => !previouslyArchived.has(row.id));
+
+    if (newlyArchived.length > 0) {
+      for (const row of newlyArchived) {
+        const effectiveStatus = getStoredEffectiveQuoteStatus(
+          row.status as QuoteStatus,
+          row.validUntil,
+        );
+        await insertQuoteActivity(tx, {
+          businessId,
+          inquiryId: row.inquiryId,
+          quoteId: row.id,
+          actorUserId,
+          type: "quote.archived",
+          summary: `Quote ${row.quoteNumber} archived.`,
+          metadata: {
+            quoteNumber: row.quoteNumber,
+            status: effectiveStatus,
+          },
+          now,
+        });
+      }
+    }
+
+    return {
+      affected: result.length,
+      skipped: quoteIds.length - result.length,
+    };
+  });
 }
 
 export async function bulkVoidQuotesForBusiness({
@@ -2594,29 +2642,68 @@ export async function bulkVoidQuotesForBusiness({
 }): Promise<{ affected: number; skipped: number }> {
   const now = new Date();
 
-  // Only "sent" quotes can be voided
-  const result = await db
-    .update(quotes)
-    .set({
-      status: "voided",
-      voidedAt: now,
-      voidedBy: actorUserId,
-      updatedAt: now,
-    })
-    .where(
-      and(
-        eq(quotes.businessId, businessId),
-        inArray(quotes.id, quoteIds),
-        eq(quotes.status, "sent"),
-        isNull(quotes.deletedAt),
-      ),
-    )
-    .returning({ id: quotes.id });
+  return db.transaction(async (tx) => {
+    // Only "sent" quotes can be voided
+    const result = await tx
+      .update(quotes)
+      .set({
+        status: "voided",
+        voidedAt: now,
+        voidedBy: actorUserId,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(quotes.businessId, businessId),
+          inArray(quotes.id, quoteIds),
+          eq(quotes.status, "sent"),
+          isNull(quotes.deletedAt),
+        ),
+      )
+      .returning({
+        id: quotes.id,
+        inquiryId: quotes.inquiryId,
+        quoteNumber: quotes.quoteNumber,
+        title: quotes.title,
+        customerName: quotes.customerName,
+      });
 
-  return {
-    affected: result.length,
-    skipped: quoteIds.length - result.length,
-  };
+    if (result.length > 0) {
+      for (const row of result) {
+        await insertQuoteActivity(tx, {
+          businessId,
+          inquiryId: row.inquiryId,
+          quoteId: row.id,
+          actorUserId,
+          type: "quote.voided",
+          summary: `Quote ${row.quoteNumber} voided.`,
+          metadata: {
+            quoteNumber: row.quoteNumber,
+          },
+          now,
+        });
+
+        await writeAuditLog(tx, {
+          businessId,
+          actorUserId,
+          entityType: "quote",
+          entityId: row.id,
+          action: "quote.voided",
+          metadata: {
+            quoteNumber: row.quoteNumber,
+            title: row.title,
+            customerName: row.customerName,
+          },
+          createdAt: now,
+        });
+      }
+    }
+
+    return {
+      affected: result.length,
+      skipped: quoteIds.length - result.length,
+    };
+  });
 }
 
 export async function bulkDeleteDraftQuotesForBusiness({
@@ -2630,34 +2717,74 @@ export async function bulkDeleteDraftQuotesForBusiness({
 }): Promise<{ affected: number; skipped: number }> {
   const now = new Date();
 
-  // Only draft, non-archived quotes can be deleted
-  const result = await db
-    .update(quotes)
-    .set({
-      deletedAt: now,
-      deletedBy: actorUserId,
-      updatedAt: now,
-    })
-    .where(
-      and(
-        eq(quotes.businessId, businessId),
-        inArray(quotes.id, quoteIds),
-        eq(quotes.status, "draft"),
-        isNull(quotes.archivedAt),
-        isNull(quotes.deletedAt),
-      ),
-    )
-    .returning({ id: quotes.id });
+  return db.transaction(async (tx) => {
+    // Only draft, non-archived quotes can be deleted
+    const result = await tx
+      .update(quotes)
+      .set({
+        deletedAt: now,
+        deletedBy: actorUserId,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(quotes.businessId, businessId),
+          inArray(quotes.id, quoteIds),
+          eq(quotes.status, "draft"),
+          isNull(quotes.archivedAt),
+          isNull(quotes.deletedAt),
+        ),
+      )
+      .returning({
+        id: quotes.id,
+        inquiryId: quotes.inquiryId,
+        quoteNumber: quotes.quoteNumber,
+        title: quotes.title,
+        customerName: quotes.customerName,
+      });
 
-  return {
-    affected: result.length,
-    skipped: quoteIds.length - result.length,
-  };
+    if (result.length > 0) {
+      for (const row of result) {
+        await insertQuoteActivity(tx, {
+          businessId,
+          inquiryId: row.inquiryId,
+          quoteId: row.id,
+          actorUserId,
+          type: "quote.deleted_draft",
+          summary: `Draft quote ${row.quoteNumber} deleted.`,
+          metadata: {
+            quoteNumber: row.quoteNumber,
+          },
+          now,
+        });
+
+        await writeAuditLog(tx, {
+          businessId,
+          actorUserId,
+          entityType: "quote",
+          entityId: row.id,
+          action: "quote.draft_deleted",
+          metadata: {
+            quoteNumber: row.quoteNumber,
+            title: row.title,
+            customerName: row.customerName,
+          },
+          createdAt: now,
+        });
+      }
+    }
+
+    return {
+      affected: result.length,
+      skipped: quoteIds.length - result.length,
+    };
+  });
 }
 
 export async function bulkRestoreQuotesForBusiness({
   businessId,
   quoteIds,
+  actorUserId,
 }: {
   businessId: string;
   quoteIds: string[];
@@ -2665,25 +2792,55 @@ export async function bulkRestoreQuotesForBusiness({
 }): Promise<{ affected: number; skipped: number }> {
   const now = new Date();
 
-  const result = await db
-    .update(quotes)
-    .set({
-      archivedAt: null,
-      archivedBy: null,
-      updatedAt: now,
-    })
-    .where(
-      and(
-        eq(quotes.businessId, businessId),
-        inArray(quotes.id, quoteIds),
-        isNotNull(quotes.archivedAt),
-        isNull(quotes.deletedAt),
-      ),
-    )
-    .returning({ id: quotes.id });
+  return db.transaction(async (tx) => {
+    const result = await tx
+      .update(quotes)
+      .set({
+        archivedAt: null,
+        archivedBy: null,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(quotes.businessId, businessId),
+          inArray(quotes.id, quoteIds),
+          isNotNull(quotes.archivedAt),
+          isNull(quotes.deletedAt),
+        ),
+      )
+      .returning({
+        id: quotes.id,
+        inquiryId: quotes.inquiryId,
+        quoteNumber: quotes.quoteNumber,
+        status: quotes.status,
+        validUntil: quotes.validUntil,
+      });
 
-  return {
-    affected: result.length,
-    skipped: quoteIds.length - result.length,
-  };
+    if (result.length > 0) {
+      for (const row of result) {
+        const effectiveStatus = getStoredEffectiveQuoteStatus(
+          row.status as QuoteStatus,
+          row.validUntil,
+        );
+        await insertQuoteActivity(tx, {
+          businessId,
+          inquiryId: row.inquiryId,
+          quoteId: row.id,
+          actorUserId,
+          type: "quote.unarchived",
+          summary: `Quote ${row.quoteNumber} restored to active.`,
+          metadata: {
+            quoteNumber: row.quoteNumber,
+            status: effectiveStatus,
+          },
+          now,
+        });
+      }
+    }
+
+    return {
+      affected: result.length,
+      skipped: quoteIds.length - result.length,
+    };
+  });
 }

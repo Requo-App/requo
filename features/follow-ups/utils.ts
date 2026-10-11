@@ -523,3 +523,24 @@ export function compareQuoteFirst(
 
   return left.dueAt.getTime() - right.dueAt.getTime();
 }
+
+/** Nullable whole-unit money for quote-linked follow-up rows. */
+export function formatQuoteAmount(
+  totalInCents: number | null | undefined,
+  currency: string | null,
+): string | null {
+  if (totalInCents === null || totalInCents === undefined) {
+    return null;
+  }
+
+  try {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: currency || "USD",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(totalInCents / 100);
+  } catch {
+    return `${(totalInCents / 100).toFixed(0)}`;
+  }
+}
