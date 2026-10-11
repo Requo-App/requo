@@ -200,10 +200,13 @@ hosted prod):
   `ALTER PUBLICATION supabase_realtime ADD TABLE
   public.business_notifications, public.business_notification_states,
   public.inquiries;`
-- Live row events are still gated by the default-deny RLS policies
-  (`drizzle/0007_*`), exactly as on Cloud — the bell subscribes fine but
-  delivery falls back to polling there and here. Making the bell truly live
-  needs permissive policies, which is a product decision, not a local quirk.
+- Live row events need one extra local-only step (the Drizzle migrations keep
+  default-deny RLS for prod parity, and `business_members` is deny-all too, so
+  a plain policy subquery sees nothing). Run once per fresh database:
+  `npx tsx scripts/apply-local-realtime-policies.ts` — it adds a
+  `SECURITY DEFINER` membership helper plus own-business `SELECT` policies on
+  the three bell tables. The script refuses non-local hosts, so hosted prod
+  is untouched (the bell's polling fallback still covers prod).
 
 ### Email Delivery
 
