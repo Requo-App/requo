@@ -47,7 +47,7 @@ Related: `docs/architecture.md`, `docs/data.md` (tables), `docs/workflows.md` (e
 
 **Service:** `live` (default + public) → `live-non-default` → `unpublished` (public disabled) → `archived` (kept for history, no submissions). Starter template recorded in `business_type`; new Services inherit the business template.
 
-**Inquiry** (`inquiry_status`): `new` → `quoted` → `waiting` → `won` | `lost` | `archived`. `overdue` is a derived display state. `ai_assisted` flag is orthogonal to `source` (`service_form` | `ai_assistant` | `manual` | `api` | `unknown`, `features/inquiries/types.ts`; legacy values like `ai_agent` normalize via `normalizeInquirySource`): a chat-then-form submission is `source = "service_form"`, `ai_assisted = true`.
+**Inquiry** (`inquiry_status`): `new` → `quoted` → `waiting` → `won` | `lost` | `archived`, plus stored `overdue`. `ai_assisted` flag is orthogonal to `source` (`service_form` | `ai_assistant` | `manual` | `api` | `unknown`, `features/inquiries/types.ts`; legacy values like `ai_agent` normalize via `normalizeInquirySource`): a chat-then-form submission is `source = "service_form"`, `ai_assisted = true`.
 
 **Agent Session** (`ai_agent_session_status`): `active` → `completed` (inquiry created) | `human_handoff` | `abandoned` (timeout, hourly sweep; transcripts without inquiry purged after 30 days).
 

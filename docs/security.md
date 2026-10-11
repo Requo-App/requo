@@ -1,6 +1,6 @@
 # Requo Security Architecture
 
-Lasting security invariants for future developers. See `docs/security-audit.md` (2026-09-14) for point-in-time findings.
+Lasting security invariants for future developers. Point-in-time audit reports are removed once their findings are resolved — this file holds what stays true.
 
 ## Trust boundaries
 

@@ -75,7 +75,7 @@ model always receives the user's text.
 2. **Write tools** (4): `create_inquiry`, `create_quote` (drafting, not gated),
    `update_inquiry_status`, `send_quote` (gated — see below).
 
-See `docs/owner-assistant-tools.md` for the tool inventory and
+See `docs/ai.md` for the tool inventory and
 `docs/architecture/assistant-and-agent.md` for the full picture.
 
 ### Authorization
@@ -168,7 +168,7 @@ await confirmAssistantToolAction({ businessSlug, sessionId, confirmationId, deci
 ## Related Documentation
 
 - [CONTEXT.md](../../CONTEXT.md) - Domain model and glossary
-- [docs/owner-assistant-tools.md](../../docs/owner-assistant-tools.md) - Tool inventory
+- [docs/ai.md](../../docs/ai.md) - Tool inventory
 - [docs/architecture/assistant-and-agent.md](../../docs/architecture/assistant-and-agent.md) - Surfaces architecture
 - [docs/architecture/adr-003-agent-assistant-naming.md](../../docs/architecture/adr-003-agent-assistant-naming.md) - Naming
 - [docs/architecture/adr-004-agent-transcript-privacy.md](../../docs/architecture/adr-004-agent-transcript-privacy.md) - Privacy

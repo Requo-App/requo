@@ -14,8 +14,8 @@ app/
                             # follow-ups, invoices, analytics, notifications, assistant
     [businessSlug]/settings/ # ~15 pages incl. members, email templates, support
   (checkout)/ admin/ onboarding/ invite/[token]/ verify-email/ home/
-  api/           # account, admin, auth, billing/polar, business, cron, dev,
-                 # inngest, ai (agent + owner-assistant), inquiries, public, push
+   api/           # account, admin, auth, billing/polar, business, cron,
+                  # inngest, ai (agent + owner-assistant), inquiries, approvals, public, push
   .well-known/   # agent-skills, api-catalog, mcp, oauth, openid, security-txt
 ```
 
@@ -70,7 +70,7 @@ Data fetching: parallelize with `Promise.all`; stream non-blocking regions via `
 - Layout: `DashboardPage` (+ `DashboardToolbar`, `DashboardStatsGrid`, `DashboardDetailLayout`, `DashboardSidebarStack`, `DashboardSection`, `DashboardTableContainer`, `DashboardActionsRow`) from `components/shared/dashboard-layout.tsx`; `PageHeader` (eyebrow/title/description/actions); `FormSection` + `FormActions`.
 - Lists: `PageHeader` (title + actions, no filler description) + `dashboard-table-shell` (toolbar strip + table + pagination as one object); `DashboardToolbar` (bare shell) vs `DataListToolbar` (composed search/filters/clear); desktop filters in toolbar (labels visually hidden, placeholders carry hints), mobile filters in `Sheet`; tables in `DashboardTableContainer`, rows edge-to-edge; mobile rows keep the same hierarchy via `mobile-record-row`. A route's `loading.tsx` composes the same fallbacks the page's `Suspense` boundaries use (`*ListControlsFallback` + `*ListContentFallback`, and the same `PageHeader` props), so shell and resolved page agree.
 - Status: `components/shared/status-badge.tsx` is the only place status colour is written. Pick a `StatusTone` and render `StatusBadge`; per-domain mappings are exhaustive `Record<Enum, StatusTone>` maps. Never a `Badge` variant plus a hand-written colour class — `audit:status-tokens` enforces this.
-- Primitives: `components/ui/*` (39 files: button, card, dialog, sheet, table, empty, alert, badge, tabs, …). Shell chrome: `components/shell/*` (sidebar 240px / 32px items, 48px top bar, command menu, mobile nav/dock). Chat primitives shared by both AI surfaces: `components/shared/chat/` (`ChatComposer`, `ChatMarkdown`, `ChatStatusLine`, `CopyButton`).
+- Primitives: `components/ui/*` (40 files: button, card, dialog, sheet, table, empty, alert, badge, tabs, …). Shell chrome: `components/shell/*` (sidebar 240px / 32px items, 48px top bar, command menu, mobile nav/dock). Chat primitives shared by both AI surfaces: `components/shared/chat/` (`ChatComposer`, `ChatMarkdown`, `ChatStatusLine`, `CopyButton`).
 - Optimistic CRUD: `hooks/use-animated-list.ts` (lists) / `useOptimistic` or `hooks/use-optimistic-mutation.ts` (toggles/moves) / `components/shared/server-action-button.tsx` (forms) + `lib/optimistic/id.ts` temp IDs; mutate optimistically in `startTransition`, reconcile with deferred refresh, revert + `toast.error` on failure. Server-side tag invalidation stays authoritative.
 - State: URL for shareable state (filters, pagination, `?session=`); `sessionStorage` for Agent token; server state via cache tags (no global client store except `live-chat-store.ts` for the Assistant stream).
 

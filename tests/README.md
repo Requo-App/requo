@@ -2,7 +2,7 @@
 
 Requo's automated tests are organized by product risk into four top-level tiers plus a shared `tests/support/` helper tree. The first three tiers run on [Vitest](https://vitest.dev) (unit and component in jsdom, integration in node), and end-to-end coverage runs on [Playwright](https://playwright.dev) against either a local `npm run dev:app` server or a Vercel preview URL. For the full rationale, tiering rules, guard invariants, and fixture contracts, see the design and root contributor guide.
 
-- Design: [`.kiro/specs/test-infrastructure-cicd/design.md`](../.kiro/specs/test-infrastructure-cicd/design.md)
+- Design: [`docs/architecture.md`](../docs/architecture.md)
 - Repo-wide conventions: [`AGENTS.md`](../AGENTS.md)
 
 ## Tiers
@@ -101,7 +101,7 @@ Unit, component, integration, and local smoke runs all complete successfully wit
 
 ### Required only for local integration and e2e against a live database
 
-`DATABASE_URL` must point at a reachable Postgres instance. `npm run test:integration` and the local path of `npm run test:e2e:smoke` both short-circuit through `scripts/test/check-db.mjs` (integration) and `scripts/test/check-db.mjs` (smoke uses `--if-local`), which exit non-zero with a message naming `DATABASE_URL` when the host is unreachable within 10 seconds.
+`DATABASE_URL` must point at a reachable Postgres instance. `npm run test:integration` and the local path of `npm run test:e2e:smoke` both short-circuit through `scripts/test/check-db.mjs` (smoke uses `--if-local`), which exits non-zero with a message naming `DATABASE_URL` when the host is unreachable within 10 seconds.
 
 ### Required only for demo seeding (`npm run db:seed`)
 
@@ -123,6 +123,6 @@ Each guard lives next to the tests it protects and runs as part of the normal Vi
 
 ## Related docs
 
-- Design document: [`.kiro/specs/test-infrastructure-cicd/design.md`](../.kiro/specs/test-infrastructure-cicd/design.md)
-- Requirements document: [`.kiro/specs/test-infrastructure-cicd/requirements.md`](../.kiro/specs/test-infrastructure-cicd/requirements.md)
+- Design document: [`docs/architecture.md`](../docs/architecture.md)
+- Requirements document: [`docs/development.md`](../docs/development.md)
 - Root agent guide: [`AGENTS.md`](../AGENTS.md)

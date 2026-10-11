@@ -1,6 +1,6 @@
 # Requo Technical Debt
 
-Architectural inconsistencies found during the documentation reset. Documented only — nothing here is fixed.
+Open inconsistencies plus resolved items kept as a record. Only the **Remaining** items are actionable; resolved items stay for context.
 
 ## 1. Duplicated `0021` migration prefix
 

@@ -5,7 +5,7 @@ Every external integration actually used: purpose, package, where, auth, env, fa
 ## Supabase (Postgres + Storage + Realtime)
 
 - Packages: `@supabase/ssr`, `@supabase/supabase-js`. Clients: `lib/supabase/admin.ts` (service role, server-only), `server.ts` / `browser.ts` (anon, `persistSession: false`).
-- Postgres is the system of record via Drizzle (not PostgREST). Storage buckets (private, server-side only): `inquiry-attachments` (`features/inquiries/mutations.ts`), `knowledge-files` (`features/memory/processing.ts`, `actions.ts`), `business-assets` logos (`features/settings/*`, `features/onboarding/actions.ts`, served at `app/api/public/businesses/[slug]/logo/route.ts`), `profile-assets` avatars (`features/account/*`), `data-exports` (`features/data-export/service.ts`). Downloads go through authenticated route handlers.
+- Postgres is the system of record via Drizzle (not PostgREST). Storage buckets (private, server-side only): `inquiry-attachments` (`features/inquiries/mutations.ts`), `knowledge-files` (`features/memory/processing.ts`, `actions.ts`), `business-assets` logos (`features/settings/*`, `features/onboarding/actions.ts`, served at `app/api/public/businesses/[slug]/logo/route.ts`), `profile-assets` avatars (`features/account/*`). Downloads go through authenticated route handlers. CSV exports stream directly from the per-entity `app/api/business/[slug]/*/export` route handlers (no storage bucket).
 - Realtime only for the notification bell (`features/notifications/components/dashboard-notification-bell.tsx`): channels `business-notifications:{biz}:{user}` etc., auth via 15-min HS256 JWT (`lib/supabase/realtime-auth.ts`, issued at `app/api/business/notifications/realtime-token/route.ts`; 503 if `SUPABASE_JWT_SECRET` unset).
 - Env: `DATABASE_URL` (pooler 6543), `DATABASE_MIGRATION_URL` (direct 5432), `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWT_SECRET`.
 - Failure: Storage upload failure fails the enclosing mutation loudly (inquiry submit reports; knowledge file → `failed` status with `failureReason`). Missing JWT secret disables realtime subscribe (bell falls back to polling state).
@@ -50,6 +50,6 @@ Every external integration actually used: purpose, package, where, auth, env, fa
 
 - Package: `crisp-sdk-web`. Widget: `components/integrations/crisp/*`, mounted in `app/(marketing)/layout.tsx`, gated in business Support settings. Env: `CRISP_WEBSITE_ID`. Not a product surface — never build customer messaging on it. Details: `docs/setup/crisp-support.md`.
 
-## Google OAuth / Calendar
+## Google OAuth (login only)
 
-- Better Auth Google provider doubles for Calendar (`GOOGLE_CLIENT_ID/SECRET`, scopes + `{BETTER_AUTH_URL}/api/google-calendar/callback` redirect). Optional; absence only disables Google login/Calendar.
+- Better Auth Google provider (`lib/auth/config.ts`, `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`). Optional; absence only disables Google login. There is no Calendar integration — do not describe one.

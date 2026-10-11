@@ -31,7 +31,7 @@ All other authorization lives in layouts, actions, and route handlers.
 
 ## Authorization: membership and roles
 
-Central helper: `getBusinessActionContext({ businessSlug, minimumRole = "staff", requireActiveBusiness })` (`lib/db/business-access.ts:518`). Flow: `requireUser()` → resolve business by slug (or slug-cookie fallback) via `business_members ⨝ businesses` + effective-plan overlay (fail-closed to `free`) → role check → business-state check. Returns `{ ok, user, businessContext }` or a typed failure (`insufficient_role`, `business_locked_by_plan`, …).
+Central helper: `getBusinessActionContext({ businessSlug, minimumRole = "staff", requireActiveBusiness })` (`lib/db/business-access.ts`). Flow: `requireUser()` → resolve business by slug (or slug-cookie fallback) via `business_members ⨝ businesses` + effective-plan overlay (fail-closed to `free`) → role check → business-state check. Returns `{ ok, user, businessContext }` or a typed failure (`insufficient_role`, `business_locked_by_plan`, …).
 
 Wrappers: `getOwnerBusinessActionContext()` (owner + active), `getOperationalBusinessActionContext()` (manager + active), `getWorkspaceBusinessActionContext()` (staff + active), `getOwnerBusinessLifecycleActionContext()` (owner, inactive allowed). Role weights `owner 3 / manager 2 / staff 1` and predicates (`canManageBusinessAdministration()`, …) in `lib/business-members.ts`.
 

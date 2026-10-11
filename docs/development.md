@@ -1,6 +1,6 @@
 # Requo Development
 
-How to run, test, build, and deploy. Commands verified against `package.json`. Environment reference: `.env.example` (206 lines). Setup guides: `docs/setup/local.md`, `docs/setup/deployment.md`, `docs/setup/billing.md`, `docs/setup/ai-provider-limits.md`, `docs/setup/crisp-support.md`.
+How to run, test, build, and deploy. Commands verified against `package.json`. Environment reference: `.env.example` (203 lines). Setup guides: `docs/setup/local.md`, `docs/setup/deployment.md`, `docs/setup/billing.md`, `docs/setup/ai-provider-limits.md`, `docs/setup/crisp-support.md`.
 
 ## Prerequisites
 

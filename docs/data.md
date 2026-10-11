@@ -12,7 +12,7 @@ How data is stored and accessed. See `docs/database-migrations.md` for the migra
 
 ## Schema organization
 
-Source of truth: `lib/db/schema/index.ts` (barrel over 24 modules). Key modules:
+Source of truth: `lib/db/schema/index.ts` (barrel over 31 modules). Key modules:
 
 | Module | Tables | Notes |
 |---|---|---|
@@ -54,15 +54,15 @@ Every business-scoped table carries `business_id NOT NULL → businesses.id ON D
 | Capability | Used? | How |
 |---|---|---|
 | Postgres | Yes (system of record) | Via Drizzle/`postgres-js` only; no PostgREST reads in app paths |
-| Storage | Yes (private buckets, server-side only) | `inquiry-attachments`, `knowledge-files`, `business-assets` (logos), `profile-assets` (avatars), `data-exports` — via `createSupabaseAdminClient()` (service role); downloads through authenticated route handlers |
+| Storage | Yes (private buckets, server-side only) | `inquiry-attachments`, `knowledge-files`, `business-assets` (logos), `profile-assets` (avatars) — via `createSupabaseAdminClient()` (service role); downloads through authenticated route handlers |
 | Realtime | Yes (notifications only) | Browser subscribes with 15-min HS256 JWT (`lib/supabase/realtime-auth.ts`, issued at `app/api/business/notifications/realtime-token/route.ts`) |
 | Auth | **No** | Better Auth only; Supabase clients set `persistSession: false` |
 | pgvector / Edge Functions | **No** | Embeddings in `jsonb`; no edge functions |
 
-Bucket names: `features/inquiries/mutations.ts` (attachments), `features/memory/processing.ts` (knowledge-files), `features/settings/*` + `features/onboarding/actions.ts` (logos), `features/account/*` (avatars), `features/data-export/service.ts` (exports).
+Bucket names: `features/inquiries/mutations.ts` (attachments), `features/memory/processing.ts` (knowledge-files), `features/settings/*` + `features/onboarding/actions.ts` (logos), `features/account/*` (avatars). Per-entity CSV exports stream from the `app/api/business/[slug]/*/export` route handlers (no export storage bucket).
 
 ## Migrations
 
-29 SQL files (`drizzle/0000_init` → `0028_inquiry_first_viewed`; no `0019`; `0021` duplicated — see `docs/technical-debt.md`). Notable: `0012` removed jobs/automations, `0014` renamed pricing → product library, `0016` agent v1, `0018` owner assistant, `0021` invoice payment tracking, `0035` behavior-pack assignments.
+37 SQL files (`drizzle/0000_init` → `0036_verticalization_primitives`; no `0019`; `0021` duplicated — see `docs/technical-debt.md`). Notable: `0012` removed jobs/automations, `0014` renamed pricing → product library, `0016` agent v1, `0018` owner assistant, `0021` invoice payment tracking, `0029` AI usage plan attribution, `0030` dropped the dead `quote_post_acceptance_status` enum, `0031` manual payment upgrade, `0032` quote acceptances, `0033` follow-up send mode, `0034` private storage buckets, `0035` behavior-pack assignments, `0036` verticalization primitives (approvals, change orders, scope blocks, schedules).
 
 Dev flow: edit `lib/db/schema/*` → `npm run db:generate -- --name descriptive_name` → `npm run db:migrate` → commit schema + SQL together. Prod: `vercel-build` applies only. Never `db:push`/`db:generate` against production; never edit a committed migration. Full procedure: `docs/database-migrations.md`.

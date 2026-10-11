@@ -31,9 +31,11 @@ app/                 # Routes, layouts, loading states, route handlers only
   (auth)/            # Signup, login, password reset, check-email
   (public)/          # b/[slug], inquire/[slug], quote/[token]
   (business)/        # new/ + [businessSlug]/(main|settings|preview|print)
+  (checkout)/        # account/billing/checkout
   admin/             # Subdomain-routed console
-  api/               # auth, billing/polar, business, cron, inngest, ai, inquiries, public, push
+  api/               # auth, billing/polar, business, cron, inngest, ai, inquiries, approvals, public, push
   onboarding/ invite/ verify-email/ home/ .well-known/
+  llms.txt/ pricing.md/ sitemap + robots (agent-readable + SEO)
 features/            # Product logic: validation, queries, actions, mutations, UI
   ai/                # Quote drafting only (no chat orchestrator)
   ai-agent/          # Customer Agent (anonymous public chat)
@@ -41,7 +43,7 @@ features/            # Product logic: validation, queries, actions, mutations, U
   memory/            # Extraction, chunking, embeddings, RAG retriever
   inquiries/ quotes/ invoices/ follow-ups/ customers/
   analytics/ notifications/ billing/ businesses/ business-members/
-  settings/ onboarding/ importer/ data-export/ audit/ admin/ ...
+   settings/ onboarding/ importer/ audit/ admin/ ...
 lib/                 # Cross-cutting infra
   ai/ auth/ billing/ cache/ db/ email/ inngest/ supabase/
   plans/ push/ rate-limit/ security/ seo/ openrouter/ ...
@@ -56,7 +58,7 @@ Rules: `app/` stays thin (routing, composition, loading). Product logic lives in
 ## Runtime architecture
 
 - `next dev` / `next build` / `next start`. Dev entry: `npm run dev:app` (preferred for app work); `npm run dev` adds Inngest dev + ngrok for webhooks.
-- `next.config.ts`: `cacheComponents: true`, `partialPrefetching: true`, `staleTimes { dynamic: 30, static: 180 }`, security headers + per-surface cache headers, `/:businessSlug/forms/*` → `/services/*` redirects.
+- `next.config.ts`: `cacheComponents: true`, `partialPrefetching: true`, `staleTimes { dynamic: 60, static: 180 }`, security headers + per-surface cache headers, `/:businessSlug/forms/*` → `/services/*` redirects.
 - `vercel-build` runs `db:migrate:strict && next build` (apply migrations, never generate against prod).
 - DB connections: runtime uses `DATABASE_URL` (pooler, port 6543); migrations use `DATABASE_MIGRATION_URL` (direct, port 5432). See `lib/db/client.ts`, `lib/db/connection-options.ts`, `scripts/migrate.ts`, `drizzle.config.ts`.
 - `proxy.ts` (middleware) does routing/headers, plus the one auth check that cannot live anywhere else: the `/admin` gate. A real `403` status has to be produced before the response streams, and `app/admin/layout.tsx` cannot block (its pages export `instant = true`), so the proxy is the only layer that can reject a non-admin before the admin shell is flushed. It is an optimistic cookie-cache check, never the sole boundary — see `docs/authentication.md`. Everything else is routing/headers: `X-Robots-Tag` for authenticated routes, `/` + `Accept: text/markdown` → `/api/public/markdown`, legacy `/account/*` → business settings, business-slug cookie.
@@ -80,7 +82,7 @@ Rules: `app/` stays thin (routing, composition, loading). Product logic lives in
 | Server actions | `features/*/actions.ts` | Validation + authz + mutation orchestration |
 | Business logic | `features/*/mutations.ts`, `queries.ts`, `schemas.ts` | Writes, reads, Zod schemas |
 | Data access | `lib/db/*` + Drizzle schema | Connection, scoped queries, transactions |
-| Database | Supabase Postgres | 24 schema modules (`lib/db/schema/`) |
+| Database | Supabase Postgres | 31 schema modules (`lib/db/schema/`) |
 | External | `lib/email`, `lib/supabase`, `lib/billing`, `lib/push` | Email, storage, realtime, billing, push |
 | AI | `lib/ai` + `features/ai*` + `features/memory` | Routing, drafting, chats, RAG |
 | Background | `lib/inngest/*`, `features/*/jobs/*` | Cron + event-driven jobs |
