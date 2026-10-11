@@ -19,13 +19,14 @@ Requo supports the workflow from a new customer request to a quote response:
 - Manual and automatic follow-ups with reminders and AI-assisted message drafting
 - Conversion and workflow analytics, CSV exports, notifications, audit logs, and business members
 - AI-assisted quote drafting grounded in business knowledge files and the Products library
+- Invoices from accepted quotes with manually recorded payments (no gateway; Requo never processes money)
 - Business onboarding templates, multi-business accounts, and Polar subscriptions with Free, Pro, and Business plans
 
-Requo is intentionally focused on service-business inquiry-to-quote workflows. It does not currently include jobs, invoices, calendar scheduling, a mobile app, marketplace features, or a general-purpose AI chat product.
+Requo is intentionally focused on service-business inquiry-to-quote-to-invoice workflows. It does not currently include jobs/dispatch, payment processing, calendar scheduling, a mobile app, marketplace features, or a general-purpose AI chat product.
 
 ## Stack
 
-- Next.js 16.2 App Router, React 19, TypeScript
+- Next.js 16.3 App Router, React 19, TypeScript
 - Tailwind CSS v4, shadcn/ui, Radix UI
 - PostgreSQL with Drizzle ORM
 - Better Auth for authentication
@@ -40,6 +41,9 @@ Requo is intentionally focused on service-business inquiry-to-quote workflows. I
 Prerequisites: Node.js 22+, npm, PostgreSQL, and environment values from `.env.example`.
 
 ```bash
+cp .env.example .env.local
+# Set DATABASE_URL, BETTER_AUTH_SECRET, NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+docker compose up -d db
 npm install
 npm run db:migrate
 npm run db:seed
@@ -74,7 +78,7 @@ features/      Product logic, queries, actions, and feature UI
 lib/           Auth, database, providers, caching, and utilities
 scripts/       Migrations, seeders, audits, and operational tools
 tests/         Unit, component, integration, and end-to-end tests
-docs/          Setup, architecture, billing, and support documentation
+docs/          Setup, architecture, and domain documentation
 ```
 
 ## Documentation
@@ -82,10 +86,17 @@ docs/          Setup, architecture, billing, and support documentation
 - [Local setup](./docs/setup/local.md)
 - [Deployment](./docs/setup/deployment.md)
 - [Billing](./docs/setup/billing.md)
-- [Architecture](./docs/architecture/requo-architecture.md)
+- [Architecture](./docs/architecture.md)
 - [Design system](./DESIGN.md)
 - [Testing](./tests/README.md)
 - [Agent guide](./AGENTS.md)
+- [Contributing](./CONTRIBUTING.md)
+- [Security](./SECURITY.md)
+- [Changelog](./CHANGELOG.md)
+
+## License
+
+AGPL-3.0-only, see [LICENSE](./LICENSE). If you run a modified version as a network service, you must offer its source to users (AGPL section 13).
 
 ## Verification
 

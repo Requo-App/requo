@@ -1,0 +1,19 @@
+name: Feature request
+description: Propose a scoped product change
+title: "feat: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Which owner workflow (inquiry, quote, follow-up, invoice) is affected?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: Smallest change that solves it; note tenant, authz, and plan-gating implications
+    validations:
+      required: true

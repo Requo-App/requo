@@ -41,6 +41,7 @@ tmp-*.log
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -49,8 +50,13 @@ tmp-*.log
 *.tsbuildinfo
 next-env.d.ts
 
-# editor
+# editor (never commit local editor/IDE state)
 .vscode
+.idea
+.cursor
+.opencode
+.windsurf
+.zed
 
 # local AI tooling workspaces
 .kilo/
