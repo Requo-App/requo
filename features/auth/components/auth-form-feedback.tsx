@@ -20,7 +20,7 @@ export function AuthFormFeedback({
   const key = `${error ?? ""}|${success ?? ""}`;
 
   useEffect(() => {
-    if (!key || keyRef.current === key) {
+    if (keyRef.current === key) {
       return;
     }
 

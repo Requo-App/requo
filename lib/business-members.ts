@@ -1,5 +1,5 @@
 export const businessMemberRoles = ["owner", "manager", "staff"] as const;
-export const businessMemberAssignableRoles = ["owner", "manager", "staff"] as const;
+export const businessMemberAssignableRoles = ["manager", "staff"] as const;
 export const businessMemberInviteDurationDays = 14;
 
 export type BusinessMemberRole = (typeof businessMemberRoles)[number];
@@ -39,22 +39,6 @@ const businessMemberRoleWeight: Record<BusinessMemberRole, number> = {
   staff: 1,
 };
 
-export function isBusinessMemberRole(value: unknown): value is BusinessMemberRole {
-  return (
-    typeof value === "string" &&
-    businessMemberRoles.includes(value as BusinessMemberRole)
-  );
-}
-
-export function isBusinessMemberAssignableRole(
-  value: unknown,
-): value is BusinessMemberAssignableRole {
-  return (
-    typeof value === "string" &&
-    businessMemberAssignableRoles.includes(value as BusinessMemberAssignableRole)
-  );
-}
-
 export function hasBusinessRoleAccess(
   currentRole: BusinessMemberRole,
   minimumRole: BusinessMemberRole,
@@ -77,15 +61,7 @@ export function canManageOperationalBusinessSettings(role: BusinessMemberRole) {
   return hasBusinessRoleAccess(role, "manager");
 }
 
-export function canAccessBusinessForms(role: BusinessMemberRole) {
-  return hasBusinessRoleAccess(role, "manager");
-}
-
 export function canViewBusinessAnalytics(role: BusinessMemberRole) {
-  return hasBusinessRoleAccess(role, "staff");
-}
-
-export function canViewBusinessMembers(role: BusinessMemberRole) {
   return hasBusinessRoleAccess(role, "staff");
 }
 

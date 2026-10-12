@@ -13,7 +13,7 @@ import { db } from "@/lib/db/client";
 import { businessMemberInvites, businessMembers } from "@/lib/db/schema";
 import { getOwnerBusinessActionContext } from "@/lib/db/business-access";
 import { requireSession } from "@/lib/auth/session";
-import { activeBusinessSlugCookieName, getActiveBusinessCookieAttributes, getBusinessDashboardPath, getBusinessMemberInvitePath, getBusinessMembersPath } from "@/features/businesses/routes";
+import { activeBusinessSlugCookieName, getActiveBusinessCookieAttributes, getBusinessHomePath, getBusinessMemberInvitePath, getBusinessMembersPath, homePath } from "@/features/businesses/routes";
 import {
   businessMemberInviteIdSchema,
   businessMemberInviteSchema,
@@ -32,7 +32,7 @@ import {
 } from "@/features/business-members/mutations";
 import type { BusinessMemberInviteActionState } from "@/features/business-members/action-types";
 import { businessMemberInviteDurationDays } from "@/lib/business-members";
-import { sendBusinessMemberInviteEmail } from "@/lib/resend/client";
+import { sendBusinessMemberInviteEmail } from "@/lib/email/transactional";
 import { env, isMemberInviteEmailEnabled } from "@/lib/env";
 import { getUsageLimit } from "@/lib/plans/usage-limits";
 import { getBusinessMemberCount } from "@/lib/plans/usage";
@@ -350,6 +350,11 @@ export async function acceptBusinessMemberInviteAction(inviteToken: string) {
     redirect(`/invite/${inviteToken}?error=1`);
   }
 
+  updateCacheTags([
+    ...getBusinessMembersCacheTags(result.businessId),
+    ...getUserPendingInvitesCacheTags(session.user.id),
+  ]);
+
   // Persist active business in the shell cookie.
   const cookieStore = await cookies();
   cookieStore.set(
@@ -358,7 +363,7 @@ export async function acceptBusinessMemberInviteAction(inviteToken: string) {
     getActiveBusinessCookieAttributes(),
   );
 
-  redirect(getBusinessDashboardPath(result.businessSlug));
+  redirect(getBusinessHomePath(result.businessSlug));
 }
 
 export async function acceptBusinessInviteLinkAction(inviteToken: string) {
@@ -381,7 +386,7 @@ export async function acceptBusinessInviteLinkAction(inviteToken: string) {
     getActiveBusinessCookieAttributes(),
   );
 
-  redirect(getBusinessDashboardPath(result.businessSlug));
+  redirect(getBusinessHomePath(result.businessSlug));
 }
 
 export async function acceptInviteFromHubAction(
@@ -409,8 +414,8 @@ export async function acceptInviteFromHubAction(
     getActiveBusinessCookieAttributes(),
   );
 
-  revalidatePath("/home");
-  redirect(getBusinessDashboardPath(result.businessSlug));
+  revalidatePath(homePath);
+  redirect(getBusinessHomePath(result.businessSlug));
 }
 
 export async function declineInviteFromHubAction(
@@ -445,7 +450,7 @@ export async function declineInviteFromHubAction(
 
   updateCacheTags(getUserPendingInvitesCacheTags(session.user.id));
   updateCacheTags(getBusinessMembersCacheTags(row.businessId));
-  revalidatePath("/home");
+  revalidatePath(homePath);
 
   return {};
 }

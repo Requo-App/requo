@@ -1,21 +1,12 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Suspense } from "react";
 
-import { AuthShell } from "@/components/shell/auth-shell";
-import { Button } from "@/components/ui/button";
 import { createNoIndexMetadata } from "@/lib/seo/site";
-import { getOptionalSession } from "@/lib/auth/session";
-import { timed } from "@/lib/dev/server-timing";
-import { getBusinessMemberInvitePath } from "@/features/businesses/routes";
 import {
-  getBusinessInviteLinkForToken,
-  getBusinessMemberInviteForToken,
-} from "@/features/business-members/queries";
-import {
-  acceptBusinessInviteLinkAction,
-  acceptBusinessMemberInviteAction,
-} from "@/features/business-members/actions";
+  BusinessMemberInviteContent,
+  BusinessMemberInviteFallback,
+  getInviteForToken,
+} from "@/features/business-members/components/invite-accept";
 
 const inviteFallbackMetadata = createNoIndexMetadata({
   absoluteTitle: "Business invite",
@@ -28,11 +19,7 @@ export async function generateMetadata({
   params: Promise<{ token: string }>;
 }): Promise<Metadata> {
   const { token } = await params;
-  const [invite, inviteLink] = await Promise.all([
-    getBusinessMemberInviteForToken(token),
-    getBusinessInviteLinkForToken(token),
-  ]);
-
+  const { invite, inviteLink } = await getInviteForToken(token);
   const businessName = invite?.businessName ?? inviteLink?.businessName;
 
   if (!businessName) {
@@ -54,15 +41,12 @@ export default function BusinessMemberInvitePage({
 }) {
   return (
     <Suspense fallback={<BusinessMemberInviteFallback />}>
-      <BusinessMemberInviteContent
-        params={params}
-        searchParams={searchParams}
-      />
+      <InviteRouteContent params={params} searchParams={searchParams} />
     </Suspense>
   );
 }
 
-async function BusinessMemberInviteContent({
+async function InviteRouteContent({
   params,
   searchParams,
 }: {
@@ -70,204 +54,6 @@ async function BusinessMemberInviteContent({
   searchParams: Promise<{ error?: string | string[] }>;
 }) {
   const [{ token }, { error }] = await Promise.all([params, searchParams]);
-  // Kick off invite + session lookups in parallel — independent queries.
-  // Await both up front so a missing invite early-return doesn't leave the
-  // session promise dangling (which would surface as an unhandled rejection
-  // if it rejected).
-  const [invite, inviteLink, session] = await timed(
-    "invite.parallelInviteAndSession",
-    Promise.all([
-      getBusinessMemberInviteForToken(token),
-      getBusinessInviteLinkForToken(token),
-      getOptionalSession(),
-    ]),
-  );
 
-  if (inviteLink && !invite) {
-    return (
-      <BusinessInviteLinkContent
-        businessName={inviteLink.businessName}
-        inviteError={typeof error === "string" ? error : error?.[0]}
-        isSignedIn={Boolean(session)}
-        token={token}
-      />
-    );
-  }
-
-  if (!invite) {
-    return (
-      <AuthShell
-        badge="Invite"
-        description="This invite link is invalid or has expired."
-        layout="centered"
-        title="Invite not found"
-      >
-        <div className="flex flex-col gap-4 text-sm leading-normal sm:leading-7 text-muted-foreground">
-          <p>Ask the business owner to send a fresh invite link.</p>
-          <Button asChild>
-            <Link href="/login">Sign in</Link>
-          </Button>
-        </div>
-      </AuthShell>
-    );
-  }
-
-  const isSignedIn = Boolean(session);
-  const inviteEmail = invite.email;
-  const inviteError = typeof error === "string" ? error : error?.[0];
-
-  if (!isSignedIn) {
-    return (
-      <AuthShell
-        badge="Invite"
-        description="Sign in to accept this business access invite."
-        layout="centered"
-        title={`Join ${invite.businessName}`}
-      >
-        <div className="flex flex-col gap-4 text-sm leading-normal sm:leading-7 text-muted-foreground">
-          <p>
-            This invite was sent to <span className="font-medium text-foreground">{inviteEmail}</span>.
-          </p>
-          <Button asChild>
-            <Link href={`/login?next=${encodeURIComponent(getBusinessMemberInvitePath(token))}`}>
-              Sign in
-            </Link>
-          </Button>
-        </div>
-      </AuthShell>
-    );
-  }
-
-  // Signed in, but invite belongs to another email.
-  if (session?.user?.email.toLowerCase() !== inviteEmail.toLowerCase()) {
-    return (
-      <AuthShell
-        badge="Invite"
-        description="This invite was sent to a different email address."
-        layout="centered"
-        title={`Join ${invite.businessName}`}
-      >
-        <div className="flex flex-col gap-4 text-sm leading-normal sm:leading-7 text-muted-foreground">
-          <p>
-            Signed in as{" "}
-            <span className="font-medium text-foreground">{session?.user.email}</span>, but this invite is for{" "}
-            <span className="font-medium text-foreground">{inviteEmail}</span>.
-          </p>
-          <Button asChild variant="outline">
-            <Link href="/login">Use a different account</Link>
-          </Button>
-        </div>
-      </AuthShell>
-    );
-  }
-
-  return (
-    <AuthShell
-      badge="Invite"
-      description="Accept this invite to get access to the business dashboard."
-      layout="centered"
-      title={`Join ${invite.businessName}`}
-    >
-      <div className="flex flex-col gap-4">
-        {inviteError ? (
-          <div className="rounded-xl border border-destructive/25 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-            That invite could not be accepted. Please ask for a new link.
-          </div>
-        ) : null}
-
-        <div className="rounded-xl border border-border/70 bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
-          <p>
-            You&apos;re accepting access for <span className="font-medium text-foreground">{inviteEmail}</span>.
-          </p>
-        </div>
-
-        <form action={acceptBusinessMemberInviteAction.bind(null, token)}>
-          <Button className="w-full" size="lg" type="submit">
-            Accept invite
-          </Button>
-        </form>
-      </div>
-    </AuthShell>
-  );
-}
-
-function BusinessInviteLinkContent({
-  businessName,
-  inviteError,
-  isSignedIn,
-  token,
-}: {
-  businessName: string;
-  inviteError: string | undefined;
-  isSignedIn: boolean;
-  token: string;
-}) {
-  if (!isSignedIn) {
-    return (
-      <AuthShell
-        badge="Invite"
-        description="Sign in to accept this business access invite."
-        layout="centered"
-        title={`Join ${businessName}`}
-      >
-        <div className="flex flex-col gap-4 text-sm leading-normal sm:leading-7 text-muted-foreground">
-          <p>
-            You&apos;ve been invited to join{" "}
-            <span className="font-medium text-foreground">{businessName}</span>.
-          </p>
-          <Button asChild>
-            <Link href={`/login?next=${encodeURIComponent(getBusinessMemberInvitePath(token))}`}>
-              Sign in
-            </Link>
-          </Button>
-        </div>
-      </AuthShell>
-    );
-  }
-
-  return (
-    <AuthShell
-      badge="Invite"
-      description="Accept this invite to get access to the business dashboard."
-      layout="centered"
-      title={`Join ${businessName}`}
-    >
-      <div className="flex flex-col gap-4">
-        {inviteError ? (
-          <div className="rounded-xl border border-destructive/25 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-            That invite could not be accepted. Please ask for a new link.
-          </div>
-        ) : null}
-
-        <div className="rounded-xl border border-border/70 bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
-          <p>
-            You&apos;re accepting access to{" "}
-            <span className="font-medium text-foreground">{businessName}</span>.
-          </p>
-        </div>
-
-        <form action={acceptBusinessInviteLinkAction.bind(null, token)}>
-          <Button className="w-full" size="lg" type="submit">
-            Accept invite
-          </Button>
-        </form>
-      </div>
-    </AuthShell>
-  );
-}
-
-function BusinessMemberInviteFallback() {
-  return (
-    <AuthShell
-      badge="Invite"
-      description="Checking this business access invite."
-      layout="centered"
-      title="Loading invite"
-    >
-      <div className="flex flex-col gap-4">
-        <div className="h-4 w-52 rounded-md bg-muted" />
-        <div className="h-11 w-full rounded-lg bg-muted" />
-      </div>
-    </AuthShell>
-  );
+  return <BusinessMemberInviteContent token={token} errorParam={error} />;
 }

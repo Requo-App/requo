@@ -16,6 +16,7 @@ import {
   getFieldError,
   getMagicLinkQueryErrorMessage,
   getValidationState,
+  requestSocialSignIn,
 } from "@/features/auth/utils";
 import {
   signupSchema,
@@ -23,11 +24,13 @@ import {
 import { joinFullName } from "@/features/account/name";
 import type { AuthFormState } from "@/features/auth/types";
 import { AuthFormFeedback } from "@/features/auth/components/auth-form-feedback";
+import {
+  AuthEmailField,
+  AuthPasswordField,
+  AuthSubmitButton,
+} from "@/features/auth/components/auth-form-fields";
 import { onboardingPath } from "@/features/onboarding/routes";
-import { dashboardPath } from "@/features/businesses/routes";
-import { FormActions } from "@/components/shared/form-layout";
-import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
+import { homePath } from "@/features/businesses/routes";
 import {
   Field,
   FieldContent,
@@ -36,7 +39,6 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { PasswordInput } from "@/features/auth/components/password-input";
 
 type SignupFormProps = {
   socialProviders?: SocialAuthProvider[];
@@ -101,7 +103,15 @@ export function SignupForm({
       }
 
       form.reset();
-      router.push(`/check-email?email=${encodeURIComponent(validationResult.data.email)}`);
+      // Client-side push: verification completes via the emailed link, so no
+      // session exists yet and a full reload would gain nothing.
+      const checkEmailParams = new URLSearchParams({
+        email: validationResult.data.email,
+      });
+      if (rawNext && nextPath !== onboardingPath) {
+        checkEmailParams.set("next", nextPath);
+      }
+      router.push(`/check-email?${checkEmailParams.toString()}`);
     });
   }
 
@@ -110,21 +120,16 @@ export function SignupForm({
     setLoadingAction(provider);
 
     startTransition(async () => {
-      const result = await authClient.signIn.social({
-        provider,
-        // Existing users land on businesses; brand-new users land on onboarding (nextPath default)
-        callbackURL: dashboardPath,
+      // Existing users land on businesses; brand-new users land on onboarding (nextPath default)
+      const error = await requestSocialSignIn(provider, {
+        callbackURL: homePath,
         newUserCallbackURL: nextPath,
+        fallbackMessage: `We couldn't continue with ${provider} right now.`,
       });
 
-      if (result.error) {
+      if (error) {
         setLoadingAction(null);
-        setState({
-          error: getAuthErrorMessage(
-            result.error,
-            `We couldn't continue with ${provider} right now.`,
-          ),
-        });
+        setState({ error });
       }
     });
   }
@@ -201,57 +206,25 @@ export function SignupForm({
           </Field>
         </div>
 
-        <Field data-invalid={Boolean(emailError) || undefined}>
-          <FieldLabel htmlFor="signup-email">Email address</FieldLabel>
-          <FieldContent>
-            <Input
-              id="signup-email"
-              name="email"
-              type="email"
-              autoComplete="email"
-              maxLength={320}
-              placeholder="owner@example.com"
-              required
-              aria-invalid={Boolean(emailError) || undefined}
-              disabled={isPending}
-            />
-            <FieldError errors={emailError ? [{ message: emailError }] : undefined} />
-          </FieldContent>
-        </Field>
+        <AuthEmailField id="signup-email" error={emailError} disabled={isPending} />
 
-        <Field data-invalid={Boolean(passwordError) || undefined}>
-          <FieldLabel htmlFor="password">Password</FieldLabel>
-          <FieldContent>
-            <PasswordInput
-              id="password"
-              name="password"
-              autoComplete="new-password"
-              maxLength={128}
-              minLength={8}
-              placeholder="At least 8 characters"
-              required
-              aria-invalid={Boolean(passwordError) || undefined}
-              disabled={isPending}
-            />
-            <FieldError
-              errors={passwordError ? [{ message: passwordError }] : undefined}
-            />
-          </FieldContent>
-        </Field>
+        <AuthPasswordField
+          id="password"
+          name="password"
+          label="Password"
+          autoComplete="new-password"
+          placeholder="At least 8 characters"
+          error={passwordError}
+          disabled={isPending}
+        />
       </FieldGroup>
 
-      <FormActions className="items-stretch sm:items-stretch">
-        <Button className="w-full" disabled={isPending} type="submit" size="lg">
-          {isPending && loadingAction === "email" ? (
-            <>
-              <Spinner data-icon="inline-start" aria-hidden="true" />
-              Creating your account...
-            </>
-          ) : (
-            "Create account"
-          )}
-        </Button>
-      </FormActions>
+      <AuthSubmitButton
+        pending={isPending && loadingAction === "email"}
+        pendingLabel="Creating your account..."
+      >
+        Create account
+      </AuthSubmitButton>
 
       <p className="pt-1 text-center text-sm text-muted-foreground">
         Already have an account?{" "}

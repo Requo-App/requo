@@ -16,8 +16,8 @@ import {
   isBusinessQuotaExceededError,
 } from "@/features/businesses/quota";
 import {
-  dashboardPath,
-  getBusinessDashboardPath,
+  homePath,
+  getBusinessHomePath,
 } from "@/features/businesses/routes";
 import {
   inquiryFormConfigSchema,
@@ -219,8 +219,8 @@ export async function completeOnboardingAction(
       userId: user.id,
       businessSlug: business.slug,
     });
-    revalidatePath(dashboardPath);
-    redirectPath = `${getBusinessDashboardPath(business.slug)}?welcome=1`;
+    revalidatePath(homePath);
+    redirectPath = getBusinessHomePath(business.slug);
   } catch (error) {
     if (isBusinessQuotaExceededError(error)) {
       return {

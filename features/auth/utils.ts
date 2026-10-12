@@ -1,6 +1,8 @@
 import type { z } from "zod";
 
 import type { AuthFormState } from "@/features/auth/types";
+import type { SocialAuthProvider } from "@/features/auth/components/social-auth-buttons";
+import { authClient } from "@/lib/auth/client";
 import { getFieldError, getValidationActionState } from "@/lib/action-state";
 
 function normalizeAuthErrorMessage(
@@ -88,3 +90,30 @@ export function getValidationState(
 }
 
 export { getFieldError };
+
+/**
+ * Shared Google/other-provider sign-in call. Returns the display-ready error
+ * message, or null when Better Auth redirects to the provider. Callers keep
+ * their own loading state; only the differing callback URLs and fallback
+ * copy are parameterized.
+ */
+export async function requestSocialSignIn(
+  provider: SocialAuthProvider,
+  options: {
+    callbackURL: string;
+    newUserCallbackURL: string;
+    fallbackMessage: string;
+  },
+): Promise<string | null> {
+  const result = await authClient.signIn.social({
+    provider,
+    callbackURL: options.callbackURL,
+    newUserCallbackURL: options.newUserCallbackURL,
+  });
+
+  if (result.error) {
+    return getAuthErrorMessage(result.error, options.fallbackMessage);
+  }
+
+  return null;
+}

@@ -3,22 +3,25 @@
 import { useSyncExternalStore } from "react";
 
 /**
- * Known in-app browser user-agent indicators.
+ * Known in-app browser user-agent indicators with display names.
  * Google blocks OAuth from these embedded browsers (error 403: disallowed_useragent).
  */
-const IN_APP_BROWSER_PATTERNS = [
-  /FBAN|FBAV/i, // Facebook / Messenger
-  /Instagram/i, // Instagram
-  /Twitter/i, // Twitter / X
-  /Line\//i, // LINE
-  /Snapchat/i, // Snapchat
-  /Pinterest/i, // Pinterest
-  /LinkedIn/i, // LinkedIn
-  /MicroMessenger/i, // WeChat
-  /QQ\//i, // QQ
-  /TikTok/i, // TikTok
-  /Telegram/i, // Telegram (some versions)
-  /\bwv\b/i, // Android WebView
+const IN_APP_BROWSER_PATTERNS: ReadonlyArray<{
+  pattern: RegExp;
+  appName: string | null;
+}> = [
+  { pattern: /FBAN|FBAV/i, appName: "Facebook" }, // Facebook / Messenger
+  { pattern: /Instagram/i, appName: "Instagram" }, // Instagram
+  { pattern: /Twitter/i, appName: "X (Twitter)" }, // Twitter / X
+  { pattern: /Line\//i, appName: "LINE" }, // LINE
+  { pattern: /Snapchat/i, appName: "Snapchat" }, // Snapchat
+  { pattern: /Pinterest/i, appName: "Pinterest" }, // Pinterest
+  { pattern: /LinkedIn/i, appName: "LinkedIn" }, // LinkedIn
+  { pattern: /MicroMessenger/i, appName: "WeChat" }, // WeChat
+  { pattern: /QQ\//i, appName: "QQ" }, // QQ
+  { pattern: /TikTok/i, appName: "TikTok" }, // TikTok
+  { pattern: /Telegram/i, appName: "Telegram" }, // Telegram (some versions)
+  { pattern: /\bwv\b/i, appName: "Android WebView" }, // Android WebView
 ];
 
 export type InAppBrowserInfo = {
@@ -54,25 +57,10 @@ export function useInAppBrowser(): InAppBrowserInfo {
 }
 
 function detectInAppBrowser(ua: string): InAppBrowserInfo {
-  for (const pattern of IN_APP_BROWSER_PATTERNS) {
+  for (const { pattern, appName } of IN_APP_BROWSER_PATTERNS) {
     if (pattern.test(ua)) {
-      return { isInAppBrowser: true, appName: resolveAppName(ua) };
+      return { isInAppBrowser: true, appName };
     }
   }
   return { isInAppBrowser: false, appName: null };
-}
-
-function resolveAppName(ua: string): string | null {
-  if (/FBAN|FBAV/i.test(ua)) return "Facebook";
-  if (/Instagram/i.test(ua)) return "Instagram";
-  if (/Twitter/i.test(ua)) return "X (Twitter)";
-  if (/Line\//i.test(ua)) return "LINE";
-  if (/Snapchat/i.test(ua)) return "Snapchat";
-  if (/Pinterest/i.test(ua)) return "Pinterest";
-  if (/LinkedIn/i.test(ua)) return "LinkedIn";
-  if (/MicroMessenger/i.test(ua)) return "WeChat";
-  if (/QQ\//i.test(ua)) return "QQ";
-  if (/TikTok/i.test(ua)) return "TikTok";
-  if (/Telegram/i.test(ua)) return "Telegram";
-  return null;
 }

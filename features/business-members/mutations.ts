@@ -14,6 +14,7 @@ import {
 import { getBusinessMemberCount } from "@/lib/plans/usage";
 import { getUsageLimit } from "@/lib/plans/usage-limits";
 import { hashOpaqueToken } from "@/lib/security/tokens";
+import type { BusinessMemberAssignableRole } from "@/lib/business-members";
 
 export async function createBusinessMemberInvite({
   businessId,
@@ -26,7 +27,7 @@ export async function createBusinessMemberInvite({
   businessId: string;
   inviterUserId: string;
   email: string;
-  role: "owner" | "manager" | "staff";
+  role: BusinessMemberAssignableRole;
   token: string;
   expiresAt: Date;
 }): Promise<{ inviteId: string }> {

@@ -8,17 +8,11 @@ import { getAuthErrorMessage, getFieldError, getValidationState } from "@/featur
 import { forgotPasswordSchema } from "@/features/auth/schemas";
 import type { AuthFormState } from "@/features/auth/types";
 import { AuthFormFeedback } from "@/features/auth/components/auth-form-feedback";
-import { FormActions } from "@/components/shared/form-layout";
-import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
 import {
-  Field,
-  FieldContent,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
+  AuthEmailField,
+  AuthSubmitButton,
+} from "@/features/auth/components/auth-form-fields";
+import { FieldGroup } from "@/components/ui/field";
 
 const successMessage =
   "If that email exists, we sent a reset link.";
@@ -58,6 +52,8 @@ export function ForgotPasswordForm() {
         return;
       }
 
+      // No navigation: the user acts through the emailed link, so the form
+      // stays and confirms via toast.
       setState({
         success: successMessage,
       });
@@ -75,37 +71,12 @@ export function ForgotPasswordForm() {
       />
 
       <FieldGroup>
-        <Field data-invalid={Boolean(emailError) || undefined}>
-          <FieldLabel htmlFor="email">Email address</FieldLabel>
-          <FieldContent>
-            <Input
-              id="email"
-              name="email"
-              type="email"
-              autoComplete="email"
-              maxLength={320}
-              placeholder="owner@example.com"
-              required
-              aria-invalid={Boolean(emailError) || undefined}
-              disabled={isPending}
-            />
-            <FieldError errors={emailError ? [{ message: emailError }] : undefined} />
-          </FieldContent>
-        </Field>
+        <AuthEmailField id="email" error={emailError} disabled={isPending} />
       </FieldGroup>
 
-      <FormActions className="items-stretch sm:items-stretch">
-        <Button className="w-full" disabled={isPending} type="submit" size="lg">
-          {isPending ? (
-            <>
-              <Spinner data-icon="inline-start" aria-hidden="true" />
-              Sending reset link...
-            </>
-          ) : (
-            "Send reset link"
-          )}
-        </Button>
-      </FormActions>
+      <AuthSubmitButton pending={isPending} pendingLabel="Sending reset link...">
+        Send reset link
+      </AuthSubmitButton>
 
       <p className="pt-1 text-center text-sm text-muted-foreground">
         <Link

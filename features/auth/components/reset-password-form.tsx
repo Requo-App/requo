@@ -9,17 +9,12 @@ import { getAuthErrorMessage, getFieldError, getValidationState } from "@/featur
 import { resetPasswordSchema } from "@/features/auth/schemas";
 import type { AuthFormState } from "@/features/auth/types";
 import { AuthFormFeedback } from "@/features/auth/components/auth-form-feedback";
-import { FormActions } from "@/components/shared/form-layout";
-import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
 import {
-  Field,
-  FieldContent,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field";
-import { PasswordInput } from "@/features/auth/components/password-input";
+  AuthPasswordField,
+  AuthSubmitButton,
+} from "@/features/auth/components/auth-form-fields";
+import { Button } from "@/components/ui/button";
+import { FieldGroup } from "@/components/ui/field";
 
 export function ResetPasswordForm() {
   const searchParams = useSearchParams();
@@ -60,6 +55,9 @@ export function ResetPasswordForm() {
         return;
       }
 
+      // Full-page load into a clean login — the old session (if any) is
+      // revoked server-side on reset, so client router state is discarded.
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- The reset revokes the old session; discard its client state.
       window.location.assign("/login?reset=success");
     });
   }
@@ -90,63 +88,30 @@ export function ResetPasswordForm() {
       />
 
       <FieldGroup>
-        <Field data-invalid={Boolean(passwordError) || undefined}>
-          <FieldLabel htmlFor="password">New password</FieldLabel>
-          <FieldContent>
-            <PasswordInput
-              id="password"
-              name="password"
-              autoComplete="new-password"
-              maxLength={128}
-              minLength={8}
-              placeholder="At least 8 characters"
-              required
-              aria-invalid={Boolean(passwordError) || undefined}
-              disabled={isPending}
-            />
-            <FieldError
-              errors={passwordError ? [{ message: passwordError }] : undefined}
-            />
-          </FieldContent>
-        </Field>
+        <AuthPasswordField
+          id="password"
+          name="password"
+          label="New password"
+          autoComplete="new-password"
+          placeholder="At least 8 characters"
+          error={passwordError}
+          disabled={isPending}
+        />
 
-        <Field data-invalid={Boolean(confirmPasswordError) || undefined}>
-          <FieldLabel htmlFor="confirmPassword">Confirm password</FieldLabel>
-          <FieldContent>
-            <PasswordInput
-              id="confirmPassword"
-              name="confirmPassword"
-              autoComplete="new-password"
-              maxLength={128}
-              minLength={8}
-              placeholder="Re-enter your new password"
-              required
-              aria-invalid={Boolean(confirmPasswordError) || undefined}
-              disabled={isPending}
-            />
-            <FieldError
-              errors={
-                confirmPasswordError
-                  ? [{ message: confirmPasswordError }]
-                  : undefined
-              }
-            />
-          </FieldContent>
-        </Field>
+        <AuthPasswordField
+          id="confirmPassword"
+          name="confirmPassword"
+          label="Confirm password"
+          autoComplete="new-password"
+          placeholder="Re-enter your new password"
+          error={confirmPasswordError}
+          disabled={isPending}
+        />
       </FieldGroup>
 
-      <FormActions className="items-stretch sm:items-stretch">
-        <Button className="w-full" disabled={isPending} type="submit" size="lg">
-          {isPending ? (
-            <>
-              <Spinner data-icon="inline-start" aria-hidden="true" />
-              Updating password...
-            </>
-          ) : (
-            "Reset password"
-          )}
-        </Button>
-      </FormActions>
+      <AuthSubmitButton pending={isPending} pendingLabel="Updating password...">
+        Reset password
+      </AuthSubmitButton>
 
       <p className="pt-1 text-center text-sm text-muted-foreground">
         <Link

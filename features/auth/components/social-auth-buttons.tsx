@@ -80,10 +80,9 @@ function InAppBrowserWarning({ appName }: { appName: string | null }) {
   const currentUrl = typeof window !== "undefined" ? window.location.href : "";
 
   function handleOpenInBrowser() {
-    // Attempt to open in the system browser.
-    // On iOS, window.open often works from in-app browsers.
-    // On Android, intent:// scheme can help but isn't universal.
-    window.open(currentUrl, "_system");
+    // "_system" is a Cordova-only target and a no-op in standard browsers;
+    // "_blank" with noopener is the portable way to ask for a full browser.
+    window.open(currentUrl, "_blank", "noopener");
   }
 
   return (

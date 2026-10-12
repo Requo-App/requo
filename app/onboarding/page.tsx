@@ -11,7 +11,7 @@ import {
 } from "@/features/account/name";
 import { getAccountProfileForUser, hasGoogleAccountLinked } from "@/features/account/queries";
 import { isSupportedBusinessCountryCode } from "@/features/businesses/locale";
-import { dashboardPath } from "@/features/businesses/routes";
+import { homePath } from "@/features/businesses/routes";
 import { completeOnboardingAction } from "@/features/onboarding/actions";
 import { OnboardingForm } from "@/features/onboarding/components/onboarding-form";
 import { ThemePreferenceSync } from "@/features/theme/components/theme-preference-sync";
@@ -70,7 +70,7 @@ async function OnboardingPageContent() {
     );
 
   if (memberships.length > 0 || profile?.onboardingCompletedAt) {
-    redirect(dashboardPath);
+    redirect(homePath);
   }
 
   const prefilledFirstName =

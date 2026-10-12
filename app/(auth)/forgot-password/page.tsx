@@ -1,16 +1,15 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { redirect } from "next/navigation";
 
 import { AuthShell } from "@/components/shell/auth-shell";
-import { dashboardPath } from "@/features/businesses/routes";
+import { homePath } from "@/features/businesses/routes";
+import { AuthenticatedRedirectGuard } from "@/features/auth/components/auth-redirect-guard";
 import { ForgotPasswordForm } from "@/features/auth/components/forgot-password-form";
-import { getOptionalSession } from "@/lib/auth/session";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 
 export const metadata: Metadata = createNoIndexMetadata({
   description: "Request a password reset link for your Requo account.",
-  title: "Reset your password",
+  title: "Reset password",
 });
 
 export const instant = true;
@@ -19,17 +18,9 @@ export default function ForgotPasswordPage() {
   return (
     <AuthShell badge="Recovery" title="Reset password" layout="centered">
       <Suspense fallback={null}>
-        <AuthRedirectGuard />
+        <AuthenticatedRedirectGuard nextPath={homePath} />
       </Suspense>
       <ForgotPasswordForm />
     </AuthShell>
   );
-}
-
-async function AuthRedirectGuard() {
-  const session = await getOptionalSession();
-  if (session) {
-    redirect(dashboardPath);
-  }
-  return null;
 }
