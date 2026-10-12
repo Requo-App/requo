@@ -34,7 +34,7 @@ import {
   getResendFromEmailConfigurationError,
   getResendSendFailureMessage,
   sendQuoteEmail,
-} from "@/lib/resend/client";
+} from "@/lib/email/transactional";
 import { requireToolRole } from "../permissions";
 import { requestToolConfirmation } from "../session-service";
 import type {

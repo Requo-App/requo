@@ -420,9 +420,8 @@ export function ChatInterface({
     if (!sessionExpired) return;
     forgetSession();
     // Syncing external session expiry into local card state.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Reset proposal UI when the server session expires.
     setStagedProposal(null);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCardValues(null);
   }, [sessionExpired, forgetSession]);
 
@@ -438,11 +437,9 @@ export function ChatInterface({
     // from the staged values the server already merged, so a manual edit
     // the visitor typed survives here rather than being clobbered.
     // Syncing the external message stream into local card state.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Adopt the server-provided proposal revision.
     setStagedProposal(liveProposal);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCardValues(toEditableValues(liveProposal));
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setProposalError(null);
   }, [liveProposal, stagedProposal?.id]);
 

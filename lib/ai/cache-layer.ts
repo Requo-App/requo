@@ -47,7 +47,6 @@ const inMemoryStore = new Map<string, InMemoryEntry>();
 // ---------------------------------------------------------------------------
 
 const OPERATION_TIMEOUT_MS = 2_000;
-const CONNECTION_TIMEOUT_MS = 5_000;
 
 function createRedisClient(): Redis | null {
   const url = env.UPSTASH_REDIS_REST_URL;
@@ -299,32 +298,3 @@ class DistributedCacheLayer implements CacheLayer {
 // ---------------------------------------------------------------------------
 
 export const cacheLayer: CacheLayer = new DistributedCacheLayer();
-
-// ---------------------------------------------------------------------------
-// Testing utilities (not exported from barrel)
-// ---------------------------------------------------------------------------
-
-/**
- * Clears the in-memory store. Used for testing only.
- * @internal
- */
-export function _clearInMemoryStore(): void {
-  inMemoryStore.clear();
-}
-
-/**
- * Returns the current size of the in-memory store. Used for testing only.
- * @internal
- */
-export function _getInMemoryStoreSize(): number {
-  return inMemoryStore.size;
-}
-
-/**
- * Resets the Redis client initialization state. Used for testing only.
- * @internal
- */
-export function _resetRedisClient(): void {
-  redisClient = null;
-  redisInitialized = false;
-}

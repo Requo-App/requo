@@ -29,13 +29,13 @@ import {
   sendPushQuoteResponseEvent,
   sendPushQuoteSentEvent,
 } from "@/lib/inngest/send";
-import { getUsageLimit, hasFeatureAccess } from "@/lib/plans";
+import { hasFeatureAccess } from "@/lib/plans";
 import { checkUsageAllowance } from "@/lib/plans/usage";
 import { assertPublicActionRateLimit } from "@/lib/rate-limit/redis-rate-limiter";
 import {
   getResendSendFailureMessage,
   sendQuoteEmail,
-} from "@/lib/resend/client";
+} from "@/lib/email/transactional";
 import {
   archiveQuoteForBusiness,
   acknowledgeQuoteUncertaintyForBusiness,

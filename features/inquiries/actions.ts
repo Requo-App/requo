@@ -16,7 +16,7 @@ import {
 import {
   getWorkspaceBusinessActionContext,
 } from "@/lib/db/business-access";
-import { getplanByBusinessId } from "@/lib/plans/queries";
+import { getEffectivePlanForBusiness } from "@/lib/billing/subscription-service";
 import { assertPublicActionRateLimit } from "@/lib/rate-limit/redis-rate-limiter";
 import {
   addInquiryNoteForBusiness,
@@ -128,7 +128,7 @@ export async function submitPublicInquiryAction(
     };
   }
 
-  const { plan } = await getplanByBusinessId(business.id);
+  const plan = await getEffectivePlanForBusiness(business.id);
 
   const effectiveFormConfig = resolveInquiryFormConfigForPlan(
     business.inquiryFormConfig,

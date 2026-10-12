@@ -4,7 +4,7 @@ import { insertBusinessNotification } from "@/features/notifications/mutations";
 import { db } from "@/lib/db/client";
 import { businesses } from "@/lib/db/schema";
 import { isLowEmailMode } from "@/lib/env";
-import { sendChangeOrderEmail } from "@/lib/resend/client";
+import { sendChangeOrderEmail } from "@/lib/email/transactional";
 
 type DatabaseTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 

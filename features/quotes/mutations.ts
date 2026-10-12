@@ -2206,7 +2206,6 @@ export async function completeAcceptedQuoteForBusiness({
 // ---------------------------------------------------------------------------
 
 import { quoteVersions, quoteRevisionRequests } from "@/lib/db/schema/quotes";
-import type { PublicQuoteRevisionRequestInput } from "@/features/quotes/schemas";
 import { asc } from "drizzle-orm";
 
 type RequestQuoteRevisionByTokenInput = {

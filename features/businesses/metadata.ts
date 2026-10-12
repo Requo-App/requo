@@ -15,12 +15,12 @@ import {
 const META_DESCRIPTION_MAX_LENGTH = 160;
 
 /**
- * Pathname of the public business profile. Matches the route at
- * `app/(public)/b/[slug]/page.tsx`; keep the two in sync so
- * `alternates.canonical` resolves to the same URL the page renders at.
+ * Pathname of the public business entry point. Matches the redirect in
+ * `next.config.ts` (`/b/:slug` → `/b/:slug/inquire`); keep the two in sync so
+ * `alternates.canonical` resolves to a URL that actually renders.
  */
 export function getPublicBusinessPagePath(slug: string) {
-  return `/b/${slug}`;
+  return `/b/${slug}/inquire`;
 }
 
 /**

@@ -9,7 +9,6 @@ import {
 import {
   knowledgeFileUploadSchema,
   memoryEntryInputSchema,
-  memoryEntryUpdateSchema,
 } from "@/features/memory/schemas";
 import {
   createBusinessMemory,

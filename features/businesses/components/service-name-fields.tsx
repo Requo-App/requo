@@ -8,7 +8,6 @@ import { LockedAction } from "@/features/paywall/components/locked-action";
 import { hasFeatureAccess } from "@/lib/plans/entitlements";
 import type { BusinessPlan } from "@/lib/plans/plans";
 import { getUsageLimit } from "@/lib/plans/usage-limits";
-import { cn } from "@/lib/utils";
 
 export type ServiceNameEntry = {
   name: string;

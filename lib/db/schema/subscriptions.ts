@@ -63,9 +63,8 @@ export const refundStatusEnum = pgEnum("refund_status", [...refundStatuses]);
 /* ── account_subscriptions ──────────────────────────────────────────────── */
 
 /**
- * One row per user account. The billing source of truth for subscription state.
- * Users without a row are implicitly on the free plan.
- * All businesses owned by the user inherit the plan from this subscription.
+ * Legacy account-level subscription records retained for existing data and
+ * admin reporting. Business entitlements resolve from `business_subscriptions`.
  */
 export const accountSubscriptions = pgTable(
   "account_subscriptions",

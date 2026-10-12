@@ -17,7 +17,7 @@ import { invoiceSchema, paymentSchema, voidPaymentSchema } from "@/features/invo
 import type { InvoiceActionState, InvoiceBulkActionState, PaymentActionState } from "@/features/invoices/types";
 import { sendPushInvoicePaidEvent, sendPushInvoiceSentEvent } from "@/lib/inngest/send";
 import { hasFeatureAccess } from "@/lib/plans/entitlements";
-import { getResendSendFailureMessage, sendInvoiceEmail } from "@/lib/resend/client";
+import { getResendSendFailureMessage, sendInvoiceEmail } from "@/lib/email/transactional";
 
 function text(formData: FormData, key: string) {
   const value = formData.get(key);

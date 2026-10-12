@@ -45,8 +45,8 @@ import {
 } from "@/features/businesses/schemas";
 import {
   activeBusinessSlugCookieName,
-  dashboardPath,
-  getBusinessDashboardPath,
+  homePath,
+  getBusinessHomePath,
   getBusinessServicesPath,
   getBusinessPath,
   getBusinessSettingsPath,
@@ -112,11 +112,10 @@ function revalidateBusinessLifecyclePaths({
 }: {
   businessSlug: string;
 }) {
-  revalidatePath(dashboardPath);
+  revalidatePath(homePath);
   revalidatePath(getBusinessPath(businessSlug));
   revalidatePath(getBusinessSettingsPath(businessSlug));
-  revalidatePath(getBusinessDashboardPath(businessSlug), "layout");
-  revalidatePath(getBusinessSettingsPath(businessSlug));
+  revalidatePath(getBusinessHomePath(businessSlug), "layout");
   revalidatePath(getBusinessSettingsPath(businessSlug, "general"));
   revalidatePath(getBusinessServicesPath(businessSlug));
   revalidatePath(`/inquire/${businessSlug}`);
@@ -155,7 +154,7 @@ export async function recordRecentlyOpenedBusinessAction(
       businessId: access.businessContext.business.id,
       userId: access.user.id,
     });
-    revalidatePath(dashboardPath);
+    revalidatePath(homePath);
 
     return { ok: true };
   } catch (error) {
@@ -224,8 +223,8 @@ export async function createBusinessAction(
     // where `/b/<slug>` was visited before the business existed and
     // the null was cached by the two-layer query.
     updatePublicBusinessProfileCacheTags(business.slug);
-    revalidatePath(dashboardPath);
-    redirectPath = getBusinessDashboardPath(business.slug);
+    revalidatePath(homePath);
+    redirectPath = getBusinessHomePath(business.slug);
   } catch (error) {
     if (isBusinessQuotaExceededError(error)) {
       return {

@@ -34,7 +34,7 @@ function generateBatchId(): string {
 }
 
 function getPayloadSize(payload: unknown): number {
-  return JSON.stringify(payload).length;
+  return Buffer.byteLength(JSON.stringify(payload) ?? "", "utf8");
 }
 
 /**
@@ -208,7 +208,7 @@ async function sendWithRetry(
       await inngest.send(pendingEvents as Parameters<typeof inngest.send>[0]);
       delivered += pendingEvents.length;
       pendingEvents = [];
-    } catch (error) {
+    } catch {
       // On error, try sending individually to isolate failures
       for (const event of pendingEvents) {
         try {

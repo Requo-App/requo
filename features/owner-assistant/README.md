@@ -1,7 +1,7 @@
 # Owner Assistant Feature
 
 The owner-facing conversational surface (**Assistant**) for authenticated
-business members. UI calls it "Assistant". See ADR 003 for naming.
+business members. UI calls it "Assistant".
 
 ## Purpose
 
@@ -37,7 +37,7 @@ component state: each entry owns an AI SDK `Chat` plus the composer draft, so
 leaving for another dashboard page and returning through the sidebar reopens the
 same conversation with an in-flight stream still running. Entries are keyed by
 `userId + businessSlug` (a second sign-in in the same tab can never adopt the
-previous member's transcript — ADR 004), capped at five per tab, and evicted
+previous member's transcript), capped at five per tab, and evicted
 oldest-first, never while streaming. A hard refresh clears the store, and the
 transcript is rebuilt from the database by `loadAssistantTranscript()`.
 
@@ -58,7 +58,7 @@ and a saved conversation:
 - **Status**: a shimmering single line ("Thinking", or the running tool's
   present-participle label such as "Searching inquiries").
 - **Tool process**: a one-line disclosure above the reply that expands to the
-  steps, their arguments, and any failures. Owner surface only — see ADR 004.
+  steps, their arguments, and any failures. Owner surface only.
 - **Header**: `New chat` on the left (disabled until there is something to start
   over from), history on the right.
 
@@ -75,8 +75,9 @@ model always receives the user's text.
 2. **Write tools** (4): `create_inquiry`, `create_quote` (drafting, not gated),
    `update_inquiry_status`, `send_quote` (gated — see below).
 
-See `docs/ai.md` for the tool inventory and
-`docs/architecture/assistant-and-agent.md` for the full picture.
+See the [technical reference](../../docs/architecture/TRD.md#ai-and-model-integrations)
+for the application-wide AI boundaries and this directory for the current
+Assistant implementation.
 
 ### Authorization
 - Requires authenticated user (Better Auth, the only auth system).
@@ -167,9 +168,7 @@ await confirmAssistantToolAction({ businessSlug, sessionId, confirmationId, deci
 
 ## Related Documentation
 
-- [CONTEXT.md](../../CONTEXT.md) - Domain model and glossary
-- [docs/ai.md](../../docs/ai.md) - Tool inventory
-- [docs/architecture/assistant-and-agent.md](../../docs/architecture/assistant-and-agent.md) - Surfaces architecture
-- [docs/architecture/adr-003-agent-assistant-naming.md](../../docs/architecture/adr-003-agent-assistant-naming.md) - Naming
-- [docs/architecture/adr-004-agent-transcript-privacy.md](../../docs/architecture/adr-004-agent-transcript-privacy.md) - Privacy
-- [AGENTS.md](../../AGENTS.md) - Architecture overview
+- [CONTEXT.md](../../CONTEXT.md) - Domain language
+- [TRD](../../docs/architecture/TRD.md) - Application and AI architecture
+- [Security guide](../../docs/security/SECURITY.md) - Security invariants
+- [AGENTS.md](../../AGENTS.md) - Repository instructions

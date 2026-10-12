@@ -12,7 +12,7 @@ import {
   SelectRoot,
   SelectTrigger,
   SelectValue,
-} from "@/components/select";
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { createInquiryParamsSchema } from "@/features/ai-agent/schemas";
 import type { ProposedInquiry } from "@/features/ai-agent/types";

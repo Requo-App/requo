@@ -587,7 +587,6 @@ async function getDashboardMonthlyRevenueCached(
   const yearStart = new Date(Date.UTC(year, 0, 1));
   const yearEnd = new Date(Date.UTC(year + 1, 0, 1));
   const lastYearStart = new Date(Date.UTC(year - 1, 0, 1));
-  const lastYearEnd = yearStart;
 
   const [currencyRow, revenueRows] = await Promise.all([
     db

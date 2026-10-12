@@ -13,7 +13,6 @@ type AutoFollowUpStatusProps = {
   attempts: number;
   maxAttempts: number;
   delayDays: number;
-  lastSentAt: Date | null;
   stoppedAt: Date | null;
   /** Business-wide active auto follow-up sequences and the plan cap. */
   activeCount?: number;
@@ -26,7 +25,6 @@ export function AutoFollowUpStatus({
   attempts,
   maxAttempts,
   delayDays,
-  lastSentAt,
   stoppedAt,
   activeCount,
   activeLimit,

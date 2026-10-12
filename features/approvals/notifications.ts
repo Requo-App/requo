@@ -7,7 +7,7 @@ import type { BusinessNotificationType } from "@/features/notifications/types";
 import { db } from "@/lib/db/client";
 import { businesses } from "@/lib/db/schema";
 import { isLowEmailMode } from "@/lib/env";
-import { sendApprovalEmail } from "@/lib/resend/client";
+import { sendApprovalEmail } from "@/lib/email/transactional";
 
 type DatabaseTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 

@@ -7,7 +7,7 @@ import type { AiQuoteDraftActionState } from "@/features/ai/types";
 import { getBusinessActionContext } from "@/lib/db/business-access";
 import { hasFeatureAccess } from "@/lib/plans";
 import { checkUsageLimit } from "@/lib/ai";
-import { getEffectivePlan } from "@/lib/billing/subscription-service";
+import { getEffectivePlanForBusiness } from "@/lib/billing/subscription-service";
 import type { AiTaskType } from "@/lib/ai/types";
 import { emptyToUndefined, firstString } from "@/lib/zod-helpers";
 
@@ -101,7 +101,7 @@ export async function generateQuoteDraftAction(
   // 3. Resolve the effective plan and check feature access
   const businessId = actionContext.businessContext.business.id;
   const userId = actionContext.user.id;
-  const plan = await getEffectivePlan(businessId);
+  const plan = await getEffectivePlanForBusiness(businessId);
 
   if (!hasFeatureAccess(plan, "aiQuoteDrafting")) {
     return {

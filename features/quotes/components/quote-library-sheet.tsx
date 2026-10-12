@@ -31,10 +31,10 @@ import type {
   QuoteLibraryEntryKind,
 } from "@/features/quotes/types";
 import {
-  getBusinessDashboardSlugFromPathname,
+  getBusinessSlugFromPathname,
   getBusinessSettingsPath,
   getBusinessProductsPath,
-  dashboardPath,
+  homePath,
 } from "@/features/businesses/routes";
 import {
   formatQuoteMoney,
@@ -86,7 +86,7 @@ export function QuoteLibrarySheet({
   }
 
   const normalizedSearch = deferredSearch.trim().toLowerCase();
-  const businessSlug = getBusinessDashboardSlugFromPathname(pathname);
+  const businessSlug = getBusinessSlugFromPathname(pathname);
   const shouldReplacePlaceholder =
     items.length === 1 && isQuoteEditorLineItemBlank(items[0]);
   const baseItemCount = shouldReplacePlaceholder ? 0 : items.length;
@@ -186,7 +186,7 @@ export function QuoteLibrarySheet({
                           ? isTemplateMode
                             ? getBusinessSettingsPath(businessSlug, "quote")
                             : getBusinessProductsPath(businessSlug)
-                          : dashboardPath
+                          : homePath
                       }
                     >
                       {isTemplateMode ? "Open quote settings" : "Open products"}
