@@ -21,7 +21,7 @@ import {
   type UpgradeEligibleBusiness,
 } from "@/features/billing/actions";
 import { startPolarCheckout } from "@/features/billing/start-checkout";
-import { getBusinessDashboardPath } from "@/features/businesses/routes";
+import { getBusinessHomePath } from "@/features/businesses/routes";
 import { getPlanPriceLabel } from "@/lib/billing/plans";
 import type {
   BillingCurrency,
@@ -85,7 +85,7 @@ export function SelectBusinessDialog({
     if (startingBusinessId) return;
 
     setStartingBusinessId(business.id);
-    const returnTo = getBusinessDashboardPath(business.slug);
+    const returnTo = getBusinessHomePath(business.slug);
 
     try {
       const result = await startPolarCheckout({

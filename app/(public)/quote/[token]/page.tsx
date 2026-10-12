@@ -12,16 +12,8 @@ import {
 import { getPublicQuoteByToken } from "@/features/quotes/queries";
 import { quotePublicRouteParamsSchema } from "@/features/quotes/schemas";
 
-/**
- * Edge caching for public quote pages is achieved via CDN cache headers
- * configured in next.config.ts (s-maxage=60, stale-while-revalidate=300).
- *
- * Note: `export const runtime = "edge"` cannot be used here because the project
- * enables `cacheComponents: true` in nextConfig, which is incompatible with
- * the edge runtime segment config. The CDN cache headers provide the same
- * performance benefit — repeat visits are served from the edge without
- * hitting the origin.
- */
+// CDN cache headers in next.config.ts (s-maxage=60, stale-while-revalidate=300).
+// `runtime = "edge"` is incompatible with `cacheComponents: true`.
 
 export async function generateMetadata({
   params,

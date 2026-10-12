@@ -4,9 +4,9 @@ import { cache } from "react";
 import { redirect } from "next/navigation";
 
 import {
-  getBusinessDashboardPath,
+  getBusinessHomePath,
 } from "@/features/businesses/routes";
-import { dashboardPath } from "@/features/businesses/routes";
+import { homePath } from "@/features/businesses/routes";
 import {
   getBusinessContextForMembershipSlug,
   hasOperationalBusinessAccess,
@@ -26,7 +26,7 @@ async function getScopedBusinessSettingsContext(businessSlug?: string | null) {
   );
 
   if (!businessContext) {
-    redirect(dashboardPath);
+    redirect(homePath);
   }
 
   return {
@@ -43,7 +43,7 @@ export const getBusinessOperationalPageContext = cache(async (businessSlug?: str
   const context = await getScopedBusinessSettingsContext(businessSlug);
 
   if (!hasOperationalBusinessAccess(context.businessContext.role)) {
-    redirect(getBusinessDashboardPath(context.businessContext.business.slug));
+    redirect(getBusinessHomePath(context.businessContext.business.slug));
   }
 
   return context;
@@ -53,7 +53,7 @@ export const getBusinessOwnerPageContext = cache(async (businessSlug?: string) =
   const context = await getScopedBusinessSettingsContext(businessSlug);
 
   if (context.businessContext.role !== "owner") {
-    redirect(getBusinessDashboardPath(context.businessContext.business.slug));
+    redirect(getBusinessHomePath(context.businessContext.business.slug));
   }
 
   return context;

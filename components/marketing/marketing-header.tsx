@@ -7,7 +7,7 @@ import { BookDemoDialog } from "@/components/marketing/book-demo-dialog";
 import { MarketingHeaderShell } from "@/components/marketing/marketing-header-shell";
 import { Button } from "@/components/ui/button";
 import { SheetClose } from "@/components/ui/sheet";
-import { dashboardPath } from "@/features/businesses/routes";
+import { homePath } from "@/features/businesses/routes";
 import { authClient } from "@/lib/auth/client";
 
 /**
@@ -34,7 +34,7 @@ function DesktopActions() {
   if (session?.user) {
     return (
       <Button asChild size="sm" className="font-mono text-xs uppercase tracking-wider">
-        <Link href={dashboardPath}>
+        <Link href={homePath}>
           Dashboard
           <ArrowRight data-icon="inline-end" />
         </Link>
@@ -86,7 +86,7 @@ function MobileActions() {
     return (
       <SheetClose asChild>
         <Button asChild className="w-full font-mono text-xs uppercase tracking-wider" size="lg">
-          <Link href={dashboardPath}>
+          <Link href={homePath}>
             Go to dashboard
             <ArrowRight data-icon="inline-end" />
           </Link>

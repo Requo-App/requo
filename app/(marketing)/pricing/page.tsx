@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { PricingPage } from "@/components/marketing/pricing-page";
 import { StructuredData } from "@/components/seo/structured-data";
 import { planPricing } from "@/lib/billing/plans";
+import { detectDisplayCurrency } from "@/lib/billing/region";
 import type { BillingCurrency, BillingInterval, PaidPlan } from "@/lib/billing/types";
 import { businessPlans, planMeta, type BusinessPlan } from "@/lib/plans/plans";
 import { absoluteUrl, createPageMetadata } from "@/lib/seo/site";
@@ -59,8 +60,6 @@ function buildPricingOffers() {
   );
 }
 
-import { detectDisplayCurrency } from "@/lib/billing/region";
-
 async function PricingPageDynamic() {
   let currency: BillingCurrency = "USD";
   try {
@@ -76,6 +75,9 @@ async function PricingPageDynamic() {
  * Uses USD as the default display currency at build time.
  * Polar always bills in USD regardless of display currency.
  * Client-side detection can be added for regional pricing display after hydration.
+ * Stays a sync Server Component without "use cache": PricingPageDynamic reads
+ * geo headers via detectDisplayCurrency, which opts the subtree into dynamic
+ * rendering inside the Suspense boundary below.
  */
 export default function PricingRoute() {
   const defaultCurrency: BillingCurrency = "USD";

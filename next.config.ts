@@ -164,6 +164,11 @@ const nextConfig: NextConfig = {
   async redirects() {
     return [
       {
+        source: "/b/:slug",
+        destination: "/b/:slug/inquire",
+        permanent: true,
+      },
+      {
         source: "/dashboard",
         destination: "/home",
         permanent: true,

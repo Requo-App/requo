@@ -15,7 +15,7 @@ import {
   getMonthlyEquivalentLabel,
   getPlanPriceLabel,
 } from "@/lib/billing/plans";
-import { dashboardPath } from "@/features/businesses/routes";
+import { homePath } from "@/features/businesses/routes";
 import { authClient } from "@/lib/auth/client";
 import { getAuthPathWithNext } from "@/lib/auth/redirects";
 import type {
@@ -193,7 +193,7 @@ function PricingPlans({
           </p>
 
           <Button asChild variant="outline" size="lg" className="mt-6 w-full font-mono text-xs uppercase tracking-wider">
-            <Link href={sessionUserId ? dashboardPath : "/signup"}>
+            <Link href={sessionUserId ? homePath : "/signup"}>
               {sessionUserId ? "Go to dashboard" : "Start with inquiries"}
             </Link>
           </Button>
