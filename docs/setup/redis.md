@@ -72,5 +72,5 @@ curl -H "Authorization: Bearer $UPSTASH_REDIS_REST_TOKEN" "$UPSTASH_REDIS_REST_U
 ## Related
 
 - Provider quota context: `docs/setup/ai-provider-limits.md`
-- RAG pipeline: `docs/ai.md`
-- Integration summary: `docs/integrations.md`
+- AI architecture: [`TRD.md`](../architecture/TRD.md#ai-and-model-integrations)
+- Integration boundaries: [`TRD.md`](../architecture/TRD.md#apis-integrations-and-asynchronous-work)

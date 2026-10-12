@@ -83,10 +83,12 @@ docs/          Setup, architecture, and domain documentation
 
 ## Documentation
 
+- [Documentation index](./docs/README.md) — source of truth and guide map
+- [Product requirements](./docs/product/PRD.md)
+- [Technical reference](./docs/architecture/TRD.md)
 - [Local setup](./docs/setup/local.md)
 - [Deployment](./docs/setup/deployment.md)
 - [Billing](./docs/setup/billing.md)
-- [Architecture](./docs/architecture.md)
 - [Design system](./DESIGN.md)
 - [Testing](./tests/README.md)
 - [Agent guide](./AGENTS.md)

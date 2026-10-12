@@ -118,7 +118,7 @@ Spacing rules:
 - Panel padding is baked into the shared utilities (see below), not declared
   per surface.
 
-Panel padding (see ADR 008):
+Panel padding:
 
 - `section-panel` carries `px-4 py-4 sm:px-5 sm:py-5`; `soft-panel` carries
   `px-4 py-4` — like the already-padded `info-tile`. Do not re-declare
@@ -359,7 +359,7 @@ Accessibility is default behavior, not an enhancement pass:
 
 Established patterns above win for new work. These contradictions exist in the codebase — do not copy them into new code, and do not silently "fix" them outside a dedicated cleanup:
 
-- **BoardUI migration (done).** The former `components/base/*` + `components/application/` + `components/foundations/` system was recreated 1:1 as shadcn-style components (`cva` + `cn`, same classes/DOM/props) under `components/shared/*` and deleted. One component system remains: `components/ui/*` (primitives) + `components/shared/*` (composed). Historical context: `docs/technical-debt.md` §3, `docs/architecture/adr-015-boardui-compat-freeze.md` (superseded). `app/globals.css` still carries the shared token layer (tone aliases, composite type ramp) — `components/ui/*` uses it, so it stays.
+- **BoardUI migration (done).** The former `components/base/*` + `components/application/` + `components/foundations/` system was recreated 1:1 as shadcn-style components (`cva` + `cn`, same classes/DOM/props) under `components/shared/*` and deleted. One component system remains: `components/ui/*` (primitives) + `components/shared/*` (composed). See [`docs/technical-debt.md`](docs/technical-debt.md). `app/globals.css` still carries the shared token layer (tone aliases, composite type ramp) — `components/ui/*` uses it, so it stays.
 - **Legacy styling debt.** Remaining `space-y-*`/`space-x-*` stacks (use `flex`/`grid` + `gap-*`). Flagged by `audit:density`.
 - **Raw palette on non-pill surfaces.** Status *pills* are tokenized — `components/shared/status-badge.tsx` owns them and `audit:status-tokens` enforces it — but raw palette still colours some semantic surfaces: the archived-record banner, the paywall accent, the quote-editor amber alerts, and the public quote option cards. Move them to `--warning`/`--success`/`--destructive` opportunistically. See `docs/technical-debt.md` §4.
 - **`!important` outside status.** `meta-label !text-primary` (marketing) and `!bg-sidebar-accent` (`dashboard-sidebar.tsx`) are the same cascade-order problem the status migration removed: a custom class in `@layer utilities` setting a colour a utility then cannot override. Fix by giving the custom class a variant that sets no colour, not by keeping the `!`.

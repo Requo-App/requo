@@ -338,4 +338,4 @@ Reports which in-scope routes have validation enabled, which have valid escape h
   - `01-app/03-api-reference/03-file-conventions/02-route-segment-config/instant.md`
   - `01-app/02-guides/prefetching.md`
   - `01-app/03-api-reference/05-config/01-next-config-js/staleTimes.md`
-- Decision record: `docs/architecture/adr-007-instant-navigation-progressive-loading.md`
+- Current architecture reference: [TRD](TRD.md#request-and-rendering-model)

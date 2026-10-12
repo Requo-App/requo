@@ -16,7 +16,7 @@ Open inconsistencies plus resolved items kept as a record. Only the **Remaining*
 
 ## 3. BoardUI / shadcn duality (migrated — issue #73)
 
-- Was: `components/base/*` + `components/application/` + `components/foundations/` alongside `components/ui/*`, frozen per `docs/architecture/adr-015-boardui-compat-freeze.md`.
+- Was: `components/base/*` + `components/application/` + `components/foundations/` alongside `components/ui/*`; the migration is complete and the old component families were removed.
 - Resolved: all 40 BoardUI modules recreated 1:1 as shadcn-style components (`cva` + `cn`, identical classes/DOM/props) under `components/shared/*`; old dirs deleted; `@/utils/cx` folded into `cn` (`lib/utils.ts` carries the type-scale merge group) and removed. `app/globals.css` token layer stays (`components/ui/*` uses it).
 
 ## 4. Legacy styling debt (already tracked in `DESIGN.md`)

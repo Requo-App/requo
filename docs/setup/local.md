@@ -9,7 +9,7 @@
 
 ## Environment Setup
 
-Copy `.env.example` to `.env` and fill in the values you want to use locally.
+Copy `.env.example` to `.env.local` and fill in the values you want to use locally.
 
 Minimum local requirements:
 
