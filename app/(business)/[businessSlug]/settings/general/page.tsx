@@ -56,6 +56,36 @@ async function BusinessGeneralSettingsContent() {
     ? `/api/business/logo?v=${settings.updatedAt.getTime()}`
     : null;
 
+  const form = (
+    <BusinessSettingsForm
+      action={updateBusinessSettingsAction}
+      archiveAction={archiveBusinessAction.bind(
+        null,
+        settings.id,
+        settings.slug,
+      )}
+      deleteAction={deleteBusinessPermanentlyAction.bind(
+        null,
+        settings.id,
+        settings.slug,
+      )}
+      fallbackContactEmail={user.email}
+      key={`business-settings-${settings.updatedAt.getTime()}`}
+      logoPreviewUrl={logoPreviewUrl}
+      restoreAction={restoreBusinessAction.bind(
+        null,
+        settings.id,
+        settings.slug,
+      )}
+      settings={settings}
+      unarchiveAction={unarchiveBusinessAction.bind(
+        null,
+        settings.id,
+        settings.slug,
+      )}
+    />
+  );
+
   if (settings.recordState === "archived") {
     return (
       <div className="mx-auto flex w-full max-w-xl flex-col gap-10">
@@ -83,60 +113,10 @@ async function BusinessGeneralSettingsContent() {
           </div>
         </section>
 
-        <BusinessSettingsForm
-          action={updateBusinessSettingsAction}
-          archiveAction={archiveBusinessAction.bind(
-            null,
-            settings.id,
-            settings.slug,
-          )}
-          deleteAction={deleteBusinessPermanentlyAction.bind(
-            null,
-            settings.id,
-            settings.slug,
-          )}
-          fallbackContactEmail={user.email}
-          key={`business-settings-${settings.updatedAt.getTime()}`}
-          logoPreviewUrl={logoPreviewUrl}
-          restoreAction={restoreBusinessAction.bind(
-            null,
-            settings.id,
-            settings.slug,
-          )}
-          settings={settings}
-          unarchiveAction={unarchiveBusinessAction.bind(
-            null,
-            settings.id,
-            settings.slug,
-          )}
-        />
+        {form}
       </div>
     );
   }
 
-  return (
-    <BusinessSettingsForm
-      action={updateBusinessSettingsAction}
-      archiveAction={archiveBusinessAction.bind(null, settings.id, settings.slug)}
-      deleteAction={deleteBusinessPermanentlyAction.bind(
-        null,
-        settings.id,
-        settings.slug,
-      )}
-      fallbackContactEmail={user.email}
-      key={`business-settings-${settings.updatedAt.getTime()}`}
-      logoPreviewUrl={logoPreviewUrl}
-      restoreAction={restoreBusinessAction.bind(
-        null,
-        settings.id,
-        settings.slug,
-      )}
-      settings={settings}
-      unarchiveAction={unarchiveBusinessAction.bind(
-        null,
-        settings.id,
-        settings.slug,
-      )}
-    />
-  );
+  return form;
 }

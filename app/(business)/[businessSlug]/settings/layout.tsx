@@ -1,21 +1,19 @@
 import { Suspense } from "react";
 
-import { Skeleton } from "@/components/ui/skeleton";
 import { getAccountProfileForUser } from "@/features/account/queries";
 import { resolveUserAvatarSrc } from "@/features/account/utils";
-import { ThemePreferenceSync } from "@/features/theme/components/theme-preference-sync";
-import { getThemePreferenceForUser } from "@/features/theme/queries";
-import { getUiScalePreferenceForUser } from "@/features/theme/ui-scale-queries";
-import { UiScaleSync } from "@/features/theme/components/ui-scale-sync";
 import { getUnifiedSettingsNavigation } from "@/features/settings/navigation";
 import { SettingsShellFrame, SettingsUserMenu } from "@/features/settings/components/settings-shell-frame";
 import {
-  BusinessSwitcher,
   BusinessSwitcherSkeleton,
-  MobileBusinessSwitcher,
   MobileBusinessSwitcherSkeleton,
+  UserMenuSkeleton,
 } from "@/components/shell/dashboard-shell-slots";
-import { getBusinessMembershipsForUser } from "@/lib/db/business-access";
+import {
+  BusinessSwitcherSlot,
+  MobileBusinessSwitcherSlot,
+  ThemeSyncSlot,
+} from "@/components/shell/business-data-slots";
 import { BusinessCheckoutProvider } from "@/features/billing/components/business-checkout-provider";
 import { getBusinessBillingShellOverview } from "@/features/billing/queries";
 import { getAppShellContext } from "@/lib/app-shell/context";
@@ -126,41 +124,6 @@ async function CheckoutProviderSlot({
 /*  Streamed slots                                                             */
 /* -------------------------------------------------------------------------- */
 
-async function ThemeSyncSlot({ businessSlug }: { businessSlug: string }) {
-  const { user } = await getAppShellContext(businessSlug);
-  const [themePreference, uiScale] = await Promise.all([
-    getThemePreferenceForUser(user.id),
-    getUiScalePreferenceForUser(user.id),
-  ]);
-  return (
-    <>
-      <ThemePreferenceSync themePreference={themePreference} userId={user.id} />
-      <UiScaleSync uiScale={uiScale} userId={user.id} />
-    </>
-  );
-}
-
-async function BusinessSwitcherSlot({ businessSlug }: { businessSlug: string }) {
-  const { businessContext } = await getAppShellContext(businessSlug);
-  const session = await requireSession();
-  const allMemberships = await getBusinessMembershipsForUser(session.user.id, "all");
-  const memberships = allMemberships.filter(
-    (m) => m.business.recordState !== "trash",
-  );
-
-  const { getBusinessQuotaForUser } = await import("@/features/businesses/quota");
-  const businessQuota = await getBusinessQuotaForUser({ ownerUserId: session.user.id });
-
-  return (
-    <BusinessSwitcher
-      currentBusiness={businessContext}
-      memberships={memberships}
-      businessQuota={businessQuota}
-      compact
-    />
-  );
-}
-
 async function UserMenuSlot({ businessSlug }: { businessSlug: string }) {
   const session = await requireSession();
   const [shellContext, profile] = await Promise.all([
@@ -180,41 +143,6 @@ async function UserMenuSlot({ businessSlug }: { businessSlug: string }) {
     <SettingsUserMenu
       user={{ id: user.id, email: user.email, name: user.name, avatarSrc }}
       businessSlug={businessSlug}
-    />
-  );
-}
-
-function UserMenuSkeleton() {
-  return (
-    <div
-      aria-hidden="true"
-      className="flex w-full items-center gap-3 rounded-lg px-2 py-2 group-data-[collapsed=true]/sidebar:w-9 group-data-[collapsed=true]/sidebar:justify-center group-data-[collapsed=true]/sidebar:gap-0 group-data-[collapsed=true]/sidebar:px-0 group-data-[collapsed=true]/sidebar:py-0"
-    >
-      <Skeleton className="size-8 shrink-0 rounded-lg" />
-      <div className="flex min-w-0 flex-1 flex-col gap-1 group-data-[collapsed=true]/sidebar:hidden">
-        <Skeleton className="h-3.5 w-20 rounded" />
-        <Skeleton className="h-3 w-28 rounded" />
-      </div>
-    </div>
-  );
-}
-
-async function MobileBusinessSwitcherSlot({ businessSlug }: { businessSlug: string }) {
-  const { businessContext } = await getAppShellContext(businessSlug);
-  const session = await requireSession();
-  const allMemberships = await getBusinessMembershipsForUser(session.user.id, "all");
-  const memberships = allMemberships.filter(
-    (m) => m.business.recordState !== "trash",
-  );
-
-  const { getBusinessQuotaForUser } = await import("@/features/businesses/quota");
-  const businessQuota = await getBusinessQuotaForUser({ ownerUserId: session.user.id });
-
-  return (
-    <MobileBusinessSwitcher
-      currentBusiness={businessContext}
-      memberships={memberships}
-      businessQuota={businessQuota}
     />
   );
 }

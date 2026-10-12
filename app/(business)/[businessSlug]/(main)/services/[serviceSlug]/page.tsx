@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
 import { PageHeader } from "@/components/shared/page-header";
+import { DashboardPage } from "@/components/shared/dashboard-layout";
 import { RegionErrorBoundary } from "@/components/shared/region-error-boundary";
 import { DetailPageHeaderFallback } from "@/components/shared/detail-section-fallback";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -34,7 +35,7 @@ import { FormEditorTour } from "@/features/onboarding/components/form-editor-tou
 import { getAccountProfileForUser } from "@/features/account/queries";
 import { requireSession } from "@/lib/auth/session";
 import { createNoIndexMetadata } from "@/lib/seo/site";
-import { getBusinessOperationalPageContext } from "@/app/(business)/[businessSlug]/settings/_lib/page-context";
+import { getBusinessOperationalPageContext } from "../../../settings/_lib/page-context";
 
 export const metadata: Metadata = createNoIndexMetadata({
   title: "Service editor",
@@ -57,11 +58,13 @@ type ServicePageProps = {
  */
 export default function BusinessServicePage({ params }: ServicePageProps) {
   return (
-    <RegionErrorBoundary fallback={<ServiceEditorShellFallback />}>
-      <Suspense fallback={<ServiceEditorShellFallback />}>
-        <ServiceEditorHeaderRegion params={params} />
-      </Suspense>
-    </RegionErrorBoundary>
+    <DashboardPage>
+      <RegionErrorBoundary fallback={<ServiceEditorShellFallback />}>
+        <Suspense fallback={<ServiceEditorShellFallback />}>
+          <ServiceEditorHeaderRegion params={params} />
+        </Suspense>
+      </RegionErrorBoundary>
+    </DashboardPage>
   );
 }
 
@@ -92,7 +95,7 @@ function ServiceEditorTabsFallback() {
   );
 }
 
-function ServiceEditorShellFallback() {
+export function ServiceEditorShellFallback() {
   return (
     <>
       <DetailPageHeaderFallback />

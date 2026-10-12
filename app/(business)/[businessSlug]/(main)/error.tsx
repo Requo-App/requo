@@ -7,10 +7,10 @@ import { usePathname } from "next/navigation";
 import { StatePageCard } from "@/components/shared/state-page-card";
 import { Button } from "@/components/ui/button";
 import {
-  getBusinessDashboardPath,
-  getBusinessDashboardSlugFromPathname,
+  homePath,
+  getBusinessHomePath,
+  getBusinessSlugFromPathname,
 } from "@/features/businesses/routes";
-import { dashboardPath } from "@/features/businesses/routes";
 
 type DashboardErrorProps = {
   error: Error & { digest?: string };
@@ -22,10 +22,10 @@ export default function DashboardError({
   reset,
 }: DashboardErrorProps) {
   const pathname = usePathname();
-  const businessSlug = getBusinessDashboardSlugFromPathname(pathname);
+  const businessSlug = getBusinessSlugFromPathname(pathname);
   const overviewHref = businessSlug
-    ? getBusinessDashboardPath(businessSlug)
-    : dashboardPath;
+    ? getBusinessHomePath(businessSlug)
+    : homePath;
 
   return (
     <StatePageCard

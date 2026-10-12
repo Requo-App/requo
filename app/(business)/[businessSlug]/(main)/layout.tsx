@@ -3,13 +3,16 @@ import { Suspense } from "react";
 import { RecentBusinessTracker } from "@/features/businesses/components/recent-business-tracker";
 import { DashboardShellFrame } from "@/components/shell/dashboard-shell-frame";
 import {
-  BusinessSwitcher,
   BusinessSwitcherSkeleton,
   DashboardUserMenu,
   UserMenuSkeleton,
-  MobileBusinessSwitcher,
   MobileBusinessSwitcherSkeleton,
 } from "@/components/shell/dashboard-shell-slots";
+import {
+  BusinessSwitcherSlot,
+  MobileBusinessSwitcherSlot,
+  ThemeSyncSlot,
+} from "@/components/shell/business-data-slots";
 import { Skeleton } from "@/components/ui/skeleton";
 import { UpgradeButton } from "@/features/billing/components/upgrade-button";
 import { BusinessCheckoutProvider } from "@/features/billing/components/business-checkout-provider";
@@ -19,19 +22,13 @@ import { ArchivedBusinessBanner } from "@/features/businesses/components/archive
 import { unarchiveBusinessAction } from "@/features/businesses/actions";
 import { getAccountProfileForUser } from "@/features/account/queries";
 import { resolveUserAvatarSrc } from "@/features/account/utils";
-import { getThemePreferenceForUser } from "@/features/theme/queries";
-import { ThemePreferenceSync } from "@/features/theme/components/theme-preference-sync";
-import { getUiScalePreferenceForUser } from "@/features/theme/ui-scale-queries";
-import { UiScaleSync } from "@/features/theme/components/ui-scale-sync";
 import { getBusinessBillingShellOverview } from "@/features/billing/queries";
 import { InquiryUnreadBadgeSlot } from "@/features/inquiries/components/inquiry-unread-badge-slot";
 import { getBusinessNotificationBellView } from "@/features/notifications/queries";
 import { DashboardNotificationBell } from "@/features/notifications/components/dashboard-notification-bell";
 import { SidebarChecklistSection } from "@/features/onboarding/components/sidebar-checklist-section";
-import { getBusinessDashboardPath } from "@/features/businesses/routes";
+import { getBusinessHomePath } from "@/features/businesses/routes";
 import { getAppShellContext } from "@/lib/app-shell/context";
-import { getBusinessMembershipsForUser } from "@/lib/db/business-access";
-import { requireSession } from "@/lib/auth/session";
 
 /**
  * Dashboard shell layout for the `(main)` route group.
@@ -139,47 +136,6 @@ async function BusinessMainShell({
 /*  Streamed slots — each resolves its own data independently                 */
 /* -------------------------------------------------------------------------- */
 
-async function BusinessSwitcherSlot({ businessSlug }: { businessSlug: string }) {
-  const { businessContext } = await getAppShellContext(businessSlug);
-  const session = await requireSession();
-  const allMemberships = await getBusinessMembershipsForUser(session.user.id, "all");
-  const memberships = allMemberships.filter(
-    (m) => m.business.recordState !== "trash",
-  );
-  
-  const { getBusinessQuotaForUser } = await import("@/features/businesses/quota");
-  const businessQuota = await getBusinessQuotaForUser({ ownerUserId: session.user.id });
-
-  return (
-    <BusinessSwitcher
-      currentBusiness={businessContext}
-      memberships={memberships}
-      businessQuota={businessQuota}
-      compact
-    />
-  );
-}
-
-async function MobileBusinessSwitcherSlot({ businessSlug }: { businessSlug: string }) {
-  const { businessContext } = await getAppShellContext(businessSlug);
-  const session = await requireSession();
-  const allMemberships = await getBusinessMembershipsForUser(session.user.id, "all");
-  const memberships = allMemberships.filter(
-    (m) => m.business.recordState !== "trash",
-  );
-  
-  const { getBusinessQuotaForUser } = await import("@/features/businesses/quota");
-  const businessQuota = await getBusinessQuotaForUser({ ownerUserId: session.user.id });
-
-  return (
-    <MobileBusinessSwitcher
-      currentBusiness={businessContext}
-      memberships={memberships}
-      businessQuota={businessQuota}
-    />
-  );
-}
-
 async function UserMenuSlot({ businessSlug }: { businessSlug: string }) {
   const { user, businessContext } = await getAppShellContext(businessSlug);
   const profile = await getAccountProfileForUser(user.id);
@@ -270,21 +226,6 @@ async function ChecklistSlot({ businessSlug }: { businessSlug: string }) {
   );
 }
 
-async function ThemeSyncSlot({ businessSlug }: { businessSlug: string }) {
-  const { user } = await getAppShellContext(businessSlug);
-  const [themePreference, uiScale] = await Promise.all([
-    getThemePreferenceForUser(user.id),
-    getUiScalePreferenceForUser(user.id),
-  ]);
-
-  return (
-    <>
-      <ThemePreferenceSync themePreference={themePreference} userId={user.id} />
-      <UiScaleSync uiScale={uiScale} userId={user.id} />
-    </>
-  );
-}
-
 async function BannerSlot({ businessSlug }: { businessSlug: string }) {
   const { businessContext } = await getAppShellContext(businessSlug);
 
@@ -294,7 +235,7 @@ async function BannerSlot({ businessSlug }: { businessSlug: string }) {
 
   return (
     <ArchivedBusinessBanner
-      dashboardHref={getBusinessDashboardPath(businessContext.business.slug)}
+      dashboardHref={getBusinessHomePath(businessContext.business.slug)}
       unarchiveAction={unarchiveBusinessAction.bind(
         null,
         businessContext.business.id,

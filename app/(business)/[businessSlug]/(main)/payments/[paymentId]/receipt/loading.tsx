@@ -1,10 +1,16 @@
-import { DashboardDetailPageSkeleton } from "@/components/shell/dashboard-detail-page-skeleton";
+import { DashboardPage } from "@/components/shared/dashboard-layout";
+
+import { ReceiptPageSkeleton } from "./page";
 
 /**
- * Static shell for the payment receipt route: same payment-record
- * composition as the payment detail page (detail header + stacked
- * sections) so the shell and the streamed page agree.
+ * Static shell for the payment receipt route: the same header + section
+ * fallbacks the page's Suspense boundaries use, so hard loads and
+ * client navigations agree.
  */
 export default function Loading() {
-  return <DashboardDetailPageSkeleton variant="invoice" />;
+  return (
+    <DashboardPage>
+      <ReceiptPageSkeleton />
+    </DashboardPage>
+  );
 }

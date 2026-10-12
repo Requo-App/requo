@@ -134,30 +134,3 @@ function AuthFormCard({
   );
 }
 
-function AuthFormPlain({
-  badge,
-  title,
-  description,
-  children,
-  hideBrandMark,
-}: Pick<AuthShellProps, "badge" | "title" | "description" | "children"> & { hideBrandMark?: boolean }) {
-  return (
-    <div className="flex w-full max-w-[26rem] flex-col gap-8">
-      <div className="flex flex-col gap-6">
-        {!hideBrandMark && <BrandMark subtitle={null} />}
-        <div className="flex flex-col gap-2.5">
-          {badge ? <span className="eyebrow">{badge}</span> : null}
-          <h1 className="font-heading text-[1.95rem] font-semibold tracking-tight sm:text-[2.35rem]">
-            {title}
-          </h1>
-          {description ? (
-            <p className="max-w-md text-sm leading-snug sm:leading-6 text-muted-foreground">
-              {description}
-            </p>
-          ) : null}
-        </div>
-      </div>
-      <div>{children}</div>
-    </div>
-  );
-}

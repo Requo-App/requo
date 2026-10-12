@@ -12,7 +12,7 @@ import {
 import { ServicesList } from "@/features/settings/components/services-list";
 import { getBusinessInquiryFormsSettingsForBusiness } from "@/features/settings/queries";
 import { createNoIndexMetadata } from "@/lib/seo/site";
-import { getBusinessOperationalPageContext } from "@/app/(business)/[businessSlug]/settings/_lib/page-context";
+import { getBusinessOperationalPageContext } from "../../settings/_lib/page-context";
 
 export const metadata: Metadata = createNoIndexMetadata({
   title: "Services",

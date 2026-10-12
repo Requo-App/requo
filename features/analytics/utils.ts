@@ -1,4 +1,5 @@
 import type { PeriodDelta, PeriodDeltaDirection } from "@/features/analytics/types";
+import type { DateRangePreset } from "@/features/analytics/components/date-range-selector";
 
 /**
  * A human-readable delta label plus the direction the metric moved, ready to
@@ -160,4 +161,72 @@ export function formatSpeedDelta(
   return current < prior
     ? { label: `${pct}% faster`, direction: "down" }
     : { label: `${pct}% slower`, direction: "up" };
+}
+
+/** Map preset string to number of days. */
+const PRESET_DAYS: Record<string, number> = {
+  "7d": 7,
+  "30d": 30,
+  "90d": 90,
+};
+
+/**
+ * Derive the date range (since/until), active preset, and period description
+ * from the page's URL searchParams.
+ *
+ * URL format:
+ *  - ?range=7d|30d|90d  → preset
+ *  - ?since=YYYY-MM-DD&until=YYYY-MM-DD  → custom range
+ *  - (no params)  → defaults to 30 days
+ */
+export function resolveDateRangeFromParams(raw: Record<string, string | string[] | undefined>): {
+  since: Date;
+  until: Date;
+  preset: DateRangePreset;
+  customSince?: string;
+  customUntil?: string;
+  periodDescription: string;
+} {
+  const now = new Date();
+  const rangeParam = typeof raw.range === "string" ? raw.range : undefined;
+  const sinceParam = typeof raw.since === "string" ? raw.since : undefined;
+  const untilParam = typeof raw.until === "string" ? raw.until : undefined;
+
+  // Custom range
+  if (sinceParam && untilParam) {
+    const since = new Date(sinceParam);
+    const until = new Date(untilParam);
+
+    // Validate; fall back to 30d if invalid
+    if (!isNaN(since.getTime()) && !isNaN(until.getTime()) && since < until) {
+      // Format dates for description
+      const fmt = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" });
+      const periodDescription = `${fmt.format(since)} – ${fmt.format(until)}`;
+      return {
+        since,
+        until,
+        preset: "custom",
+        customSince: sinceParam,
+        customUntil: untilParam,
+        periodDescription,
+      };
+    }
+  }
+
+  // Preset range
+  const days = (rangeParam && PRESET_DAYS[rangeParam]) || 30;
+  const preset: DateRangePreset = rangeParam && rangeParam in PRESET_DAYS
+    ? (rangeParam as DateRangePreset)
+    : "30d";
+
+  const since = new Date(now);
+  since.setDate(since.getDate() - days);
+  since.setHours(0, 0, 0, 0);
+
+  const until = new Date(now);
+  until.setHours(23, 59, 59, 999);
+
+  const periodDescription = `How your inquiry-to-quote pipeline is performing over the last ${days} days.`;
+
+  return { since, until, preset, periodDescription };
 }

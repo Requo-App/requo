@@ -18,6 +18,10 @@ import {
   inquirySourceLabels,
   normalizeInquirySource,
 } from "@/features/inquiries/types";
+import {
+  inquiryContactMethodLabels,
+  type InquiryContactMethod,
+} from "@/features/inquiries/form-config";
 
 export const inquiryStatusLabels: Record<InquiryStatus, string> = {
   new: "New",
@@ -140,4 +144,63 @@ export const AI_AGENT_SOURCES = new Set([
 export function getInquirySourceLabel(source: string | null | undefined): string {
   const normalized: InquirySourceValue = normalizeInquirySource(source ?? null);
   return inquirySourceLabels[normalized];
+}
+
+export type CustomerContactInfo = {
+  customerEmail?: string | null;
+  customerContactMethod?: string | null;
+  customerContactHandle?: string | null;
+};
+
+export function getCustomerContactEmail(contact: CustomerContactInfo) {
+  const savedEmail = contact.customerEmail?.trim();
+
+  if (savedEmail) {
+    return savedEmail;
+  }
+
+  if (contact.customerContactMethod?.trim().toLowerCase() === "email") {
+    return contact.customerContactHandle?.trim() || null;
+  }
+
+  return null;
+}
+
+export function shouldShowPreferredContactTile(contact: CustomerContactInfo) {
+  const handle = contact.customerContactHandle?.trim();
+  if (!handle || !contact.customerContactMethod) return false;
+
+  const normalizedMethod = contact.customerContactMethod.trim().toLowerCase();
+  if (normalizedMethod === "email") {
+    // Hide when the handle is the same email already shown in the Email tile
+    return handle.toLowerCase() !== (contact.customerEmail?.trim().toLowerCase() ?? "");
+  }
+  return true;
+}
+
+export function getContactMethodLabel(method: string | null) {
+  const normalized = method?.trim().toLowerCase() ?? "";
+
+  if (normalized in inquiryContactMethodLabels) {
+    return inquiryContactMethodLabels[normalized as InquiryContactMethod];
+  }
+
+  return method?.trim() || "Contact details";
+}
+
+export function getContactHandleUrl(method: string | null, handle: string | null): string | null {
+  const normalizedMethod = method?.trim().toLowerCase() ?? "";
+  const trimmedHandle = handle?.trim() ?? "";
+  if (!normalizedMethod || !trimmedHandle) return null;
+
+  switch (normalizedMethod) {
+    case "facebook":
+      return `https://facebook.com/${trimmedHandle}`;
+    case "instagram":
+      return `https://instagram.com/${trimmedHandle}`;
+    case "whatsapp":
+      return `https://wa.me/${trimmedHandle.replace(/[^0-9+]/g, "")}`;
+    default:
+      return null;
+  }
 }

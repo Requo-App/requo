@@ -5,15 +5,15 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   getCustomSubmittedFields,
-  inquiryContactMethodLabels,
   systemFieldDefaultLabels,
-  type InquiryContactMethod,
 } from "@/features/inquiries/form-config";
 import type { DashboardInquiryDetail } from "@/features/inquiries/types";
 import {
   formatFileSize,
   formatInquiryBudget,
   formatInquiryDateTime,
+  getContactMethodLabel,
+  getCustomerContactEmail,
   getInquirySourceLabel,
 } from "@/features/inquiries/utils";
 import { formatQuoteMoney } from "@/features/quotes/utils";
@@ -236,34 +236,9 @@ export function InquiryPrintDocument({
   );
 }
 
-function getContactMethodLabel(method: string) {
-  const normalized = method.trim().toLowerCase();
-
-  if (normalized in inquiryContactMethodLabels) {
-    return inquiryContactMethodLabels[normalized as InquiryContactMethod];
-  }
-
-  return method.trim() || "Contact details";
-}
-
-function getCustomerContactEmail(contact: {
-  customerEmail: string | null;
-  customerContactMethod: string;
-  customerContactHandle: string;
-}) {
-  const savedEmail = contact.customerEmail?.trim();
-
-  if (savedEmail) {
-    return savedEmail;
-  }
-
-  if (contact.customerContactMethod.trim().toLowerCase() === "email") {
-    return contact.customerContactHandle.trim() || null;
-  }
-
-  return null;
-}
-
+// Print keeps the narrower rule (email-method handles never get their own
+// tile — the Email tile above already covers them), unlike the dashboard
+// version in utils which shows a differing email handle.
 function shouldShowPreferredContactTile(contact: {
   customerContactMethod: string;
   customerContactHandle: string;

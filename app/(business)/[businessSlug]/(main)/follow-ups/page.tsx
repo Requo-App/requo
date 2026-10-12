@@ -29,17 +29,7 @@ import { createNoIndexMetadata } from "@/lib/seo/site";
 import { FirstVisitTip } from "@/features/onboarding/components/first-visit-tip";
 import { featureTips } from "@/features/onboarding/feature-tips";
 import { getBusinessFollowUpsPath } from "@/features/businesses/routes";
-import type {
-  FollowUpListFilters,
-  FollowUpStatusFilterValue,
-  FollowUpDueFilterValue,
-  FollowUpSortValue,
-} from "@/features/follow-ups/types";
-import {
-  followUpStatusFilterValues,
-  followUpDueFilterValues,
-  followUpSortValues,
-} from "@/features/follow-ups/types";
+import { parseFollowUpListFilters } from "@/features/follow-ups/utils";
 
 type FollowUpsPageProps = {
   params: Promise<{ businessSlug: string }>;
@@ -147,28 +137,6 @@ async function StreamedFollowUpBoard({ businessSlug }: { businessSlug: string })
 
 const PAGE_SIZE = 25;
 
-function parseFilters(
-  searchParams: Record<string, string | string[] | undefined>,
-): FollowUpListFilters {
-  const rawStatus = typeof searchParams.status === "string" ? searchParams.status : "all";
-  const rawDue = typeof searchParams.due === "string" ? searchParams.due : "all";
-  const rawSort = typeof searchParams.sort === "string" ? searchParams.sort : "due_asc";
-  const rawQ = typeof searchParams.q === "string" ? searchParams.q : "";
-  const rawPage = typeof searchParams.page === "string" ? Number(searchParams.page) : 1;
-
-  const status: FollowUpStatusFilterValue = (followUpStatusFilterValues as readonly string[]).includes(rawStatus)
-    ? (rawStatus as FollowUpStatusFilterValue)
-    : "all";
-  const due: FollowUpDueFilterValue = (followUpDueFilterValues as readonly string[]).includes(rawDue)
-    ? (rawDue as FollowUpDueFilterValue)
-    : "all";
-  const sort: FollowUpSortValue = (followUpSortValues as readonly string[]).includes(rawSort)
-    ? (rawSort as FollowUpSortValue)
-    : "due_asc";
-
-  return { status, due, sort, q: rawQ, page: Math.max(1, rawPage) };
-}
-
 async function StreamedFollowUpList({
   businessSlug,
   searchParams,
@@ -178,7 +146,7 @@ async function StreamedFollowUpList({
 }) {
   const { businessContext } = await getAppShellContext(businessSlug);
   const businessId = businessContext.business.id;
-  const filters = parseFilters(searchParams);
+  const filters = parseFollowUpListFilters(searchParams);
   const page = filters.page;
 
   const hasFilters = filters.q !== "" || filters.due !== "all" || filters.status !== "all";
@@ -227,7 +195,7 @@ async function StreamedFollowUpList({
 // Skeleton fallback
 // ---------------------------------------------------------------------------
 
-function FollowUpsPageSkeleton() {
+export function FollowUpsPageSkeleton() {
   return (
     <>
       {/* Search bar placeholder */}

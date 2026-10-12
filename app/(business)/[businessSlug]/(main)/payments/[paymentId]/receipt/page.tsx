@@ -8,26 +8,17 @@ import { PageHeader } from "@/components/shared/page-header";
 import { DetailPageHeaderFallback, DetailSectionFallback } from "@/components/shared/detail-section-fallback";
 import { RegionErrorBoundary } from "@/components/shared/region-error-boundary";
 import { InfoTile } from "@/components/shared/info-tile";
+import { Button } from "@/components/ui/button";
 import { getBusinessPaymentPath, getBusinessPaymentReceiptExportPath } from "@/features/businesses/routes";
 import { getPaymentDetailForBusiness } from "@/features/invoices/queries";
-import { getVoidReasonLabel } from "@/features/invoices/mutations";
-import { formatQuoteMoney } from "@/features/invoices/utils";
+import { getVoidReasonLabel } from "@/features/invoices/void-reasons";
+import { formatQuoteMoney, getPaymentMethodLabel } from "@/features/invoices/utils";
 import { formatQuoteDate } from "@/features/quotes/utils";
-import type { PaymentMethod } from "@/features/invoices/types";
 import { getAppShellContext } from "@/lib/app-shell/context";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 
 type PaymentReceiptPageProps = {
   params: Promise<{ businessSlug: string; paymentId: string }>;
-};
-
-const methodLabels: Record<PaymentMethod, string> = {
-  cash: "Cash",
-  bank_transfer: "Bank Transfer",
-  gcash: "GCash",
-  maya: "Maya",
-  check: "Check",
-  other: "Other",
 };
 
 export const metadata: Metadata = createNoIndexMetadata({
@@ -40,7 +31,7 @@ export const instant = true;
 export default function PaymentReceiptPage({ params }: PaymentReceiptPageProps) {
   return (
     <DashboardPage>
-      <RegionErrorBoundary fallback={<DetailPageHeaderFallback />}>
+      <RegionErrorBoundary fallback={<ReceiptPageSkeleton />}>
         <Suspense fallback={<DetailPageHeaderFallback />}>
           <ReceiptHeaderRegion params={params} />
         </Suspense>
@@ -51,6 +42,15 @@ export default function PaymentReceiptPage({ params }: PaymentReceiptPageProps) 
         </Suspense>
       </RegionErrorBoundary>
     </DashboardPage>
+  );
+}
+
+export function ReceiptPageSkeleton() {
+  return (
+    <>
+      <DetailPageHeaderFallback />
+      <DetailSectionFallback rows={4} />
+    </>
   );
 }
 
@@ -67,18 +67,16 @@ async function ReceiptHeaderRegion({ params }: PaymentReceiptPageProps) {
       description={`Payment recorded in Requo · ${payment.invoiceNumber}`}
       actions={
         <div className="flex flex-col gap-2 sm:flex-row">
-          <Link
-            className="inline-flex h-9 items-center justify-center rounded-md border bg-background px-4 text-sm font-medium shadow-xs transition-colors hover:bg-accent hover:text-accent-foreground"
-            href={getBusinessPaymentPath(businessSlug, payment.id)}
-          >
-            View payment
-          </Link>
-          <a
-            className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow-xs transition-colors hover:bg-primary/90"
-            href={getBusinessPaymentReceiptExportPath(businessSlug, payment.id)}
-          >
-            Download PDF
-          </a>
+          <Button asChild variant="outline">
+            <Link href={getBusinessPaymentPath(businessSlug, payment.id)}>
+              View payment
+            </Link>
+          </Button>
+          <Button asChild>
+            <a href={getBusinessPaymentReceiptExportPath(businessSlug, payment.id)}>
+              Download PDF
+            </a>
+          </Button>
         </div>
       }
     />
@@ -102,7 +100,7 @@ async function ReceiptDetailRegion({ params }: PaymentReceiptPageProps) {
           <InfoTile label="Currency" value={payment.currency} />
         </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <InfoTile label="Payment method" value={methodLabels[payment.method]} />
+          <InfoTile label="Payment method" value={getPaymentMethodLabel(payment.method)} />
           <InfoTile label="Payment date" value={formatQuoteDate(payment.paymentDate)} />
           <InfoTile label="Reference" value={payment.reference ?? "—"} />
           <InfoTile label="Recorded by" value={payment.recordedByName ?? "—"} />

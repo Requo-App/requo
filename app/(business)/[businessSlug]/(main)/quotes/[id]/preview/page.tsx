@@ -9,6 +9,7 @@ import {
   getQuoteDetailForBusiness,
 } from "@/features/quotes/queries";
 import { quoteRouteParamsSchema } from "@/features/quotes/schemas";
+import { toPublicQuoteView } from "@/features/quotes/utils";
 import { getBusinessQuotePath } from "@/features/businesses/routes";
 import { getAppShellContext } from "@/lib/app-shell/context";
 import { createNoIndexMetadata } from "@/lib/seo/site";
@@ -66,41 +67,15 @@ async function QuotePreviewRegion({ params }: QuotePreviewPageProps) {
 
   const backHref = getBusinessQuotePath(businessSlug, quote.id);
 
-  // Map DashboardQuoteDetail to the PublicQuoteView shape expected by the renderer
-  const publicQuoteView = {
-    id: quote.id,
-    businessId: businessContext.business.id,
-    token: "",
-    quoteNumber: quote.quoteNumber,
-    title: quote.title,
-    businessName: businessContext.business.name,
-    businessSlug,
-    businessPlan: businessContext.business.plan,
-    businessShortDescription: null,
+  // Map the dashboard row to the PublicQuoteView shape expected by the renderer
+  const publicQuoteView = toPublicQuoteView({
+    quote,
+    business: businessContext.business,
     businessContactEmail,
-    businessLogoStoragePath: businessContext.business.logoStoragePath,
-    customerName: quote.customerName,
-    customerEmail: quote.customerEmail ?? null,
-    customerContactMethod: quote.customerContactMethod ?? "",
-    customerContactHandle: quote.customerContactHandle ?? "",
-    currency: quote.currency,
-    notes: quote.notes ?? null,
-    terms: quote.terms ?? null,
-    validUntil: quote.validUntil,
-    version: quote.version,
-    status: quote.status,
-    subtotalInCents: quote.subtotalInCents,
-    discountInCents: quote.discountInCents,
-    taxInCents: quote.taxInCents,
-    taxLabel: quote.taxLabel ?? null,
-    totalInCents: quote.totalInCents,
-    sentAt: quote.sentAt ?? null,
-    acceptedAt: quote.acceptedAt ?? null,
+    token: "",
     publicViewedAt: null,
-    customerRespondedAt: quote.customerRespondedAt ?? null,
-    customerResponseMessage: quote.customerResponseMessage ?? null,
     items: quote.items,
-  };
+  });
 
   return (
     <BusinessQuotePreviewShell

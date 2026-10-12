@@ -1,13 +1,15 @@
+import { PrintPageShell } from "@/components/shared/print-page-shell";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function QuotePrintLoading() {
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-8">
-      <div className="flex flex-col gap-3">
-        <Skeleton className="h-8 w-64 rounded-lg" />
-        <Skeleton className="h-4 w-full max-w-lg rounded-md" />
-      </div>
-      <Skeleton className="h-64 w-full rounded-lg" />
-    </div>
+    <PrintPageShell
+      backHref="#"
+      backLabel="Back to quote"
+      description="Loading a print-friendly view of this quote."
+      title="Quote"
+    >
+      <Skeleton className="mx-auto h-96 w-full max-w-[58rem]" />
+    </PrintPageShell>
   );
 }

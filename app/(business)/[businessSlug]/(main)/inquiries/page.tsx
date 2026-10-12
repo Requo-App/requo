@@ -22,6 +22,7 @@ import {
   getBusinessInquiriesPath,
 } from "@/features/businesses/routes";
 import { getAppShellContext } from "@/lib/app-shell/context";
+import { getCachedPageWindow } from "@/lib/pagination";
 import { hasFeatureAccess } from "@/lib/plans";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 
@@ -31,35 +32,6 @@ type InquiriesPageProps = {
 };
 
 const ITEMS_PER_PAGE = 10;
-const FULL_PAGE_CACHE_MAX_PAGES = 5;
-const FORWARD_PAGE_CACHE_WINDOW = 1;
-const BACKWARD_PAGE_CACHE_WINDOW = 0;
-
-function getCachedPageWindow(currentPage: number, totalPages: number) {
-  if (totalPages <= FULL_PAGE_CACHE_MAX_PAGES) {
-    return Array.from({ length: totalPages }, (_, index) => index + 1);
-  }
-
-  const pages = new Set<number>([currentPage]);
-
-  for (let offset = 1; offset <= BACKWARD_PAGE_CACHE_WINDOW; offset += 1) {
-    const page = currentPage - offset;
-
-    if (page >= 1) {
-      pages.add(page);
-    }
-  }
-
-  for (let offset = 1; offset <= FORWARD_PAGE_CACHE_WINDOW; offset += 1) {
-    const page = currentPage + offset;
-
-    if (page <= totalPages) {
-      pages.add(page);
-    }
-  }
-
-  return Array.from(pages).sort((left, right) => left - right);
-}
 
 /**
  * Resolves list filters from the URL. `unread` is always forced off — the

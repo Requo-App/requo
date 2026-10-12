@@ -13,12 +13,14 @@ import type {
   DashboardQuoteLibraryItem,
   DashboardQuoteDetailCore,
   DashboardQuoteItem,
+  PublicQuoteView,
   QuoteEditorLineItemValue,
   QuoteInquiryPrefill,
   QuoteLibraryEntryKind,
   QuoteReminderKind,
   QuoteStatus,
 } from "@/features/quotes/types";
+import type { BusinessPlan } from "@/lib/plans/plans";
 import { prefixedId } from "@/lib/ids";
 
 export const quoteStatusLabels: Record<QuoteStatus, string> = {
@@ -621,3 +623,64 @@ export function applyTemplateToQuoteForm(
   };
 }
 
+/**
+ * Map a dashboard quote row to the PublicQuoteView shape the customer-facing
+ * renderers expect. Single home for the mapping previously copied into the
+ * quote detail header region and the quote preview page.
+ */
+export function toPublicQuoteView({
+  quote,
+  business,
+  businessContactEmail,
+  token,
+  publicViewedAt,
+  items,
+}: {
+  quote: DashboardQuoteDetailCore;
+  business: {
+    id: string;
+    name: string;
+    slug: string;
+    plan: BusinessPlan;
+    logoStoragePath: string | null;
+  };
+  businessContactEmail: string | null;
+  token: string;
+  publicViewedAt: Date | null;
+  items: DashboardQuoteItem[];
+}): PublicQuoteView {
+  return {
+    id: quote.id,
+    businessId: business.id,
+    token,
+    quoteNumber: quote.quoteNumber,
+    title: quote.title,
+    businessName: business.name,
+    businessSlug: business.slug,
+    businessPlan: business.plan,
+    businessShortDescription: null,
+    businessContactEmail,
+    businessLogoStoragePath: business.logoStoragePath,
+    customerName: quote.customerName,
+    customerEmail: quote.customerEmail ?? null,
+    customerContactMethod: quote.customerContactMethod ?? "",
+    customerContactHandle: quote.customerContactHandle ?? "",
+    currency: quote.currency,
+    notes: quote.notes ?? null,
+    terms: quote.terms ?? null,
+    validUntil: quote.validUntil,
+    version: quote.version,
+    status: quote.status,
+    subtotalInCents: quote.subtotalInCents,
+    discountInCents: quote.discountInCents,
+    taxInCents: quote.taxInCents,
+    taxLabel: quote.taxLabel ?? null,
+    totalInCents: quote.totalInCents,
+    sentAt: quote.sentAt ?? null,
+    acceptedAt: quote.acceptedAt ?? null,
+    publicViewedAt,
+    customerRespondedAt: quote.customerRespondedAt ?? null,
+    customerResponseMessage: quote.customerResponseMessage ?? null,
+    items,
+  };
+}
