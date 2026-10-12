@@ -9,7 +9,6 @@ import {
   Popover as AriaPopover,
 } from "react-aria-components";
 import { cva } from "class-variance-authority";
-import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/shared/avatar";
 import { Button } from "@/components/shared/button";
 import { ChevronUpDownSmall } from "@/components/shared/chevrons";

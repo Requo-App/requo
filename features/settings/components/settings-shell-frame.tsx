@@ -49,7 +49,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Spinner } from "@/components/ui/spinner";
 import { BoarduiSettingsSidebar } from "@/features/settings/components/boardui-settings-sidebar";
-import { getBusinessDashboardPath } from "@/features/businesses/routes";
+import { getBusinessHomePath } from "@/features/businesses/routes";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -119,7 +119,7 @@ export function SettingsShellFrame({
   businessSwitcherSlot,
   mobileBusinessSwitcherSlot,
 }: SettingsShellFrameProps) {
-  const businessDashboardPath = getBusinessDashboardPath(businessSlug);
+  const businessHomePath = getBusinessHomePath(businessSlug);
   const pathname = usePathname();
   const [navOpen, setNavOpen] = useState(false);
   const [mainNavOpen, setMainNavOpen] = useState(false);
@@ -166,7 +166,7 @@ export function SettingsShellFrame({
                     size="icon-sm"
                     className="hidden size-8 shrink-0 lg:inline-flex"
                   >
-                    <Link href={businessDashboardPath} aria-label="Home">
+                    <Link href={businessHomePath} aria-label="Home">
                       <HomeIcon className="size-4" />
                     </Link>
                   </Button>
@@ -272,7 +272,7 @@ export function SettingsShellFrame({
 export function SettingsUserMenu({ user, businessSlug }: { user: SettingsUserData; businessSlug: string }) {
   const [isPending, startTransition] = useTransition();
   const { isMobile, setOpenMobile } = useSidebar();
-  const businessDashboardPath = getBusinessDashboardPath(businessSlug);
+  const businessHomePath = getBusinessHomePath(businessSlug);
   const displayName =
     getDisplayFirstName({ fullName: user.name }) || user.name;
 
@@ -288,6 +288,7 @@ export function SettingsUserMenu({ user, businessSlug }: { user: SettingsUserDat
       if (result.error) return;
       window.localStorage.removeItem(themeUserStorageKey);
       clearPersistedThemePreference();
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- Full reload is intentional after sign-out.
       window.location.assign("/login");
     });
   }
@@ -366,7 +367,7 @@ export function SettingsUserMenu({ user, businessSlug }: { user: SettingsUserDat
             <DropdownMenuGroup>
               <DropdownMenuItem asChild>
                 <Link
-                  href={businessDashboardPath}
+                  href={businessHomePath}
                   prefetch={true}
                   onClick={closeMobileSidebar}
                 >

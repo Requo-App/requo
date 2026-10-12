@@ -7,7 +7,7 @@ import { Switch as AriaSwitch } from "react-aria-components";
 import { cva } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 import { SwitchTrack } from "@/components/shared/switch";
-import { useTheme } from "@/components/theme-provider";
+import { useTheme } from "@/components/providers/theme-provider";
 import { updateThemePreferenceAction } from "@/features/theme/actions";
 import { themeUserStorageKey } from "@/features/theme/types";
 

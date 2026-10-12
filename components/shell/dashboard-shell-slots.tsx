@@ -46,14 +46,20 @@ import {
 import { useBusinessCheckout } from "@/features/billing/components/business-checkout-provider";
 import { UpgradeButton } from "@/features/billing/components/upgrade-button";
 import {
-  getBusinessDashboardPath,
+  getBusinessHomePath,
   getBusinessSettingsPath,
 } from "@/features/businesses/routes";
 import { getDefaultBusinessSettingsPath } from "@/features/settings/navigation";
 import { InviteMemberDialog } from "@/features/business-members/components/business-members-manager";
 import { createBusinessMemberInviteAction } from "@/features/business-members/actions";
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
-import type { BusinessMemberRole } from "@/lib/business-members";
+import type { BusinessMemberAssignableRole } from "@/lib/business-members";
+
+function redirectToLogin() {
+  // Clear the authenticated App Router state after sign-out with a full navigation.
+  // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+  window.location.assign("/login");
+}
 
 /* -------------------------------------------------------------------------- */
 /*  Business Switcher                                                          */
@@ -93,7 +99,7 @@ export function BusinessSwitcher({
 
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState<BusinessMemberRole>("staff");
+  const [inviteRole, setInviteRole] = useState<BusinessMemberAssignableRole>("staff");
   const [, inviteFormAction, isInvitePending] = useActionStateWithSonner(
     createBusinessMemberInviteAction,
     {},
@@ -129,7 +135,7 @@ export function BusinessSwitcher({
       if (result.error) return;
       window.localStorage.removeItem(themeUserStorageKey);
       clearPersistedThemePreference();
-      window.location.assign("/login");
+      redirectToLogin();
     });
   }
 
@@ -208,7 +214,7 @@ export function BusinessSwitcher({
             return (
               <DropdownMenuItem asChild key={membership.membershipId}>
                 <Link
-                  href={getBusinessDashboardPath(membership.business.slug)}
+                  href={getBusinessHomePath(membership.business.slug)}
                   prefetch={true}
                   onClick={closeMobileSidebar}
                 >
@@ -385,7 +391,7 @@ export function DashboardUserMenu({
       window.localStorage.removeItem(themeUserStorageKey);
       clearPersistedThemePreference();
 
-      window.location.assign("/login");
+      redirectToLogin();
     });
   }
 
@@ -552,7 +558,7 @@ export function MobileBusinessSwitcher({
 
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState<BusinessMemberRole>("staff");
+  const [inviteRole, setInviteRole] = useState<BusinessMemberAssignableRole>("staff");
   const [, inviteFormAction, isInvitePending] = useActionStateWithSonner(
     createBusinessMemberInviteAction,
     {},
@@ -582,7 +588,7 @@ export function MobileBusinessSwitcher({
       if (result.error) return;
       window.localStorage.removeItem(themeUserStorageKey);
       clearPersistedThemePreference();
-      window.location.assign("/login");
+      redirectToLogin();
     });
   }
 
@@ -619,7 +625,7 @@ export function MobileBusinessSwitcher({
               return (
                 <DropdownMenuItem asChild key={membership.membershipId}>
                   <Link
-                    href={getBusinessDashboardPath(membership.business.slug)}
+                    href={getBusinessHomePath(membership.business.slug)}
                     prefetch={true}
                   >
                     <BusinessAvatar
@@ -775,7 +781,7 @@ export function MobileUserMenu({
       if (result.error) return;
       window.localStorage.removeItem(themeUserStorageKey);
       clearPersistedThemePreference();
-      window.location.assign("/login");
+      redirectToLogin();
     });
   }
 

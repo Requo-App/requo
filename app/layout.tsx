@@ -7,14 +7,14 @@ import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
 import "./globals.css";
-import { ThemeProvider } from "@/components/theme-provider";
-import { MotionProvider } from "@/components/shared/motion-provider";
+import { ThemeProvider } from "@/components/providers/theme-provider";
+import { MotionProvider } from "@/components/providers/motion-provider";
 import {
   getReloadLoadingInitScript,
   ReloadLoadingOverlay,
 } from "@/components/shared/reload-loading-overlay";
 import { ScrollToTop } from "@/components/shared/scroll-to-top";
-import { WebMCPProvider } from "@/components/shared/webmcp-provider";
+import { WebMCPProvider } from "@/components/providers/webmcp-provider";
 import { StructuredData } from "@/components/seo/structured-data";
 import { Toaster } from "@/components/ui/sonner";
 import { getThemeInitScript } from "@/features/theme/init-script";
