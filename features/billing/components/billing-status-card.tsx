@@ -268,7 +268,6 @@ export function BillingStatusCard({
               </p>
               {canManageInPortal ? (
                 <Button size="sm" asChild>
-                  {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- API route redirect, not client navigation */}
                   <a
                     href={portalHref}
                     target="_blank"
@@ -394,7 +393,6 @@ export function BillingStatusCard({
           </p>
           <div>
             <Button variant="outline" size="sm" asChild>
-              {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- API route redirect, not client navigation */}
               <a href={portalHref} target="_blank" rel="noopener noreferrer">
                 <CreditCard data-icon="inline-start" />
                 View billing details
@@ -427,7 +425,6 @@ export function BillingStatusCard({
               className="text-destructive hover:text-destructive"
               asChild
             >
-              {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- API route redirect, not client navigation */}
               <a href={portalHref} target="_blank" rel="noopener noreferrer">
                 <CircleMinus data-icon="inline-start" />
                 Cancel plan

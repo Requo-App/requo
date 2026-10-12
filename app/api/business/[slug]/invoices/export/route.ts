@@ -1,57 +1,46 @@
-import { z } from "zod";
+import { NextResponse } from "next/server";
 
 import { getInvoiceExportRowsForBusiness } from "@/features/invoices/queries";
 import type { InvoiceStatus } from "@/features/invoices/types";
-import { buildCsv, formatCentsForExport, formatDateForExportFileName } from "@/lib/csv";
-import { getBusinessRequestContextForSlug } from "@/lib/db/business-access";
-import { buildContentDisposition } from "@/lib/files";
-import { hasFeatureAccess } from "@/lib/plans";
+import { formatCentsForExport } from "@/lib/csv";
+import { buildListCsvResponse, requireExportContext } from "@/lib/api/exports";
+import { slugParamSchema } from "@/lib/api/params";
+import { z } from "zod";
 
-const routeParamsSchema = z.object({
-  slug: z.string().trim().min(1).max(120),
+const invoiceExportQuerySchema = z.object({
+  q: z.string().optional(),
+  status: z.enum(["all", "draft", "sent", "unpaid", "partially_paid", "paid", "overdue", "voided"]).optional(),
+  sort: z.enum(["newest", "oldest"]).optional(),
 });
 
-const statuses: Array<"all" | InvoiceStatus> = [
-  "all",
-  "draft",
-  "sent",
-  "unpaid",
-  "partially_paid",
-  "paid",
-  "overdue",
-  "voided",
-];
-
 export async function GET(request: Request, context: { params: Promise<{ slug: string }> }) {
-  const parsedParams = routeParamsSchema.safeParse(await context.params);
+  const parsedParams = slugParamSchema.safeParse(await context.params);
 
   if (!parsedParams.success) {
-    return Response.json({ error: "Not found." }, { status: 404 });
+    return NextResponse.json({ error: "Not found." }, { status: 404 });
   }
 
-  const requestContext = await getBusinessRequestContextForSlug(parsedParams.data.slug);
-
-  if (!requestContext) {
-    return Response.json({ error: "Not found." }, { status: 404 });
-  }
-
-  if (!hasFeatureAccess(requestContext.businessContext.business.plan, "exports")) {
-    return Response.json({ error: "Upgrade to Pro to export invoice data." }, { status: 403 });
-  }
+  const gate = await requireExportContext(parsedParams.data.slug);
+  if (!gate.ok) return gate.response;
+  const { requestContext } = gate;
 
   const searchParams = new URL(request.url).searchParams;
-  const q = searchParams.get("q") ?? undefined;
-  const rawStatus = searchParams.get("status") ?? "all";
-  const status = statuses.includes(rawStatus as never) ? (rawStatus as "all" | InvoiceStatus) : "all";
-  const rawSort = searchParams.get("sort") ?? "newest";
-  const sort = rawSort === "oldest" ? ("oldest" as const) : ("newest" as const);
+  const parsedQuery = invoiceExportQuerySchema.safeParse(
+    Object.fromEntries(searchParams.entries()),
+  );
+  const q = parsedQuery.success ? parsedQuery.data.q : undefined;
+  const status: "all" | InvoiceStatus =
+    parsedQuery.success && parsedQuery.data.status
+      ? parsedQuery.data.status
+      : "all";
+  const sort = parsedQuery.success && parsedQuery.data.sort ? parsedQuery.data.sort : "newest";
 
   const rows = await getInvoiceExportRowsForBusiness({
     businessId: requestContext.businessContext.business.id,
     filters: { q, status, sort, page: 1 },
   });
 
-  const csv = buildCsv(
+  return buildListCsvResponse(
     [
       { header: "invoice_number", render: (row) => row.invoiceNumber },
       { header: "title", render: (row) => row.title },
@@ -69,14 +58,6 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
       { header: "sent_at", render: (row) => row.sentAt?.toISOString() },
     ],
     rows,
+    "invoices",
   );
-
-  return new Response(csv, {
-    headers: {
-      "cache-control": "private, no-store",
-      "content-disposition": buildContentDisposition(`invoices-${formatDateForExportFileName()}.csv`),
-      "content-type": "text/csv; charset=utf-8",
-      "x-content-type-options": "nosniff",
-    },
-  });
 }

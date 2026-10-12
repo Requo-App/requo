@@ -2,21 +2,21 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { requireUser } from "@/lib/auth/session";
+import {
+  getPolarClient,
+  resolveAppOrigin,
+  resolveClientIp,
+  sanitizeReturnTo,
+} from "@/lib/billing/polar-client";
 import { getPolarProductId } from "@/lib/billing/polar-products";
 import { getBusinessSubscription } from "@/lib/billing/subscription-service";
 import { env, isPolarConfigured } from "@/lib/env";
 import { getBusinessMembershipsForUser } from "@/lib/db/business-access";
 
 /**
- * Thin eligibility-check + redirect route in front of the canonical
- * `@polar-sh/nextjs` `Checkout` adapter at
- * `/api/billing/polar/checkout`. Runs the auth, Zod, isPolarConfigured,
- * already-subscribed and missing-email gates, resolves the
- * `(plan, interval)` pair to a configured Polar product id, then
- * returns a JSON `{ checkoutUrl }` payload pointing at the adapter
- * route so the client-side `start-checkout` flow keeps working
- * unchanged. The adapter route does the actual Polar API call and
- * issues the final redirect.
+ * Authed checkout route. Runs eligibility gates, resolves
+ * `(plan, interval)` to a Polar product id, then creates the Polar
+ * checkout session directly and returns `{ checkoutUrl }`.
  */
 
 const checkoutBodySchema = z.object({
@@ -25,126 +25,6 @@ const checkoutBodySchema = z.object({
   interval: z.enum(["monthly", "yearly"]),
   returnTo: z.string().trim().max(512).optional(),
 });
-
-function sanitizeReturnTo(value: string | undefined): string | null {
-  if (!value) return null;
-  if (!value.startsWith("/")) return null;
-  if (value.startsWith("//")) return null;
-  if (value.startsWith("/api/")) return null;
-  return value;
-}
-
-/**
- * Resolves the visitor's public IP from forwarded-for headers so the
- * canonical `@polar-sh/nextjs` `Checkout` adapter can pass it to
- * Polar as `customerIpAddress`. Polar uses the field to geolocate
- * currency on the hosted checkout page; without it, Polar sees the
- * server egress IP and the visitor sees the wrong currency.
- *
- * Priority: `x-forwarded-for` (first hop) → `x-real-ip` →
- * `cf-connecting-ip` → null. Loopback / private addresses are
- * filtered out so localhost dev requests don't poison the value;
- * in that case the redirect route falls back to fetching the dev
- * machine's public IP via an external echo service so the dev
- * experience matches production behavior.
- */
-function isPrivateIp(candidate: string): boolean {
-  if (
-    candidate === "127.0.0.1" ||
-    candidate === "::1" ||
-    candidate.startsWith("10.") ||
-    candidate.startsWith("192.168.") ||
-    candidate.startsWith("169.254.")
-  ) {
-    return true;
-  }
-  // 172.16.0.0 – 172.31.255.255
-  if (candidate.startsWith("172.")) {
-    const second = Number.parseInt(candidate.split(".")[1] ?? "", 10);
-    if (second >= 16 && second <= 31) return true;
-  }
-  return false;
-}
-
-function resolveForwardedIp(request: Request): string | null {
-  const candidates = [
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim(),
-    request.headers.get("x-real-ip")?.trim(),
-    request.headers.get("cf-connecting-ip")?.trim(),
-  ];
-
-  for (const candidate of candidates) {
-    if (!candidate) continue;
-    if (isPrivateIp(candidate)) continue;
-    return candidate;
-  }
-
-  return null;
-}
-
-/**
- * Last-resort lookup of the dev machine's egress IP. Only called when
- * the request didn't carry a forwarded-for header (typical for direct
- * `localhost:3000` requests in dev). Result is cached for one process
- * lifetime to avoid hammering the echo service on every checkout.
- */
-let cachedDevPublicIp: string | null | undefined;
-async function fetchDevPublicIp(): Promise<string | null> {
-  if (cachedDevPublicIp !== undefined) return cachedDevPublicIp;
-  try {
-    const response = await fetch("https://api.ipify.org?format=json", {
-      signal: AbortSignal.timeout(2000),
-    });
-    if (!response.ok) {
-      cachedDevPublicIp = null;
-      return null;
-    }
-    const data = (await response.json()) as { ip?: unknown };
-    if (typeof data.ip === "string" && data.ip.length > 0 && !isPrivateIp(data.ip)) {
-      cachedDevPublicIp = data.ip;
-      return data.ip;
-    }
-  } catch {
-    // Echo service unreachable. Fall through.
-  }
-  cachedDevPublicIp = null;
-  return null;
-}
-
-async function resolveClientIp(request: Request): Promise<string | null> {
-  const fromHeaders = resolveForwardedIp(request);
-  if (fromHeaders) return fromHeaders;
-
-  if (env.NODE_ENV !== "production") {
-    return fetchDevPublicIp();
-  }
-
-  return null;
-}
-
-function resolveAppOrigin(): string | null {
-  const candidates = [
-    env.BETTER_AUTH_URL,
-    env.NEXT_PUBLIC_APP_URL,
-    env.VERCEL_URL,
-  ];
-
-  for (const candidate of candidates) {
-    if (!candidate) continue;
-
-    const value = candidate.startsWith("http")
-      ? candidate
-      : `https://${candidate}`;
-
-    try {
-      return new URL(value).origin;
-    } catch {
-      continue;
-    }
-  }
-
-  return null;
-}
 
 export async function POST(request: Request): Promise<Response> {
   if (!isPolarConfigured) {
@@ -248,11 +128,7 @@ export async function POST(request: Request): Promise<Response> {
       );
     }
 
-    const { Polar } = await import("@polar-sh/sdk");
-    const polar = new Polar({
-      accessToken: env.POLAR_ACCESS_TOKEN,
-      server: env.POLAR_SERVER,
-    });
+    const polar = getPolarClient();
 
     try {
       await polar.subscriptions.update({
@@ -270,7 +146,7 @@ export async function POST(request: Request): Promise<Response> {
 
     // Return a success response — the webhook will handle the plan change.
     // Redirect to the return path with upgrade flag.
-    const origin = resolveAppOrigin();
+    const origin = resolveAppOrigin(request.url);
     const successUrl = new URL(returnTo || "/", origin ?? request.url);
     successUrl.searchParams.set("upgrade", "success");
     successUrl.searchParams.set("plan", plan);
@@ -278,7 +154,14 @@ export async function POST(request: Request): Promise<Response> {
     return NextResponse.json({ checkoutUrl: successUrl.toString() });
   }
 
-  const origin = resolveAppOrigin();
+  if (!env.POLAR_ACCESS_TOKEN) {
+    return NextResponse.json(
+      { error: "Billing is not configured." },
+      { status: 503 },
+    );
+  }
+
+  const origin = resolveAppOrigin(request.url);
 
   if (!origin) {
     return NextResponse.json(
@@ -287,22 +170,24 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
-  const redirectUrl = new URL("/api/billing/polar/checkout", origin);
-  redirectUrl.searchParams.set("products", productId);
-  // Important: business-scoped billing identifies Polar customers by business id.
-  redirectUrl.searchParams.set("customerExternalId", businessId);
-  redirectUrl.searchParams.set("customerEmail", userEmail);
+  const baseSuccessUrl = new URL("/account/billing/checkout", origin);
+  if (returnTo) baseSuccessUrl.searchParams.set("returnTo", returnTo);
 
-  // Forward the visitor's IP so Polar's hosted checkout localizes
-  // currency to the customer's region rather than the server egress IP.
-  const clientIp = await resolveClientIp(request);
-  if (clientIp) {
-    redirectUrl.searchParams.set("customerIpAddress", clientIp);
+  const polar = getPolarClient();
+  const clientIp = resolveClientIp(request);
+
+  try {
+    const checkout = await polar.checkouts.create({
+      products: [productId],
+      successUrl: baseSuccessUrl.toString(),
+      externalCustomerId: businessId,
+      customerEmail: userEmail,
+      ...(clientIp ? { customerIpAddress: clientIp } : {}),
+    });
+    return NextResponse.json({ checkoutUrl: checkout.url });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Checkout creation failed.";
+    return NextResponse.json({ error: message }, { status: 502 });
   }
-
-  if (returnTo) {
-    redirectUrl.searchParams.set("returnTo", returnTo);
-  }
-
-  return NextResponse.json({ checkoutUrl: redirectUrl.toString() });
 }

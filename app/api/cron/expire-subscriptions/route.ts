@@ -1,7 +1,5 @@
-import { NextResponse } from "next/server";
-
 import { processExpiredSubscriptions } from "@/lib/billing/jobs/expire-subscriptions";
-import { isAuthorizedCronRequest } from "@/lib/security/cron";
+import { makeCronRoute } from "@/lib/security/cron";
 
 export const maxDuration = 30;
 
@@ -11,15 +9,4 @@ export const maxDuration = 30;
  *
  * Simple UPDATE query — no Inngest step functions, no retry logic, completes in <5s.
  */
-export async function GET(request: Request) {
-  if (!isAuthorizedCronRequest(request)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const result = await processExpiredSubscriptions();
-
-  return NextResponse.json({
-    success: true,
-    ...result,
-  });
-}
+export const GET = makeCronRoute(processExpiredSubscriptions);

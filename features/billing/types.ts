@@ -3,7 +3,6 @@ import type {
   BillingCurrency,
   BillingInterval,
   BillingProvider,
-  PaymentAttemptStatus,
   PaidPlan,
   SubscriptionStatus,
 } from "@/lib/billing/types";
@@ -60,16 +59,4 @@ export type CheckoutActionState = {
   error?: string;
   success?: string;
   checkoutUrl?: string;
-};
-
-export type CheckoutStatusSnapshot = {
-  subscription: {
-    effectivePlan: plan;
-    plan: string;
-    status: SubscriptionStatus;
-  } | null;
-  paymentAttempt: {
-    providerPaymentId: string;
-    status: PaymentAttemptStatus;
-  } | null;
 };

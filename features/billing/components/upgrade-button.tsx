@@ -9,7 +9,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { useBusinessCheckout } from "@/features/billing/components/business-checkout-provider";
 import { PlanSelectionSheet } from "@/features/billing/components/plan-selection-sheet";
 import { startPolarCheckout } from "@/features/billing/start-checkout";
-import { getBusinessDashboardPath } from "@/features/businesses/routes";
+import { getBusinessHomePath } from "@/features/businesses/routes";
 import type { BillingInterval, PaidPlan } from "@/lib/billing/types";
 import type { BusinessPlan as plan } from "@/lib/plans/plans";
 import { cn } from "@/lib/utils";
@@ -93,7 +93,7 @@ export function UpgradeButton({
   ) {
     setLocalOpen(false);
     const returnTo = businessSlug
-      ? getBusinessDashboardPath(businessSlug)
+      ? getBusinessHomePath(businessSlug)
       : undefined;
 
     startLocalTransition(async () => {

@@ -1,15 +1,21 @@
 import "server-only";
 
 import { NextResponse } from "next/server";
-import { Polar } from "@polar-sh/sdk";
+import { z } from "zod";
 
 import { requireUser } from "@/lib/auth/session";
+import { getPolarClient } from "@/lib/billing/polar-client";
 import { getBusinessSubscription } from "@/lib/billing/subscription-service";
 import { env, isPolarConfigured } from "@/lib/env";
 import { getBusinessRequestContextForSlug } from "@/lib/db/business-access";
 import { db } from "@/lib/db/client";
 import { businessMembers, businesses } from "@/lib/db/schema";
 import { and, eq } from "drizzle-orm";
+
+const portalQuerySchema = z.object({
+  businessId: z.string().trim().min(1).max(128).optional(),
+  businessSlug: z.string().trim().min(1).max(120).optional(),
+});
 
 /**
  * Polar Customer Portal route.
@@ -25,7 +31,7 @@ import { and, eq } from "drizzle-orm";
  * Usage: GET /api/billing/polar/customer-portal
  */
 export async function GET(request: Request): Promise<Response> {
-  if (!isPolarConfigured || !env.POLAR_ACCESS_TOKEN) {
+  if (!isPolarConfigured) {
     return NextResponse.json(
       { error: "Billing is not configured." },
       { status: 503 },
@@ -41,8 +47,14 @@ export async function GET(request: Request): Promise<Response> {
   }
 
   const url = new URL(request.url);
-  const businessIdParam = url.searchParams.get("businessId");
-  const businessSlugParam = url.searchParams.get("businessSlug");
+  const parsedQuery = portalQuerySchema.safeParse(
+    Object.fromEntries(url.searchParams.entries()),
+  );
+  if (!parsedQuery.success) {
+    return NextResponse.json({ error: "Missing businessId." }, { status: 400 });
+  }
+  const businessIdParam = parsedQuery.data.businessId;
+  const businessSlugParam = parsedQuery.data.businessSlug;
 
   if (!businessIdParam && !businessSlugParam) {
     return NextResponse.json(
@@ -114,10 +126,7 @@ export async function GET(request: Request): Promise<Response> {
     businessSlug,
   )}/settings/billing`;
 
-  const polar = new Polar({
-    accessToken: env.POLAR_ACCESS_TOKEN,
-    server: env.POLAR_SERVER,
-  });
+  const polar = getPolarClient();
 
   try {
     const session = await polar.customerSessions.create({

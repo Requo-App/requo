@@ -4,10 +4,10 @@ import { getSession } from "@/lib/auth/session";
 import { getBusinessActionContext } from "@/lib/db/business-access";
 import { assertBusinessActionRateLimit } from "@/lib/rate-limit/redis-rate-limiter";
 import {
-  ChatAttachmentError,
-} from "@/lib/ai/chat-attachments";
+  decodeChatAttachmentsOrResponse,
+  mapChatError,
+} from "@/lib/ai/chat-route-errors";
 import {
-  decodeRequestAttachments,
   extractUiMessageText,
   uiMessageSchema,
 } from "@/lib/ai/chat-request";
@@ -29,9 +29,6 @@ const ownerAssistantChatRequestSchema = z.object({
   // AI SDK UI messages (sent by useChat) — the latest user turn is the input.
   messages: z.array(uiMessageSchema).min(1),
   attachments: z.array(chatAttachmentSchema).max(2).optional(),
-  id: z.string().optional(),
-  trigger: z.string().optional(),
-  messageId: z.string().optional(),
 });
 
 function extractText(message: z.infer<typeof uiMessageSchema>): string {
@@ -76,30 +73,12 @@ export async function POST(request: Request) {
     // Decode attachment data URLs to bytes (cheap). Validation, extraction,
     // and the daily plan limit are enforced in the orchestrator before any
     // model call, so a rejected file costs no tokens.
-    let rawAttachments: Array<{
-      fileName: string;
-      mimeType: string;
-      bytes: Buffer;
-    }> = [];
-    try {
-      rawAttachments = decodeRequestAttachments(
-        attachments,
-        "Images aren't supported in chat yet. Paste the key details as text instead.",
-      );
-    } catch (error) {
-      if (error instanceof ChatAttachmentError) {
-        return NextResponse.json(
-          {
-            error:
-              error.code === "image"
-                ? "Images aren't supported in chat yet. Paste the key details as text instead."
-                : error.message,
-          },
-          { status: 400 },
-        );
-      }
-      throw error;
-    }
+    const decoded = decodeChatAttachmentsOrResponse(
+      attachments,
+      "Images aren't supported in chat yet. Paste the key details as text instead.",
+    );
+    if (!decoded.ok) return decoded.response;
+    const rawAttachments = decoded.rawAttachments;
 
     // Validate business access (authoritative source of truth for identity)
     const result = await getBusinessActionContext({ businessSlug });
@@ -160,90 +139,27 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("Owner assistant chat API error:", error);
 
-    // Handle specific error types
-    if (error instanceof Error) {
-      if (error.message.startsWith("QUOTA_EXCEEDED:")) {
-        const message = error.message
-          .slice("QUOTA_EXCEEDED:".length)
-          .trim();
+    const mapped = mapChatError(
+      error,
+      "Images aren't supported in chat yet. Paste the key details as text instead.",
+    );
+    if (mapped) {
+      // Preserve the upgrade flag for quota errors.
+      if (
+        error instanceof Error &&
+        (error.message.startsWith("QUOTA_EXCEEDED:") ||
+          error.message.startsWith("ASSISTANT_LIMIT_EXCEEDED:") ||
+          error.message.startsWith("UPLOAD_LIMIT_EXCEEDED:"))
+      ) {
+        const body = (await mapped.json().catch(() => ({}))) as {
+          error?: string;
+        };
         return NextResponse.json(
-          {
-            error:
-              message ||
-              "You've reached your Assistant usage limit for this month.",
-            upgradeRequired: true,
-          },
-          { status: 429 },
+          { error: body.error, upgradeRequired: true },
+          { status: mapped.status },
         );
       }
-
-      if (error.message.startsWith("ASSISTANT_LIMIT_EXCEEDED:")) {
-        const message = error.message
-          .slice("ASSISTANT_LIMIT_EXCEEDED:".length)
-          .trim();
-        return NextResponse.json(
-          {
-            error:
-              message || "You've reached your daily Assistant message limit.",
-            upgradeRequired: true,
-          },
-          { status: 429 },
-        );
-      }
-
-      if (error.message.startsWith("INPUT_REJECTED:")) {
-        const message = error.message.slice("INPUT_REJECTED:".length).trim();
-        return NextResponse.json(
-          { error: message || "That message can't be processed." },
-          { status: 400 },
-        );
-      }
-
-      if (error.message.startsWith("ATTACHMENT_REJECTED:")) {
-        const message = error.message
-          .slice("ATTACHMENT_REJECTED:".length)
-          .trim();
-        return NextResponse.json(
-          {
-            error:
-              message === "IMAGE_NOT_SUPPORTED"
-                ? "Images aren't supported in chat yet. Paste the key details as text instead."
-                : message || "That file can't be attached.",
-          },
-          { status: 400 },
-        );
-      }
-
-      if (error.message.startsWith("UPLOAD_LIMIT_EXCEEDED:")) {
-        const message = error.message
-          .slice("UPLOAD_LIMIT_EXCEEDED:".length)
-          .trim();
-        return NextResponse.json(
-          {
-            error:
-              message || "You've reached your daily file-upload limit.",
-            upgradeRequired: true,
-          },
-          { status: 429 },
-        );
-      }
-
-      if (error.message.includes("A user message is required")) {
-        return NextResponse.json(
-          { error: "Send a message to continue the conversation." },
-          { status: 400 },
-        );
-      }
-
-      if (error.message.includes("No suitable AI model")) {
-        return NextResponse.json(
-          {
-            error:
-              "AI service temporarily unavailable. Please try again in a moment.",
-          },
-          { status: 503 },
-        );
-      }
+      return mapped;
     }
 
     // Generic error

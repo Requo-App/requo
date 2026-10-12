@@ -8,7 +8,7 @@ import { isEmailConfigured } from "@/lib/env";
 import { checkUsageAllowance } from "@/lib/plans/usage";
 import type { BusinessPlan } from "@/lib/plans/plans";
 import type { UsageLimitKey } from "@/lib/plans/usage-limits";
-import { getResendFromEmailConfigurationError } from "@/lib/resend/client";
+import { getResendFromEmailConfigurationError } from "@/lib/email/transactional";
 
 /**
  * Requo-delivery preconditions shared by quote and invoice sending.

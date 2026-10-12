@@ -1,7 +1,5 @@
-import { NextResponse } from "next/server";
-
+import { makeCronRoute } from "@/lib/security/cron";
 import { syncExpiredQuotesGlobal } from "@/features/quotes/mutations";
-import { isAuthorizedCronRequest } from "@/lib/security/cron";
 
 export const maxDuration = 30;
 
@@ -11,15 +9,4 @@ export const maxDuration = 30;
  *
  * Simple UPDATE query — no Inngest step functions, no retry logic, completes in <10s.
  */
-export async function GET(request: Request) {
-  if (!isAuthorizedCronRequest(request)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const result = await syncExpiredQuotesGlobal();
-
-  return NextResponse.json({
-    success: true,
-    ...result,
-  });
-}
+export const GET = makeCronRoute(syncExpiredQuotesGlobal);

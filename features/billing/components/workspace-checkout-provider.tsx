@@ -14,7 +14,7 @@ import { toast } from "@/components/shared/notify";
 import { PlanSelectionSheet } from "@/features/billing/components/plan-selection-sheet";
 import { startPolarCheckout } from "@/features/billing/start-checkout";
 import type { AccountBillingOverview } from "@/features/billing/types";
-import { getBusinessDashboardPath } from "@/features/businesses/routes";
+import { getBusinessHomePath } from "@/features/businesses/routes";
 import type { BillingInterval, PaidPlan } from "@/lib/billing/types";
 import type { BusinessPlan as plan } from "@/lib/plans/plans";
 
@@ -51,7 +51,7 @@ export function BusinessCheckoutProvider({
   const openCheckout = useCallback(
     (plan: PaidPlan, interval: BillingInterval = "monthly") => {
       const returnTo = billing.businessSlug
-        ? getBusinessDashboardPath(billing.businessSlug)
+        ? getBusinessHomePath(billing.businessSlug)
         : undefined;
 
       startTransition(async () => {

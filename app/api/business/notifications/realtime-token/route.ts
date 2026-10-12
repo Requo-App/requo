@@ -1,10 +1,11 @@
+import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isSupabaseRealtimeConfigured } from "@/lib/env";
 import { createSupabaseRealtimeToken } from "@/lib/supabase/realtime-auth";
 
 export async function GET() {
   if (!isSupabaseRealtimeConfigured) {
-    return Response.json(
+    return NextResponse.json(
       { error: "Realtime notifications are not configured." },
       { status: 503 },
     );
@@ -13,7 +14,7 @@ export async function GET() {
   const user = await getCurrentUser();
 
   if (!user) {
-    return Response.json({ error: "Unauthorized." }, { status: 401 });
+    return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
 
   const { token, expiresAt } = createSupabaseRealtimeToken({
@@ -22,7 +23,7 @@ export async function GET() {
     name: user.name,
   });
 
-  return Response.json(
+  return NextResponse.json(
     { token, expiresAt },
     { headers: { "cache-control": "private, no-store" } },
   );

@@ -152,3 +152,64 @@ export function getNotModifiedResponse(
   }
   return null;
 }
+
+export function notFoundResponse(message = "Not found"): Response {
+  return new Response(message, {
+    status: 404,
+    headers: { "cache-control": "no-store" },
+  });
+}
+
+export type ServeStorageAssetInput = {
+  request: Request;
+  bucket: string;
+  storagePath: string | null | undefined;
+  contentType?: string | null;
+  download: (
+    bucket: string,
+    path: string,
+  ) => Promise<{ data: Blob | null; error: unknown }>;
+  fallbackFileName: string;
+  notFoundMessage?: string;
+};
+
+/**
+ * Single storage-download + 304 + inline-disposition helper (was copy-pasted
+ * across business/logo, [slug]/logo, account/avatar, public logo).
+ */
+export async function serveStorageAsset(
+  input: ServeStorageAssetInput,
+): Promise<Response> {
+  if (!input.storagePath) return notFoundResponse(input.notFoundMessage);
+
+  const cacheHeaders = getAssetCacheHeaders({
+    request: input.request,
+    etagSeed: input.storagePath,
+  });
+  const notModified = getNotModifiedResponse(
+    input.request,
+    cacheHeaders.etag,
+  );
+  if (notModified) return notModified;
+
+  const { data, error } = await input.download(
+    input.bucket,
+    input.storagePath,
+  );
+  if (error || !data) {
+    console.error("Failed to download asset from storage.", error);
+    return notFoundResponse(input.notFoundMessage);
+  }
+
+  return new Response(data, {
+    headers: {
+      ...cacheHeaders,
+      "content-disposition": buildContentDisposition(
+        input.storagePath.split("/").pop() ?? input.fallbackFileName,
+        "inline",
+      ),
+      "content-type": input.contentType ?? "application/octet-stream",
+      "x-content-type-options": "nosniff",
+    },
+  });
+}

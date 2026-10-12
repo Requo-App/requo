@@ -134,12 +134,7 @@ export function resolveEffectivePlanFromSubscription(
   }
 }
 
-/* ── Legacy account helpers (kept temporarily) ─────────────────────────────── */
-
-/**
- * Legacy: account subscription row for a user. Kept temporarily for admin tools
- * and rollback support, but new billing logic should be business-scoped.
- */
+/** Legacy account row retained for admin override metadata and history. */
 export async function getAccountSubscription(
   userId: string,
 ): Promise<AccountSubscriptionRow | null> {
@@ -449,55 +444,4 @@ export async function syncSubscriptionFromPolar(
     console.error("[billing] Failed to sync subscription from Polar:", error);
     return false;
   }
-}
-
-/* ── Legacy wrappers (temporarily supported) ──────────────────────────────── */
-
-/** @deprecated Use `getEffectivePlanForBusiness` instead. */
-export async function getEffectivePlan(businessId: string): Promise<BusinessPlan> {
-  return getEffectivePlanForBusiness(businessId);
-}
-
-/** @deprecated Use `getCachedEffectivePlanForBusiness` instead. */
-export async function getCachedEffectivePlan(
-  businessId: string,
-): Promise<BusinessPlan> {
-  return getCachedEffectivePlanForBusiness(businessId);
-}
-
-/**
- * @deprecated User-scoped plan reads are no longer a source of truth.
- * This resolves the first owned business (if any) and returns its effective plan.
- */
-export async function getEffectivePlanForUser(userId: string): Promise<BusinessPlan> {
-  const [biz] = await db
-    .select({ id: businesses.id })
-    .from(businesses)
-    .where(eq(businesses.ownerUserId, userId))
-    .limit(1);
-
-  if (!biz) return "free";
-  return getEffectivePlanForBusiness(biz.id);
-}
-
-/**
- * @deprecated Cached user-scoped plan reads are no longer a source of truth.
- * This resolves the first owned business (if any) and returns its cached effective plan.
- */
-export async function getCachedEffectivePlanForUser(
-  userId: string,
-): Promise<BusinessPlan> {
-  "use cache";
-
-  cacheLife(billingShellCacheLife);
-  cacheTag(...getBusinessBillingCacheTags(userId));
-
-  const [biz] = await db
-    .select({ id: businesses.id })
-    .from(businesses)
-    .where(eq(businesses.ownerUserId, userId))
-    .limit(1);
-
-  if (!biz) return "free";
-  return getCachedEffectivePlanForBusiness(biz.id);
 }

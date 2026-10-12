@@ -27,7 +27,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: ownerAccess.error }, { status: 401 });
   }
 
-  const body = await request.json();
+  const body = await request.json().catch(() => null);
   const parsed = requestSchema.safeParse(body);
 
   if (!parsed.success) {

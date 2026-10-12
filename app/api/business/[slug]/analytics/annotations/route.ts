@@ -1,4 +1,5 @@
 import { and, eq, gte, lte } from "drizzle-orm";
+import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { db } from "@/lib/db/client";
@@ -6,10 +7,7 @@ import { getBusinessRequestContextForSlug } from "@/lib/db/business-access";
 import { analyticsAnnotations } from "@/lib/db/schema";
 import { hasFeatureAccess } from "@/lib/plans";
 import { newEntityId } from "@/lib/ids";
-
-const routeParamsSchema = z.object({
-  slug: z.string().trim().min(1).max(120),
-});
+import { slugParamSchema as routeParamsSchema } from "@/lib/api/params";
 
 const createAnnotationSchema = z.object({
   date: z.string().date(), // ISO date format YYYY-MM-DD
@@ -41,7 +39,7 @@ export async function GET(
   const parsedParams = routeParamsSchema.safeParse(await context.params);
 
   if (!parsedParams.success) {
-    return Response.json({ error: "Not found." }, { status: 404 });
+    return NextResponse.json({ error: "Not found." }, { status: 404 });
   }
 
   const requestContext = await getBusinessRequestContextForSlug(
@@ -49,7 +47,7 @@ export async function GET(
   );
 
   if (!requestContext) {
-    return Response.json({ error: "Not found." }, { status: 404 });
+    return NextResponse.json({ error: "Not found." }, { status: 404 });
   }
 
   if (
@@ -58,7 +56,7 @@ export async function GET(
       "analyticsConversion",
     )
   ) {
-    return Response.json(
+    return NextResponse.json(
       { error: "Upgrade to Pro to use annotations." },
       { status: 403 },
     );
@@ -85,7 +83,7 @@ export async function GET(
     .from(analyticsAnnotations)
     .where(and(...conditions));
 
-  return Response.json({ annotations });
+  return NextResponse.json({ annotations });
 }
 
 export async function POST(
@@ -95,7 +93,7 @@ export async function POST(
   const parsedParams = routeParamsSchema.safeParse(await context.params);
 
   if (!parsedParams.success) {
-    return Response.json({ error: "Not found." }, { status: 404 });
+    return NextResponse.json({ error: "Not found." }, { status: 404 });
   }
 
   const requestContext = await getBusinessRequestContextForSlug(
@@ -103,7 +101,7 @@ export async function POST(
   );
 
   if (!requestContext) {
-    return Response.json({ error: "Not found." }, { status: 404 });
+    return NextResponse.json({ error: "Not found." }, { status: 404 });
   }
 
   if (
@@ -112,7 +110,7 @@ export async function POST(
       "analyticsConversion",
     )
   ) {
-    return Response.json(
+    return NextResponse.json(
       { error: "Upgrade to Pro to use annotations." },
       { status: 403 },
     );
@@ -122,7 +120,7 @@ export async function POST(
   const parsedBody = createAnnotationSchema.safeParse(body);
 
   if (!parsedBody.success) {
-    return Response.json(
+    return NextResponse.json(
       { error: "Invalid input.", details: parsedBody.error.flatten() },
       { status: 400 },
     );
@@ -146,7 +144,7 @@ export async function POST(
     })
     .returning();
 
-  return Response.json({ annotation }, { status: 201 });
+  return NextResponse.json({ annotation }, { status: 201 });
 }
 
 export async function PUT(
@@ -156,7 +154,7 @@ export async function PUT(
   const parsedParams = routeParamsSchema.safeParse(await context.params);
 
   if (!parsedParams.success) {
-    return Response.json({ error: "Not found." }, { status: 404 });
+    return NextResponse.json({ error: "Not found." }, { status: 404 });
   }
 
   const requestContext = await getBusinessRequestContextForSlug(
@@ -164,7 +162,7 @@ export async function PUT(
   );
 
   if (!requestContext) {
-    return Response.json({ error: "Not found." }, { status: 404 });
+    return NextResponse.json({ error: "Not found." }, { status: 404 });
   }
 
   if (
@@ -173,7 +171,7 @@ export async function PUT(
       "analyticsConversion",
     )
   ) {
-    return Response.json(
+    return NextResponse.json(
       { error: "Upgrade to Pro to use annotations." },
       { status: 403 },
     );
@@ -183,7 +181,7 @@ export async function PUT(
   const parsedBody = updateAnnotationSchema.safeParse(body);
 
   if (!parsedBody.success) {
-    return Response.json(
+    return NextResponse.json(
       { error: "Invalid input.", details: parsedBody.error.flatten() },
       { status: 400 },
     );
@@ -211,10 +209,10 @@ export async function PUT(
     .returning();
 
   if (!annotation) {
-    return Response.json({ error: "Annotation not found." }, { status: 404 });
+    return NextResponse.json({ error: "Annotation not found." }, { status: 404 });
   }
 
-  return Response.json({ annotation });
+  return NextResponse.json({ annotation });
 }
 
 export async function DELETE(
@@ -224,7 +222,7 @@ export async function DELETE(
   const parsedParams = routeParamsSchema.safeParse(await context.params);
 
   if (!parsedParams.success) {
-    return Response.json({ error: "Not found." }, { status: 404 });
+    return NextResponse.json({ error: "Not found." }, { status: 404 });
   }
 
   const requestContext = await getBusinessRequestContextForSlug(
@@ -232,7 +230,7 @@ export async function DELETE(
   );
 
   if (!requestContext) {
-    return Response.json({ error: "Not found." }, { status: 404 });
+    return NextResponse.json({ error: "Not found." }, { status: 404 });
   }
 
   if (
@@ -241,7 +239,7 @@ export async function DELETE(
       "analyticsConversion",
     )
   ) {
-    return Response.json(
+    return NextResponse.json(
       { error: "Upgrade to Pro to use annotations." },
       { status: 403 },
     );
@@ -251,7 +249,7 @@ export async function DELETE(
   const parsedBody = deleteAnnotationSchema.safeParse(body);
 
   if (!parsedBody.success) {
-    return Response.json(
+    return NextResponse.json(
       { error: "Invalid input.", details: parsedBody.error.flatten() },
       { status: 400 },
     );
@@ -271,8 +269,8 @@ export async function DELETE(
     .returning();
 
   if (!deleted) {
-    return Response.json({ error: "Annotation not found." }, { status: 404 });
+    return NextResponse.json({ error: "Annotation not found." }, { status: 404 });
   }
 
-  return Response.json({ success: true });
+  return NextResponse.json({ success: true });
 }

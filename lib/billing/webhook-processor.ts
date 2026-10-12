@@ -163,22 +163,6 @@ export async function recordPaymentAttempt(
 }
 
 /**
- * Updates a payment attempt status.
- */
-export async function updatePaymentAttemptStatus(
-  providerPaymentId: string,
-  status: "pending" | "succeeded" | "failed" | "expired",
-): Promise<boolean> {
-  const updated = await db
-    .update(paymentAttempts)
-    .set({ status })
-    .where(eq(paymentAttempts.providerPaymentId, providerPaymentId))
-    .returning({ id: paymentAttempts.id });
-
-  return updated.length > 0;
-}
-
-/**
  * Standard webhook response helper.
  */
 export function webhookSuccess(
