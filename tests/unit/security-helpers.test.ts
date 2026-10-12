@@ -36,9 +36,7 @@ describe("security helpers", () => {
 
   it("hashes opaque lookup tokens without exposing the original token", async () => {
     // BETTER_AUTH_SECRET is already seeded by tests/setup.ts -> applyTestEnv().
-    // Do not duplicate the placeholder value here; the secret-leakage scanner
-    // (tests/unit/_guards/secrets.test.ts) fails the run if any test file
-    // contains the verbatim value of a Test_Secret_Placeholder.
+    // Do not inline real secret values in test files.
     vi.stubEnv("APP_TOKEN_HASH_SECRET", "0123456789abcdef0123456789abcdef");
 
     const { hashOpaqueToken } = await import("@/lib/security/tokens");

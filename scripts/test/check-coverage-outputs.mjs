@@ -11,10 +11,6 @@
 // Coverage itself stays report-only during rollout (no thresholds), so this
 // check is structural: it guarantees the verify job has artifacts to upload
 // and surfaces misconfigurations that silently drop a reporter.
-//
-// Satisfies Requirements 12.3, 12.4, 12.5, 12.6 of the
-// test-infrastructure-cicd spec.
-
 import { existsSync, statSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";

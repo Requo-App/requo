@@ -14,7 +14,6 @@ export default defineConfig({
     include: ['tests/integration/**/*.test.ts'],
     testTimeout: 30_000,
     hookTimeout: 30_000,
-    reporters: [['default'], ['json', { outputFile: 'reports/vitest-integration.json' }]],
     alias: [
       { find: '@', replacement: path.resolve(__dirname, './') },
       {

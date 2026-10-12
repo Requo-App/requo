@@ -11,7 +11,7 @@ vi.mock("@/features/memory/retrieval", () => ({
   retrieveBusinessKnowledge: vi.fn(),
 }));
 
-import { businessInquiryForms, businesses } from "@/lib/db/schema";
+import { businessInquiryForms } from "@/lib/db/schema";
 import { loadSessionByToken } from "@/features/ai-agent/session-service";
 import { retrieveBusinessKnowledge } from "@/features/memory/retrieval";
 import { getBusinessInfoTool } from "@/features/ai-agent/tools/get-business-info";

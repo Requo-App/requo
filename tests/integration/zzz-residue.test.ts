@@ -1,20 +1,12 @@
 /**
- * Integration residue check (Task 4.7, Requirements 5.13, 10.4, 10.9).
+ * Integration residue check.
  *
  * This file must execute after all other integration tests. Filename chosen
  * so Vitest's default alphabetical file ordering places it last.
  *
- * Why `zzz-` and not `_afterAll/` as the task header suggests: Vitest sorts
- * file paths with a plain string compare, and `_` (ASCII 95) sorts BEFORE
- * lowercase letters (ASCII 97+). A `_afterAll/residue.test.ts` path would
- * therefore run FIRST in the integration suite, which is the opposite of
- * what Requirement 5.13 asks for. `zzz-` guarantees last-alphabetical
- * position across both POSIX and Windows filename comparers.
- *
  * Scope and limitations:
- * - The scan covers the twelve tables listed in Requirement 10.4's cleanup
- *   set. All of them expose a `text("id")` primary key, so a `LIKE` scan on
- *   `id` is well-defined.
+ * - The scan covers the cleanup tables used by the integration fixtures. All
+ *   expose a text `id` primary key, so a `LIKE` scan on `id` is well-defined.
  * - Per-file attribution only catches rows whose `id` starts with a known
  *   `Per_File_Prefix`. Fixture-created rows follow this convention; product
  *   code that generates ids through `nanoid()`-style helpers does not, but
@@ -56,8 +48,7 @@ import { derivePerFilePrefix } from "@/tests/support/prefix";
 const SELF_BASENAME = "zzz-residue.test.ts";
 const INTEGRATION_DIR = path.resolve(__dirname);
 
-// Requirement 10.4 cleanup table set. Order preserved for readable failure
-// output.
+// Keep the table order stable for readable failure output.
 const CLEANUP_TABLES = [
   { name: "businesses", table: businesses },
   { name: "business_members", table: businessMembers },
@@ -157,7 +148,7 @@ describe("integration residue check", () => {
           "Integration residue detected. The following rows were still present after " +
             "the integration run finished, grouped by (offending Test_File, Per_File_Prefix, " +
             "affected table). Each row should have been removed by its owning test's " +
-            "fixture teardown (see Requirement 10.4).\n" +
+            "fixture teardown.\n" +
             lines,
         );
       }

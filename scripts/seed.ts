@@ -33,9 +33,6 @@ import { db, dbConnection } from "../lib/db/client";
 import {
   activityLogs,
   analyticsEvents,
-  approvalArtifacts,
-  approvalChains,
-  approvals,
   auditLogs,
   billingEvents,
   businessInquiryForms,
@@ -48,8 +45,6 @@ import {
   businessPackAssignments,
   businesses,
   businessSubscriptions,
-  changeOrderLines,
-  changeOrders,
   commercialScheduleItems,
   commercialSchedules,
   emailAttempts,
@@ -73,9 +68,6 @@ import { packRecipeKinds } from "../lib/db/schema/pack-recipes";
 import type { ScopeBlockKind } from "../lib/db/schema/scope-blocks";
 import { env } from "../lib/env";
 import type { BusinessPlan } from "../lib/plans/plans";
-type InquiryStatus = "new" | "quoted" | "waiting" | "won" | "lost" | "archived" | "overdue";
-type QuoteStatus = "draft" | "sent" | "revision_requested" | "accepted" | "rejected" | "expired" | "voided";
-
 const DEFAULT_PASSWORD = "12345678";
 
 const ownerEmail = "user@email.com";

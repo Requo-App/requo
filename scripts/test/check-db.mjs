@@ -6,8 +6,7 @@
 // containing the string "DATABASE_URL" otherwise.
 //
 // Used as a pre-flight guard for `npm run test:integration` and the local
-// path of `npm run test:e2e:smoke`. See .kiro/specs/test-infrastructure-cicd
-// requirement 2.8.
+// path of `npm run test:e2e:smoke`.
 
 import { createConnection } from "node:net";
 

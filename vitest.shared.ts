@@ -10,8 +10,6 @@
  * - `**\/*.config.*` — runner, lint, build, and tooling configs
  * - `**\/layout.tsx` — Next.js layout files (structural, not product logic)
  * - `**\/page.tsx`   — Next.js page files (thin route shells)
- *
- * Satisfies Requirement 12.3 of the test-infrastructure-cicd spec.
  */
 export const COVERAGE_EXCLUDES: readonly string[] = [
   'tests/**',

@@ -16,11 +16,8 @@ config();
  * under `test.env` here. Values that should still come from `.env.local` in
  * development are loaded above via `dotenv`.
  *
- * Component test soft cap of 10 seconds is enforced by
- * `tests/unit/_guards/timing.test.ts`, not by Vitest's per-test timeout.
- * The per-test timeout here is 30s per Requirement 7.8 so that slower
- * integration-adjacent unit tests (e.g. Drizzle schema round-trips) have
- * headroom without masking genuinely slow component specs.
+ * Keep one timeout policy for the unit/component tier. Slow tests should be
+ * fixed or explicitly justified at the test declaration when needed.
  */
 export default defineConfig({
   plugins: [react()],
@@ -30,7 +27,6 @@ export default defineConfig({
     globals: true,
     testTimeout: 30_000,
     exclude: ['tests/e2e/**', 'tests/integration/**', 'node_modules/**', '.next/**'],
-    reporters: [['default'], ['json', { outputFile: 'reports/vitest-verify.json' }]],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html', 'json'],
