@@ -8,11 +8,12 @@ description: Requo repository-specific architecture, design system, provider bou
 Read these sources first when relevant (paths relative to this skill file):
 
 - `../../../DESIGN.md` for UI work; `../../../app/globals.css` for tokens, surfaces, motion
-- `../../../docs/architecture.md` for structure; `../../../docs/frontend.md` for App Router patterns
-- `../../../docs/domain.md` for business concepts; `../../../docs/workflows.md` for cross-feature flows
-- `../../../docs/ai.md` for AI work (deep dive: `../../../docs/architecture/assistant-and-agent.md`)
-- `../../../docs/data.md` for database; `../../../docs/authentication.md` for auth/authz
-- `../../../docs/integrations.md` for external services; `../../../docs/development.md` for commands
+- `../../../docs/README.md` for the source-of-truth map
+- `../../../docs/architecture/TRD.md` for application architecture and boundaries
+- `../../../docs/product/PRD.md` for current product scope
+- `../../../CONTEXT.md` for domain language; `../../../docs/architecture/instant-navigation.md` for App Router rendering
+- `../../../docs/security/SECURITY.md` for auth/authz and tenant boundaries
+- `../../../docs/engineering/DEVELOPMENT.md` for commands
 - `../../../docs/technical-debt.md` for known inconsistencies (read before "fixing" them)
 - `../../../components/shared/dashboard-layout.tsx`, `../../../components/shared/form-layout.tsx`, `../../../components/shared/page-header.tsx` for layout patterns
 - `../../../app/onboarding/page.tsx` and `../../../lib/auth/config.ts` for auth and onboarding behavior
@@ -24,7 +25,7 @@ Read these sources first when relevant (paths relative to this skill file):
 - Keep `app/` focused on routes, layouts, loading states, and route handlers.
 - Keep business logic, validation, queries, actions, and mutations in `features/`.
 - Keep provider integrations and shared utilities in `lib/`.
-- Stay within current product scope: owner-first service-business workflows (inquiry → quote → invoice → payment) with workspace billing and light role-based membership. Do not add marketplace, live chat, mobile app, dispatch, payroll, payment gateways, or advanced team collaboration unless explicitly requested.
+- Stay within current product scope: owner-first service-business inquiry, quote, follow-up, invoice, and manual payment records, with workspace billing and role-based membership. Do not add marketplace, general calendar/dispatch, mobile app, payroll, payment gateways, or general-purpose chat unless explicitly requested.
 
 ## UI System
 
