@@ -6,9 +6,9 @@ import { PageHeader } from "@/components/shared/page-header";
 import {
   AdminBusinessesListContentSection,
   AdminBusinessesListControlsSection,
-  AdminListContentFallback,
-  AdminListControlsFallback,
 } from "@/features/admin/components/admin-businesses-list-sections";
+import { AdminListContentFallback } from "@/features/admin/components/list/admin-list-content-fallback";
+import { AdminListControlsFallback } from "@/features/admin/components/list/admin-list-controls-fallback";
 import { withAdminViewLog } from "@/features/admin/page-shell";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 
@@ -39,7 +39,10 @@ export default function AdminBusinessesPage({
 }: AdminBusinessesPageProps) {
   return (
     <DashboardPage>
-      <PageHeader title="Businesses" />
+      <PageHeader
+        title="Businesses"
+        description="Read-only review of customer business setups."
+      />
       <div className="dashboard-table-shell" data-list-card>
         <Suspense fallback={<AdminListControlsFallback />}>
           <AdminBusinessesControlsRegion searchParams={searchParams} />

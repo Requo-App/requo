@@ -6,7 +6,10 @@ import { AdminListControlsFallback } from "@/features/admin/components/list/admi
 export default function AdminInvoicesLoading() {
   return (
     <DashboardPage>
-      <PageHeader title="Invoices" />
+      <PageHeader
+        title="Invoices"
+        description="Manual-payment invoices across every business."
+      />
       <div className="dashboard-table-shell" data-list-card>
         <AdminListControlsFallback />
         <AdminListContentFallback />

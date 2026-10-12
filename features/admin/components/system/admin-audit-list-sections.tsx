@@ -1,8 +1,6 @@
 import { DashboardPage } from "@/components/shared/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataListPagination } from "@/components/shared/data-list-pagination";
-import { AdminListContentFallback } from "@/features/admin/components/list/admin-list-content-fallback";
-import { AdminListControlsFallback } from "@/features/admin/components/list/admin-list-controls-fallback";
 import {
   AdminListToolbar,
   type AdminToolbarField,
@@ -31,8 +29,8 @@ export function AdminAuditListPageShell({
   return (
     <DashboardPage>
       <PageHeader
-        description="Every admin view and high-trust action, newest first."
-        title="Audit"
+        description="Every admin view and action, newest first."
+        title="Audit logs"
       />
       {children}
     </DashboardPage>
@@ -140,5 +138,3 @@ export async function AdminAuditListContentSection({
     />
   );
 }
-
-export { AdminListControlsFallback, AdminListContentFallback };

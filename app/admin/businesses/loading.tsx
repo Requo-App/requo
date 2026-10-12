@@ -1,9 +1,7 @@
 import { DashboardPage } from "@/components/shared/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
-import {
-  AdminListContentFallback,
-  AdminListControlsFallback,
-} from "@/features/admin/components/admin-businesses-list-sections";
+import { AdminListContentFallback } from "@/features/admin/components/list/admin-list-content-fallback";
+import { AdminListControlsFallback } from "@/features/admin/components/list/admin-list-controls-fallback";
 
 /**
  * Structural loading state for the admin businesses page.
@@ -18,7 +16,10 @@ import {
 export default function AdminBusinessesLoading() {
   return (
     <DashboardPage>
-      <PageHeader title="Businesses" />
+      <PageHeader
+        title="Businesses"
+        description="Read-only review of customer business setups."
+      />
       <div className="dashboard-table-shell" data-list-card>
         <AdminListControlsFallback />
         <AdminListContentFallback />

@@ -3,9 +3,9 @@ import { Suspense } from "react";
 
 import { DashboardPage } from "@/components/shared/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
+import { AdminListContentFallback } from "@/features/admin/components/list/admin-list-content-fallback";
+import { AdminListControlsFallback } from "@/features/admin/components/list/admin-list-controls-fallback";
 import {
-  AdminListContentFallback,
-  AdminListControlsFallback,
   AdminAiRequestsListContentSection,
   AdminAiRequestsListControlsSection,
 } from "@/features/admin/components/ai/admin-ai-requests-list-sections";

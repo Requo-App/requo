@@ -3,14 +3,16 @@ import { Suspense } from "react";
 
 import { DashboardPage } from "@/components/shared/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
-import { Skeleton } from "@/components/ui/skeleton";
+import { AdminListContentFallback } from "@/features/admin/components/list/admin-list-content-fallback";
+import { AdminListControlsFallback } from "@/features/admin/components/list/admin-list-controls-fallback";
 import {
-  AdminListContentFallback,
-  AdminListControlsFallback,
   AdminEmailsListContentSection,
   AdminEmailsListControlsSection,
 } from "@/features/admin/components/operations/emails/admin-emails-list-sections";
-import { AdminEmailQuotasSection } from "@/features/admin/components/operations/emails/admin-email-quotas";
+import {
+  AdminEmailQuotasFallback,
+  AdminEmailQuotasSection,
+} from "@/features/admin/components/operations/emails/admin-email-quotas";
 import { withAdminViewLog } from "@/features/admin/page-shell";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 
@@ -45,7 +47,7 @@ export default function AdminEmailsPage({
         description="Transactional email delivery and failures."
         title="Emails"
       />
-      <Suspense fallback={<QuotasFallback />}>
+      <Suspense fallback={<AdminEmailQuotasFallback />}>
         <AdminEmailQuotasRegion />
       </Suspense>
       <div className="dashboard-table-shell" data-list-card>
@@ -80,18 +82,5 @@ async function AdminEmailsContentRegion({
   return withAdminViewLog(
     { action: "view.emails", targetType: "email" },
     () => <AdminEmailsListContentSection rawParams={rawParams} />,
-  );
-}
-
-function QuotasFallback() {
-  return (
-    <div className="section-panel space-y-3">
-      <Skeleton className="h-5 w-32 rounded-md" />
-      <div className="grid gap-3 sm:grid-cols-3">
-        {Array.from({ length: 3 }).map((_, index) => (
-          <Skeleton className="h-24 w-full rounded-lg" key={index} />
-        ))}
-      </div>
-    </div>
   );
 }

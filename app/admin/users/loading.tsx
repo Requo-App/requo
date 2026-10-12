@@ -1,9 +1,7 @@
 import { DashboardPage } from "@/components/shared/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
-import {
-  AdminListContentFallback,
-  AdminListControlsFallback,
-} from "@/features/admin/components/admin-users-list-sections";
+import { AdminListContentFallback } from "@/features/admin/components/list/admin-list-content-fallback";
+import { AdminListControlsFallback } from "@/features/admin/components/list/admin-list-controls-fallback";
 
 /**
  * Structural loading state for the admin users page.
@@ -17,7 +15,10 @@ import {
 export default function AdminUsersLoading() {
   return (
     <DashboardPage>
-      <PageHeader title="Users" />
+      <PageHeader
+        title="Users"
+        description="Search, inspect, and support Requo users."
+      />
       <div className="dashboard-table-shell" data-list-card>
         <AdminListControlsFallback />
         <AdminListContentFallback />

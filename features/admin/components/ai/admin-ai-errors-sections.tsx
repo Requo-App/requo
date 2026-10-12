@@ -4,9 +4,8 @@ import {
   DashboardSection,
 } from "@/components/shared/dashboard-layout";
 import { DataListPagination } from "@/components/shared/data-list-pagination";
+import { Skeleton } from "@/components/ui/skeleton";
 import { AdminAiErrorsTable } from "@/features/admin/components/ai/admin-ai-errors-table";
-import { AdminListContentFallback } from "@/features/admin/components/list/admin-list-content-fallback";
-import { AdminListControlsFallback } from "@/features/admin/components/list/admin-list-controls-fallback";
 import {
   AdminListToolbar,
   type AdminToolbarField,
@@ -164,4 +163,15 @@ export async function AdminAiSecurityEventsSection({
   );
 }
 
-export { AdminListControlsFallback, AdminListContentFallback };
+export function AdminAiSecurityEventsFallback() {
+  return (
+    <div className="section-panel space-y-4">
+      <Skeleton className="h-5 w-40 rounded-md" />
+      <div className="flex flex-col gap-2">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <Skeleton className="h-9 w-full rounded-lg" key={index} />
+        ))}
+      </div>
+    </div>
+  );
+}

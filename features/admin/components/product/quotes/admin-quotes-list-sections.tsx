@@ -1,6 +1,4 @@
 import { DataListPagination } from "@/components/shared/data-list-pagination";
-import { AdminListContentFallback } from "@/features/admin/components/list/admin-list-content-fallback";
-import { AdminListControlsFallback } from "@/features/admin/components/list/admin-list-controls-fallback";
 import { AdminQuotesFilters } from "@/features/admin/components/product/quotes/admin-quotes-filters";
 import { AdminQuotesTable } from "@/features/admin/components/product/quotes/admin-quotes-table";
 import { ADMIN_QUOTES_PATH } from "@/features/admin/navigation";
@@ -58,5 +56,3 @@ export async function AdminQuotesListContentSection({
     />
   );
 }
-
-export { AdminListControlsFallback, AdminListContentFallback };

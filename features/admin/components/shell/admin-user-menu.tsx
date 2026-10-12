@@ -68,6 +68,7 @@ function useAdminSignOut() {
       clearPersistedThemePreference();
       // Land on the console root: with no session the console gate bounces
       // to the main app, so signed-out admins never see a dead login route.
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- Full reload is intentional after sign-out.
       window.location.assign("/");
     });
   }
@@ -83,17 +84,15 @@ function AdminMenuItems({
   onNavigate?: () => void;
 }) {
   return (
-    <>
-      <DropdownMenuGroup>
-        <DropdownMenuItem asChild>
-          <Link href={ADMIN_SYSTEM_PATH} prefetch={true} onClick={onNavigate}>
-            <Server data-icon="inline-start" />
-            System
-          </Link>
-        </DropdownMenuItem>
-        <AppearanceMenuSubmenu userId={user.id} />
-      </DropdownMenuGroup>
-    </>
+    <DropdownMenuGroup>
+      <DropdownMenuItem asChild>
+        <Link href={ADMIN_SYSTEM_PATH} prefetch={true} onClick={onNavigate}>
+          <Server data-icon="inline-start" />
+          System
+        </Link>
+      </DropdownMenuItem>
+      <AppearanceMenuSubmenu userId={user.id} />
+    </DropdownMenuGroup>
   );
 }
 

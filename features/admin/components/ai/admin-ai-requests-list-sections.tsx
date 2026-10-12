@@ -1,7 +1,5 @@
 import { DataListPagination } from "@/components/shared/data-list-pagination";
 import { AdminAiRequestsTable } from "@/features/admin/components/ai/admin-ai-requests-table";
-import { AdminListContentFallback } from "@/features/admin/components/list/admin-list-content-fallback";
-import { AdminListControlsFallback } from "@/features/admin/components/list/admin-list-controls-fallback";
 import {
   AdminListToolbar,
   type AdminToolbarField,
@@ -132,5 +130,3 @@ export async function AdminAiRequestsListContentSection({
     />
   );
 }
-
-export { AdminListControlsFallback, AdminListContentFallback };

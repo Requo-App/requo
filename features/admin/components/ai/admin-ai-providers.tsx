@@ -8,6 +8,7 @@ import {
 } from "@/components/shared/dashboard-layout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -159,6 +160,32 @@ export async function AdminAiCapacitySection() {
 function formatUsageLimit(used: number, limit: number): string {
   if (limit <= 0) return formatCompactCount(used);
   return `${formatCompactCount(used)}/${formatCompactCount(limit)}`;
+}
+
+export function AdminAiProvidersFallback() {
+  return (
+    <div className="section-panel space-y-4">
+      <Skeleton className="h-5 w-40 rounded-md" />
+      <div className="flex flex-col gap-2">
+        {Array.from({ length: 6 }).map((_, index) => (
+          <Skeleton className="h-9 w-full rounded-lg" key={index} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function AdminAiCapacityFallback() {
+  return (
+    <div className="section-panel space-y-4">
+      <Skeleton className="h-5 w-40 rounded-md" />
+      <div className="flex flex-col gap-2">
+        {Array.from({ length: 6 }).map((_, index) => (
+          <Skeleton className="h-9 w-full rounded-lg" key={index} />
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export function AdminAiCapacityTable({

@@ -5,9 +5,9 @@ import {
   AdminAuditListContentSection,
   AdminAuditListControlsSection,
   AdminAuditListPageShell,
-  AdminListContentFallback,
-  AdminListControlsFallback,
 } from "@/features/admin/components/system/admin-audit-list-sections";
+import { AdminListContentFallback } from "@/features/admin/components/list/admin-list-content-fallback";
+import { AdminListControlsFallback } from "@/features/admin/components/list/admin-list-controls-fallback";
 import { withAdminViewLog } from "@/features/admin/page-shell";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 

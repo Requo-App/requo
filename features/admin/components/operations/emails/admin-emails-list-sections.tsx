@@ -1,6 +1,4 @@
 import { DataListPagination } from "@/components/shared/data-list-pagination";
-import { AdminListContentFallback } from "@/features/admin/components/list/admin-list-content-fallback";
-import { AdminListControlsFallback } from "@/features/admin/components/list/admin-list-controls-fallback";
 import { AdminEmailsFilters } from "@/features/admin/components/operations/emails/admin-emails-filters";
 import { AdminEmailsTable } from "@/features/admin/components/operations/emails/admin-emails-table";
 import { ADMIN_EMAILS_PATH } from "@/features/admin/navigation";
@@ -61,5 +59,3 @@ export async function AdminEmailsListContentSection({
     />
   );
 }
-
-export { AdminListControlsFallback, AdminListContentFallback };

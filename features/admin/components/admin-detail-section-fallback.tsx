@@ -1,18 +1,6 @@
-import {
-  DetailHeaderFallback,
-  DetailSectionFallback,
-} from "@/components/shared/detail-section-fallback";
+import { DetailHeaderFallback } from "@/components/shared/detail-section-fallback";
 
-/**
- * Section-level fallback for admin detail collection boundaries.
- *
- * Thin adapter over the shared `DetailSectionFallback` — same panel
- * structure, heading, and row dimensions. Kept as a named export so
- * existing admin callers are unchanged.
- */
-export function AdminDetailSectionFallback({ rows = 3 }: { rows?: number }) {
-  return <DetailSectionFallback rows={rows} />;
-}
+export { DetailSectionFallback as AdminDetailSectionFallback } from "@/components/shared/detail-section-fallback";
 
 /**
  * Header fallback for admin detail pages while the core row resolves.

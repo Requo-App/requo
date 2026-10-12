@@ -1,8 +1,6 @@
 import { DataListPagination } from "@/components/shared/data-list-pagination";
 import { AdminInquiriesFilters } from "@/features/admin/components/product/inquiries/admin-inquiries-filters";
 import { AdminInquiriesTable } from "@/features/admin/components/product/inquiries/admin-inquiries-table";
-import { AdminListContentFallback } from "@/features/admin/components/list/admin-list-content-fallback";
-import { AdminListControlsFallback } from "@/features/admin/components/list/admin-list-controls-fallback";
 import { ADMIN_INQUIRIES_PATH } from "@/features/admin/navigation";
 import { listAdminInquiries } from "@/features/admin/queries";
 import { adminInquiriesListFiltersSchema } from "@/features/admin/schemas";
@@ -58,5 +56,3 @@ export async function AdminInquiriesListContentSection({
     />
   );
 }
-
-export { AdminListControlsFallback, AdminListContentFallback };

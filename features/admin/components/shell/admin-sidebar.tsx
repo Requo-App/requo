@@ -10,9 +10,8 @@ import {
 import { BrandMark } from "@/components/shared/brand-mark";
 import {
   ADMIN_ROOT_PATH,
-  adminNavigationGroups,
+  getActiveAdminNavigationItem,
   getAdminSidebarNavGroups,
-  isAdminNavigationItemActive,
 } from "@/features/admin/navigation";
 
 export type AdminSidebarProps = {
@@ -38,7 +37,7 @@ export type AdminSidebarProps = {
  * admin mounts that component unchanged and only swaps the navigation data, so
  * the console's rail is pixel-identical to the main app's.
  */
-export function BoarduiAdminSidebar({
+export function AdminSidebar({
   userSlot,
   mobile = false,
   onClose,
@@ -54,13 +53,7 @@ export function BoarduiAdminSidebar({
   );
 
   const selected = useMemo(() => {
-    const active = adminNavigationGroups
-      .flatMap((group) => group.items)
-      // Longest href wins so `/ai/requests` beats `/ai`.
-      .sort((a, b) => b.href.length - a.href.length)
-      .find((item) => isAdminNavigationItemActive(pathname, item.href));
-
-    return active?.href ?? ADMIN_ROOT_PATH;
+    return getActiveAdminNavigationItem(pathname)?.href ?? ADMIN_ROOT_PATH;
   }, [pathname]);
 
   const topSlot = (

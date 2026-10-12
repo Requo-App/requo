@@ -3,9 +3,9 @@ import { Suspense } from "react";
 
 import { DashboardPage } from "@/components/shared/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
+import { AdminListContentFallback } from "@/features/admin/components/list/admin-list-content-fallback";
+import { AdminListControlsFallback } from "@/features/admin/components/list/admin-list-controls-fallback";
 import {
-  AdminListContentFallback,
-  AdminListControlsFallback,
   AdminUsersListContentSection,
   AdminUsersListControlsSection,
 } from "@/features/admin/components/admin-users-list-sections";
@@ -37,7 +37,10 @@ type AdminUsersPageProps = {
 export default function AdminUsersPage({ searchParams }: AdminUsersPageProps) {
   return (
     <DashboardPage>
-      <PageHeader title="Users" />
+      <PageHeader
+        title="Users"
+        description="Search, inspect, and support Requo users."
+      />
       <div className="dashboard-table-shell" data-list-card>
         <Suspense fallback={<AdminListControlsFallback />}>
           <AdminUsersControlsRegion searchParams={searchParams} />

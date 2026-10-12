@@ -196,6 +196,11 @@ export const adminNavigationGroups: readonly AdminNavGroup[] = [
 export const adminNavigation: readonly AdminNavigationItem[] =
   adminNavigationGroups.flatMap((group) => group.items);
 
+/** Longest href first so `/ai/requests` beats `/ai`. Sorted once. */
+const adminNavigationBySpecificity: readonly AdminNavigationItem[] = [
+  ...adminNavigation,
+].sort((a, b) => b.href.length - a.href.length);
+
 /**
  * Project the admin groups onto the shared `DashboardSidebar` group shape so
  * the admin rail renders with the exact chrome the business dashboard uses.
@@ -258,9 +263,9 @@ export function isAdminNavigationItemActive(pathname: string, href: string) {
 
 export function getActiveAdminNavigationItem(pathname: string) {
   // Longest match wins so `/ai/requests` beats `/ai`.
-  return [...adminNavigation]
-    .sort((a, b) => b.href.length - a.href.length)
-    .find((item) => isAdminNavigationItemActive(pathname, item.href));
+  return adminNavigationBySpecificity.find((item) =>
+    isAdminNavigationItemActive(pathname, item.href),
+  );
 }
 
 /* ── Breadcrumbs ────────────────────────────────────────────────────────── */

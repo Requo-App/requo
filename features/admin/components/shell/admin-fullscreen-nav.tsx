@@ -3,7 +3,7 @@
 import { useEffect, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 
-import { BoarduiAdminSidebar } from "@/features/admin/components/shell/admin-sidebar";
+import { AdminSidebar } from "@/features/admin/components/shell/admin-sidebar";
 
 export type AdminFullscreenNavProps = {
   open: boolean;
@@ -73,7 +73,7 @@ export function AdminFullscreenNav({
       className="fixed inset-0 z-50 flex flex-col bg-sidebar lg:hidden"
     >
       <div className="h-dvh w-full">
-        <BoarduiAdminSidebar
+        <AdminSidebar
           userSlot={userSlot}
           onQuickSearch={onQuickSearch}
           mobile
