@@ -70,8 +70,16 @@ async function timed<T>(fn: () => Promise<T>): Promise<[T, number]> {
 
 function isLocalUrl(url: string): boolean {
   try {
-    const { hostname } = new URL(url);
-    return ["localhost", "127.0.0.1", "::1"].includes(hostname);
+    const parsed = new URL(url);
+    if (["localhost", "127.0.0.1", "::1"].includes(parsed.hostname)) {
+      return true;
+    }
+    // Honor the standard Postgres opt-out so containerized local setups
+    // (e.g. Docker reaching the Supabase stack by container hostname) can
+    // use plaintext without tripping the require-TLS default below.
+    // Production pooler URLs never carry this flag, so their behavior is
+    // unchanged.
+    return parsed.searchParams.get("sslmode") === "disable";
   } catch {
     return false;
   }

@@ -7,6 +7,32 @@
 - PostgreSQL
 - A `.env` file copied from `.env.example`
 
+## One-command Docker setup
+
+```bash
+cp .env.example .env.local
+npx supabase start   # one-time: local Postgres, Storage, realtime
+npm run db:migrate
+npm run db:seed
+docker compose up --build
+```
+
+This starts `app` (Next.js dev server with hot reload on
+http://localhost:3000) and `inngest` (Dev Server on http://localhost:8288),
+both wired to the Supabase local stack. The `db` service (standalone
+Postgres on `:5432`) is for setups that do not use the Supabase stack.
+
+Notes:
+
+- Rebuild the `app` image after dependency changes (`docker compose up
+  --build`); code edits hot-reload without a rebuild.
+- Inside containers, Postgres is reached by container hostname over the
+  `supabase_network_<project>` network with `?sslmode=disable` (honored by
+  the dev health check); browsers on Docker Desktop resolve
+  `host.docker.internal` for Supabase Storage/realtime.
+- The native flow below stays supported; use it when you want the dev
+  server, Inngest, or ngrok running as host processes instead.
+
 ## Environment Setup
 
 Copy `.env.example` to `.env.local` and fill in the values you want to use locally.

@@ -1,0 +1,17 @@
+# Local development image for `docker compose up`.
+#
+# Source is bind-mounted over /app at runtime (see docker-compose.yml), so
+# this image only bakes in the toolchain and node_modules. Rebuild when
+# package.json / package-lock.json change; code edits hot-reload.
+FROM node:22-bookworm-slim
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+# Extra fetch retries: registry hiccups should not fail a multi-minute build.
+RUN npm ci --no-audit --no-fund --fetch-retries=5 --fetch-retry-mintimeout=20000
+
+EXPOSE 3000
+
+# Compose overrides this with the 0.0.0.0 bind; kept as a sane default.
+CMD ["npm", "run", "dev:app", "--", "--hostname", "0.0.0.0", "--port", "3000"]

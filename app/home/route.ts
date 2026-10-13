@@ -15,8 +15,11 @@ import { onboardingPath } from "@/features/onboarding/routes";
  * exists, or redirects to /onboarding when the user has no businesses.
  *
  * Uses 302 (temporary) because the target changes based on user state.
+ *
+ * No `dynamic` segment config: with `cacheComponents` all routes are dynamic
+ * by default, and `force-dynamic` is rejected (see the version-matched
+ * migrating-to-cache-components guide in `node_modules/next/dist/docs/`).
  */
-export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   const session = await requireSession();
