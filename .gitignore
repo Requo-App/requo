@@ -15,8 +15,8 @@
 /playwright-report
 /test-results
 /screenshots/
-/tests/screenshots/
-playwright.screenshots.config.ts
+# tests/screenshots/ and its config are tracked: `npm run screenshots`
+# regenerates the README assets in public/screenshots/ from seed data.
 # Generated test reports — regenerated on every run, and Playwright's JSON reporter even
 # serializes process.env (secrets) into its metadata. Never track them.
 /reports/
@@ -41,6 +41,7 @@ tmp-*.log
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -49,8 +50,13 @@ tmp-*.log
 *.tsbuildinfo
 next-env.d.ts
 
-# editor
+# editor (never commit local editor/IDE state)
 .vscode
+.idea
+.cursor
+.opencode
+.windsurf
+.zed
 
 # local AI tooling workspaces
 .kilo/

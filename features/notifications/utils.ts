@@ -4,7 +4,7 @@ import type {
   BusinessNotificationType,
 } from "@/features/notifications/types";
 import {
-  getBusinessDashboardPath,
+  getBusinessHomePath,
   getBusinessInquiryPath,
   getBusinessInvoicePath,
   getBusinessQuotePath,
@@ -33,7 +33,7 @@ export function buildBusinessNotificationHref(
     return getBusinessInquiryPath(businessSlug, notification.inquiryId);
   }
 
-  return getBusinessDashboardPath(businessSlug);
+  return getBusinessHomePath(businessSlug);
 }
 
 export function isNotificationUnread(

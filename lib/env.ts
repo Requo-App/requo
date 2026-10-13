@@ -105,6 +105,14 @@ const envSchema = z.object({
    * is sent. Defaults to enabled when email is configured.
    */
   DISABLE_MAGIC_LINK: emptyToUndefined(z.enum(["0", "1", "true", "false"])),
+  /**
+   * Test/seed-only kill-switch for transactional auth emails (verification,
+   * password reset, magic link). Never set in production; auth flows either
+   * fail loud or skip silent per flow when email is unconfigured.
+   */
+  DISABLE_TRANSACTIONAL_EMAILS: emptyToUndefined(
+    z.enum(["0", "1", "true", "false"]),
+  ),
 
   AI_CANARY_SECRET: emptyToUndefined(z.string().min(16)),
 
@@ -228,7 +236,7 @@ export const isMemberInviteEmailEnabled = !isLowEmailMode;
 /**
  * Human-readable inventory of which email paths are active for this
  * deployment. Keep in sync with the gates above and the call sites in
- * `lib/resend/client.ts`, the feature job modules, and `lib/auth/config.ts`.
+ * `lib/email/transactional.ts`, the feature job modules, and `lib/auth/config.ts`.
  * Used for quota reasoning and docs; not a send path itself.
  */
 export function getActiveEmailPaths() {

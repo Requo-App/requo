@@ -35,6 +35,7 @@
 
 import {
   exitIfOffenders,
+  isDesignSystemFile,
   lineOf,
   readText,
   relPath,
@@ -113,18 +114,14 @@ function isTypographyExempt(normalizedRel: string): boolean {
 /**
  * Primitives own sizes; everything else inherits.
  *
- * Both design-system trees are exempt: the legacy shadcn primitives under
- * `components/ui/` and the BoardUI-installed components under `components/base/`
- * (primitives) and `components/application/` (installed page/feature kits, e.g.
- * the dashboard sidebar and settings modal). These are source-owned design-system
- * files whose internal sizes, radii, and type scale follow the BoardUI Figma
- * source; requo-owned surfaces inherit from them.
+ * Both design-system trees are exempt: the shadcn primitives under
+ * `components/ui/` and the 1:1 shadcn recreations under `components/shared/`
+ * (see `isDesignSystemFile`). These are source-owned design-system files;
+ * requo-owned surfaces inherit from them.
  */
 function isPrimitive(rel: string): boolean {
   const normalized = rel.replace(/\\/g, "/");
-  if (normalized.startsWith("components/ui/")) return true;
-  if (normalized.startsWith("components/base/")) return true;
-  if (normalized.startsWith("components/application/")) return true;
+  if (isDesignSystemFile(normalized)) return true;
   if (normalized === "components/select.tsx") return true;
   if (normalized === "app/globals.css") return true;
   return false;

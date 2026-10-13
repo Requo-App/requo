@@ -3,7 +3,7 @@
 import { Fragment, useTransition } from "react";
 import { MonitorCog, MoonStar, Sun } from "lucide-react";
 
-import { useTheme } from "@/components/theme-provider";
+import { useTheme } from "@/components/providers/theme-provider";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,

@@ -10,7 +10,7 @@ import {
 import {
   StatCards,
   type Stat,
-} from "@/components/application/dashboard/stat-cards";
+} from "@/components/shared/stat-cards";
 import type { AdminAiStat } from "@/features/admin/components/ai/admin-ai-overview";
 
 const ICONS: Record<AdminAiStat["icon"], Stat["icon"]> = {

@@ -11,7 +11,6 @@ import { AdminShell } from "@/features/admin/components/shell/admin-shell";
 import {
   AdminMobileUserMenu,
   AdminUserMenu,
-  type AdminShellUser,
 } from "@/features/admin/components/shell/admin-user-menu";
 import { ThemePreferenceSync } from "@/features/theme/components/theme-preference-sync";
 import { UiScaleSync } from "@/features/theme/components/ui-scale-sync";
@@ -88,30 +87,34 @@ export default function AdminConsoleLayout({
   );
 }
 
-function toShellUser(user: {
-  id: string;
-  name: string;
-  email: string;
-  image?: string | null;
-}): AdminShellUser {
-  return {
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    avatarSrc: user.image ?? null,
-  };
-}
-
 async function AdminSidebarUserSlot() {
   const { user } = await requireAdminConsoleUser();
 
-  return <AdminUserMenu user={toShellUser(user)} />;
+  return (
+    <AdminUserMenu
+      user={{
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        avatarSrc: user.image ?? null,
+      }}
+    />
+  );
 }
 
 async function AdminCompactUserSlot() {
   const { user } = await requireAdminConsoleUser();
 
-  return <AdminMobileUserMenu user={toShellUser(user)} />;
+  return (
+    <AdminMobileUserMenu
+      user={{
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        avatarSrc: user.image ?? null,
+      }}
+    />
+  );
 }
 
 async function ThemeSyncSlot() {

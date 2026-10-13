@@ -1,7 +1,4 @@
 import type {
-  InquiryContactMethod,
-} from "@/features/inquiries/form-config";
-import type {
   InquiryEditorForm,
   ManualInquiryActionState,
 } from "@/features/inquiries/types";

@@ -13,7 +13,7 @@ import {
   SendHorizontal,
   ShieldCheck,
 } from "lucide-react";
-import { toast } from "@/components/base/notification/notify";
+import { toast } from "@/components/shared/notify";
 
 import { ProFeatureNoticeButton } from "@/components/shared/pro-feature-notice-button";
 import { Button } from "@/components/ui/button";

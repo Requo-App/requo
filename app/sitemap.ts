@@ -2,7 +2,10 @@ import type { MetadataRoute } from "next";
 
 import { cacheLife } from "next/cache";
 
-import { listPublicInquirySitemapEntries } from "@/features/inquiries/queries";
+import {
+  listPublicInquirySitemapEntries,
+  type PublicInquirySitemapEntry,
+} from "@/features/inquiries/queries";
 
 import { absoluteUrl } from "@/lib/seo/site";
 
@@ -314,7 +317,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
 
 
-  const inquiryRows = await listPublicInquirySitemapEntries();
+  let inquiryRows: PublicInquirySitemapEntry[];
+  try {
+    inquiryRows = await listPublicInquirySitemapEntries();
+  } catch (error) {
+    // Database-tolerant sitemap: a transient database failure must not take
+    // down /sitemap.xml (or the build prerendering it). Serve the static
+    // entries; inquiry URLs return on the next revalidation or rebuild.
+    console.error("Failed to load public inquiry sitemap entries.", error);
+    return staticEntries;
+  }
 
 
 

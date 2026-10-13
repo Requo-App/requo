@@ -10,7 +10,7 @@ import {
   getUserMembershipsCacheTags,
   membershipShellCacheLife,
 } from "@/lib/cache/shell-tags";
-import { getCachedEffectivePlanForUser } from "@/lib/billing/subscription-service";
+import { getCachedEffectivePlanForBusiness } from "@/lib/billing/subscription-service";
 import { withCircuitBreaker } from "@/lib/db/circuit-breaker";
 
 import type {
@@ -162,7 +162,6 @@ async function getCachedBusinessMemberships(
           archivedAt: businesses.archivedAt,
           lockedAt: businesses.lockedAt,
           deletedAt: businesses.deletedAt,
-          ownerUserId: businesses.ownerUserId,
         })
         .from(businessMembers)
         .innerJoin(businesses, eq(businessMembers.businessId, businesses.id))
@@ -183,7 +182,6 @@ async function getCachedBusinessMemberships(
     membershipId: membership.membershipId,
     role: membership.role,
     memberJoinedAt: membership.memberJoinedAt,
-    ownerUserId: membership.ownerUserId,
     business: {
       id: membership.businessId,
       plan: membership.businessPlan as BusinessPlan,
@@ -253,7 +251,6 @@ async function getCachedBusinessContextForMembershipSlug(
           archivedAt: businesses.archivedAt,
           lockedAt: businesses.lockedAt,
           deletedAt: businesses.deletedAt,
-          ownerUserId: businesses.ownerUserId,
         })
         .from(businessMembers)
         .innerJoin(businesses, eq(businessMembers.businessId, businesses.id))
@@ -275,7 +272,6 @@ async function getCachedBusinessContextForMembershipSlug(
     membershipId: context.membershipId,
     role: context.role,
     memberJoinedAt: context.memberJoinedAt,
-    ownerUserId: context.ownerUserId,
     business: {
       id: context.businessId,
       plan: context.businessPlan as BusinessPlan,
@@ -310,35 +306,33 @@ export const getBusinessContextForMembershipSlug = cache(async (
 });
 
 /**
- * Resolve the effective plan for each unique owner in one pass. All
- * businesses owned by the same user inherit that user's account plan, so
- * there's no need to look up the plan per business (which would fan out
- * to `2 * N` queries). For a user who owns all N of their businesses this
- * collapses to a single cached subscription read.
+ * Resolve the effective plan for each unique business. Subscriptions and
+ * entitlements are business-scoped, so a paid subscription must not grant
+ * access to a sibling business.
  *
  * Fail-closed: when subscription resolution throws (DB outage, cache
- * corruption, etc.), the owner is mapped to `"free"` rather than left
- * undefined. Consumers that use `?? row.business.plan` would otherwise
+ * corruption, etc.), the business is mapped to `"free"` rather than left
+ * undefined. Falling back to `row.business.plan` would otherwise
  * silently grant whatever the cached column says — which can be stale
  * after a missed cancel/expire webhook.
  */
-async function getEffectivePlanByOwnerMap(ownerUserIds: string[]) {
-  const uniqueOwnerUserIds = Array.from(new Set(ownerUserIds));
+async function getEffectivePlanByBusinessMap(businessIds: string[]) {
+  const uniqueBusinessIds = Array.from(new Set(businessIds));
   const entries = await Promise.all(
-    uniqueOwnerUserIds.map(async (ownerUserId) => {
+    uniqueBusinessIds.map(async (businessId) => {
       try {
         return [
-          ownerUserId,
-          await getCachedEffectivePlanForUser(ownerUserId),
+          businessId,
+          await getCachedEffectivePlanForBusiness(businessId),
         ] as const;
       } catch (error) {
         console.error(
-          "Failed to resolve effective plan for owner. Falling back to free.",
-          { ownerUserId },
+          "Failed to resolve effective plan for business. Falling back to free.",
+          { businessId },
           error,
         );
 
-        return [ownerUserId, "free" as const] as const;
+        return [businessId, "free" as const] as const;
       }
     }),
   );
@@ -346,21 +340,19 @@ async function getEffectivePlanByOwnerMap(ownerUserIds: string[]) {
   return new Map(entries);
 }
 
-type MembershipRowWithOwner = BusinessContext & { ownerUserId: string };
-
 async function applyEffectiveBusinessPlans(
-  rows: MembershipRowWithOwner[],
+  rows: BusinessContext[],
 ): Promise<BusinessContext[]> {
   if (rows.length === 0) {
     return [];
   }
 
-  const planByOwner = await getEffectivePlanByOwnerMap(
-    rows.map((row) => row.ownerUserId),
+  const planByBusiness = await getEffectivePlanByBusinessMap(
+    rows.map((row) => row.business.id),
   );
 
   return rows.map((row) => {
-    const plan = planByOwner.get(row.ownerUserId) ?? row.business.plan;
+    const plan = planByBusiness.get(row.business.id) ?? "free";
     const context: BusinessContext = {
       membershipId: row.membershipId,
       role: row.role,
@@ -383,16 +375,16 @@ async function applyEffectiveBusinessPlans(
 }
 
 async function applyEffectiveBusinessPlan(
-  row: MembershipRowWithOwner | null,
+  row: BusinessContext | null,
 ): Promise<BusinessContext | null> {
   if (!row) {
     return null;
   }
 
   const plan =
-    (await getEffectivePlanByOwnerMap([row.ownerUserId])).get(
-      row.ownerUserId,
-    ) ?? row.business.plan;
+    (await getEffectivePlanByBusinessMap([row.business.id])).get(
+      row.business.id,
+    ) ?? "free";
   const context: BusinessContext = {
     membershipId: row.membershipId,
     role: row.role,

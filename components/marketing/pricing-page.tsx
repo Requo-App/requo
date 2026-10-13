@@ -20,7 +20,7 @@ import {
   pricingFaqs,
 } from "@/lib/plans/catalog";
 import { authClient } from "@/lib/auth/client";
-import { dashboardPath } from "@/features/businesses/routes";
+import { homePath } from "@/features/businesses/routes";
 import {
   Accordion,
   AccordionContent,
@@ -300,7 +300,7 @@ function PricingCtaActions() {
   if (session?.user) {
     return (
       <Button asChild className="w-full font-mono text-xs uppercase tracking-wider sm:w-auto" size="lg">
-        <Link href={dashboardPath}>
+        <Link href={homePath}>
           Go to dashboard
           <ArrowRight data-icon="inline-end" />
         </Link>

@@ -2,7 +2,7 @@
 
 import { Archive, CreditCard, OctagonMinus, RotateCcw, Trash2 } from "lucide-react";
 import { useCallback, useState, useTransition } from "react";
-import { toast } from "@/components/base/notification/notify";
+import { toast } from "@/components/shared/notify";
 
 import { Button } from "@/components/ui/button";
 import {

@@ -2,14 +2,14 @@
 
 import { useTransition } from "react";
 
-import { useTheme } from "@/components/theme-provider";
+import { useTheme } from "@/components/providers/theme-provider";
 import {
   SelectContent,
   SelectItem,
   SelectRoot,
   SelectTrigger,
   SelectValue,
-} from "@/components/select";
+} from "@/components/ui/select";
 import { updateUiScalePreferenceAction } from "@/features/theme/ui-scale-actions";
 import {
   isUiScale,

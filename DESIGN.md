@@ -118,7 +118,7 @@ Spacing rules:
 - Panel padding is baked into the shared utilities (see below), not declared
   per surface.
 
-Panel padding (see ADR 008):
+Panel padding:
 
 - `section-panel` carries `px-4 py-4 sm:px-5 sm:py-5`; `soft-panel` carries
   `px-4 py-4` — like the already-padded `info-tile`. Do not re-declare
@@ -348,7 +348,7 @@ Implementation: `components/shell/*`, `components/shared/dashboard-layout.tsx`, 
 
 Accessibility is default behavior, not an enhancement pass:
 
-- Focus: `focus-visible:ring-2 focus-visible:ring-border-focus-ring` (BoardUI compat) / `ring` token; never remove visible focus states.
+- Focus: `focus-visible:ring-2 focus-visible:ring-border-focus-ring` / `ring` token; never remove visible focus states.
 - Forms: `Field` carries `data-invalid`, controls carry `aria-invalid`; every input has a `FieldLabel` (or `sr-only` label for icon-only actions).
 - Overlays: `DialogTitle` / `SheetTitle` required even when visually hidden; preserve close controls and focus trapping.
 - Buttons: loading state is `disabled` + `Spinner` with the text label kept; icon-only buttons include `sr-only` text.
@@ -359,11 +359,7 @@ Accessibility is default behavior, not an enhancement pass:
 
 Established patterns above win for new work. These contradictions exist in the codebase — do not copy them into new code, and do not silently "fix" them outside a dedicated cleanup:
 
-- **BoardUI vs shadcn duality (frozen compat, see table below).** `components/base/*` (15 dirs) plus `components/application/`/`components/foundations/` exist alongside canonical `components/ui/*` (40 files); BoardUI compat in `app/globals.css` is frozen (tone aliases, composite type ramp, agent-thinking + chart-card blocks — do not expand). New UI builds only on `components/ui/*` + `components/shared/*`. See `docs/technical-debt.md` §3 and `docs/architecture/adr-015-boardui-compat-freeze.md`.
-- **BoardUI compat inventory (issue #73).** Kept as frozen shims — reachable, no new uses:
-  - `base/notification` (app-wide `toast` + `Toaster` via `ui/sonner`), `base/breadcrumb` (shell + settings + admin header; no `ui/` equivalent), `base/tabs` (settings tabs; migrate to `ui/tabs` only as a dedicated refactor).
-  - `application/dashboard/*` (sidebar shell, team/user menus, stat-cards), `application/agent-thinking` (chat status line), `application/theme/theme-toggle`, `application/settings/*` (via `SettingsModal` from sidebar), `foundations/icons` (shared chevrons).
-  - Transitive-only `base/*` (`avatar`, `badges`, `buttons`, `switch`, `dropdown`, `select`, `input`, `checkbox`, `date-picker`, `file-upload`, `pagination`, `tooltip`): kept only because the items above import them. No direct product imports for new UI.
+- **BoardUI migration (done).** The former `components/base/*` + `components/application/` + `components/foundations/` system was recreated 1:1 as shadcn-style components (`cva` + `cn`, same classes/DOM/props) under `components/shared/*` and deleted. One component system remains: `components/ui/*` (primitives) + `components/shared/*` (composed). See [`docs/technical-debt.md`](docs/technical-debt.md). `app/globals.css` still carries the shared token layer (tone aliases, composite type ramp) — `components/ui/*` uses it, so it stays.
 - **Legacy styling debt.** Remaining `space-y-*`/`space-x-*` stacks (use `flex`/`grid` + `gap-*`). Flagged by `audit:density`.
 - **Raw palette on non-pill surfaces.** Status *pills* are tokenized — `components/shared/status-badge.tsx` owns them and `audit:status-tokens` enforces it — but raw palette still colours some semantic surfaces: the archived-record banner, the paywall accent, the quote-editor amber alerts, and the public quote option cards. Move them to `--warning`/`--success`/`--destructive` opportunistically. See `docs/technical-debt.md` §4.
 - **`!important` outside status.** `meta-label !text-primary` (marketing) and `!bg-sidebar-accent` (`dashboard-sidebar.tsx`) are the same cascade-order problem the status migration removed: a custom class in `@layer utilities` setting a colour a utility then cannot override. Fix by giving the custom class a variant that sets no colour, not by keeping the `!`.

@@ -4,8 +4,12 @@ import { revalidateTag, updateTag } from "next/cache";
 import { z } from "zod";
 
 import { getValidationActionState, getUserSafeErrorMessage } from "@/lib/action-state";
-import { getBusinessMessagingSettings, getBusinessOwnerEmails, getOperationalBusinessActionContext } from "@/lib/db/business-access";
-import { isEmailConfigured } from "@/lib/env";
+import { getOperationalBusinessActionContext } from "@/lib/db/business-access";
+import {
+  checkDocumentSendConfiguration,
+  checkDocumentSendQuota,
+  loadDocumentMessagingContext,
+} from "@/lib/email/send-prerequisites";
 import { getBusinessInvoiceDetailCacheTags, getBusinessInvoiceListCacheTags, getBusinessOverviewCacheTags, uniqueCacheTags } from "@/lib/cache/business-tags";
 import { createInvoiceForBusiness, markInvoiceSentForBusiness, recordPaymentForBusiness, updateInvoiceDraftForBusiness, voidInvoiceForBusiness, voidPaymentForBusiness, bulkVoidInvoicesForBusiness } from "@/features/invoices/mutations";
 import { getInvoiceForBusiness } from "@/features/invoices/queries";
@@ -13,8 +17,7 @@ import { invoiceSchema, paymentSchema, voidPaymentSchema } from "@/features/invo
 import type { InvoiceActionState, InvoiceBulkActionState, PaymentActionState } from "@/features/invoices/types";
 import { sendPushInvoicePaidEvent, sendPushInvoiceSentEvent } from "@/lib/inngest/send";
 import { hasFeatureAccess } from "@/lib/plans/entitlements";
-import { checkUsageAllowance } from "@/lib/plans/usage";
-import { getResendFromEmailConfigurationError, getResendSendFailureMessage, sendInvoiceEmail } from "@/lib/resend/client";
+import { getResendSendFailureMessage, sendInvoiceEmail } from "@/lib/email/transactional";
 
 function text(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -83,25 +86,26 @@ export async function sendInvoiceAction(invoiceId: string, _prev: InvoiceActionS
     }
 
     if (deliveryMethod === "requo") {
-      const [dailyAllowance, monthlyAllowance] = await Promise.all([
-        checkUsageAllowance(access.businessContext.business.id, access.businessContext.business.plan, "requoQuoteEmailsPerDay"),
-        checkUsageAllowance(access.businessContext.business.id, access.businessContext.business.plan, "requoQuoteEmailsPerMonth"),
-      ]);
-      if (!dailyAllowance.allowed || !monthlyAllowance.allowed) {
+      const quotaAllowed = await checkDocumentSendQuota({
+        businessId: access.businessContext.business.id,
+        plan: access.businessContext.business.plan,
+        dailyKey: "requoQuoteEmailsPerDay",
+        monthlyKey: "requoQuoteEmailsPerMonth",
+      });
+      if (!quotaAllowed) {
         return { error: "You've reached this month's Requo email limit. You can still mark the invoice as sent after manual delivery." };
       }
     }
 
-    const businessSettings = await getBusinessMessagingSettings(access.businessContext.business.id);
-    if (!businessSettings) return { error: "This business could not be loaded." };
-    const ownerEmails = await getBusinessOwnerEmails(access.businessContext.business.id);
+    const messagingContext = await loadDocumentMessagingContext(access.businessContext.business.id);
+    if (!messagingContext) return { error: "This business could not be loaded." };
+    const { settings: businessSettings, ownerEmails } = messagingContext;
 
     if (deliveryMethod === "requo") {
-      if (!isEmailConfigured) {
-        return { error: "Invoice email delivery is unavailable right now. Configure email and try again." };
-      }
-      const senderError = getResendFromEmailConfigurationError();
-      if (senderError) return { error: senderError };
+      const configurationError = checkDocumentSendConfiguration(
+        "Invoice email delivery is unavailable right now. Configure email and try again.",
+      );
+      if (configurationError) return { error: configurationError };
       await sendInvoiceEmail({
         invoiceId: invoice.id,
         updatedAt: new Date(),

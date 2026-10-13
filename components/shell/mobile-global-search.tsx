@@ -15,7 +15,7 @@ import {
 } from "@remixicon/react";
 
 import type { MobileSearchResult } from "@/features/search/queries";
-import { cx } from "@/utils/cx";
+import { cn } from "@/lib/utils";
 
 export type MobileGlobalSearchProps = {
   open: boolean;
@@ -204,7 +204,7 @@ export function MobileGlobalSearch({
                   key={`${result.type}-${result.id}`}
                   href={result.href}
                   prefetch={true}
-                  className={cx(
+                  className={cn(
                     "flex min-h-11 items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
                     "text-foreground hover:bg-muted",
                     "outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring",

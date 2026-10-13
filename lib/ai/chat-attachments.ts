@@ -9,7 +9,6 @@ import {
 } from "@/components/shared/chat/attachment-text";
 import { extractKnowledgeText } from "@/features/memory/extraction";
 import { sanitizeMemoryContent } from "@/lib/ai/input-sanitizer";
-import { estimateTokens } from "@/lib/ai/token-budget";
 import { getFileExtension, isAcceptedFileType } from "@/lib/files";
 
 export {
@@ -252,11 +251,4 @@ export async function processChatAttachments({
     .join("\n\n");
 
   return { block, fileCount: processed.length, charCount: usedChars, truncated };
-}
-
-/** Token estimate for the attachment block, folded into the turn estimate so
- *  capacity routing sees the real request size. */
-export function estimateAttachmentTokens(block: string): number {
-  if (!block) return 0;
-  return estimateTokens(block);
 }

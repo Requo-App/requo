@@ -488,22 +488,53 @@ export async function bulkVoidInvoicesForBusiness({
   }
 
   const now = new Date();
-  const result = await db
-    .update(invoices)
-    .set({
-      status: "voided",
-      voidedAt: now,
-      voidedBy: actorUserId,
-      updatedAt: now,
-    })
-    .where(
-      and(
-        eq(invoices.businessId, businessId),
-        inArray(invoices.id, eligibleIds),
-        isNull(invoices.deletedAt),
-      ),
-    )
-    .returning({ id: invoices.id });
+  const result = await db.transaction(async (tx) => {
+    const updated = await tx
+      .update(invoices)
+      .set({
+        status: "voided",
+        voidedAt: now,
+        voidedBy: actorUserId,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(invoices.businessId, businessId),
+          inArray(invoices.id, eligibleIds),
+          isNull(invoices.deletedAt),
+        ),
+      )
+      .returning({ id: invoices.id, invoiceNumber: invoices.invoiceNumber });
+
+    if (updated.length > 0) {
+      await tx.insert(activityLogs).values(
+        updated.map((row) => ({
+          id: newEntityId(),
+          businessId,
+          actorUserId,
+          type: "invoice.voided",
+          summary: `Invoice ${row.invoiceNumber} voided.`,
+          metadata: { invoiceId: row.id, reason: null },
+          createdAt: now,
+          updatedAt: now,
+        })),
+      );
+
+      for (const row of updated) {
+        await writeAuditLog(tx, {
+          businessId,
+          actorUserId,
+          entityType: "invoice",
+          entityId: row.id,
+          action: "invoice.voided",
+          metadata: { invoiceNumber: row.invoiceNumber, reason: null },
+          createdAt: now,
+        });
+      }
+    }
+
+    return updated;
+  });
 
   return {
     affected: result.length,

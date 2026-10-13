@@ -10,44 +10,78 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 # Requo Development Guide
 
-Owner-led SaaS for service businesses: inquiry → quote → share/send → follow-up → accepted/rejected → invoice (manual payments only). `app/` thin routes; product logic in `features/`; infra in `lib/`. Better Auth only; tenant isolation by `businessId`; all AI through `lib/ai/`.
+Requo is a single Next.js application for service-business inquiry, quote,
+follow-up, and invoice workflows. The authoritative documentation map is
+[`docs/README.md`](docs/README.md).
 
-## Project knowledge
+## Source of truth
 
-Before non-trivial work, read the relevant doc:
+- This file defines how to work; it is not product or architecture reference.
+- When modifying, reviewing, or planning repository changes, load the
+  `requo-repo-guide` skill and follow the reference file it points to
+  for the task.
+- Read the documentation index and the relevant sections of the
+  [PRD](docs/product/PRD.md) and [TRD](docs/architecture/TRD.md) for product or
+  architecture changes. Read [`DESIGN.md`](DESIGN.md) before UI work.
+- Reuse the established `components/ui/`, `components/shared/`, and
+  `components/shell/` patterns. Read [`technical-debt.md`](docs/technical-debt.md)
+  before changing a known inconsistency.
+- Source code, installed dependencies and their docs, migrations, config, and
+  tests establish current behavior. Treat prose as a map to those sources.
+- If docs conflict with executable behavior, verify the behavior and update
+  the authoritative doc. Source code, tests, migrations, and config establish
+  current behavior; accepted user direction governs requested changes.
 
-- `DESIGN.md` — UI/UX and visual design
-- `docs/architecture.md` — system architecture
-- `docs/domain.md` — business concepts
-- `docs/ai.md` — AI-related work
-- `docs/data.md` — database/data access
-- `docs/authentication.md` — auth/authz
-- `docs/workflows.md` — cross-feature behavior
-- `docs/integrations.md` — external services
-- `docs/frontend.md` — frontend architecture
-- `docs/development.md` — dev commands
-- `docs/technical-debt.md` — known inconsistencies (read before "fixing" them)
+## Framework correctness
 
-Deep dives: `docs/architecture/assistant-and-agent.md`, `docs/architecture/instant-navigation.md`, `docs/architecture/adr-*.md`.
+- Preserve and follow the Next.js managed block above exactly.
+- Before writing or changing Next.js code, resolve the installed `next` package
+  from the project/workspace containing the file, then read the relevant
+  version-matched guide in that package's `dist/docs/`. Do not assume the
+  package is installed at the repository root in a monorepo.
+- In this repository, Next.js is pinned in `package.json`; its installed docs
+  are under `node_modules/next/dist/docs/`. Check current configuration and
+  heed deprecations and breaking changes.
 
-## General rules
+## Repository practice
 
-- Treat the codebase as the source of truth; follow existing patterns before introducing new ones.
-- Reuse existing abstractions, shared wrappers (`DashboardPage`, `PageHeader`, `FormSection`), and `components/ui/*` primitives.
-- Preserve authorization and business/tenant boundaries (`getBusinessActionContext` + `businessId`-scoped queries).
-- Never hide navigation by plan (role only); gate paid features with `features/paywall/` + server-side `hasFeatureAccess` checks.
-- Do not invent APIs, fields, env vars, or services. Keep changes scoped to the requested task.
-- Update tests when behavior changes; update docs when architecture or behavior changes materially.
+- Inspect the affected route, feature, infrastructure, tests, and nearby
+  patterns before editing. Keep `app/` focused on routing/rendering and route
+  handlers, product logic in `features/`, and shared infrastructure in `lib/`.
+- Reuse existing abstractions and components. Avoid speculative abstractions,
+  broad rewrites, or unrelated cleanup.
+- Keep the customer journey and domain terms consistent with the PRD and
+  [`CONTEXT.md`](CONTEXT.md). Do not turn commercial schedules into calendar
+  scheduling or manual payment records into payment processing.
+- Use verified scripts from `package.json` and relevant guides. Run checks
+  appropriate to the change; never claim a command passed unless it ran.
+- For code changes, run `npm run check` and `npm run test` when feasible;
+  add `npm run test:integration` for DB/auth/workflow changes,
+  `npm run build` for route/system wiring, and `npm run test:e2e:smoke` for
+  covered browser journeys.
+- Update tests when behavior changes. Update the PRD/TRD or a focused guide
+  when a material product, architecture, security, or operations fact changes.
 
-## UI
+## Data and security
 
-For UI work, read `DESIGN.md` first. Reuse tokens and shared patterns. Do not invent new visual patterns when an existing Requo pattern applies.
+- Preserve Better Auth as the application identity provider and business
+  isolation through verified membership plus `businessId`-scoped access.
+- Keep role authorization separate from plan entitlement and enforce paid
+  access on the server; navigation visibility alone is not an access control.
+- Authorization belongs in server-side actions, handlers, queries, and
+  mutations. A route proxy or hidden UI is not the only access check.
+- Treat public tokens, file metadata, user text, retrieved knowledge, and model
+  output as untrusted. Preserve existing validation, rate limits, confirmation,
+  and file-access boundaries.
+- Never expose secrets or put environment-variable values in committed docs.
+  Do not invent fields, APIs, environment names, commands, or service behavior.
 
-## Verification
+## Change management
 
-Before completing a non-trivial task:
-
-1. Check the relevant doc above.
-2. Verify the implementation.
-3. Run: `npm run check` → `npm run test` → `npm run test:integration` (DB-backed) → `npm run build` → `npm run test:e2e:smoke` (as applicable).
-4. Update documentation if architecture or behavior changed.
+- Keep edits scoped to the request and preserve unrelated working-tree changes.
+- Never rewrite committed SQL migrations; follow
+  [`Database Migrations`](docs/database-migrations.md).
+- When behavior or architecture changes, update the one authoritative
+  documentation source and link to it instead of duplicating detail here.
+- For tests, setup, security, deployment, and domain guidance, use
+  the links and source hierarchy in [`docs/README.md`](docs/README.md).

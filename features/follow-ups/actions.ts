@@ -1,8 +1,7 @@
 "use server";
 
-import { updateTag } from "next/cache";
-
 import { getValidationActionState } from "@/lib/action-state";
+import { runRecordAction } from "@/lib/actions/run-record-action";
 import {
   getBusinessFollowUpListCacheTags,
   getBusinessInquiryDetailCacheTags,
@@ -10,6 +9,7 @@ import {
   getBusinessQuoteDetailCacheTags,
   getBusinessQuoteListCacheTags,
   uniqueCacheTags,
+  updateCacheTags,
 } from "@/lib/cache/business-tags";
 import { getWorkspaceBusinessActionContext } from "@/lib/db/business-access";
 import {
@@ -49,12 +49,6 @@ import type {
   FollowUpRescheduleFieldErrors,
   FollowUpSnoozeActionState,
 } from "@/features/follow-ups/types";
-
-function updateCacheTags(tags: string[]) {
-  for (const tag of uniqueCacheTags(tags)) {
-    updateTag(tag);
-  }
-}
 
 function getFollowUpMutationCacheTags({
   businessId,
@@ -277,53 +271,33 @@ async function runFollowUpRecordAction(
     fallbackError: string;
   },
 ): Promise<FollowUpRecordActionState> {
-  const ownerAccess = await getWorkspaceBusinessActionContext();
-
-  if (!ownerAccess.ok) {
-    return {
-      error: ownerAccess.error,
-    };
-  }
-
-  const { user, businessContext } = ownerAccess;
-
-  try {
-    const result = await mutation({
-      businessId: businessContext.business.id,
-      followUpId,
-      actorUserId: user.id,
-    });
-
-    if (!result) {
-      return {
-        error: "That follow-up could not be found.",
-      };
-    }
-
-    updateCacheTags(
-      getFollowUpMutationCacheTags({
-        businessId: businessContext.business.id,
-        inquiryId: result.inquiryId,
-        quoteId: result.quoteId,
-      }),
-    );
-
-    if (result.locked) {
-      return {
-        error: messages.locked,
-      };
-    }
-
-    return {
-      success: result.changed ? messages.success : messages.unchanged,
-    };
-  } catch (error) {
-    console.error(messages.fallbackError, error);
-
-    return {
-      error: "We couldn't update that follow-up right now.",
-    };
-  }
+  return runRecordAction<FollowUpRecordActionState, {
+    changed: boolean;
+    locked: boolean;
+    inquiryId: string | null;
+    quoteId: string | null;
+    status: string;
+  }>({
+    runMutation: ({ businessId, actorUserId }) =>
+      mutation({ businessId, followUpId, actorUserId }),
+    missingError: "That follow-up could not be found.",
+    lockedError: (result) => (result.locked ? messages.locked : null),
+    isSuccessful: (result) => result.changed,
+    invalidate: (result, businessId) =>
+      updateCacheTags(
+        getFollowUpMutationCacheTags({
+          businessId,
+          inquiryId: result.inquiryId,
+          quoteId: result.quoteId,
+        }),
+      ),
+    messages: {
+      success: messages.success,
+      unchanged: messages.unchanged,
+      fallbackError: messages.fallbackError,
+      genericError: "We couldn't update that follow-up right now.",
+    },
+  });
 }
 
 export async function completeFollowUpAction(

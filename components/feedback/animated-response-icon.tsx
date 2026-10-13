@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { CheckCircle2, XCircle, Edit, CircleSlash, Clock } from "lucide-react";
 
 type ResponseType = "accepted" | "rejected" | "revision_requested" | "voided" | "expired";

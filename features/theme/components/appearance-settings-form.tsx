@@ -3,7 +3,7 @@
 import { useTransition } from "react";
 import { Check } from "lucide-react";
 
-import { useTheme } from "@/components/theme-provider";
+import { useTheme } from "@/components/providers/theme-provider";
 import { updateThemePreferenceAction } from "@/features/theme/actions";
 import { InterfaceScaleSelect } from "@/features/theme/components/interface-scale-select";
 import {

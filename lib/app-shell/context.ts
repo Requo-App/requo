@@ -3,7 +3,7 @@ import "server-only";
 import { cache } from "react";
 import { redirect } from "next/navigation";
 
-import { dashboardPath } from "@/features/businesses/routes";
+import { homePath } from "@/features/businesses/routes";
 import {
   getBusinessContextForMembershipSlug,
   type BusinessContext,
@@ -35,7 +35,7 @@ export const getAppShellContext = cache(
     );
 
     if (!businessContext) {
-      redirect(dashboardPath);
+      redirect(homePath);
     }
 
     return {

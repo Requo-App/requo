@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Archive, Ban, Trash2 } from "lucide-react";
-import { toast } from "@/components/base/notification/notify";
+import { toast } from "@/components/shared/notify";
 
 import { Button } from "@/components/ui/button";
 import { ConfirmationHeader } from "@/components/shared/confirmation-dialog";

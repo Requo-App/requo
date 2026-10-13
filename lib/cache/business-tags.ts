@@ -1,3 +1,5 @@
+import { updateTag } from "next/cache";
+
 export const hotBusinessCacheLife = {
   stale: 20,
   revalidate: 20,
@@ -20,6 +22,17 @@ export function uniqueCacheTags(
   return Array.from(
     new Set(tags.filter((tag): tag is string => Boolean(tag))),
   );
+}
+
+/**
+ * Purges "use cache" reads for the given tags, deduplicated.
+ * Route/fetch-cache convergence (`revalidateTag`) is a separate decision
+ * callers make explicitly — see invoices `invalidate()`.
+ */
+export function updateCacheTags(tags: string[]): void {
+  for (const tag of uniqueCacheTags(tags)) {
+    updateTag(tag);
+  }
 }
 
 export function getBusinessSettingsCacheTags(businessId: string) {

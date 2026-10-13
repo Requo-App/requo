@@ -1,128 +1,67 @@
 ---
 name: requo-repo-guide
-description: Requo repository-specific architecture, design system, provider boundaries, and verification workflow. Use when modifying, reviewing, or planning changes in this repository so work follows DESIGN.md, shared wrappers, onboarding-first business creation, Better Auth and Supabase boundaries, and the repo's CI checks.
+description: Requo single-app Next.js conventions, design tokens, auth and tenant boundaries, AI and billing invariants. Use when modifying, reviewing, or planning changes in this repository — dashboard routes, server actions, business-scoped queries, Agent or Assistant AI, paywalls, StatusBadge, instant navigation, or verification commands.
+license: MIT
+metadata:
+  author: requo
+  version: "2.0.0"
 ---
 
 # Requo Repo Guide
 
-Read these sources first when relevant (paths relative to this skill file):
+## Overview
 
-- `../../../DESIGN.md` for UI work; `../../../app/globals.css` for tokens, surfaces, motion
-- `../../../docs/architecture.md` for structure; `../../../docs/frontend.md` for App Router patterns
-- `../../../docs/domain.md` for business concepts; `../../../docs/workflows.md` for cross-feature flows
-- `../../../docs/ai.md` for AI work (deep dive: `../../../docs/architecture/assistant-and-agent.md`)
-- `../../../docs/data.md` for database; `../../../docs/authentication.md` for auth/authz
-- `../../../docs/integrations.md` for external services; `../../../docs/development.md` for commands
-- `../../../docs/technical-debt.md` for known inconsistencies (read before "fixing" them)
-- `../../../components/shared/dashboard-layout.tsx`, `../../../components/shared/form-layout.tsx`, `../../../components/shared/page-header.tsx` for layout patterns
-- `../../../app/onboarding/page.tsx` and `../../../lib/auth/config.ts` for auth and onboarding behavior
+Single Next.js app for service-business inquiry → quote → follow-up → invoice → manual payment records. `app/` routes, `features/` product rules, `lib/` shared infrastructure. Source, migrations, config, and tests beat prose; docs map behavior to them.
+
+## When to Use
+
+Use when touching dashboard pages, server actions, route handlers, business-scoped reads/writes, Better Auth, Supabase storage, AI Agent/Assistant, Polar billing, paywalls, status pills, loading skeletons, tours, or optimistic CRUD.
+
+Do not use for generic React/Next.js performance (see `vercel-react-best-practices`) or generic Postgres design (see `supabase-postgres-best-practices`).
+
+## Quick Reference
+
+| Task | Read |
+|---|---|
+| UI, tokens, wrappers, lists, loading, tours, optimistic updates | [references/ui.md](references/ui.md) |
+| Auth, onboarding, businessId scoping, proxy gate, RLS, tokens, files, validation | [references/auth-data.md](references/auth-data.md) |
+| Agent vs Assistant, 4 Agent tools, money rule, router, confirmations, paywall vs role, billing | [references/ai-billing.md](references/ai-billing.md) |
+| Domain words, IDs vs numbers, payment/follow-up/acceptance terms | [references/domain.md](references/domain.md) |
+| File layout, TS/Zod, action/mutation/query/handler shapes, cache tags, migrations, tests, checks | [references/workflows.md](references/workflows.md) |
 
 ## Working Defaults
 
-- Inspect existing files before editing.
-- Keep diffs small and feature-scoped.
-- Keep `app/` focused on routes, layouts, loading states, and route handlers.
-- Keep business logic, validation, queries, actions, and mutations in `features/`.
-- Keep provider integrations and shared utilities in `lib/`.
-- Stay within current product scope: owner-first service-business workflows (inquiry → quote → invoice → payment) with workspace billing and light role-based membership. Do not add marketplace, live chat, mobile app, dispatch, payroll, payment gateways, or advanced team collaboration unless explicitly requested.
+- Inspect the affected route, feature, tests, and nearby patterns before editing. Keep diffs small and feature-scoped.
+- Doc map: `docs/README.md`; scope: `docs/product/PRD.md`; architecture: `docs/architecture/TRD.md`; visuals: `DESIGN.md`; words: `CONTEXT.md`; inconsistencies: `docs/technical-debt.md` (read before "fixing" them).
+- Stay in scope: inquiry, quote, follow-up, invoice, manual payment records, workspace billing, role membership. No marketplace, calendar/dispatch, mobile, payroll, gateways, general chat unless asked.
+- Next.js 16.3.5 pinned: read the version-matched guide under `node_modules/next/dist/docs/` before framework code. Preserve the `nextjs-agent-rules` block in `AGENTS.md`.
+- Reuse before inventing: `components/ui/*`, `components/shared/*`, `components/shell/*`, `lib/` helpers, `features/` siblings.
 
-## UI System
+## Workflows
 
-- Treat `DESIGN.md` as the canonical UI system.
-- Reuse shared wrappers and `components/ui/*` primitives before building custom markup.
-- Prefer semantic utilities and tokens such as `surface-*`, `control-*`, `overlay-*`, `table-*`, `meta-label`, `hero-panel`, `section-panel`, and `soft-panel`.
-- Preserve the calm, modern, minimalist Requo visual language.
-- Do not copy legacy raw status colors or `space-y-*` stacks from older files into new work.
+**New/changed behavior:**
 
-## Auth, Data, And Providers
+```
+1. Read the matching reference + nearby code; implement in the owning layer
+2. Update tests with the behavior change
+3. Run checks per references/workflows.md matrix; update the authoritative doc for material facts; re-grep dangling refs on moves/deletes
+```
 
-- Use Better Auth only. Do not introduce Supabase Auth.
-- Signup creates the user and profile. Onboarding creates the first business. Additional businesses are explicit business flows.
-- Enforce business ownership through scoped queries and business-aware helpers.
-- Keep private asset access server-side.
-- Validate external input with Zod.
-- Keep provider boundaries narrow:
-  - Better Auth for sessions and password flows
-  - Supabase for storage and realtime-backed notification plumbing
-- Resend for transactional email (Mailtrap/Brevo fallback)
-- Groq, Cerebras, Gemini, Mistral, Cloudflare Workers AI, NVIDIA NIM, and OpenRouter through `lib/ai` for server-side AI
-- Polar for card subscriptions (multi-currency, merchant of record)
+**When you meet a legacy pattern:** canonical pattern wins for code you touch; keep the fix scoped; never rewrite committed SQL migrations.
 
-## Billing
+## Red Flags — STOP and re-read the reference
 
-- Subscriptions are business-scoped.
-- `business_subscriptions` is authoritative; `businesses.plan` is a denormalized read cache.
-- `lib/billing/subscription-service.ts` is the single write path for subscription mutations.
-- `lib/billing/webhook-processor.ts` records provider events in `billing_events` for idempotency.
-- Refunds are portal-initiated in Polar and reach Requo via subscription webhooks (no refunds module in `lib/billing/`).
-- Polar webhook route: `app/api/billing/polar/webhook/route.ts`.
+- Swapping Agent (public anonymous) with Assistant (owner authenticated)
+- Letting a model emit `unitPriceInCents` or importing a provider SDK in `features/`
+- Trusting a client/model-supplied `businessId`
+- Hiding navigation by plan instead of gating with `FeatureGate` + server `hasFeatureAccess`
+- Setting `instant = false` to silence a failure; status color outside `StatusBadge`
+- Re-declaring `section-panel`/`soft-panel` padding; `space-y-*` or raw palette in new code
+- Calling manual payment records processed payments
 
-## Pitfalls (caught by past audits — do not repeat)
-
-- **Agent ≠ Assistant.** Agent = customer-facing anonymous chat (`features/ai-agent/`); Assistant = owner-facing authenticated chat (`features/owner-assistant/`). Never swap the words (ADR 003).
-- **Agent has 4 tools**, not 5: `search_knowledge`, `get_business_info`, `get_services`, `propose_inquiry`. The handoff helper exists but is not wired as a model tool.
-- **Inquiry sources** are `service_form | ai_assistant | manual | api | unknown` (`features/inquiries/types.ts`); legacy values (`ai_agent`, …) normalize via `normalizeInquirySource`. Never write legacy values.
-- **Models never emit money.** Quote-draft prompts return `unitPriceInCents: 0` + candidate IDs; the server hydrates DB prices. Never trust model prices.
-- **Route all provider calls through `lib/ai/router.ts`** + `selectModels`. Never import a provider SDK in `features/`.
-- **Customer-visible or pipeline-mutating AI writes need confirmation** (`send_quote`, `update_inquiry_status`); draft-only writes do not.
-- **Plan locks, role hides.** Never filter navigation by plan — gate with `features/paywall/` components + server-side `hasFeatureAccess` before expensive work.
-- **Dashboard pages:** `export const instant = true`, synchronous shell, dynamic reads only in `<Suspense>` children. Never `instant = false` to silence a failure — use the escape-hatch registry.
-- **Panel padding is baked in** (`section-panel`, `soft-panel`); opt out with `data-padding="none"`. Call-site padding on the same attribute is silently ignored and fails `audit:density`.
-- **Do not add** Supabase Auth (Better Auth only), pgvector (embeddings are `jsonb`), payment gateways, or a `lib/billing/refunds.ts` (refunds are portal-initiated).
-- **Update `docs/` when architecture or behavior changes materially**, and re-grep for dangling references when deleting or moving docs.
-
-## Testing
-
-- Test behavior and product risk, not implementation details.
-- Backend permission tests are required for business/workspace access changes.
-- Prefer DB-backed integration tests for server actions, route handlers, workflow mutations, billing webhooks, and authorization-sensitive behavior.
-- Keep component tests for meaningful interaction only. Avoid shallow render checks and snapshots.
-
-## Verification
-
-- Docs-only changes: read through the edited files and run targeted grep checks.
-- Most code changes: run `npm run check`.
-- Logic, validation, or component changes: also run `npm run test`.
-- Server action, route handler, billing, authz, or DB-backed changes: also run `npm run test:integration`.
-- Route, layout, or system wiring changes: also run `npm run build`.
-- Covered user-flow changes: run the relevant `npm run test:e2e:smoke`; use `npm run test:e2e` for broader browser journeys.
-- CI baseline is lint, typecheck, unit/component tests, build, DB-backed integration tests, and Playwright smoke coverage.
-
-## Loading Skeletons & Tours
-
-- A route `loading.tsx` mirrors its page's Static Shell: the same PageHeader
-  (eyebrow/title/description/actions), tab bars, grid column counts, and
-  section order as the page it loads. When a page's structure changes, its
-  loading file changes in the same commit.
-- If a page renders its PageHeader synchronously, the loading file must render
-  it too (same copy) so navigation never pops a header in after the content.
-- Prefer reusing colocated `*Fallback` exports from feature components and
-  shared skeletons in `components/shell/` and `components/shared/`; add a new
-  shared skeleton only when two or more routes need it.
-- Keep the two product tours in sync with the product surface:
-  - **Dashboard Tour** (`features/onboarding/components/dashboard-tour.tsx`)
-    walks the sidebar nav order (Home, Inquiries, Quotes, Follow-ups,
-    Assistant, Services, Products, Members, Analytics) — non-nav deep-dives
-    (e.g. "Draft with AI") sit directly beside the nav item they extend, so
-    the sidebar highlight never moves backwards — previews live in
-    `features/onboarding/components/tour-modal.tsx`.
-  - **Form Editor Tour** (`features/onboarding/components/form-editor-tour.tsx`)
-    mirrors the Service editor tabs (Form | Service page | Settings).
-
-## Optimistic CRUD UI
-
-Use the shared optimistic stack for dashboard create/update/delete flows:
-
-- **List surfaces:** `hooks/use-animated-list.ts` with `.motion-list-item` and `data-motion-state` from `app/globals.css`.
-- **Single-record toggles or kanban moves:** `useOptimistic` directly or `hooks/use-optimistic-mutation.ts`.
-- **Forms and server-action buttons:** `components/shared/server-action-button.tsx` with optional `optimistic` callbacks; prefer `useDeferredRefresh()` over immediate `router.refresh()`.
-- **Temporary create IDs:** `lib/optimistic/id.ts` (`createOptimisticId`, `isOptimisticId`).
-
-Standard mutation flow:
-
-1. Apply optimistic UI immediately inside `startTransition`.
-2. Await the existing Server Action in the background.
-3. On success, replace temp IDs when the action returns `entity.id`, then schedule deferred refresh.
-4. On failure, revert optimistic state and show `toast.error`; do not refresh.
-
-Keep server-side cache tag invalidation in actions unchanged. Client refresh is reconciliation, not the primary UX update.
+| Excuse | Reality |
+|---|---|
+| "One more Agent tool is harmless" | 4 tools only; handoff helper is not a model tool |
+| "The model price looks right" | Prompts return `unitPriceInCents: 0`; server hydrates DB prices |
+| "Proxy already gates it" | Proxy is early-only; every page/action/query re-checks server-side |
+| "Hiding the link blocks access" | Visibility is not authorization; gate server-side before expensive work |

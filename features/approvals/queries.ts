@@ -5,9 +5,11 @@ import { cache } from "react";
 
 import { db } from "@/lib/db/client";
 import {
+  approvalArtifacts,
   approvalChains,
   approvals,
   type Approval,
+  type ApprovalArtifact,
   type ApprovalChain,
 } from "@/lib/db/schema";
 import { hashOpaqueToken } from "@/lib/security/tokens";
@@ -40,6 +42,22 @@ async function _getApprovalByCustomerToken(
 
 /** Token-scoped public read. Possession grants exactly the linked operation. */
 export const getApprovalByCustomerToken = cache(_getApprovalByCustomerToken);
+
+/** Artifact row for a token view (business-scoped, exact-row targeting). */
+export async function getApprovalArtifactForTokenView(view: ApprovalTokenView): Promise<ApprovalArtifact | null> {
+  if (!view.approval.artifactId) return null;
+  const [artifact] = await db
+    .select()
+    .from(approvalArtifacts)
+    .where(
+      and(
+        eq(approvalArtifacts.id, view.approval.artifactId),
+        eq(approvalArtifacts.businessId, view.approval.businessId),
+      ),
+    )
+    .limit(1);
+  return artifact ?? null;
+}
 
 export async function listChainHistoryForBusiness(input: {
   businessId: string;

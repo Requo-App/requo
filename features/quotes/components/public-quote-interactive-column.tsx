@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Edit, Mail } from "lucide-react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion } from "motion/react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -184,48 +184,28 @@ export function PublicQuoteInteractiveColumn({
         ) : (
           <motion.div
             key={`status-${displayStatus}`}
-            initial={{ opacity: 0, y: 10, scale: 0.97 }}
+            initial={{ opacity: 0, y: 8, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1], delay: 0.05 }}
+            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
             className={`flex items-start gap-3.5 rounded-xl border p-4 sm:p-5 ${statusInfo.bgColor}`}
           >
             <AnimatedResponseIcon type={displayStatus as "accepted" | "rejected" | "revision_requested" | "voided" | "expired"} className="mt-0.5 shrink-0" />
             <div className="min-w-0 flex-1">
-              <motion.p
-                className="text-sm font-semibold text-foreground"
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.15, duration: 0.25 }}
-              >
+              <p className="text-sm font-semibold text-foreground">
                 {statusInfo.title}
-              </motion.p>
-              <motion.p
-                className="mt-1 text-sm leading-relaxed text-muted-foreground"
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.25, duration: 0.25 }}
-              >
+              </p>
+              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
                 {statusInfo.description}
-              </motion.p>
+              </p>
               {displayStatus === "accepted" ? (
-                <motion.p
-                  className="mt-2 text-xs text-muted-foreground/80"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.4, duration: 0.3 }}
-                >
+                <p className="mt-2 text-xs text-muted-foreground/80">
                   Quote {quote.quoteNumber} · Version v{acceptanceVersion}
                   {acceptanceAt ? ` · Accepted ${formatQuoteDateTime(acceptanceAt)}` : null}
-                </motion.p>
+                </p>
               ) : customerRespondedAt ? (
-                <motion.p
-                  className="mt-2 text-xs text-muted-foreground/80"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.4, duration: 0.3 }}
-                >
+                <p className="mt-2 text-xs text-muted-foreground/80">
                   Responded {formatQuoteDateTime(customerRespondedAt)}
-                </motion.p>
+                </p>
               ) : null}
             </div>
           </motion.div>
@@ -233,19 +213,14 @@ export function PublicQuoteInteractiveColumn({
       </AnimatePresence>
 
       {customerResponseMessage ? (
-        <motion.div
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3, duration: 0.3, ease: [0.25, 1, 0.5, 1] }}
-          className="rounded-xl border border-border/50 px-4 py-4 sm:px-5"
-        >
+        <div className="rounded-xl border border-border/50 px-4 py-4 sm:px-5">
           <p className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
             Your message
           </p>
           <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-foreground">
             {customerResponseMessage}
           </p>
-        </motion.div>
+        </div>
       ) : null}
 
       {quote.businessContactEmail ? (

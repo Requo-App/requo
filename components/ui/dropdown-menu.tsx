@@ -100,7 +100,7 @@ function DropdownMenuContent({
           sideOffset={sideOffset}
           align={align}
           collisionPadding={collisionPadding}
-          className={cn("overlay-surface popover-layer max-h-[min(var(--radix-dropdown-menu-content-available-height),calc(100dvh-1rem))] max-w-[calc(100vw-1rem)] min-w-40 origin-(--radix-dropdown-menu-content-transform-origin) overflow-x-hidden overflow-y-auto overscroll-contain rounded-lg border p-1 text-popover-foreground duration-100 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-[state=closed]:overflow-hidden data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95", className )}
+          className={cn("overlay-surface popover-layer max-h-[min(var(--radix-dropdown-menu-content-available-height),calc(100dvh-1rem))] max-w-[calc(100vw-1rem)] min-w-40 origin-(--radix-dropdown-menu-content-transform-origin) overflow-x-hidden overflow-y-auto overscroll-contain rounded-lg border p-1 text-popover-foreground duration-150 data-closed:duration-100 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-[state=closed]:overflow-hidden data-open:animate-in data-open:fade-in-0 data-open:zoom-in-[0.96] data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-[0.96]", className )}
           {...props}
         />
       </DropdownMenuPrimitive.Portal>
@@ -334,7 +334,7 @@ function DropdownMenuSubContent({
       data-slot="dropdown-menu-sub-content"
       data-mobile-sheet={mobileSheet ? "true" : undefined}
       collisionPadding={collisionPadding}
-      className={cn("overlay-surface popover-layer max-h-[min(var(--radix-dropdown-menu-content-available-height),calc(100dvh-1rem))] max-w-[calc(100vw-1rem)] min-w-[96px] origin-(--radix-dropdown-menu-content-transform-origin) overflow-y-auto overscroll-contain rounded-md border p-1 text-popover-foreground duration-100 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95", className )}
+      className={cn("overlay-surface popover-layer max-h-[min(var(--radix-dropdown-menu-content-available-height),calc(100dvh-1rem))] max-w-[calc(100vw-1rem)] min-w-[96px] origin-(--radix-dropdown-menu-content-transform-origin) overflow-y-auto overscroll-contain rounded-md border p-1 text-popover-foreground duration-150 data-closed:duration-100 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-[0.96] data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-[0.96]", className )}
       {...props}
     />
   )

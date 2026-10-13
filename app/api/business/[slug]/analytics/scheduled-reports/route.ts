@@ -1,4 +1,5 @@
 import { and, eq } from "drizzle-orm";
+import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { db } from "@/lib/db/client";
@@ -6,10 +7,7 @@ import { getBusinessRequestContextForSlug } from "@/lib/db/business-access";
 import { analyticsScheduledReports } from "@/lib/db/schema";
 import { hasFeatureAccess } from "@/lib/plans";
 import { newEntityId } from "@/lib/ids";
-
-const routeParamsSchema = z.object({
-  slug: z.string().trim().min(1).max(120),
-});
+import { slugParamSchema as routeParamsSchema } from "@/lib/api/params";
 
 const emailSchema = z.string().email();
 
@@ -48,7 +46,7 @@ export async function GET(
   const parsedParams = routeParamsSchema.safeParse(await context.params);
 
   if (!parsedParams.success) {
-    return Response.json({ error: "Not found." }, { status: 404 });
+    return NextResponse.json({ error: "Not found." }, { status: 404 });
   }
 
   const requestContext = await getBusinessRequestContextForSlug(
@@ -56,7 +54,7 @@ export async function GET(
   );
 
   if (!requestContext) {
-    return Response.json({ error: "Not found." }, { status: 404 });
+    return NextResponse.json({ error: "Not found." }, { status: 404 });
   }
 
   if (
@@ -65,7 +63,7 @@ export async function GET(
       "analyticsWorkflow",
     )
   ) {
-    return Response.json(
+    return NextResponse.json(
       { error: "Upgrade to access scheduled reports." },
       { status: 403 },
     );
@@ -81,7 +79,7 @@ export async function GET(
       ),
     );
 
-  return Response.json({ reports });
+  return NextResponse.json({ reports });
 }
 
 export async function POST(
@@ -91,7 +89,7 @@ export async function POST(
   const parsedParams = routeParamsSchema.safeParse(await context.params);
 
   if (!parsedParams.success) {
-    return Response.json({ error: "Not found." }, { status: 404 });
+    return NextResponse.json({ error: "Not found." }, { status: 404 });
   }
 
   const requestContext = await getBusinessRequestContextForSlug(
@@ -99,7 +97,7 @@ export async function POST(
   );
 
   if (!requestContext) {
-    return Response.json({ error: "Not found." }, { status: 404 });
+    return NextResponse.json({ error: "Not found." }, { status: 404 });
   }
 
   if (
@@ -108,7 +106,7 @@ export async function POST(
       "analyticsWorkflow",
     )
   ) {
-    return Response.json(
+    return NextResponse.json(
       { error: "Upgrade to access scheduled reports." },
       { status: 403 },
     );
@@ -118,7 +116,7 @@ export async function POST(
   const parsedBody = createBodySchema.safeParse(body);
 
   if (!parsedBody.success) {
-    return Response.json(
+    return NextResponse.json(
       { error: "Invalid input.", details: parsedBody.error.flatten() },
       { status: 400 },
     );
@@ -142,7 +140,7 @@ export async function POST(
     })
     .returning();
 
-  return Response.json({ report }, { status: 201 });
+  return NextResponse.json({ report }, { status: 201 });
 }
 
 export async function PUT(
@@ -152,7 +150,7 @@ export async function PUT(
   const parsedParams = routeParamsSchema.safeParse(await context.params);
 
   if (!parsedParams.success) {
-    return Response.json({ error: "Not found." }, { status: 404 });
+    return NextResponse.json({ error: "Not found." }, { status: 404 });
   }
 
   const requestContext = await getBusinessRequestContextForSlug(
@@ -160,7 +158,7 @@ export async function PUT(
   );
 
   if (!requestContext) {
-    return Response.json({ error: "Not found." }, { status: 404 });
+    return NextResponse.json({ error: "Not found." }, { status: 404 });
   }
 
   if (
@@ -169,7 +167,7 @@ export async function PUT(
       "analyticsWorkflow",
     )
   ) {
-    return Response.json(
+    return NextResponse.json(
       { error: "Upgrade to access scheduled reports." },
       { status: 403 },
     );
@@ -179,7 +177,7 @@ export async function PUT(
   const parsedBody = updateBodySchema.safeParse(body);
 
   if (!parsedBody.success) {
-    return Response.json(
+    return NextResponse.json(
       { error: "Invalid input.", details: parsedBody.error.flatten() },
       { status: 400 },
     );
@@ -204,10 +202,10 @@ export async function PUT(
     .returning();
 
   if (!report) {
-    return Response.json({ error: "Report not found." }, { status: 404 });
+    return NextResponse.json({ error: "Report not found." }, { status: 404 });
   }
 
-  return Response.json({ report });
+  return NextResponse.json({ report });
 }
 
 export async function DELETE(
@@ -217,7 +215,7 @@ export async function DELETE(
   const parsedParams = routeParamsSchema.safeParse(await context.params);
 
   if (!parsedParams.success) {
-    return Response.json({ error: "Not found." }, { status: 404 });
+    return NextResponse.json({ error: "Not found." }, { status: 404 });
   }
 
   const requestContext = await getBusinessRequestContextForSlug(
@@ -225,7 +223,7 @@ export async function DELETE(
   );
 
   if (!requestContext) {
-    return Response.json({ error: "Not found." }, { status: 404 });
+    return NextResponse.json({ error: "Not found." }, { status: 404 });
   }
 
   if (
@@ -234,7 +232,7 @@ export async function DELETE(
       "analyticsWorkflow",
     )
   ) {
-    return Response.json(
+    return NextResponse.json(
       { error: "Upgrade to access scheduled reports." },
       { status: 403 },
     );
@@ -250,7 +248,7 @@ export async function DELETE(
     const parsedBody = deleteBodySchema.safeParse(body);
 
     if (!parsedBody.success) {
-      return Response.json(
+      return NextResponse.json(
         { error: "Invalid input. Provide a report ID.", details: parsedBody.error.flatten() },
         { status: 400 },
       );
@@ -272,8 +270,8 @@ export async function DELETE(
     .returning();
 
   if (!deleted) {
-    return Response.json({ error: "Report not found." }, { status: 404 });
+    return NextResponse.json({ error: "Report not found." }, { status: 404 });
   }
 
-  return Response.json({ success: true });
+  return NextResponse.json({ success: true });
 }

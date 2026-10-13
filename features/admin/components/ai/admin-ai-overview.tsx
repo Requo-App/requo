@@ -5,7 +5,7 @@ import {
   DashboardDetailFeedItem,
   DashboardSection,
 } from "@/components/shared/dashboard-layout";
-import type { Stat } from "@/components/application/dashboard/stat-cards";
+import type { Stat } from "@/components/shared/stat-cards";
 import { AdminAiStatCards } from "@/features/admin/components/ai/admin-ai-stat-cards";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

@@ -75,6 +75,7 @@ export function ArchivedInquiriesSheet({
   const {
     items: archived,
     getMotionState,
+    getItemRef,
     isPendingKey,
     removeItem,
     removeItems,
@@ -281,6 +282,7 @@ export function ArchivedInquiriesSheet({
                 return (
                   <div
                     key={item.id}
+                    ref={getItemRef(item.id)}
                     className="motion-list-item flex flex-col gap-1.5 rounded-xl border border-border/80 bg-background px-3.5 py-3"
                     data-motion-state={getMotionState(item.id)}
                   >

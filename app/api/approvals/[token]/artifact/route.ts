@@ -2,11 +2,11 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { createArtifactSignedUrl } from "@/features/approvals/artifacts";
-import { getApprovalByCustomerToken } from "@/features/approvals/queries";
-import { db } from "@/lib/db/client";
-import { approvalArtifacts } from "@/lib/db/schema";
+import {
+  getApprovalArtifactForTokenView,
+  getApprovalByCustomerToken,
+} from "@/features/approvals/queries";
 import { assertPublicActionRateLimit } from "@/lib/public-action-rate-limit";
-import { and, eq } from "drizzle-orm";
 
 const artifactRouteParamsSchema = z.object({
   token: z.string().min(1).max(128),
@@ -44,16 +44,7 @@ export async function GET(
     return NextResponse.json({ error: "Not found." }, { status: 404 });
   }
 
-  const [artifact] = await db
-    .select()
-    .from(approvalArtifacts)
-    .where(
-      and(
-        eq(approvalArtifacts.id, view.approval.artifactId),
-        eq(approvalArtifacts.businessId, view.approval.businessId),
-      ),
-    )
-    .limit(1);
+  const artifact = await getApprovalArtifactForTokenView(view);
 
   if (!artifact) {
     return NextResponse.json({ error: "Not found." }, { status: 404 });

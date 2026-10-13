@@ -14,7 +14,7 @@ import { startImpersonationAction } from "@/features/admin/mutations";
  * `startImpersonationAction` per the design doc, so this handler stays
  * thin: parse the body, delegate, and redirect based on the result.
  *
- * Success → 303 See Other to `/businesses` so the browser follows
+ * Success → 303 See Other to `/home` so the browser follows
  * with GET and lands on the impersonated user's business hub.
  *
  * Failure → 303 back to the user detail page with the safe error

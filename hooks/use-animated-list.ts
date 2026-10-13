@@ -1,4 +1,12 @@
-import { useCallback, useOptimistic, useRef, useState, useTransition } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useOptimistic,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 
 import {
   type OptimisticActionResult,
@@ -10,6 +18,8 @@ import {
  * Works with the existing `.motion-list-item` CSS utility in globals.css.
  */
 export type MotionState = "entering" | "exiting" | "updating" | undefined;
+
+export type ItemRefCallback = (id: string) => (node: HTMLElement | null) => void;
 
 type AnimatedListAction<T extends { id: string }> =
   | { type: "add"; item: T }
@@ -23,6 +33,92 @@ type AnimatedListAction<T extends { id: string }> =
 
 const EXIT_DURATION_MS = 280;
 const UPDATE_DURATION_MS = 220;
+const FLIP_DURATION_MS = 220;
+const FLIP_EASING = "cubic-bezier(0.22, 1, 0.36, 1)";
+
+/** Shared with bespoke lists (e.g. FollowUpBoard) so exit timing never drifts. */
+export const LIST_EXIT_MS = EXIT_DURATION_MS;
+export const LIST_UPDATE_MS = UPDATE_DURATION_MS;
+
+function prefersReducedMotion() {
+  return (
+    typeof window !== "undefined" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
+}
+
+/**
+ * FLIP sibling movement for user-initiated list changes.
+ *
+ * Call `bump()` when a user mutation commits (add/remove/move), never on
+ * routine server refreshes. On the next layout pass, elements whose vertical
+ * position changed play a restrained translate-back animation via the Web
+ * Animations API — no extra deps, no per-frame React renders. Exiting
+ * elements keep their own CSS exit; only survivors move.
+ */
+export function useListFlip() {
+  const nodes = useRef(new Map<string, HTMLElement>());
+  const tops = useRef(new Map<string, number>());
+  const epoch = useRef(0);
+  const playedEpoch = useRef(0);
+
+  const getItemRef = useCallback<ItemRefCallback>(
+    (id) => (node) => {
+      if (node) {
+        nodes.current.set(id, node);
+      } else {
+        nodes.current.delete(id);
+        tops.current.delete(id);
+      }
+    },
+    [],
+  );
+
+  const bump = useCallback(() => {
+    epoch.current += 1;
+  }, []);
+
+  useLayoutEffect(() => {
+    if (playedEpoch.current === epoch.current) {
+      // Background refresh or first mount: record positions, animate nothing.
+      for (const [id, node] of nodes.current) {
+        tops.current.set(id, node.getBoundingClientRect().top);
+      }
+      return;
+    }
+    playedEpoch.current = epoch.current;
+    if (prefersReducedMotion()) {
+      for (const [id, node] of nodes.current) {
+        tops.current.set(id, node.getBoundingClientRect().top);
+      }
+      return;
+    }
+    for (const [id, node] of nodes.current) {
+      const prev = tops.current.get(id);
+      const next = node.getBoundingClientRect().top;
+      tops.current.set(id, next);
+      if (prev === undefined) continue;
+      const delta = prev - next;
+      if (Math.abs(delta) < 3) continue;
+      // Optional-chained: jsdom and older browsers lack Element.animate.
+      node.animate?.(
+        [
+          { transform: `translateY(${delta}px)` },
+          { transform: "translateY(0)" },
+        ],
+        { duration: FLIP_DURATION_MS, easing: FLIP_EASING },
+      );
+    }
+    // Drop positions for unmounted ids.
+    for (const id of [...tops.current.keys()]) {
+      if (!nodes.current.has(id)) {
+        tops.current.delete(id);
+      }
+    }
+  });
+
+  return { getItemRef, bumpFlip: bump };
+}
 
 function moveItemInList<T extends { id: string }>(
   items: T[],
@@ -52,6 +148,19 @@ export function useAnimatedList<T extends { id: string }>(serverItems: T[]) {
   const { runMutation, isPendingKey } = useOptimisticMutation();
   const exitTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
   const updateTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  const { getItemRef, bumpFlip } = useListFlip();
+
+  // Never leave exit/update timers firing after unmount.
+  useEffect(() => {
+    const exits = exitTimers.current;
+    const updates = updateTimers.current;
+    return () => {
+      for (const timer of exits.values()) clearTimeout(timer);
+      for (const timer of updates.values()) clearTimeout(timer);
+      exits.clear();
+      updates.clear();
+    };
+  }, []);
 
   const [optimisticItems, dispatch] = useOptimistic(
     serverItems,
@@ -141,6 +250,7 @@ export function useAnimatedList<T extends { id: string }>(serverItems: T[]) {
     ) => {
       markEntering(item.id);
       dispatch({ type: "add", item });
+      bumpFlip();
 
       if (!mutation) {
         return;
@@ -162,7 +272,7 @@ export function useAnimatedList<T extends { id: string }>(serverItems: T[]) {
         },
       });
     },
-    [dispatch, markEntering, runMutation],
+    [dispatch, markEntering, runMutation, bumpFlip],
   );
 
   const updateItem = useCallback(
@@ -211,6 +321,7 @@ export function useAnimatedList<T extends { id: string }>(serverItems: T[]) {
     ) => {
       const snapshot = [...optimisticItems];
       dispatch({ type: "move", id, toIndex });
+      bumpFlip();
 
       if (!mutation) {
         return;
@@ -228,7 +339,7 @@ export function useAnimatedList<T extends { id: string }>(serverItems: T[]) {
         pendingKey: id,
       });
     },
-    [dispatch, optimisticItems, runMutation],
+    [dispatch, optimisticItems, runMutation, bumpFlip],
   );
 
   const removeItem = useCallback(
@@ -255,6 +366,7 @@ export function useAnimatedList<T extends { id: string }>(serverItems: T[]) {
         startTransition(() => {
           dispatch({ type: "remove", id });
         });
+        bumpFlip();
 
         if (!mutation) {
           return;
@@ -272,7 +384,7 @@ export function useAnimatedList<T extends { id: string }>(serverItems: T[]) {
 
       exitTimers.current.set(id, timer);
     },
-    [dispatch, optimisticItems, runMutation, startTransition, triggerRender],
+    [dispatch, optimisticItems, runMutation, startTransition, triggerRender, bumpFlip],
   );
 
   const removeItems = useCallback(
@@ -302,6 +414,7 @@ export function useAnimatedList<T extends { id: string }>(serverItems: T[]) {
         startTransition(() => {
           dispatch({ type: "remove-many", ids });
         });
+        bumpFlip();
 
         if (!mutation) {
           return;
@@ -321,12 +434,13 @@ export function useAnimatedList<T extends { id: string }>(serverItems: T[]) {
         exitTimers.current.set(id, timer);
       }
     },
-    [dispatch, optimisticItems, runMutation, startTransition, triggerRender],
+    [dispatch, optimisticItems, runMutation, startTransition, triggerRender, bumpFlip],
   );
 
   return {
     items: optimisticItems,
     getMotionState,
+    getItemRef,
     isPendingKey,
     addItem,
     updateItem,

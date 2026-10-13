@@ -1,38 +1,41 @@
 "use server";
 
-import { revalidateTag, updateTag } from "next/cache";
-import { isRedirectError } from "next/dist/client/components/redirect-error";
+import { revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import {
   getValidationActionState,
 } from "@/lib/action-state";
+import { runRecordAction } from "@/lib/actions/run-record-action";
 import {
   getBusinessInquiryDetailCacheTags,
   getBusinessQuoteDetailCacheTags,
   getBusinessQuoteListCacheTags,
   uniqueCacheTags,
+  updateCacheTags,
 } from "@/lib/cache/business-tags";
 import {
-  getBusinessMessagingSettings,
-  getBusinessOwnerEmails,
   getWorkspaceBusinessActionContext,
 } from "@/lib/db/business-access";
-import { env, isEmailConfigured } from "@/lib/env";
+import { env } from "@/lib/env";
+import {
+  checkDocumentSendConfiguration,
+  checkDocumentSendQuota,
+  loadDocumentMessagingContext,
+} from "@/lib/email/send-prerequisites";
 import {
   sendEnableQuoteAutoFollowUpEvent,
   sendPushQuoteResponseEvent,
   sendPushQuoteSentEvent,
 } from "@/lib/inngest/send";
-import { getUsageLimit, hasFeatureAccess } from "@/lib/plans";
+import { hasFeatureAccess } from "@/lib/plans";
 import { checkUsageAllowance } from "@/lib/plans/usage";
 import { assertPublicActionRateLimit } from "@/lib/rate-limit/redis-rate-limiter";
 import {
-  getResendFromEmailConfigurationError,
   getResendSendFailureMessage,
   sendQuoteEmail,
-} from "@/lib/resend/client";
+} from "@/lib/email/transactional";
 import {
   archiveQuoteForBusiness,
   acknowledgeQuoteUncertaintyForBusiness,
@@ -77,12 +80,6 @@ import {
 const initialEditorState: QuoteEditorActionState = {};
 const initialSendState: QuoteSendActionState = {};
 const initialPublicQuoteResponseState: PublicQuoteResponseActionState = {};
-
-function updateCacheTags(tags: string[]) {
-  for (const tag of uniqueCacheTags(tags)) {
-    updateTag(tag);
-  }
-}
 
 function revalidateCacheTags(tags: string[]) {
   for (const tag of uniqueCacheTags(tags)) {
@@ -309,78 +306,39 @@ async function runQuoteRecordAction(
     redirectHref?: string;
   },
 ): Promise<QuoteRecordActionState> {
-  const ownerAccess = await getWorkspaceBusinessActionContext();
-
-  if (!ownerAccess.ok) {
-    return {
-      error: ownerAccess.error,
-    };
-  }
-
-  const { user, businessContext } = ownerAccess;
-
-  let redirectTarget: string | null = null;
-
-  try {
-    const result = await mutation({
-      businessId: businessContext.business.id,
-      quoteId,
-      actorUserId: user.id,
-    });
-
-    if (!result) {
-      return {
-        error: "That quote could not be found.",
-      };
-    }
-
-    updateCacheTags(
-      getQuoteMutationCacheTags(
-        businessContext.business.id,
-        quoteId,
-        result.inquiryId,
+  return runRecordAction<QuoteRecordActionState, {
+    inquiryId: string | null;
+    changed?: boolean;
+    deleted?: boolean;
+    locked?: boolean;
+    lockedReason?: "archived" | "draft" | "lifecycle";
+    quoteNumber: string;
+    status: string;
+  }>({
+    runMutation: ({ businessId, actorUserId }) =>
+      mutation({ businessId, quoteId, actorUserId }),
+    missingError: "That quote could not be found.",
+    lockedError: (result) =>
+      result.locked
+        ? result.lockedReason === "draft"
+          ? (messages.lockedDraft ?? "Draft quotes use a different action.")
+          : result.lockedReason === "archived"
+            ? (messages.lockedArchived ?? "Restore this quote to active first.")
+            : (messages.lockedLifecycle ?? "This quote can no longer be changed that way.")
+        : null,
+    isSuccessful: (result) => (result.changed || result.deleted) ?? false,
+    invalidate: (result, businessId) =>
+      updateCacheTags(
+        getQuoteMutationCacheTags(businessId, quoteId, result.inquiryId),
       ),
-    );
-
-    if (result.locked) {
-      return {
-        error:
-          result.lockedReason === "draft"
-            ? messages.lockedDraft ?? "Draft quotes use a different action."
-            : result.lockedReason === "archived"
-              ? messages.lockedArchived ?? "Restore this quote to active first."
-              : messages.lockedLifecycle ?? "This quote can no longer be changed that way.",
-      };
-    }
-
-    if (messages.redirectHref && (result.changed || result.deleted)) {
-      redirectTarget = messages.redirectHref;
-    } else {
-      return {
-        success:
-          result.changed || result.deleted ? messages.success : messages.unchanged,
-      };
-    }
-  } catch (error) {
-    if (isRedirectError(error)) {
-      throw error;
-    }
-    console.error(messages.fallbackError, error);
-
-    return {
-      error: "We couldn't update that quote right now.",
-    };
-  }
-
-  if (redirectTarget) {
-    redirect(redirectTarget);
-  }
-
-  // Unreachable when redirectTarget is set (redirect throws); keeps the
-  // return type satisfied for the non-redirect fall-through path.
-  return {
-    success: messages.success,
-  };
+    messages: {
+      success: messages.success,
+      unchanged: messages.unchanged,
+      fallbackError: messages.fallbackError,
+      genericError: "We couldn't update that quote right now.",
+      redirectHref: messages.redirectHref,
+    },
+  });
 }
 
 export async function deleteDraftQuoteAction(
@@ -516,20 +474,14 @@ export async function sendQuoteAction(
     }
 
     if (deliveryMethod === "requo") {
-      const [dailyAllowance, monthlyAllowance] = await Promise.all([
-        checkUsageAllowance(
-          businessContext.business.id,
-          businessContext.business.plan,
-          "requoQuoteEmailsPerDay",
-        ),
-        checkUsageAllowance(
-          businessContext.business.id,
-          businessContext.business.plan,
-          "requoQuoteEmailsPerMonth",
-        ),
-      ]);
+      const quotaAllowed = await checkDocumentSendQuota({
+        businessId: businessContext.business.id,
+        plan: businessContext.business.plan,
+        dailyKey: "requoQuoteEmailsPerDay",
+        monthlyKey: "requoQuoteEmailsPerMonth",
+      });
 
-      if (!dailyAllowance.allowed || !monthlyAllowance.allowed) {
+      if (!quotaAllowed) {
         return {
           error:
             "You've reached this month's Requo email limit. You can still copy and share the public quote link.",
@@ -537,36 +489,30 @@ export async function sendQuoteAction(
       }
     }
 
-    const businessSettings = await getBusinessMessagingSettings(
+    const messagingContext = await loadDocumentMessagingContext(
       businessContext.business.id,
     );
 
-    if (!businessSettings) {
+    if (!messagingContext) {
       return {
         error: "This business could not be loaded.",
       };
     }
 
-    const ownerEmails = await getBusinessOwnerEmails(businessContext.business.id);
+    const { settings: businessSettings, ownerEmails } = messagingContext;
     const publicQuoteUrl = new URL(
       getPublicQuoteUrl(quote.publicToken),
       env.BETTER_AUTH_URL,
     ).toString();
 
     if (deliveryMethod === "requo") {
-      if (!isEmailConfigured) {
-        return {
-          error:
-            "Quote email delivery is unavailable right now. Configure email and try again.",
-        };
-      }
+      const configurationError = checkDocumentSendConfiguration(
+        "Quote email delivery is unavailable right now. Configure email and try again.",
+      );
 
-      const resendSenderConfigurationError =
-        getResendFromEmailConfigurationError();
-
-      if (resendSenderConfigurationError) {
+      if (configurationError) {
         return {
-          error: resendSenderConfigurationError,
+          error: configurationError,
         };
       }
 

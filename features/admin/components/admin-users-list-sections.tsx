@@ -1,6 +1,4 @@
 import { DataListPagination } from "@/components/shared/data-list-pagination";
-import { AdminListContentFallback } from "@/features/admin/components/list/admin-list-content-fallback";
-import { AdminListControlsFallback } from "@/features/admin/components/list/admin-list-controls-fallback";
 import { AdminUsersFilters } from "@/features/admin/components/admin-users-filters";
 import { AdminUsersTable } from "@/features/admin/components/admin-users-table";
 import { ADMIN_USERS_PATH } from "@/features/admin/navigation";
@@ -64,5 +62,3 @@ export async function AdminUsersListContentSection({
     />
   );
 }
-
-export { AdminListControlsFallback, AdminListContentFallback };

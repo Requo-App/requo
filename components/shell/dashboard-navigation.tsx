@@ -20,8 +20,8 @@ import {
 import {
   getBusinessAnalyticsPath,
   getBusinessAssistantPath,
-  getBusinessDashboardPath,
-  getBusinessDashboardSlugFromPathname,
+  getBusinessHomePath,
+  getBusinessSlugFromPathname,
   getBusinessPath,
   getBusinessFollowUpsPath,
   getBusinessServicesPath,
@@ -54,7 +54,7 @@ export function getDashboardNavigation(
 ): DashboardNavigationItem[] {
   return [
     {
-      href: getBusinessDashboardPath(slug),
+      href: getBusinessHomePath(slug),
       label: "Home",
       description: "Your home base: see what needs attention.",
       icon: Home,
@@ -121,7 +121,7 @@ export function getDashboardNavigation(
 }
 
 function resolveDashboardActivePathname(pathname: string) {
-  const slug = getBusinessDashboardSlugFromPathname(pathname);
+  const slug = getBusinessSlugFromPathname(pathname);
 
   if (!slug) {
     return pathname;
@@ -138,7 +138,7 @@ function resolveDashboardActivePathname(pathname: string) {
   }
 
   const legacyDashboardPath = `${getBusinessPath(slug)}/dashboard`;
-  const homePath = getBusinessDashboardPath(slug);
+  const homePath = getBusinessHomePath(slug);
 
   if (pathname === legacyDashboardPath) {
     return homePath;
@@ -171,7 +171,7 @@ export function isDashboardNavigationItemActive(
 
 export function getActiveDashboardNavigationItem(pathname: string) {
   const activePathname = resolveDashboardActivePathname(pathname);
-  const slug = getBusinessDashboardSlugFromPathname(activePathname);
+  const slug = getBusinessSlugFromPathname(activePathname);
 
   if (!slug) {
     return null;
@@ -213,7 +213,7 @@ function formatRecordHint(value: string) {
   return formatBreadcrumbLabel(decodedValue);
 }
 
-function withDashboardHome(
+function withHome(
   _slug: string,
   items: DashboardBreadcrumbItem[],
 ): DashboardBreadcrumbItem[] {
@@ -228,13 +228,13 @@ function withDashboardHome(
 }
 
 export function getDashboardBreadcrumbs(pathname: string): DashboardBreadcrumbItem[] {
-  const slug = getBusinessDashboardSlugFromPathname(pathname);
+  const slug = getBusinessSlugFromPathname(pathname);
 
   if (!slug) {
     return [];
   }
 
-  const dashboardPath = getBusinessDashboardPath(slug);
+  const homePath = getBusinessHomePath(slug);
   const analyticsPath = getBusinessAnalyticsPath(slug);
   const followUpsPath = getBusinessFollowUpsPath(slug);
   const inquiriesPath = getBusinessInquiriesPath(slug);
@@ -247,12 +247,12 @@ export function getDashboardBreadcrumbs(pathname: string): DashboardBreadcrumbIt
   const settingsPath = getBusinessSettingsPath(slug);
   const assistantPath = getBusinessAssistantPath(slug);
 
-  if (pathname === dashboardPath) {
+  if (pathname === homePath) {
     return [{ label: "Home" }];
   }
 
   if (pathname === analyticsPath || pathname.startsWith(`${analyticsPath}/`)) {
-    return withDashboardHome(slug, [{ label: "Analytics" }]);
+    return withHome(slug, [{ label: "Analytics" }]);
   }
 
   if (pathname === assistantPath || pathname.startsWith(`${assistantPath}/`)) {
@@ -260,35 +260,35 @@ export function getDashboardBreadcrumbs(pathname: string): DashboardBreadcrumbIt
     const segments = relativePath.split("/").filter(Boolean);
 
     if (segments.length === 0) {
-      return withDashboardHome(slug, [{ label: "Assistant" }]);
+      return withHome(slug, [{ label: "Assistant" }]);
     }
 
     if (segments[0] === "chat") {
       if (!segments[1]) {
-        return withDashboardHome(slug, [{ label: "Assistant" }]);
+        return withHome(slug, [{ label: "Assistant" }]);
       }
-      return withDashboardHome(slug, [
+      return withHome(slug, [
         { label: "Assistant", href: assistantPath },
         { label: `Conversation: ${formatRecordHint(segments[1])}` },
       ]);
     }
 
     if (segments[0] === "settings") {
-      return withDashboardHome(slug, [
+      return withHome(slug, [
         { label: "Assistant", href: assistantPath },
         { label: "Public chat settings" },
       ]);
     }
 
-    return withDashboardHome(slug, [{ label: "Assistant" }]);
+    return withHome(slug, [{ label: "Assistant" }]);
   }
 
   if (pathname === inquiriesPath) {
-    return withDashboardHome(slug, [{ label: "Inquiries" }]);
+    return withHome(slug, [{ label: "Inquiries" }]);
   }
 
   if (pathname === getBusinessNewInquiryPath(slug)) {
-    return withDashboardHome(slug, [
+    return withHome(slug, [
       {
         label: "Inquiries",
         href: inquiriesPath,
@@ -302,7 +302,7 @@ export function getDashboardBreadcrumbs(pathname: string): DashboardBreadcrumbIt
   if (pathname.startsWith(`${inquiriesPath}/`)) {
     const inquiryId = pathname.slice(`${inquiriesPath}/`.length).split("/")[0];
 
-    return withDashboardHome(slug, [
+    return withHome(slug, [
       {
         label: "Inquiries",
         href: inquiriesPath,
@@ -316,19 +316,19 @@ export function getDashboardBreadcrumbs(pathname: string): DashboardBreadcrumbIt
   }
 
   if (pathname === quotesPath) {
-    return withDashboardHome(slug, [{ label: "Quotes" }]);
+    return withHome(slug, [{ label: "Quotes" }]);
   }
 
   if (pathname === invoicesPath || pathname.startsWith(`${invoicesPath}/`)) {
-    return withDashboardHome(slug, [{ label: "Invoices" }]);
+    return withHome(slug, [{ label: "Invoices" }]);
   }
 
   if (pathname === followUpsPath || pathname.startsWith(`${followUpsPath}/`)) {
-    return withDashboardHome(slug, [{ label: "Follow-ups" }]);
+    return withHome(slug, [{ label: "Follow-ups" }]);
   }
 
   if (pathname === `${quotesPath}/new`) {
-    return withDashboardHome(slug, [
+    return withHome(slug, [
       {
         label: "Quotes",
         href: quotesPath,
@@ -342,7 +342,7 @@ export function getDashboardBreadcrumbs(pathname: string): DashboardBreadcrumbIt
   if (pathname.startsWith(`${quotesPath}/`)) {
     const quoteId = pathname.slice(`${quotesPath}/`.length).split("/")[0];
 
-    return withDashboardHome(slug, [
+    return withHome(slug, [
       {
         label: "Quotes",
         href: quotesPath,
@@ -356,13 +356,13 @@ export function getDashboardBreadcrumbs(pathname: string): DashboardBreadcrumbIt
   }
 
   if (pathname === servicesPath) {
-    return withDashboardHome(slug, [{ label: "Services" }]);
+    return withHome(slug, [{ label: "Services" }]);
   }
 
   if (pathname.startsWith(`${servicesPath}/`)) {
     const serviceSlug = pathname.slice(`${servicesPath}/`.length).split("/")[0];
 
-    return withDashboardHome(slug, [
+    return withHome(slug, [
       {
         label: "Services",
         href: servicesPath,
@@ -374,19 +374,19 @@ export function getDashboardBreadcrumbs(pathname: string): DashboardBreadcrumbIt
   }
 
   if (pathname === membersPath || pathname.startsWith(`${membersPath}/`)) {
-    return withDashboardHome(slug, [{ label: "Members" }]);
+    return withHome(slug, [{ label: "Members" }]);
   }
 
   if (pathname === notificationsPath || pathname.startsWith(`${notificationsPath}/`)) {
-    return withDashboardHome(slug, [{ label: "Notifications" }]);
+    return withHome(slug, [{ label: "Notifications" }]);
   }
 
   if (pathname === productsPath || pathname.startsWith(`${productsPath}/`)) {
-    return withDashboardHome(slug, [{ label: "Products" }]);
+    return withHome(slug, [{ label: "Products" }]);
   }
 
   if (pathname === settingsPath) {
-    return withDashboardHome(slug, [{ label: "Settings" }]);
+    return withHome(slug, [{ label: "Settings" }]);
   }
 
   if (pathname.startsWith(`${settingsPath}/`)) {
@@ -404,7 +404,7 @@ export function getDashboardBreadcrumbs(pathname: string): DashboardBreadcrumbIt
     const sectionLabel = sectionLabels[section] ?? formatBreadcrumbLabel(section);
 
     if (section === "inquiry" && segments[1]) {
-      return withDashboardHome(slug, [
+      return withHome(slug, [
         {
           label: "Services",
           href: servicesPath,
@@ -415,7 +415,7 @@ export function getDashboardBreadcrumbs(pathname: string): DashboardBreadcrumbIt
       ]);
     }
 
-    return withDashboardHome(slug, [
+    return withHome(slug, [
       {
         label: "Settings",
         href: getBusinessSettingsPath(slug, "general"),

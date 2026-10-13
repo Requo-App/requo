@@ -14,9 +14,7 @@
 import "server-only";
 
 import { stepCountIs, streamText } from "ai";
-import { CHAT_MAX_ATTEMPTS, correctTokenUsage, selectModels } from "@/lib/ai/capacity-selector";
-import type { FallbackAttemptTrailEntry } from "@/lib/ai/fallback-model";
-import { createFallbackLanguageModel } from "@/lib/ai/fallback-model";
+import { resolveChatFallbackModel } from "@/lib/ai/chat-fallback";
 import {
   CHAT_TOKEN_BUDGETS,
   compactMessages,
@@ -301,46 +299,11 @@ export async function runOwnerAssistant({
 
   // Owner Assistant: most generous tool-capable allowance first (Groq's 8K
   // TPM sits late — one turn can consume a whole Groq minute).
-  const selectedModels = await selectModels({
+  const chatModel = await resolveChatFallbackModel({
     profile: "assistant_chat",
     estimatedTokens,
   });
-
-  if (selectedModels.length === 0) {
-    throw new Error("No suitable AI model available");
-  }
-
-  // The model that actually serves the final step. Updated by the fallback
-  // wrapper per step (streamText calls doStream once per step), and read in
-  // onFinish so persistence and logging attribute the serving model — not the
-  // first candidate that may never have been used.
-  const firstId = selectedModels[0];
-  const firstColon = firstId.indexOf(":");
-  let servingModelId = firstId;
-  let servingProvider =
-    firstColon >= 0 ? firstId.slice(0, firstColon) : firstId;
-  let servingModel =
-    firstColon >= 0 ? firstId.slice(firstColon + 1) : firstId;
-  const attemptTrail: FallbackAttemptTrailEntry[] = [];
-
-  const fallbackModel = createFallbackLanguageModel({
-    modelIds: selectedModels,
-    maxAttempts: CHAT_MAX_ATTEMPTS,
-    estimatedTokens,
-    onModelSelected: (selected) => {
-      servingModelId = selected.modelId;
-      servingProvider = selected.provider;
-      servingModel = selected.model;
-    },
-    onAttemptFailed: (selected, error) => {
-      attemptTrail.push({
-        modelId: selected.modelId,
-        reason:
-          error instanceof Error ? error.message.slice(0, 200) : "unknown error",
-      });
-    },
-  });
-  void servingModelId;
+  const { fallbackModel, serving, attemptTrail } = chatModel;
 
   const startedAt = Date.now();
 
@@ -393,8 +356,8 @@ export async function runOwnerAssistant({
             content: capped,
             toolName: toolResult.toolName,
             toolCallId: toolResult.toolCallId,
-            provider: servingProvider,
-            model: servingModel,
+            provider: serving.provider,
+            model: serving.model,
           }).catch((err) => {
             console.error(
               "[owner-assistant] Failed to persist tool result:",
@@ -441,13 +404,10 @@ export async function runOwnerAssistant({
         const inputTokens = usage?.inputTokens ?? 0;
         const outputTokens = usage?.outputTokens ?? 0;
 
-        void correctTokenUsage(servingModelId, estimatedTokens, {
-          inputTokens,
-          outputTokens,
-        }).catch(() => {});
+        void chatModel.correctUsage(inputTokens, outputTokens);
         if (attemptTrail.length > 0) {
           console.warn(
-            `[owner-assistant] Attempt trail for session ${session.sessionId}: ${attemptTrail.map((t) => `${t.modelId} (${t.reason})`).join("; ")} — served by ${servingModelId}`,
+            `[owner-assistant] Attempt trail for session ${session.sessionId}: ${attemptTrail.map((t) => `${t.modelId} (${t.reason})`).join("; ")} — served by ${serving.modelId}`,
           );
         }
 
@@ -487,14 +447,14 @@ export async function runOwnerAssistant({
             userId,
             businessId,
             taskType: "assistant_message",
-            model: servingModel,
-            provider: servingProvider,
+            model: serving.model,
+            provider: serving.provider,
             inputTokens,
             outputTokens,
             cacheHit: false,
             latencyMs: Date.now() - startedAt,
             status: "error",
-            errorMessage: `empty_completion finishReason=${finishReason ?? "unknown"} serving=${servingModelId} trail=${attemptTrail.map((t) => t.modelId).join(",")}`,
+            errorMessage: `empty_completion finishReason=${finishReason ?? "unknown"} serving=${serving.modelId} trail=${attemptTrail.map((t) => t.modelId).join(",")}`,
           }).catch((err) => {
             console.warn("[owner-assistant] Failed to log invocation:", err);
           });
@@ -506,8 +466,8 @@ export async function runOwnerAssistant({
           sessionId: session.sessionId,
           role: "assistant",
           content: filtered.output,
-          provider: servingProvider,
-          model: servingModel,
+          provider: serving.provider,
+          model: serving.model,
         }).catch((err) => {
           console.error("[owner-assistant] Failed to persist message:", err);
         });
@@ -532,8 +492,8 @@ export async function runOwnerAssistant({
           userId,
           businessId,
           taskType: "assistant_message",
-          model: servingModel,
-          provider: servingProvider,
+          model: serving.model,
+          provider: serving.provider,
           inputTokens,
           outputTokens,
           cacheHit: false,
@@ -549,8 +509,8 @@ export async function runOwnerAssistant({
           userId,
           businessId,
           taskType: "assistant_message",
-          model: servingModel,
-          provider: servingProvider,
+          model: serving.model,
+          provider: serving.provider,
           inputTokens: 0,
           outputTokens: 0,
           cacheHit: false,

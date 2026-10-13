@@ -1,11 +1,20 @@
+import "server-only";
+
+import { updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { dashboardPath } from "@/features/businesses/routes";
+import {
+  homePath,
+  getBusinessSlugFromPathname,
+} from "@/features/businesses/routes";
+import {
+  buildCheckoutSuccessPath,
+  getSafeAuthRedirectPath,
+} from "@/lib/auth/redirects";
 import { requireSession } from "@/lib/auth/session";
 import { syncSubscriptionFromPolar } from "@/lib/billing/subscription-service";
-import { requireBusinessContextForUser } from "@/lib/db/business-access";
 import { getBusinessBillingCacheTags } from "@/lib/cache/shell-tags";
-import { updateTag } from "next/cache";
+import { requireBusinessContextForUser } from "@/lib/db/business-access";
 
 type SearchParamsRecord = Record<string, string | string[] | undefined>;
 
@@ -21,29 +30,6 @@ function readParam(value: string | string[] | undefined): string | null {
 }
 
 /**
- * Same-origin allowlist for the post-checkout return URL.
- */
-function resolveReturnTo(value: string | null): string {
-  if (!value) return dashboardPath;
-
-  const trimmed = value.trim();
-
-  if (!trimmed.startsWith("/")) return dashboardPath;
-  if (trimmed.startsWith("//")) return dashboardPath;
-  if (trimmed.startsWith("/api/")) return dashboardPath;
-
-  return trimmed;
-}
-
-/**
- * Extracts the business slug from a returnTo path like `/business-slug/settings/billing`.
- */
-function extractBusinessSlug(returnTo: string): string | null {
-  const match = returnTo.match(/^\/([^/]+)/);
-  return match?.[1] ?? null;
-}
-
-/**
  * Polar hosted-checkout return page.
  *
  * Polar redirects the user here after completing checkout. To avoid
@@ -56,11 +42,17 @@ export default async function AccountBillingCheckoutPage({
   const session = await requireSession();
 
   const resolvedSearchParams = await searchParams;
-  const returnTo = resolveReturnTo(readParam(resolvedSearchParams.returnTo));
+  const returnTo = getSafeAuthRedirectPath(
+    readParam(resolvedSearchParams.returnTo),
+    homePath,
+  );
 
   // Attempt to sync the subscription from Polar eagerly so the plan
   // is already up-to-date when the user lands on the dashboard.
-  const businessSlug = extractBusinessSlug(returnTo);
+  const businessSlug =
+    returnTo === homePath
+      ? undefined
+      : getBusinessSlugFromPathname(returnTo);
   let activePlan: string | null = null;
   try {
     const businessContext = await requireBusinessContextForUser(
@@ -81,11 +73,5 @@ export default async function AccountBillingCheckoutPage({
     // Best-effort — the webhook will handle it if this fails.
   }
 
-  const url = new URL(returnTo, "http://placeholder.local");
-  url.searchParams.set("upgrade", "success");
-  if (activePlan && activePlan !== "free") {
-    url.searchParams.set("plan", activePlan);
-  }
-
-  redirect(`${url.pathname}${url.search}`);
+  redirect(buildCheckoutSuccessPath(returnTo, activePlan));
 }

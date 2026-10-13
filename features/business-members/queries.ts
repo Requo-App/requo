@@ -7,6 +7,7 @@ import type {
   BusinessInviteLinkView,
   BusinessMembersSettingsView,
 } from "@/features/business-members/types";
+import type { BusinessMemberRole } from "@/lib/business-members";
 import {
   getBusinessMembersCacheTags,
   settingsBusinessCacheLife,
@@ -164,7 +165,7 @@ export type BusinessInviteLinkForToken = {
   businessId: string;
   businessName: string;
   businessSlug: string;
-  role: string;
+  role: BusinessMemberRole;
 };
 
 export async function getBusinessInviteLinkForToken(

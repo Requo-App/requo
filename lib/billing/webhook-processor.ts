@@ -32,6 +32,12 @@ import type { WebhookProcessResult } from "@/lib/billing/types";
  * New rows are inserted with `status: "processing"`. Callers should
  * transition the row to `"processed"`, `"failed"`, or `"ignored"` via
  * the corresponding helpers below once the event is handled.
+ *
+ * The insert is atomic (`onConflictDoNothing` on the provider-event unique
+ * index): concurrent duplicate deliveries race to insert, exactly one wins,
+ * and losers resolve to the winner via the follow-up select instead of
+ * surfacing a uniqueness violation. The winner's payload and status are
+ * never overwritten by a duplicate.
  */
 export async function recordWebhookEvent(params: {
   providerEventId: string;
@@ -41,32 +47,42 @@ export async function recordWebhookEvent(params: {
   businessId?: string | null;
   payload: unknown;
 }): Promise<{ isNew: boolean; eventId: string }> {
-  // Check for existing event
+  const eventId = newEntityId();
+
+  const [inserted] = await db
+    .insert(billingEvents)
+    .values({
+      id: eventId,
+      providerEventId: params.providerEventId,
+      provider: params.provider,
+      eventType: params.eventType,
+      userId: params.userId ?? null,
+      businessId: params.businessId ?? null,
+      payload: params.payload as Record<string, unknown>,
+      status: "processing",
+      createdAt: new Date(),
+    })
+    .onConflictDoNothing({ target: billingEvents.providerEventId })
+    .returning({ id: billingEvents.id });
+
+  if (inserted) {
+    return { isNew: true, eventId: inserted.id };
+  }
+
+  // Conflict: this event was already recorded (possibly by a concurrent
+  // delivery that won the race). Resolve to the existing row without
+  // touching its payload or status.
   const [existing] = await db
     .select({ id: billingEvents.id })
     .from(billingEvents)
     .where(eq(billingEvents.providerEventId, params.providerEventId))
     .limit(1);
 
-  if (existing) {
-    return { isNew: false, eventId: existing.id };
+  if (!existing) {
+    throw new Error("Billing event record could not be created.");
   }
 
-  const eventId = newEntityId();
-
-  await db.insert(billingEvents).values({
-    id: eventId,
-    providerEventId: params.providerEventId,
-    provider: params.provider,
-    eventType: params.eventType,
-    userId: params.userId ?? null,
-    businessId: params.businessId ?? null,
-    payload: params.payload as Record<string, unknown>,
-    status: "processing",
-    createdAt: new Date(),
-  });
-
-  return { isNew: true, eventId };
+  return { isNew: false, eventId: existing.id };
 }
 
 /**
@@ -144,22 +160,6 @@ export async function recordPaymentAttempt(
   });
 
   return id;
-}
-
-/**
- * Updates a payment attempt status.
- */
-export async function updatePaymentAttemptStatus(
-  providerPaymentId: string,
-  status: "pending" | "succeeded" | "failed" | "expired",
-): Promise<boolean> {
-  const updated = await db
-    .update(paymentAttempts)
-    .set({ status })
-    .where(eq(paymentAttempts.providerPaymentId, providerPaymentId))
-    .returning({ id: paymentAttempts.id });
-
-  return updated.length > 0;
 }
 
 /**

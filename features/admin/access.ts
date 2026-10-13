@@ -27,6 +27,7 @@ export type AdminContext = {
 
 type SessionAdminCandidate = Pick<AuthUser, "id" | "email"> & {
   role?: string | null;
+  banned?: boolean | null;
 };
 
 /**
@@ -41,12 +42,13 @@ type SessionAdminCandidate = Pick<AuthUser, "id" | "email"> & {
  *
  * Two properties to keep in mind before describing this as authoritative:
  *
- * - The `role === "admin"` fast path returns **without reading the database**,
- *   and the session it reads comes from the cookie cache while that cache is
- *   warm. A demotion or ban is therefore not observed until the cache lapses
- *   (bounded by `session.cookieCache.maxAge`, 300s in this app). That is a
- *   deliberate trade for the common case, not an oversight — but it means this
- *   gate is DB-checked, not DB-authoritative.
+ * - A ban is refused from the session itself, before the `role === "admin"`
+ *   fast path: precedence mirrors `isOptimisticAdminUser` (ban wins, then
+ *   role, then the database, then the allowlist) so the two layers cannot
+ *   disagree. A ban that lands after the session was cached is still not
+ *   observed until the cache lapses (bounded by
+ *   `session.cookieCache.maxAge`, 300s in this app) — same residual as the
+ *   proxy gate, and the reason the cache policy itself is out of scope.
  * - The database read only happens on the non-`admin` branch.
  *
  * Memoized per request: the console shell streams the gate from several
@@ -56,6 +58,10 @@ type SessionAdminCandidate = Pick<AuthUser, "id" | "email"> & {
  */
 const isAdminSessionUser = cache(
   async (candidate: SessionAdminCandidate): Promise<boolean> => {
+  if (candidate.banned === true) {
+    return false;
+  }
+
   if (candidate.role === "admin") {
     return true;
   }

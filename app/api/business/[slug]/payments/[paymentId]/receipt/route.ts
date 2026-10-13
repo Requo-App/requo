@@ -1,12 +1,14 @@
 import { z } from "zod";
+import { NextResponse } from "next/server";
 
 import { getPaymentDetailForBusiness } from "@/features/invoices/queries";
 import { createPaymentReceiptPdf, getPaymentReceiptData, getPaymentReceiptFileName } from "@/features/invoices/receipt";
 import { getBusinessRequestContextForSlug } from "@/lib/db/business-access";
 import { buildContentDisposition } from "@/lib/files";
 
-const routeParamsSchema = z.object({
-  slug: z.string().trim().min(1).max(120),
+import { slugParamSchema } from "@/lib/api/params";
+
+const routeParamsSchema = slugParamSchema.extend({
   paymentId: z.string().trim().min(1).max(128),
 });
 
@@ -26,13 +28,13 @@ export async function GET(
   const parsedParams = routeParamsSchema.safeParse(await context.params);
 
   if (!parsedParams.success) {
-    return Response.json({ error: "Not found." }, { status: 404 });
+    return NextResponse.json({ error: "Not found." }, { status: 404 });
   }
 
   const requestContext = await getBusinessRequestContextForSlug(parsedParams.data.slug);
 
   if (!requestContext) {
-    return Response.json({ error: "Not found." }, { status: 404 });
+    return NextResponse.json({ error: "Not found." }, { status: 404 });
   }
 
   const payment = await getPaymentDetailForBusiness({
@@ -41,7 +43,7 @@ export async function GET(
   });
 
   if (!payment) {
-    return Response.json({ error: "Not found." }, { status: 404 });
+    return NextResponse.json({ error: "Not found." }, { status: 404 });
   }
 
   const documentData = getPaymentReceiptData({

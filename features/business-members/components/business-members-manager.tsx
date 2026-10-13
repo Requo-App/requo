@@ -78,6 +78,7 @@ import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
   businessMemberRoleMeta,
+  type BusinessMemberAssignableRole,
   type BusinessMemberRole,
 } from "@/lib/business-members";
 import type { BusinessPlan } from "@/lib/plans/plans";
@@ -97,11 +98,16 @@ type MembersManagerProps = {
 };
 
 type AssignableRole = BusinessMemberRole;
+type InviteAssignableRole = BusinessMemberAssignableRole;
 
 const initialState: BusinessMemberInviteActionState = {};
 const assignableRoles: readonly AssignableRole[] = ["owner", "manager", "staff"];
+const inviteAssignableRoles: readonly InviteAssignableRole[] = [
+  "manager",
+  "staff",
+];
 
-const roleOptions: ComboboxOption[] = assignableRoles.map((value) => ({
+const roleOptions: ComboboxOption[] = inviteAssignableRoles.map((value) => ({
   label: businessMemberRoleMeta[value].label,
   searchText: `${businessMemberRoleMeta[value].label} ${businessMemberRoleMeta[value].description}`,
   value,
@@ -121,7 +127,7 @@ export function BusinessMembersManager({
 }: MembersManagerProps) {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState<AssignableRole>("staff");
+  const [role, setRole] = useState<InviteAssignableRole>("staff");
   const [search, setSearch] = useState("");
   const [accessMember, setAccessMember] = useState<BusinessMemberView | null>(
     null,
@@ -396,10 +402,10 @@ export function InviteMemberDialog({
   isPending: boolean;
   onEmailChange: (value: string) => void;
   onOpenChange: (open: boolean) => void;
-  onRoleChange: (role: AssignableRole) => void;
+  onRoleChange: (role: InviteAssignableRole) => void;
   onSubmit: ReturnType<typeof useActionStateWithSonner<BusinessMemberInviteActionState>>[1];
   open: boolean;
-  role: AssignableRole;
+  role: InviteAssignableRole;
   inviteLinkUrl?: string | null;
   isInviteLinkPending?: boolean;
   onCreateInviteLink?: ReturnType<typeof useActionStateWithSonner<BusinessMemberInviteActionState>>[1];
@@ -539,12 +545,12 @@ export function InviteMemberDialog({
                     disabled={isPending || readOnly}
                     id="member-invite-role"
                     onValueChange={(value) => {
-                      onRoleChange(value as AssignableRole);
+                      onRoleChange(value as InviteAssignableRole);
                     }}
                     options={roleOptions}
                     placeholder="Default role"
                     renderOption={(option) => {
-                      const optionRole = option.value as AssignableRole;
+                      const optionRole = option.value as InviteAssignableRole;
 
                       return (
                         <div className="flex flex-col gap-1">

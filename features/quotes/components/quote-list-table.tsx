@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { MotionState } from "@/hooks/use-animated-list";
+import type { ItemRefCallback, MotionState } from "@/hooks/use-animated-list";
 
 import { Checkbox } from "@/components/ui/checkbox";
 import { TruncatedTextWithTooltip } from "@/components/shared/truncated-text-with-tooltip";
@@ -32,6 +32,7 @@ type QuoteListTableProps = {
   allOnPageSelected?: boolean;
   onSelectAllOnPage?: () => void;
   getMotionState?: (id: string) => MotionState;
+  getItemRef?: ItemRefCallback;
 };
 
 export function QuoteListTable({
@@ -43,6 +44,7 @@ export function QuoteListTable({
   allOnPageSelected,
   onSelectAllOnPage,
   getMotionState,
+  getItemRef,
 }: QuoteListTableProps) {
   return (
     <div className="hidden overflow-x-auto no-scrollbar xl:block">
@@ -74,7 +76,7 @@ export function QuoteListTable({
             const disabled = !checked && (isAtLimit ?? false);
 
             return (
-              <TableRow className="motion-list-item group/row" data-motion-state={getMotionState?.(quote.id)} key={quote.id}>
+              <TableRow className="motion-list-item group/row" data-motion-state={getMotionState?.(quote.id)} key={quote.id} ref={getItemRef?.(quote.id)}>
                 <TableCell className="w-[3rem]">
                   <Checkbox
                     aria-label={`Select quote ${quote.quoteNumber}`}

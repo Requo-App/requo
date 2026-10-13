@@ -8,10 +8,11 @@ import {
 } from "@/components/shared/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
+  AdminAiCapacityFallback,
   AdminAiCapacitySection,
   AdminAiProviders,
+  AdminAiProvidersFallback,
 } from "@/features/admin/components/ai/admin-ai-providers";
 import { withAdminViewLog } from "@/features/admin/page-shell";
 import { createNoIndexMetadata } from "@/lib/seo/site";
@@ -48,7 +49,7 @@ export default function AdminAiProvidersPage({
         title="AI providers"
         description="Configured providers, routing, and live capacity."
       />
-      <Suspense fallback={<ProvidersFallback />}>
+      <Suspense fallback={<AdminAiProvidersFallback />}>
         <AdminAiProvidersRegion searchParams={searchParams} />
       </Suspense>
     </DashboardPage>
@@ -67,7 +68,7 @@ async function AdminAiProvidersRegion({
       <>
         <AdminAiProviders />
         {showCapacity ? (
-          <Suspense fallback={<CapacityFallback />}>
+          <Suspense fallback={<AdminAiCapacityFallback />}>
             <AdminAiCapacitySection />
           </Suspense>
         ) : (
@@ -84,31 +85,5 @@ async function AdminAiProvidersRegion({
         )}
       </>
     ),
-  );
-}
-
-function ProvidersFallback() {
-  return (
-    <div className="section-panel space-y-4">
-      <Skeleton className="h-5 w-40 rounded-md" />
-      <div className="flex flex-col gap-2">
-        {Array.from({ length: 6 }).map((_, index) => (
-          <Skeleton className="h-9 w-full rounded-lg" key={index} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function CapacityFallback() {
-  return (
-    <div className="section-panel space-y-4">
-      <Skeleton className="h-5 w-40 rounded-md" />
-      <div className="flex flex-col gap-2">
-        {Array.from({ length: 6 }).map((_, index) => (
-          <Skeleton className="h-9 w-full rounded-lg" key={index} />
-        ))}
-      </div>
-    </div>
   );
 }

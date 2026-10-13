@@ -7,16 +7,6 @@ import type { AiQualityTier } from "./types";
 import { cacheLayer } from "@/lib/ai/cache-layer";
 
 // ---------------------------------------------------------------------------
-// Business-scoped task types — these tasks produce identical output regardless
-// of which user triggers them, so the cache key excludes userId to allow
-// cross-user cache sharing within the same business.
-// ---------------------------------------------------------------------------
-
-export const BUSINESS_SCOPED_TASKS: ReadonlySet<AiTaskType> = new Set([]);
-
-/** Sentinel userId value used in cache keys for business-scoped tasks. */
-const BUSINESS_SCOPE_USER_SENTINEL = "__business__" as const;
-
 // ---------------------------------------------------------------------------
 // AI Cache — deterministic composite-key caching with TTL enforcement
 //
@@ -64,7 +54,6 @@ export type CachedAiOutput = {
 // ---------------------------------------------------------------------------
 
 const AI_CACHE_PREFIX = "ai:";
-const AI_BIZ_CACHE_PREFIX = "ai:biz:";
 
 // ---------------------------------------------------------------------------
 // Key generation
@@ -74,22 +63,11 @@ const AI_BIZ_CACHE_PREFIX = "ai:biz:";
  * Generates a deterministic cache key from the given components.
  *
  * The algorithm:
- * 1. For business-scoped tasks, replace userId with a constant sentinel so
- *    different users of the same business share the cache entry.
- * 2. Replace null values in sourceDataVersions with the stable null sentinel.
- * 3. Sort all top-level keys and nested object keys for determinism.
- * 4. JSON-serialize the sorted structure.
- * 5. Compute SHA-256 hash → hex string.
+ * 1. Replace null values in sourceDataVersions with the stable null sentinel.
+ * 2. Sort source version keys for deterministic serialization.
+ * 3. Compute SHA-256 hash → hex string.
  */
 export function generateCacheKey(components: CacheKeyComponents): string {
-  // Determine if this is a business-scoped (non-personalized) task
-  const isBusinessScoped = BUSINESS_SCOPED_TASKS.has(components.taskType);
-
-  // For business-scoped tasks, replace userId with sentinel to share across users
-  const effectiveUserId = isBusinessScoped
-    ? BUSINESS_SCOPE_USER_SENTINEL
-    : components.userId;
-
   // Normalize sourceDataVersions: replace null with sentinel, sort keys
   const normalizedVersions: Record<string, string> = {};
   const sortedVersionKeys = Object.keys(components.sourceDataVersions).sort();
@@ -106,7 +84,7 @@ export function generateCacheKey(components: CacheKeyComponents): string {
     promptVersion: components.promptVersion,
     sourceDataVersions: normalizedVersions,
     taskType: components.taskType,
-    userId: effectiveUserId,
+    userId: components.userId,
   };
 
   const serialized = JSON.stringify(sortedComponents);
@@ -117,13 +95,6 @@ export function generateCacheKey(components: CacheKeyComponents): string {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-/** Returns the appropriate cache key prefix based on task type scope. */
-function getCachePrefix(taskType: AiTaskType): string {
-  return BUSINESS_SCOPED_TASKS.has(taskType)
-    ? AI_BIZ_CACHE_PREFIX
-    : AI_CACHE_PREFIX;
-}
 
 // ---------------------------------------------------------------------------
 // Public interface
@@ -141,8 +112,7 @@ export async function getCachedOutput(
   key: CacheKeyComponents,
 ): Promise<CachedAiOutput | null> {
   try {
-    const prefix = getCachePrefix(key.taskType);
-    const cacheKey = `${prefix}${generateCacheKey(key)}`;
+    const cacheKey = `${AI_CACHE_PREFIX}${generateCacheKey(key)}`;
     return await cacheLayer.get<CachedAiOutput>(cacheKey);
   } catch (error) {
     console.warn(
@@ -166,8 +136,7 @@ export async function setCachedOutput(
   ttl: number,
 ): Promise<void> {
   try {
-    const prefix = getCachePrefix(key.taskType);
-    const cacheKey = `${prefix}${generateCacheKey(key)}`;
+    const cacheKey = `${AI_CACHE_PREFIX}${generateCacheKey(key)}`;
     await cacheLayer.set<CachedAiOutput>(cacheKey, output, ttl);
   } catch (error) {
     console.warn(
@@ -175,18 +144,4 @@ export async function setCachedOutput(
       error instanceof Error ? error.message : error,
     );
   }
-}
-
-// ---------------------------------------------------------------------------
-// Testing utilities (not exported from barrel)
-// ---------------------------------------------------------------------------
-
-/**
- * Clears a specific cache entry. Used for testing only.
- * @internal
- */
-export async function _clearCacheEntry(key: CacheKeyComponents): Promise<void> {
-  const prefix = getCachePrefix(key.taskType);
-  const cacheKey = `${prefix}${generateCacheKey(key)}`;
-  await cacheLayer.delete(cacheKey);
 }

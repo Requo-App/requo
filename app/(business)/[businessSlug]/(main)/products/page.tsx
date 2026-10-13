@@ -22,7 +22,7 @@ import { getBusinessSettingsForBusiness } from "@/features/settings/queries";
 import { hasFeatureAccess } from "@/lib/plans";
 import { getUsageLimit } from "@/lib/plans/usage-limits";
 import { createNoIndexMetadata } from "@/lib/seo/site";
-import { getBusinessOperationalPageContext } from "@/app/(business)/[businessSlug]/settings/_lib/page-context";
+import { getBusinessOperationalPageContext } from "../../settings/_lib/page-context";
 
 export const metadata: Metadata = createNoIndexMetadata({
   title: "Products",

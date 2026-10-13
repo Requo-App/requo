@@ -9,10 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AdvancedAnalyticsView } from "@/features/analytics/components/advanced-analytics-view";
 import { AnalyticsTabsShell } from "@/features/analytics/components/analytics-tabs-shell";
 import { BasicAnalyticsView } from "@/features/analytics/components/basic-analytics-view";
-import {
-  DateRangeSelector,
-  type DateRangePreset,
-} from "@/features/analytics/components/date-range-selector";
+import { DateRangeSelector } from "@/features/analytics/components/date-range-selector";
 import { LastUpdatedTimestamp } from "@/features/analytics/components/last-updated-timestamp";
 import { generateAnalyticsSummary } from "@/features/analytics/ai-summary";
 import {
@@ -24,9 +21,9 @@ import {
   getRevenueForecast,
   getTopSources,
 } from "@/features/analytics/queries";
-import { formatMoney, formatRelativeDelta } from "@/features/analytics/utils";
+import { formatMoney, formatRelativeDelta, resolveDateRangeFromParams } from "@/features/analytics/utils";
 import { getInvoiceOverviewForBusiness } from "@/features/invoices/queries";
-import { getBusinessDashboardPath } from "@/features/businesses/routes";
+import { getBusinessHomePath } from "@/features/businesses/routes";
 import { getAppShellContext } from "@/lib/app-shell/context";
 import { canViewBusinessAnalytics } from "@/lib/business-members";
 import { hasFeatureAccess } from "@/lib/plans";
@@ -42,73 +39,6 @@ type AnalyticsPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-/** Map preset string to number of days. */
-const PRESET_DAYS: Record<string, number> = {
-  "7d": 7,
-  "30d": 30,
-  "90d": 90,
-};
-
-/**
- * Derive the date range (since/until), active preset, and period description
- * from the page's URL searchParams.
- *
- * URL format:
- *  - ?range=7d|30d|90d  → preset
- *  - ?since=YYYY-MM-DD&until=YYYY-MM-DD  → custom range
- *  - (no params)  → defaults to 30 days
- */
-function resolveDateRangeFromParams(raw: Record<string, string | string[] | undefined>): {
-  since: Date;
-  until: Date;
-  preset: DateRangePreset;
-  customSince?: string;
-  customUntil?: string;
-  periodDescription: string;
-} {
-  const now = new Date();
-  const rangeParam = typeof raw.range === "string" ? raw.range : undefined;
-  const sinceParam = typeof raw.since === "string" ? raw.since : undefined;
-  const untilParam = typeof raw.until === "string" ? raw.until : undefined;
-
-  // Custom range
-  if (sinceParam && untilParam) {
-    const since = new Date(sinceParam);
-    const until = new Date(untilParam);
-
-    // Validate; fall back to 30d if invalid
-    if (!isNaN(since.getTime()) && !isNaN(until.getTime()) && since < until) {
-      // Format dates for description
-      const fmt = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" });
-      const periodDescription = `${fmt.format(since)} – ${fmt.format(until)}`;
-      return {
-        since,
-        until,
-        preset: "custom",
-        customSince: sinceParam,
-        customUntil: untilParam,
-        periodDescription,
-      };
-    }
-  }
-
-  // Preset range
-  const days = (rangeParam && PRESET_DAYS[rangeParam]) || 30;
-  const preset: DateRangePreset = rangeParam && rangeParam in PRESET_DAYS
-    ? (rangeParam as DateRangePreset)
-    : "30d";
-
-  const since = new Date(now);
-  since.setDate(since.getDate() - days);
-  since.setHours(0, 0, 0, 0);
-
-  const until = new Date(now);
-  until.setHours(23, 59, 59, 999);
-
-  const periodDescription = `How your inquiry-to-quote pipeline is performing over the last ${days} days.`;
-
-  return { since, until, preset, periodDescription };
-}
 
 /**
  * Analytics page — returns the structural shell synchronously.
@@ -180,7 +110,7 @@ async function AnalyticsTabsRegion({ params, searchParams }: AnalyticsPageProps)
   const { user, businessContext } = await getAppShellContext(businessSlug);
 
   if (!canViewBusinessAnalytics(businessContext.role)) {
-    redirect(getBusinessDashboardPath(businessContext.business.slug));
+    redirect(getBusinessHomePath(businessContext.business.slug));
   }
 
   const { business } = businessContext;
@@ -402,7 +332,7 @@ async function AdvancedAnalyticsRegion({
 // Skeletons and error fallback (reuse existing visual language)
 // ---------------------------------------------------------------------------
 
-function AnalyticsHeaderSkeleton() {
+export function AnalyticsHeaderSkeleton() {
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div className="flex flex-col gap-2">
@@ -417,7 +347,7 @@ function AnalyticsHeaderSkeleton() {
   );
 }
 
-function AnalyticsTabsSkeleton() {
+export function AnalyticsTabsSkeleton() {
   return (
     <div className="flex flex-col gap-6">
       <div className="rounded-lg bg-surface-muted p-1">
@@ -428,7 +358,7 @@ function AnalyticsTabsSkeleton() {
   );
 }
 
-function CoreAnalyticsSkeleton() {
+export function CoreAnalyticsSkeleton() {
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 sm:gap-5">
       <div className="flex flex-col gap-2">
@@ -461,7 +391,7 @@ function CoreAnalyticsSkeleton() {
   );
 }
 
-function AdvancedAnalyticsSkeleton() {
+export function AdvancedAnalyticsSkeleton() {
   return (
     <div className="flex flex-col gap-4 sm:gap-5">
       <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
@@ -485,9 +415,7 @@ function AnalyticsErrorFallback() {
   );
 }
 
-export async function generateMetadata(): Promise<Metadata> {
-  return createNoIndexMetadata({
-    title: "Analytics",
-    description: "Pipeline performance analytics for this business.",
-  });
-}
+export const metadata: Metadata = createNoIndexMetadata({
+  title: "Analytics",
+  description: "Pipeline performance analytics for this business.",
+});

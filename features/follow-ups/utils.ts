@@ -3,10 +3,19 @@ import { newEntityId } from "@/lib/ids";
 import type {
   FollowUpChannel,
   FollowUpDueBucket,
+  FollowUpDueFilterValue,
+  FollowUpListFilters,
   FollowUpRecurrence,
   FollowUpSendMode,
+  FollowUpSortValue,
   FollowUpStatus,
+  FollowUpStatusFilterValue,
   FollowUpTerminationCondition,
+} from "@/features/follow-ups/types";
+import {
+  followUpDueFilterValues,
+  followUpSortValues,
+  followUpStatusFilterValues,
 } from "@/features/follow-ups/types";
 
 export const followUpStatusLabels: Record<FollowUpStatus, string> = {
@@ -522,4 +531,52 @@ export function compareQuoteFirst(
   }
 
   return left.dueAt.getTime() - right.dueAt.getTime();
+}
+
+/** Nullable whole-unit money for quote-linked follow-up rows. */
+export function formatQuoteAmount(
+  totalInCents: number | null | undefined,
+  currency: string | null,
+): string | null {
+  if (totalInCents === null || totalInCents === undefined) {
+    return null;
+  }
+
+  try {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: currency || "USD",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(totalInCents / 100);
+  } catch {
+    return `${(totalInCents / 100).toFixed(0)}`;
+  }
+}
+
+/**
+ * Parse the follow-up list view's URL searchParams. Defaults to the
+ * unfiltered list ("all" everywhere, page 1). Single home for the parser
+ * previously inline in the follow-ups page.
+ */
+export function parseFollowUpListFilters(
+  searchParams: Record<string, string | string[] | undefined>,
+): FollowUpListFilters {
+  const rawStatus = typeof searchParams.status === "string" ? searchParams.status : "all";
+  const rawDue = typeof searchParams.due === "string" ? searchParams.due : "all";
+  const rawSort = typeof searchParams.sort === "string" ? searchParams.sort : "due_asc";
+  const rawQ = typeof searchParams.q === "string" ? searchParams.q : "";
+  const rawPage = typeof searchParams.page === "string" ? Number(searchParams.page) : 1;
+
+  const status: FollowUpStatusFilterValue = (followUpStatusFilterValues as readonly string[]).includes(rawStatus)
+    ? (rawStatus as FollowUpStatusFilterValue)
+    : "all";
+  const due: FollowUpDueFilterValue = (followUpDueFilterValues as readonly string[]).includes(rawDue)
+    ? (rawDue as FollowUpDueFilterValue)
+    : "all";
+  const sort: FollowUpSortValue = (followUpSortValues as readonly string[]).includes(rawSort)
+    ? (rawSort as FollowUpSortValue)
+    : "due_asc";
+
+  return { status, due, sort, q: rawQ, page: Math.max(1, rawPage) };
 }

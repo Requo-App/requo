@@ -13,7 +13,7 @@ import {
   getMonthlyAutoFollowUpSendCount,
 } from "@/lib/plans/usage";
 import { getUsageLimit } from "@/lib/plans/usage-limits";
-import { sendQuoteAutoFollowUpEmail } from "@/lib/resend/client";
+import { sendQuoteAutoFollowUpEmail } from "@/lib/email/transactional";
 import { newEntityId } from "@/lib/ids";
 
 export type AutoFollowUpsSummary = {

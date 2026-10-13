@@ -1,8 +1,6 @@
 import { DataListPagination } from "@/components/shared/data-list-pagination";
 import { AdminInvoicesFilters } from "@/features/admin/components/product/invoices/admin-invoices-filters";
 import { AdminInvoicesTable } from "@/features/admin/components/product/invoices/admin-invoices-table";
-import { AdminListContentFallback } from "@/features/admin/components/list/admin-list-content-fallback";
-import { AdminListControlsFallback } from "@/features/admin/components/list/admin-list-controls-fallback";
 import { ADMIN_INVOICES_PATH } from "@/features/admin/navigation";
 import { listAdminInvoices } from "@/features/admin/queries";
 import { adminInvoicesListFiltersSchema } from "@/features/admin/schemas";
@@ -58,5 +56,3 @@ export async function AdminInvoicesListContentSection({
     />
   );
 }
-
-export { AdminListControlsFallback, AdminListContentFallback };

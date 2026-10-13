@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { NextResponse } from "next/server";
 
 import {
   normalizeMobileSearchQuery,
@@ -6,18 +6,16 @@ import {
 } from "@/features/search/queries";
 import { getBusinessRequestContextForSlug } from "@/lib/db/business-access";
 
-const routeParamsSchema = z.object({
-  slug: z.string().trim().min(1).max(120),
-});
+import { slugParamSchema } from "@/lib/api/params";
 
 export async function GET(
   request: Request,
   context: { params: Promise<{ slug: string }> },
 ) {
-  const parsedParams = routeParamsSchema.safeParse(await context.params);
+  const parsedParams = slugParamSchema.safeParse(await context.params);
 
   if (!parsedParams.success) {
-    return Response.json({ error: "Not found." }, { status: 404 });
+    return NextResponse.json({ error: "Not found." }, { status: 404 });
   }
 
   const requestContext = await getBusinessRequestContextForSlug(
@@ -25,14 +23,14 @@ export async function GET(
   );
 
   if (!requestContext) {
-    return Response.json({ error: "Not found." }, { status: 404 });
+    return NextResponse.json({ error: "Not found." }, { status: 404 });
   }
 
   const rawQuery = new URL(request.url).searchParams.get("q") ?? "";
   const query = normalizeMobileSearchQuery(rawQuery);
 
   if (!query) {
-    return Response.json(
+    return NextResponse.json(
       { results: [] },
       { headers: { "cache-control": "private, no-store" } },
     );
@@ -44,7 +42,7 @@ export async function GET(
     query,
   });
 
-  return Response.json(
+  return NextResponse.json(
     { results },
     { headers: { "cache-control": "private, no-store" } },
   );

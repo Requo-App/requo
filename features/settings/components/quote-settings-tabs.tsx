@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { RiFileTextLine, RiPriceTag3Line } from "@remixicon/react";
 
-import { Tab, TabList, TabPanel, Tabs } from "@/components/base/tabs/tabs";
+import { Tab, TabList, TabPanel, Tabs } from "@/components/shared/tabs";
 import { useHashTab } from "@/hooks/use-hash-tab";
 
 const QUOTE_TAB_KEYS = ["quote", "templates"] as const;

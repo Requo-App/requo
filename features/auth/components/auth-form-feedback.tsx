@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { toast } from "@/components/base/notification/notify";
+import { toast } from "@/components/shared/notify";
 
 type AuthFormFeedbackProps = {
   error?: string;
@@ -20,7 +20,7 @@ export function AuthFormFeedback({
   const key = `${error ?? ""}|${success ?? ""}`;
 
   useEffect(() => {
-    if (!key || keyRef.current === key) {
+    if (keyRef.current === key) {
       return;
     }
 

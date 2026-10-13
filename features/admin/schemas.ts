@@ -32,50 +32,13 @@ import { invoiceStatuses } from "@/features/invoices/types";
 import {
   ADMIN_USAGE_BUSINESS_RESOURCES,
 } from "@/features/admin/types";
+import {
+  coercePositiveInteger,
+  emptyToUndefined,
+  firstString,
+} from "@/lib/zod-helpers";
 
 /* ── Helpers ─────────────────────────────────────────────────────────────── */
-
-function firstString(value: unknown): unknown {
-  if (Array.isArray(value)) {
-    return value[0];
-  }
-
-  return value;
-}
-
-function emptyToUndefined(value: unknown) {
-  if (value == null) {
-    return undefined;
-  }
-
-  if (typeof value === "string" && value.trim() === "") {
-    return undefined;
-  }
-
-  return value;
-}
-
-function coercePositiveInteger(fieldLabel: string) {
-  return z.preprocess((value) => {
-    const normalized = firstString(value);
-
-    if (typeof normalized === "number") {
-      return normalized;
-    }
-
-    if (typeof normalized !== "string") {
-      return normalized;
-    }
-
-    const trimmed = normalized.trim();
-
-    if (!trimmed) {
-      return Number.NaN;
-    }
-
-    return Number(trimmed);
-  }, z.number().int(`${fieldLabel} must be a whole number.`).min(1, `${fieldLabel} must be at least 1.`));
-}
 
 /**
  * IDs used across the admin surface are opaque strings (Better Auth uses

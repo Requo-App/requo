@@ -44,25 +44,16 @@ import {
   formatRelativeNotificationTime,
   isNotificationUnread,
 } from "@/features/notifications/utils";
-import {
-  getBusinessDashboardPath,
-  getBusinessInquiryPath,
-  getBusinessQuotePath,
-} from "@/features/businesses/routes";
 import { cn } from "@/lib/utils";
 
 type NotificationsListProps = {
-  businessId: string;
   businessSlug: string;
   initialView: BusinessNotificationBellView;
-  userId: string;
 };
 
 export function NotificationsList({
-  businessId,
   businessSlug,
   initialView,
-  userId,
 }: NotificationsListProps) {
   const [isPending, startTransition] = useTransition();
   const [isLoadingMore, startLoadMore] = useTransition();

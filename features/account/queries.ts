@@ -58,6 +58,21 @@ export const getAccountProfileForUser = cache(async (
   return getCachedAccountProfile(userId);
 });
 
+export const hasGoogleAccountLinked = cache(async (
+  userId: string,
+): Promise<boolean> => {
+  try {
+    const rows = await db
+      .select({ providerId: account.providerId })
+      .from(account)
+      .where(eq(account.userId, userId))
+      .limit(10);
+    return rows.some((row) => row.providerId === "google");
+  } catch {
+    return false;
+  }
+});
+
 export const getAccountSecurityForUser = cache(async (
   userId: string,
   email: string,

@@ -10,9 +10,6 @@ import { filterAiOutput } from "@/lib/ai/output-filter";
 import { logAiSecurityEvent } from "@/lib/ai/security-events";
 import { prefixedId } from "@/lib/ids";
 import {
-  aiQuoteDraftItemConfidenceLevels,
-  aiQuoteDraftItemPricingSources,
-  aiQuoteDraftItemReviewStatuses,
   type AiQuoteDraft,
   type AiQuoteDraftItem,
   type AiQuoteDraftItemConfidence,
@@ -204,7 +201,7 @@ function fallbackNameFromDescription(description: string) {
 // Context formatting
 // ---------------------------------------------------------------------------
 
-function formatPastQuotes(context: InquiryAssistantContext, currency: string) {
+function formatPastQuotes(context: InquiryAssistantContext) {
   if (!context.relatedQuotes.length) {
     return "- No past quotes.";
   }
@@ -228,7 +225,6 @@ function formatPastQuotes(context: InquiryAssistantContext, currency: string) {
 
 function formatInquiryContextLines(
   context: InquiryAssistantContext,
-  currency: string,
 ) {
   const headerFields: string[] = [
     `Customer: ${context.inquiry.customerName}`,
@@ -272,7 +268,7 @@ function formatInquiryContextLines(
     );
   }
 
-  sections.push("", "Past quotes (context only — never a price source)", formatPastQuotes(context, currency));
+  sections.push("", "Past quotes (context only — never a price source)", formatPastQuotes(context));
 
   return sections.join("\n");
 }
@@ -591,7 +587,6 @@ function expandPackageItemsFromCandidates(
 
 function verifyGroundedDraft(
   items: AiQuoteDraftItem[],
-  businessCurrency: string,
 ): string[] {
   const errors: string[] = [];
 
@@ -629,8 +624,8 @@ function verifyGroundedDraft(
  * violation is a safe failure — the draft is rejected rather than sent
  * with unsupported data.
  */
-function repairGroundedDraft(items: AiQuoteDraftItem[], businessCurrency: string) {
-  let errors = verifyGroundedDraft(items, businessCurrency);
+function repairGroundedDraft(items: AiQuoteDraftItem[]) {
+  let errors = verifyGroundedDraft(items);
 
   if (errors.length === 0) {
     return { ok: true as const, items };
@@ -658,7 +653,7 @@ function repairGroundedDraft(items: AiQuoteDraftItem[], businessCurrency: string
     return item;
   });
 
-  errors = verifyGroundedDraft(repaired, businessCurrency);
+  errors = verifyGroundedDraft(repaired);
 
   if (errors.length > 0) {
     return { ok: false as const, errors };
@@ -1071,7 +1066,7 @@ async function finalizeDraft(input: {
   }
 
   // Verifier: one constrained repair pass, then safe failure.
-  const verification = repairGroundedDraft(expanded, input.currency);
+  const verification = repairGroundedDraft(expanded);
 
   if (!verification.ok) {
     console.error(
@@ -1342,7 +1337,7 @@ export async function generateQuoteDraftForBusiness(
   });
 
   const inquiryContextText = inquiryContext
-    ? formatInquiryContextLines(inquiryContext, currency)
+    ? formatInquiryContextLines(inquiryContext)
     : input.brief?.trim()
       ? `Owner brief:\n${truncate(input.brief, 2000)}`
       : "";
@@ -1688,7 +1683,7 @@ export async function generateQuoteImprovementForBusiness(
     currency,
   });
 
-  const inquiryContextText = formatInquiryContextLines(inquiryContext, currency);
+  const inquiryContextText = formatInquiryContextLines(inquiryContext);
   const taskType = "quote_improvement" as const;
 
   // AI-01 (a): pack guidance injected into grounded-context assembly.

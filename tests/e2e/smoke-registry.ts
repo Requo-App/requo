@@ -7,26 +7,28 @@ import { test, type TestInfo } from "@playwright/test";
  * `@smoke`. Each entry maps the spec's basename to the human-readable
  * workflow label(s) it covers.
  *
- * The five required smoke workflows (per Requirements 6.1–6.5) are:
+ * The smoke workflows are:
  *   1. owner sign-in
- *   2. non-member denial
- *   3. public inquiry submission
- *   4. quote creation and sending
- *   5. public quote response
+ *   2. public inquiry submission
+ *   3. quote creation and sending
+ *   4. public quote response
+ *   5. AI agent conversation
+ *   6. owner assistant conversation
+ *   7. non-member denial
  *
  * Adding an entry here is an explicit acknowledgement that the spec's
  * `@smoke`-tagged tests cover one of the registered workflows. Tagging a
  * spec with `@smoke` without registering it here fails the Playwright
- * run via `registerSmokeGuard()` (Requirement 6.9).
+ * run via `registerSmokeGuard()`.
  */
 export const SMOKE_REGISTRY = {
-  "auth-and-dashboard.spec.ts": ["owner sign-in", "non-member denial"],
+  "auth-and-dashboard.spec.ts": ["owner sign-in"],
   "public-inquiry.spec.ts": ["public inquiry submission"],
   "dashboard-workflows.spec.ts": ["quote creation and sending"],
   "public-quote.spec.ts": ["public quote response"],
   "ai-agent-conversation.spec.ts": ["AI agent conversation"],
   "assistant-conversation.spec.ts": ["assistant conversation"],
-  "marketing-ia.spec.ts": ["marketing IA"],
+  "business-members.spec.ts": ["non-member denial"],
 } as const satisfies Readonly<Record<string, readonly string[]>>;
 
 /** Basename of a spec file allowed to use the `@smoke` tag. */

@@ -8,9 +8,7 @@
 import "server-only";
 
 import { stepCountIs, streamText } from "ai";
-import { CHAT_MAX_ATTEMPTS, correctTokenUsage, selectModels } from "@/lib/ai/capacity-selector";
-import type { FallbackAttemptTrailEntry } from "@/lib/ai/fallback-model";
-import { createFallbackLanguageModel } from "@/lib/ai/fallback-model";
+import { resolveChatFallbackModel } from "@/lib/ai/chat-fallback";
 import {
   CHAT_TOKEN_BUDGETS,
   compactMessages,
@@ -146,7 +144,7 @@ function buildSystemPrompt({
     ? `\nVERTICAL FOCUS (${agentPack}): also collect ${agentCriticalLabels.join(", ")} when relevant — these decide whether the inquiry is quotable.\n`
     : "";
 
-  return `You are the chat assistant for ${safeBusinessName}.
+  return `You are the chat agent for ${safeBusinessName}.
 ${getAiCanaryDirective()}
 
 Your goal: Help prospective customers by answering their questions and collecting the information needed to propose an inquiry.
@@ -387,50 +385,19 @@ export async function runAgent({
   );
 
   // Public Agent: fastest provider that genuinely fits short turns.
-  const selectedModels = await selectModels({
+  const chatModel = await resolveChatFallbackModel({
     profile: "agent_chat",
     estimatedTokens,
   });
-
-  if (selectedModels.length === 0) {
-    throw new Error("No suitable AI model available");
-  }
-
-  const firstId = selectedModels[0];
-  const firstColon = firstId.indexOf(":");
-  let servingModelId = firstId;
-  let servingProvider =
-    firstColon >= 0 ? firstId.slice(0, firstColon) : firstId;
-  let servingModel =
-    firstColon >= 0 ? firstId.slice(firstColon + 1) : firstId;
-  const attemptTrail: FallbackAttemptTrailEntry[] = [];
-
-  const fallbackModel = createFallbackLanguageModel({
-    modelIds: selectedModels,
-    maxAttempts: CHAT_MAX_ATTEMPTS,
-    estimatedTokens,
-    onModelSelected: (selected) => {
-      servingModelId = selected.modelId;
-      servingProvider = selected.provider;
-      servingModel = selected.model;
-    },
-    onAttemptFailed: (selected, error) => {
-      attemptTrail.push({
-        modelId: selected.modelId,
-        reason:
-          error instanceof Error ? error.message.slice(0, 200) : "unknown error",
-      });
-    },
-  });
-  void servingModelId;
+  const { fallbackModel, serving, attemptTrail } = chatModel;
 
   // Start telemetry run (with the first candidate — the fallback wrapper
   // attributes the serving model in onFinish for messages and logging).
   const run = await startAgentRun({
     businessId: business.id,
     sessionId,
-    model: servingModel,
-    provider: servingProvider,
+    model: serving.model,
+    provider: serving.provider,
     metadata: {
       searchAttempts,
     },
@@ -498,10 +465,7 @@ export async function runAgent({
         const outputTokens = completion.usage?.outputTokens ?? 0;
 
         // Correct the minute's counters against real usage.
-        void correctTokenUsage(servingModelId, estimatedTokens, {
-          inputTokens,
-          outputTokens,
-        }).catch(() => {});
+        chatModel.correctUsage(inputTokens, outputTokens);
 
         // Filter model output before it is stored or displayed.
         const filtered = filterAiOutput(
@@ -529,8 +493,8 @@ export async function runAgent({
         const estimatedCost = computeEstimatedCostCents({
           inputTokens,
           outputTokens,
-          model: servingModel,
-          provider: servingProvider,
+          model: serving.model,
+          provider: serving.provider,
         });
 
         await updateAgentRun({
@@ -543,12 +507,12 @@ export async function runAgent({
           // (and was retried) must not leave its error on a completed run,
           // and the columns record the model that actually served the turn.
           error: null,
-          model: servingModel,
-          provider: servingProvider,
+          model: serving.model,
+          provider: serving.provider,
           completedAt: new Date(),
           metadata: {
             searchAttempts,
-            servingModelId,
+            servingModelId: serving.modelId,
             attemptTrail,
           },
         });
@@ -576,8 +540,8 @@ export async function runAgent({
             userId: AGENT_SYSTEM_USER_ID,
             businessId: business.id,
             taskType: "agent_conversation",
-            model: servingModel,
-            provider: servingProvider,
+            model: serving.model,
+            provider: serving.provider,
             inputTokens,
             outputTokens,
             cacheHit: false,
@@ -595,8 +559,8 @@ export async function runAgent({
           sessionId,
           role: "assistant",
           content: filtered.output,
-          provider: servingProvider,
-          model: servingModel,
+          provider: serving.provider,
+          model: serving.model,
           metadata: {
             inputTokens,
             outputTokens,
@@ -608,8 +572,8 @@ export async function runAgent({
           userId: AGENT_SYSTEM_USER_ID,
           businessId: business.id,
           taskType: "agent_conversation",
-          model: servingModel,
-          provider: servingProvider,
+          model: serving.model,
+          provider: serving.provider,
           inputTokens,
           outputTokens,
           cacheHit: false,
@@ -629,7 +593,7 @@ export async function runAgent({
           runId: run.id,
           metadata: {
             searchAttempts,
-            servingModelId,
+            servingModelId: serving.modelId,
             attemptTrail,
           },
         }).catch(() => {});
@@ -637,8 +601,8 @@ export async function runAgent({
           userId: AGENT_SYSTEM_USER_ID,
           businessId: business.id,
           taskType: "agent_conversation",
-          model: servingModel,
-          provider: servingProvider,
+          model: serving.model,
+          provider: serving.provider,
           inputTokens: 0,
           outputTokens: 0,
           cacheHit: false,

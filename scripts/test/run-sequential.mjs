@@ -6,11 +6,6 @@
 // Usage: node scripts/test/run-sequential.mjs <script> [<script> ...]
 // Example: node scripts/test/run-sequential.mjs test:unit test:components
 // Example: node scripts/test/run-sequential.mjs lint typecheck check:seo
-//
-// Satisfies Requirements 2.3 and 2.7 of the test-infrastructure-cicd spec
-// and underpins the `check:seo` composite command in the SEO & performance
-// improvements spec.
-
 import { spawnSync } from "node:child_process";
 import process from "node:process";
 

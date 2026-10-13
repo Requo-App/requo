@@ -9,7 +9,6 @@ import {
 import {
   knowledgeFileUploadSchema,
   memoryEntryInputSchema,
-  memoryEntryUpdateSchema,
 } from "@/features/memory/schemas";
 import {
   createBusinessMemory,
@@ -28,11 +27,11 @@ import { getFileExtension, resolveSafeContentType } from "@/lib/files";
 import { KNOWLEDGE_FILE_ACCEPT } from "@/features/memory/types";
 import { db } from "@/lib/db/client";
 import { businessKnowledgeFiles } from "@/lib/db/schema";
-import { getBusinessMemoryCacheTags } from "@/lib/cache/business-tags";
+import { getBusinessMemoryCacheTags, updateCacheTags } from "@/lib/cache/business-tags";
 import { inngest } from "@/lib/inngest/client";
 import { inngestEvents } from "@/lib/inngest/events";
 import { newEntityId } from "@/lib/ids";
-import { updateTag } from "next/cache";
+import { firstString } from "@/lib/zod-helpers";
 
 // ---------------------------------------------------------------------------
 // Action state types
@@ -61,17 +60,7 @@ export type KnowledgeFileDeleteActionState = {
 };
 
 function invalidateKnowledgeCache(businessId: string) {
-  for (const tag of getBusinessMemoryCacheTags(businessId)) {
-    updateTag(tag);
-  }
-}
-
-function firstString(value: unknown) {
-  if (Array.isArray(value)) {
-    return value[0];
-  }
-
-  return value;
+  updateCacheTags(getBusinessMemoryCacheTags(businessId));
 }
 
 // ---------------------------------------------------------------------------

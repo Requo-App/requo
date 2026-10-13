@@ -1,10 +1,6 @@
 import { getOptionalSession } from "@/lib/auth/session";
 
-const allowedAvatarHosts = new Set([
-  "lh3.googleusercontent.com",
-  "googleusercontent.com",
-  "avatars.githubusercontent.com",
-]);
+const allowedAvatarHosts = new Set(["avatars.githubusercontent.com"]);
 
 /** Timeout for upstream avatar fetch (ms). Google CDN is usually <200ms. */
 const UPSTREAM_TIMEOUT_MS = 5_000;

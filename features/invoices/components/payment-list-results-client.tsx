@@ -51,7 +51,7 @@ export function PaymentListResultsClient({
     [displayPage, effectiveCachedPages],
   );
 
-  const { items: payments, getMotionState } = useAnimatedList(paymentsFromCache);
+  const { items: payments, getMotionState, getItemRef } = useAnimatedList(paymentsFromCache);
   const cachedPageNumbers = useMemo(
     () =>
       Object.keys(effectiveCachedPages)
@@ -66,11 +66,13 @@ export function PaymentListResultsClient({
         payments={payments}
         businessSlug={businessSlug}
         getMotionState={getMotionState}
+        getItemRef={getItemRef}
       />
       <PaymentListTable
         payments={payments}
         businessSlug={businessSlug}
         getMotionState={getMotionState}
+        getItemRef={getItemRef}
       />
       <DataListPagination
         cachedPages={cachedPageNumbers}

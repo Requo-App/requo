@@ -84,7 +84,7 @@ async function AssistantRegion({
   );
 }
 
-function AssistantSkeleton() {
+export function AssistantSkeleton() {
   return (
     <div className="flex min-h-0 flex-1 flex-col" data-assistant-pane="">
       <div className="flex items-center justify-between gap-2 px-3 pt-3 md:px-6">
@@ -96,7 +96,7 @@ function AssistantSkeleton() {
           <div className="chat-stage-transcript-inner mx-auto flex w-full max-w-3xl flex-1 flex-col gap-7 pt-6 pb-2">
             <div className="my-auto flex w-full flex-col items-center gap-5 py-6 text-center">
               <Skeleton className="h-7 w-64 rounded-lg sm:w-80" />
-              <Skeleton className="h-24 w-full rounded-2xl" />
+              <Skeleton className="h-24 w-full rounded-xl" />
               <div className="flex w-full flex-col divide-y divide-border/60">
                 {Array.from({ length: 3 }).map((_, index) => (
                   <Skeleton className="my-2 h-5 w-2/3 rounded-md" key={index} />

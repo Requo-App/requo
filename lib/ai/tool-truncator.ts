@@ -104,7 +104,6 @@ function findJsonCutPoint(slice: string): number {
   let lastSafeCut = -1;
   let inString = false;
   let escape = false;
-  let depth = 0;
 
   for (let i = 0; i < slice.length; i++) {
     const ch = slice[i];
@@ -126,11 +125,7 @@ function findJsonCutPoint(slice: string): number {
 
     if (inString) continue;
 
-    if (ch === "{" || ch === "[") {
-      depth++;
-    } else if (ch === "}" || ch === "]") {
-      depth--;
-    } else if (ch === ",") {
+    if (ch === ",") {
       // A comma at any depth marks the end of a complete element
       lastSafeCut = i;
     }

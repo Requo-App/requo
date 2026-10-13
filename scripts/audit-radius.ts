@@ -13,8 +13,8 @@
  *   shared radius; use `rounded-lg` / `rounded-xl`, which render the same
  *   value);
  * - an arbitrary `rounded-[...]` outside design-system-owned code
- *   (`components/ui/`, `components/base/`, `components/application/` own
- *   their micro-geometry: switch thumbs, calendar cells, tooltip arrows).
+ *   (`components/ui/` + the 1:1 shadcn recreations in `components/shared/`
+ *   own their micro-geometry: switch thumbs, calendar cells, tooltip arrows).
  *
  * `rounded-2xl` is grandfathered: it renders the shared 8px via the
  * collapsed token, so existing call sites are visually consistent. New code
@@ -25,6 +25,7 @@
 
 import {
   exitIfOffenders,
+  isDesignSystemFile,
   readText,
   relPath,
   walk,
@@ -37,12 +38,7 @@ const SCAN_ROOTS = ["app", "components", "features"];
 
 /** Design-system-owned micro-geometry; exempt from the arbitrary check. */
 function isDesignSystem(rel: string): boolean {
-  const normalized = rel.replace(/\\/g, "/");
-  return (
-    normalized.startsWith("components/ui/") ||
-    normalized.startsWith("components/base/") ||
-    normalized.startsWith("components/application/")
-  );
+  return isDesignSystemFile(rel);
 }
 
 function isTsxFile(absPath: string, rel: string): boolean {

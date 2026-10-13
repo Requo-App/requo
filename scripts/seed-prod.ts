@@ -16,7 +16,12 @@ import { db, dbConnection } from "../lib/db/client";
 import { profiles, user } from "../lib/db/schema";
 import { env } from "../lib/env";
 
-const ADMIN_PASSWORD = process.env.ADMIN_SEED_PASSWORD ?? "ChangeMe123456!";
+const ADMIN_PASSWORD = process.env.ADMIN_SEED_PASSWORD ?? (() => {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("ADMIN_SEED_PASSWORD must be set in production (no default password).");
+  }
+  return "ChangeMe123456!";
+})();
 
 async function main() {
   const adminEmails = env.ADMIN_EMAILS;

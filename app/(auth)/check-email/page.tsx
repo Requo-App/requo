@@ -5,6 +5,8 @@ import Link from "next/link";
 
 import { AuthShell } from "@/components/shell/auth-shell";
 import { createNoIndexMetadata } from "@/lib/seo/site";
+import { AuthFormSkeleton } from "@/features/auth/components/auth-form-skeleton";
+import { getAuthPathWithNext } from "@/lib/auth/redirects";
 import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = createNoIndexMetadata({
@@ -20,22 +22,14 @@ export default function CheckEmailPage({
   searchParams: Promise<{
     email?: string | string[];
     reason?: string | string[];
+    next?: string | string[];
   }>;
 }) {
   return (
     <Suspense
       fallback={
         <AuthShell badge="Verify email" title="Check your inbox" layout="centered">
-          <div className="flex flex-col items-center justify-center gap-5 pt-2 text-center">
-            <div className="rounded-full bg-primary/10 p-4">
-              <MailCheck className="size-7 text-primary" />
-            </div>
-            <div className="flex flex-col gap-2">
-              <p className="text-sm leading-6 text-muted-foreground">
-                Loading…
-              </p>
-            </div>
-          </div>
+          <AuthFormSkeleton />
         </AuthShell>
       }
     >
@@ -50,13 +44,18 @@ async function CheckEmailContent({
   searchParams: Promise<{
     email?: string | string[];
     reason?: string | string[];
+    next?: string | string[];
   }>;
 }) {
-  const { email, reason } = await searchParams;
-  const emailAddress = typeof email === "string" ? email : undefined;
+  const { email, reason, next } = await searchParams;
+  const emailAddress = typeof email === "string" ? email : email?.[0];
   const emailReason =
     typeof reason === "string" ? reason : reason?.[0];
   const isMagicLink = emailReason === "magic-link";
+  const loginHref = getAuthPathWithNext(
+    "/login",
+    typeof next === "string" ? next : next?.[0],
+  );
 
   return (
     <AuthShell
@@ -86,7 +85,7 @@ async function CheckEmailContent({
         </div>
         <div className="mt-4 w-full">
           <Button asChild className="w-full" variant="outline" size="lg">
-            <Link href="/login">Return to login</Link>
+            <Link href={loginHref}>Return to login</Link>
           </Button>
         </div>
       </div>

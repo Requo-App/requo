@@ -10,61 +10,12 @@ import {
   followUpStatusFilterValues,
   followUpTerminationConditions,
 } from "@/features/follow-ups/types";
-
-function emptyToUndefined(value: unknown) {
-  if (value == null) {
-    return undefined;
-  }
-
-  if (typeof value === "string" && value.trim() === "") {
-    return undefined;
-  }
-
-  return value;
-}
-
-function firstString(value: unknown) {
-  if (Array.isArray(value)) {
-    return value[0];
-  }
-
-  return value;
-}
-
-function coercePositiveInteger(fieldLabel: string) {
-  return z.preprocess((value) => {
-    const normalized = firstString(value);
-
-    if (typeof normalized === "number") {
-      return normalized;
-    }
-
-    if (typeof normalized !== "string") {
-      return normalized;
-    }
-
-    const trimmed = normalized.trim();
-
-    if (!trimmed) {
-      return Number.NaN;
-    }
-
-    return Number(trimmed);
-  }, z.number().int(`${fieldLabel} must be a whole number.`).min(1, `${fieldLabel} must be at least 1.`));
-}
-
-function isValidDateInput(value: string) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    return false;
-  }
-
-  const parsed = new Date(`${value}T00:00:00.000Z`);
-
-  return (
-    !Number.isNaN(parsed.getTime()) &&
-    parsed.toISOString().slice(0, 10) === value
-  );
-}
+import {
+  coercePositiveInteger,
+  emptyToUndefined,
+  firstString,
+  isValidDateInput,
+} from "@/lib/zod-helpers";
 
 export const followUpCreateSchema = z
   .object({

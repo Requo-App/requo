@@ -1,20 +1,16 @@
 import { z } from "zod";
+import { NextResponse } from "next/server";
 
 import { getQuoteDocumentData } from "@/features/quotes/documents";
 import { getQuotePdfFileName, getQuotePngFileName } from "@/features/quotes/pdf";
 import { getQuoteDetailForBusiness } from "@/features/quotes/queries";
 import { getBusinessQuotePrintPath } from "@/features/businesses/routes";
-import { getBusinessRequestContextForSlug } from "@/lib/db/business-access";
-import { buildContentDisposition } from "@/lib/files";
-import { renderHtmlPageElementToPng } from "@/lib/pdf/html-to-image";
-import { createPdfFromPng } from "@/lib/pdf/png-to-pdf";
-import { hasFeatureAccess } from "@/lib/plans";
+import { exportSingleDocument, requireExportContext } from "@/lib/api/exports";
+import { slugParamSchema } from "@/lib/api/params";
 
-const routeParamsSchema = z.object({
-  slug: z.string().trim().min(1).max(120),
+const routeParamsSchema = slugParamSchema.extend({
   id: z.string().trim().min(1).max(128),
 });
-const exportFormatSchema = z.enum(["pdf", "png"]);
 
 export async function GET(
   request: Request,
@@ -23,28 +19,12 @@ export async function GET(
   const parsedParams = routeParamsSchema.safeParse(await context.params);
 
   if (!parsedParams.success) {
-    return Response.json({ error: "Not found." }, { status: 404 });
+    return NextResponse.json({ error: "Not found." }, { status: 404 });
   }
 
-  const requestContext = await getBusinessRequestContextForSlug(
-    parsedParams.data.slug,
-  );
-
-  if (!requestContext) {
-    return Response.json({ error: "Not found." }, { status: 404 });
-  }
-
-  if (
-    !hasFeatureAccess(
-      requestContext.businessContext.business.plan,
-      "exports",
-    )
-  ) {
-    return Response.json(
-      { error: "Upgrade to Pro to export quote data." },
-      { status: 403 },
-    );
-  }
+  const gate = await requireExportContext(parsedParams.data.slug);
+  if (!gate.ok) return gate.response;
+  const { requestContext } = gate;
 
   const quote = await getQuoteDetailForBusiness({
     businessId: requestContext.businessContext.business.id,
@@ -52,56 +32,23 @@ export async function GET(
   });
 
   if (!quote) {
-    return Response.json({ error: "Not found." }, { status: 404 });
+    return NextResponse.json({ error: "Not found." }, { status: 404 });
   }
 
-  const formatResult = exportFormatSchema.safeParse(
-    new URL(request.url).searchParams.get("format") ?? "pdf",
-  );
-  const format = formatResult.success ? formatResult.data : "pdf";
-  const printUrl = new URL(
-    `${getBusinessQuotePrintPath(parsedParams.data.slug, quote.id)}?autoprint=0`,
-    request.url,
-  ).toString();
   const documentData = getQuoteDocumentData({
     businessName: requestContext.businessContext.business.name,
     quote,
   });
-  const png = await renderHtmlPageElementToPng({
-    url: printUrl,
-    selector: "[data-export-document]",
-    cookieHeader: request.headers.get("cookie"),
-  });
+  const printUrl = new URL(
+    `${getBusinessQuotePrintPath(parsedParams.data.slug, quote.id)}?autoprint=0`,
+    request.url,
+  ).toString();
 
-  if (format === "png") {
-    const pngBytes = Uint8Array.from(png);
-
-    return new Response(new Blob([pngBytes], { type: "image/png" }), {
-      headers: {
-        "cache-control": "private, no-store",
-        "content-disposition": buildContentDisposition(
-          getQuotePngFileName(documentData),
-        ),
-        "content-type": "image/png",
-        "x-content-type-options": "nosniff",
-      },
-    });
-  }
-
-  const pdf = await createPdfFromPng({
-    png,
-    title: `${documentData.quoteNumber} ${documentData.title}`,
-  });
-  const pdfBytes = Uint8Array.from(pdf);
-
-  return new Response(new Blob([pdfBytes], { type: "application/pdf" }), {
-    headers: {
-      "cache-control": "private, no-store",
-      "content-disposition": buildContentDisposition(
-        getQuotePdfFileName(documentData),
-      ),
-      "content-type": "application/pdf",
-      "x-content-type-options": "nosniff",
-    },
+  return exportSingleDocument({
+    request,
+    printUrl,
+    pngFileName: getQuotePngFileName(documentData),
+    pdfFileName: getQuotePdfFileName(documentData),
+    pdfTitle: `${documentData.quoteNumber} ${documentData.title}`,
   });
 }

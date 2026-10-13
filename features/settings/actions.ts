@@ -18,7 +18,6 @@ import {
 } from "@/lib/cache/shell-tags";
 import {
   businessAiAgentSettingsSchema,
-  businessEmailTemplateSettingsSchema,
   emailTemplateKindSchema,
   getEmailTemplateSettingsSchemaForKind,
   businessGeneralSettingsSchema,
@@ -63,11 +62,10 @@ import {
   getOwnerBusinessActionContext,
 } from "@/lib/db/business-access";
 import {
-  getBusinessDashboardPath,
+  getBusinessHomePath,
   getBusinessServicePath,
   getBusinessServicePreviewPath,
   getBusinessServicesPath,
-  getBusinessPath,
   getBusinessSettingsPath,
 } from "@/features/businesses/routes";
 import { getBusinessPublicInquiryUrl } from "@/features/settings/utils";
@@ -105,7 +103,6 @@ function revalidateBusinessDefaultInquiryPaths(businessSlug: string) {
   revalidatePath(`${getBusinessSettingsPath(businessSlug)}/inquiry-form`);
   revalidatePath(`${getBusinessSettingsPath(businessSlug)}/inquiry-page`);
   revalidatePath(`${getBusinessSettingsPath(businessSlug)}/inquiry-page/preview`);
-  revalidatePath(`${getBusinessPath(businessSlug)}/preview/inquiry-page`);
 }
 
 export async function updateBusinessSettingsAction(
@@ -187,8 +184,8 @@ export async function updateBusinessSettingsAction(
 
     // Slug change requires layout-level revalidation for the new routes.
     if (result.previousSlug !== result.nextSlug) {
-      revalidatePath(getBusinessDashboardPath(result.previousSlug), "layout");
-      revalidatePath(getBusinessDashboardPath(result.nextSlug), "layout");
+      revalidatePath(getBusinessHomePath(result.previousSlug), "layout");
+      revalidatePath(getBusinessHomePath(result.nextSlug), "layout");
       nextSettingsPath = getBusinessSettingsPath(result.nextSlug, "general");
     }
 

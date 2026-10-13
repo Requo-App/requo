@@ -6,7 +6,7 @@ import { useTransition } from "react";
 
 import { authClient } from "@/lib/auth/client";
 import { getDisplayFirstName } from "@/features/account/name";
-import { dashboardPath } from "@/features/businesses/routes";
+import { homePath } from "@/features/businesses/routes";
 import { AppearanceMenuSubmenu } from "@/features/theme/components/appearance-menu";
 import { clearPersistedThemePreference } from "@/features/theme/persistence";
 import { themeUserStorageKey } from "@/features/theme/types";
@@ -49,6 +49,8 @@ export function AccountUserMenu({ user }: AccountUserMenuProps) {
       clearPersistedThemePreference();
       clearOnboardingDraft();
 
+      // A full reload clears client auth state after sign-out.
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- Full reload is intentional after sign-out.
       window.location.assign("/login");
     });
   }
@@ -91,7 +93,7 @@ export function AccountUserMenu({ user }: AccountUserMenuProps) {
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
           <DropdownMenuItem asChild>
-            <Link href={dashboardPath} prefetch={true}>
+            <Link href={homePath} prefetch={true}>
               <User data-icon="inline-start" />
               Dashboard
             </Link>

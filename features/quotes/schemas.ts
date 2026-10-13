@@ -4,46 +4,13 @@ import {
   quoteRecordViews,
   quoteStatusFilterValues,
 } from "@/features/quotes/types";
-
-function emptyToUndefined(value: unknown) {
-  if (value == null) {
-    return undefined;
-  }
-
-  if (typeof value === "string" && value.trim() === "") {
-    return undefined;
-  }
-
-  return value;
-}
-
-function firstString(value: unknown) {
-  if (Array.isArray(value)) {
-    return value[0];
-  }
-
-  return value;
-}
-
-function coercePositiveInteger(fieldLabel: string) {
-  return z.preprocess((value) => {
-    if (typeof value === "number") {
-      return value;
-    }
-
-    if (typeof value !== "string") {
-      return value;
-    }
-
-    const normalized = value.trim();
-
-    if (!normalized) {
-      return Number.NaN;
-    }
-
-    return Number(normalized);
-  }, z.number().int(`${fieldLabel} must be a whole number.`).min(1, `${fieldLabel} must be at least 1.`));
-}
+import {
+  coercePositiveInteger,
+  emptyToUndefined,
+  firstString,
+  isValidDateInput,
+  optionalText,
+} from "@/lib/zod-helpers";
 
 function currencyStringToCents(value: unknown) {
   if (typeof value === "number") {
@@ -75,30 +42,6 @@ function currencyStringToCents(value: unknown) {
   }
 
   return Math.round(parsed * 100);
-}
-
-function optionalText(maxLength: number) {
-  return z.preprocess(
-    emptyToUndefined,
-    z
-      .string()
-      .trim()
-      .max(maxLength, `Text must be ${maxLength} characters or fewer.`)
-      .optional(),
-  );
-}
-
-function isValidDateInput(value: string) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    return false;
-  }
-
-  const parsed = new Date(`${value}T00:00:00.000Z`);
-
-  return (
-    !Number.isNaN(parsed.getTime()) &&
-    parsed.toISOString().slice(0, 10) === value
-  );
 }
 
 const aiQuoteProductStatusValues = [
@@ -281,8 +224,8 @@ export const quoteEditorSchema = z
       .or(z.literal("")),
     customerContactMethod: z.string().trim().min(1, "Select a preferred contact method."),
     customerContactHandle: z.string().trim().min(1, "Enter the contact handle."),
-    notes: optionalText(4000),
-    terms: optionalText(4000),
+    notes: optionalText(4000, "Text must be 4000 characters or fewer."),
+    terms: optionalText(4000, "Text must be 4000 characters or fewer."),
     validUntil: z
       .string()
       .trim()

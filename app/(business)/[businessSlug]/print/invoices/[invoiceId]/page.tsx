@@ -6,8 +6,7 @@ import { PrintPageShell } from "@/components/shared/print-page-shell";
 import { getBusinessInvoicePath } from "@/features/businesses/routes";
 import { InvoicePrintDocument } from "@/features/invoices/components/invoice-print-document";
 import { getInvoiceForBusiness } from "@/features/invoices/queries";
-import { getBusinessRequestContextForSlug } from "@/lib/db/business-access";
-import { hasFeatureAccess } from "@/lib/plans";
+import { requireExportRequestContext } from "@/lib/exports";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 
 export const metadata: Metadata = createNoIndexMetadata({
@@ -28,15 +27,12 @@ type InvoicePrintPageProps = {
 
 export default async function InvoicePrintPage({ params }: InvoicePrintPageProps) {
   const resolvedParams = await params;
-  const requestContext = await getBusinessRequestContextForSlug(resolvedParams.businessSlug);
+  const requestContext =
+    await requireExportRequestContext(resolvedParams.businessSlug);
 
   const parsedParams = routeParamsSchema.safeParse({ invoiceId: resolvedParams.invoiceId });
 
-  if (!parsedParams.success || !requestContext) {
-    notFound();
-  }
-
-  if (!hasFeatureAccess(requestContext.businessContext.business.plan, "exports")) {
+  if (!parsedParams.success) {
     notFound();
   }
 

@@ -7,8 +7,9 @@ import type { AiQuoteDraftActionState } from "@/features/ai/types";
 import { getBusinessActionContext } from "@/lib/db/business-access";
 import { hasFeatureAccess } from "@/lib/plans";
 import { checkUsageLimit } from "@/lib/ai";
-import { getEffectivePlan } from "@/lib/billing/subscription-service";
+import { getEffectivePlanForBusiness } from "@/lib/billing/subscription-service";
 import type { AiTaskType } from "@/lib/ai/types";
+import { emptyToUndefined, firstString } from "@/lib/zod-helpers";
 
 // ---------------------------------------------------------------------------
 // Server Actions
@@ -48,22 +49,6 @@ const aiGenerateQuoteDraftSchema = z
       });
     }
   });
-
-function emptyToUndefined(value: unknown) {
-  if (typeof value === "string" && value.trim() === "") {
-    return undefined;
-  }
-
-  return value ?? undefined;
-}
-
-function firstString(value: unknown) {
-  if (Array.isArray(value)) {
-    return value[0];
-  }
-
-  return value;
-}
 
 /**
  * Generate an AI-drafted quote for the current business.
@@ -116,7 +101,7 @@ export async function generateQuoteDraftAction(
   // 3. Resolve the effective plan and check feature access
   const businessId = actionContext.businessContext.business.id;
   const userId = actionContext.user.id;
-  const plan = await getEffectivePlan(businessId);
+  const plan = await getEffectivePlanForBusiness(businessId);
 
   if (!hasFeatureAccess(plan, "aiQuoteDrafting")) {
     return {

@@ -1,3 +1,0 @@
-# Manual-only payment source with void-only corrections
-
-Payments carry a generic `source` enum that today holds only `manual`: the business received money outside Requo and is recording that receipt, never processing it. Receipt copy says "recorded in Requo", never "processed". Corrections are void-only (enum reason + optional details in `void_reason`, row kept, excluded from balances) rather than edits, deletes, or refunds — voiding preserves the audit trail and a future provider path can reuse the same payment outcome without a schema rewrite. No provider columns, webhooks, or reconciliation exist in this scope.

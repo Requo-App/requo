@@ -1,0 +1,82 @@
+# One-command local development: `docker compose up --build`
+#
+# - app: Next.js dev server with hot reload (http://localhost:3000)
+# - inngest: local Inngest Dev Server (http://localhost:8288)
+# - db: standalone Postgres for setups that do not use the Supabase stack.
+#   The default app config below targets the Supabase local stack instead
+#   (see docs/setup/local.md); `db` stays for non-Supabase local setups.
+services:
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: requo
+    ports:
+      - "5432:5432"
+    volumes:
+      - requo-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      # Live source; image keeps its own node_modules/.next via the
+      # anonymous volumes below so host installs never shadow them.
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    env_file:
+      - .env.local
+    environment:
+      PORT: 3000
+      # Browser-facing origin; keep it identical to the URL you open.
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
+      NEXT_PUBLIC_BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}/api/auth
+      # Reach the Supabase local stack from inside the container. Browsers on
+      # Docker Desktop resolve host.docker.internal too, so realtime/storage
+      # keep working from the client side.
+      # Postgres lives on the Supabase CLI network, so reach it over the
+      # container network (stable hostname, no host-port forwarding in the
+      # path). The `supabase_network_<project>` name follows the Supabase CLI
+      # default for this directory; `npx supabase start` creates it.
+      # `sslmode=disable` keeps the dev health check on plaintext (see
+      # isLocalUrl in lib/admin/health-checks.ts).
+      DATABASE_URL: postgresql://postgres:postgres@supabase_db_requo:5432/postgres?sslmode=disable
+      DATABASE_MIGRATION_URL: postgresql://postgres:postgres@supabase_db_requo:5432/postgres?sslmode=disable
+      NEXT_PUBLIC_SUPABASE_URL: http://host.docker.internal:54321
+      INNGEST_DEV: 1
+      INNGEST_BASE_URL: http://inngest:8288
+      # Bind mounts need polling for reliable hot reload.
+      WATCHPACK_POLLING: "true"
+    command: npm run dev:app -- --hostname 0.0.0.0 --port 3000
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - default
+      - supabase_network_requo
+
+  inngest:
+    image: node:22-bookworm-slim
+    restart: unless-stopped
+    ports:
+      - "8288:8288"
+    command: npx inngest-cli@latest dev -u http://app:3000/api/inngest --port 8288
+
+volumes:
+  requo-db:
+
+networks:
+  # Created by `npx supabase start`; external so CLI restarts keep working.
+  supabase_network_requo:
+    external: true

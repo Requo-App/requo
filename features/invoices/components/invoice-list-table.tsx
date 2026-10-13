@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { MotionState } from "@/hooks/use-animated-list";
+import type { ItemRefCallback, MotionState } from "@/hooks/use-animated-list";
 
 import { Checkbox } from "@/components/ui/checkbox";
 import { TruncatedTextWithTooltip } from "@/components/shared/truncated-text-with-tooltip";
@@ -26,6 +26,7 @@ type InvoiceListTableProps = {
   allOnPageSelected?: boolean;
   onSelectAllOnPage?: () => void;
   getMotionState?: (id: string) => MotionState;
+  getItemRef?: ItemRefCallback;
 };
 
 export function InvoiceListTable({
@@ -37,6 +38,7 @@ export function InvoiceListTable({
   allOnPageSelected,
   onSelectAllOnPage,
   getMotionState,
+  getItemRef,
 }: InvoiceListTableProps) {
   return (
     <div className="hidden overflow-x-auto no-scrollbar xl:block">
@@ -66,7 +68,7 @@ export function InvoiceListTable({
             const disabled = !checked && (isAtLimit ?? false);
 
             return (
-              <TableRow className="motion-list-item group/row" data-motion-state={getMotionState?.(invoice.id)} key={invoice.id}>
+              <TableRow className="motion-list-item group/row" data-motion-state={getMotionState?.(invoice.id)} key={invoice.id} ref={getItemRef?.(invoice.id)}>
                 <TableCell className="w-[3rem]">
                   <Checkbox
                     aria-label={`Select invoice ${invoice.invoiceNumber}`}

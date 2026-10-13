@@ -68,6 +68,8 @@
   --radius-4xl: var(--radius);
   --animate-accordion-down: accordion-down 240ms cubic-bezier(0.32, 0.72, 0, 1);
   --animate-accordion-up: accordion-up 200ms cubic-bezier(0.32, 0.72, 0, 1);
+  --animate-collapsible-down: collapsible-down 220ms var(--motion-ease-standard);
+  --animate-collapsible-up: collapsible-up 200ms var(--motion-ease-standard);
 
   @keyframes accordion-down {
     from {
@@ -83,6 +85,28 @@
   @keyframes accordion-up {
     from {
       height: var(--radix-accordion-content-height);
+      opacity: 1;
+    }
+    to {
+      height: 0;
+      opacity: 0;
+    }
+  }
+
+  @keyframes collapsible-down {
+    from {
+      height: 0;
+      opacity: 0;
+    }
+    to {
+      height: var(--radix-collapsible-content-height);
+      opacity: 1;
+    }
+  }
+
+  @keyframes collapsible-up {
+    from {
+      height: var(--radix-collapsible-content-height);
       opacity: 1;
     }
     to {
@@ -496,75 +520,20 @@ html[data-reload-loading="fade-out"] #app-root-content {
   }
 }
 
-@keyframes ai-glow-pulse {
-  0%,
-  100% {
-    box-shadow:
-      0 0 0 1px color-mix(in srgb, var(--primary) 50%, transparent),
-      0 0 12px color-mix(in srgb, var(--primary) 20%, transparent);
-  }
-  50% {
-    box-shadow:
-      0 0 0 2px color-mix(in srgb, var(--primary) 70%, transparent),
-      0 0 20px color-mix(in srgb, var(--primary) 35%, transparent);
-  }
-}
-
+/* Static AI highlight: a restrained primary ring + tint that marks
+   AI-generated content without continuous paint-heavy animation. */
 .ai-glow-border {
-  animation: ai-glow-pulse 1.5s ease-in-out infinite;
-}
-
-@keyframes ai-glow-rotate {
-  from {
-    --ai-glow-angle: 0deg;
-  }
-  to {
-    --ai-glow-angle: 360deg;
-  }
-}
-
-@property --ai-glow-angle {
-  syntax: "<angle>";
-  initial-value: 0deg;
-  inherits: false;
+  border-color: color-mix(in srgb, var(--primary) 35%, transparent);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--primary) 25%, transparent),
+    0 0 12px color-mix(in srgb, var(--primary) 12%, transparent);
 }
 
 .ai-glow-section {
-  position: relative;
-  overflow: visible;
-  border-color: transparent;
+  border-color: color-mix(in srgb, var(--primary) 40%, transparent);
   box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--primary) 40%, transparent),
-    0 0 16px color-mix(in srgb, var(--primary) 15%, transparent);
-}
-
-.ai-glow-section::before {
-  content: "";
-  position: absolute;
-  inset: -1px;
-  border-radius: inherit;
-  padding: 2px;
-  background: conic-gradient(
-    from var(--ai-glow-angle),
-    transparent 25%,
-    var(--primary) 50%,
-    transparent 75%
-  );
-  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  mask-composite: exclude;
-  animation: ai-glow-rotate 2s linear infinite;
-  pointer-events: none;
-}
-
-.ai-glow-section::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  box-shadow: 0 0 24px 4px color-mix(in srgb, var(--primary) 20%, transparent);
-  opacity: 0.7;
-  animation: ai-glow-pulse 2s ease-in-out infinite;
-  pointer-events: none;
+    0 0 0 1px color-mix(in srgb, var(--primary) 30%, transparent),
+    0 0 16px color-mix(in srgb, var(--primary) 12%, transparent);
 }
 
 @keyframes subtle-fade-up {
@@ -588,28 +557,6 @@ html[data-reload-loading="fade-out"] #app-root-content {
   100% {
     opacity: 1;
     transform: translate3d(0, 0, 0);
-  }
-}
-
-@keyframes shell-entrance {
-  0% {
-    opacity: 0;
-  }
-
-  100% {
-    opacity: 1;
-  }
-}
-
-@keyframes subtle-scale-in {
-  0% {
-    opacity: 0;
-    transform: scale(0.985);
-  }
-
-  100% {
-    opacity: 1;
-    transform: scale(1);
   }
 }
 
@@ -913,7 +860,13 @@ html[data-reload-loading="fade-out"] #app-root-content {
     transform: translate3d(0, 0, 0);
     backface-visibility: hidden;
     contain: paint;
-    will-change: transform, opacity;
+  }
+
+  /* Promote only while animating; a permanent will-change pins a
+     compositing layer for the sheet's whole mounted lifetime. */
+  .motion-sheet-sidebar[data-state="open"],
+  .motion-sheet-sidebar[data-state="closed"] {
+    will-change: transform;
   }
 
   .motion-sheet-sidebar[data-state="open"][data-side="left"] {
@@ -954,11 +907,6 @@ html[data-reload-loading="fade-out"] #app-root-content {
 
   .motion-card-enter {
     animation: subtle-fade-up var(--motion-duration-base) var(--motion-ease-emphasized)
-      both;
-  }
-
-  .motion-pop-in {
-    animation: subtle-scale-in var(--motion-duration-fast) var(--motion-ease-standard)
       both;
   }
 
@@ -1026,12 +974,6 @@ html[data-reload-loading="fade-out"] #app-root-content {
   .motion-list-item[data-motion-state="updating"] {
     animation: motion-update-pulse var(--motion-duration-fast) var(--motion-ease-standard)
       both;
-  }
-
-  .motion-list-reorder {
-    transition:
-      transform var(--motion-duration-base) var(--motion-ease-emphasized),
-      opacity var(--motion-duration-fast) var(--motion-ease-standard);
   }
 
   @keyframes motion-fade-up {
@@ -1372,9 +1314,10 @@ html[data-reload-loading="fade-out"] #app-root-content {
     overflow-x: clip;
   }
 
-  /* Home entrance animation — staggered fade-up for sections on initial mount */
+  /* Home entrance — one restrained rise per section, capped at four
+     short stages so content is never held back. */
   .home-entrance > .home-entrance-section {
-    animation: home-section-enter 450ms var(--motion-ease-emphasized) both;
+    animation: home-section-enter var(--motion-duration-base) var(--motion-ease-emphasized) both;
   }
 
   .home-entrance > .home-entrance-section:nth-child(1) {
@@ -1382,15 +1325,15 @@ html[data-reload-loading="fade-out"] #app-root-content {
   }
 
   .home-entrance > .home-entrance-section:nth-child(2) {
-    animation-delay: 60ms;
+    animation-delay: 40ms;
   }
 
   .home-entrance > .home-entrance-section:nth-child(3) {
-    animation-delay: 120ms;
+    animation-delay: 80ms;
   }
 
   .home-entrance > .home-entrance-section:nth-child(4) {
-    animation-delay: 180ms;
+    animation-delay: 120ms;
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -2270,9 +2213,10 @@ html[data-reload-loading="fade-out"] #app-root-content {
     @apply font-medium text-foreground;
   }
 
-  /* Smooth fade-in for streaming text content */
-  .ai-streaming > * {
-    animation: ai-stream-fade-in 0.3s ease-out both;
+  /* Newly arrived streaming block fades in once; settled blocks stay static
+     so a long stream never re-animates the whole message per token batch. */
+  .ai-streaming > :last-child {
+    animation: ai-stream-fade-in var(--motion-duration-base) ease-out both;
   }
 
   @keyframes ai-stream-fade-in {
@@ -2299,7 +2243,7 @@ html[data-reload-loading="fade-out"] #app-root-content {
       animation: none;
       opacity: 0.6;
     }
-    .ai-streaming > * {
+    .ai-streaming > :last-child {
       animation: none;
       opacity: 1;
     }
@@ -2474,9 +2418,13 @@ html[data-reload-loading="fade-out"] #app-root-content {
   opacity: 0;
   pointer-events: none;
   touch-action: none;
-  will-change: transform;
   transform: translateY(-100%);
   visibility: hidden;
+}
+
+.mobile-nav-overlay[data-state="open"],
+.mobile-nav-overlay[data-state="closed"] {
+  will-change: transform;
 }
 
 .dark .mobile-nav-overlay {
@@ -2859,6 +2807,24 @@ html[data-reload-loading="fade-out"] #app-root-content {
     animation-iteration-count: infinite;
   }
 
+  /* Dot wave/spin: linear fade from lit to dim; per-dot negative delay
+     distributes the phase so the bright head travels the grid. Duration and
+     delay come in via inline style (one 640ms cycle). */
+  @keyframes bui-agent-thinking-dot {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0.12;
+    }
+  }
+
+  .bui-agent-thinking-dot {
+    animation-name: bui-agent-thinking-dot;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+  }
+
   /* Infinity comet: the dash segment laps the normalized (pathLength=100)
      figure-eight once per animation-duration. */
   @keyframes bui-agent-thinking-dash {
@@ -2885,6 +2851,10 @@ html[data-reload-loading="fade-out"] #app-root-content {
       animation: none;
       transform: none;
       opacity: 0.7;
+    }
+
+    .bui-agent-thinking-dot {
+      animation: none;
     }
 
     .bui-agent-thinking-comet {
@@ -2993,21 +2963,4 @@ html[data-reload-loading="fade-out"] #app-root-content {
   outline: none !important;
 }
 
-/* BoardUI chart cards compat — FROZEN (issue #73, ADR-015;
-   components/application/dashboard/*): soft fade
-   applied to an animated number each time its target changes. Verbatim from
-   the BoardUI stylesheet (which is not imported; only this section is wired).
-   Do not expand. */
-@keyframes number-fade {
-  from {
-    opacity: 0.35;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-.animate-number-fade {
-  animation: number-fade 220ms ease-out;
-}
 

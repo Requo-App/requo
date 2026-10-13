@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import { businesses } from "@/lib/db/schema";
 import { isInquiryAckEmailEnabled } from "@/lib/env";
-import { sendInquiryAcknowledgmentEmail } from "@/lib/resend/client";
+import { sendInquiryAcknowledgmentEmail } from "@/lib/email/transactional";
 import { sendInquiryQualifiedEvent } from "@/lib/inngest/send";
 
 /**

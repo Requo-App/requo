@@ -134,12 +134,7 @@ export function resolveEffectivePlanFromSubscription(
   }
 }
 
-/* ── Legacy account helpers (kept temporarily) ─────────────────────────────── */
-
-/**
- * Legacy: account subscription row for a user. Kept temporarily for admin tools
- * and rollback support, but new billing logic should be business-scoped.
- */
+/** Legacy account row retained for admin override metadata and history. */
 export async function getAccountSubscription(
   userId: string,
 ): Promise<AccountSubscriptionRow | null> {
@@ -170,60 +165,54 @@ type ActivateSubscriptionParams = {
 
 /**
  * Creates or updates a business subscription to an active state.
+ *
+ * The subscription write and the denormalized `businesses.plan` update
+ * run in a single transaction: if either fails, both roll back, so the
+ * cache can never drift from the authoritative subscription row.
  */
 export async function activateSubscription(
   params: ActivateSubscriptionParams,
 ): Promise<BusinessSubscriptionRow> {
   const now = new Date();
-  const existing = await getBusinessSubscription(params.businessId);
 
-  let subscription: BusinessSubscriptionRow;
+  return db.transaction(async (tx) => {
+    const [existing] = await tx
+      .select()
+      .from(businessSubscriptions)
+      .where(eq(businessSubscriptions.businessId, params.businessId))
+      .limit(1);
 
-  if (existing) {
-    const [updated] = await db
-      .update(businessSubscriptions)
-      .set({
-        status: params.status ?? "active",
-        plan: params.plan,
-        billingProvider: params.provider,
-        billingCurrency: params.currency,
-        providerCustomerId: params.providerCustomerId ?? existing.providerCustomerId,
-        providerSubscriptionId:
-          params.providerSubscriptionId ?? existing.providerSubscriptionId,
-        providerCheckoutId:
-          params.providerCheckoutId ?? existing.providerCheckoutId,
-        paymentMethod: params.paymentMethod ?? existing.paymentMethod,
-        currentPeriodStart: params.currentPeriodStart ?? now,
-        currentPeriodEnd: params.currentPeriodEnd ?? null,
-        canceledAt: null,
-        updatedAt: now,
-      })
-      .where(eq(businessSubscriptions.id, existing.id))
-      .returning();
+    let subscription: BusinessSubscriptionRow;
 
-    subscription = updated!;
-  } else {
-    const [created] = await db
-      .insert(businessSubscriptions)
-      .values({
-        id: newEntityId(),
-        businessId: params.businessId,
-        status: params.status ?? "active",
-        plan: params.plan,
-        billingProvider: params.provider,
-        billingCurrency: params.currency,
-        providerCustomerId: params.providerCustomerId ?? null,
-        providerSubscriptionId: params.providerSubscriptionId ?? null,
-        providerCheckoutId: params.providerCheckoutId ?? null,
-        paymentMethod: params.paymentMethod ?? null,
-        currentPeriodStart: params.currentPeriodStart ?? now,
-        currentPeriodEnd: params.currentPeriodEnd ?? null,
-        createdAt: now,
-        updatedAt: now,
-      })
-      .onConflictDoUpdate({
-        target: businessSubscriptions.businessId,
-        set: {
+    if (existing) {
+      const [updated] = await tx
+        .update(businessSubscriptions)
+        .set({
+          status: params.status ?? "active",
+          plan: params.plan,
+          billingProvider: params.provider,
+          billingCurrency: params.currency,
+          providerCustomerId: params.providerCustomerId ?? existing.providerCustomerId,
+          providerSubscriptionId:
+            params.providerSubscriptionId ?? existing.providerSubscriptionId,
+          providerCheckoutId:
+            params.providerCheckoutId ?? existing.providerCheckoutId,
+          paymentMethod: params.paymentMethod ?? existing.paymentMethod,
+          currentPeriodStart: params.currentPeriodStart ?? now,
+          currentPeriodEnd: params.currentPeriodEnd ?? null,
+          canceledAt: null,
+          updatedAt: now,
+        })
+        .where(eq(businessSubscriptions.id, existing.id))
+        .returning();
+
+      subscription = updated!;
+    } else {
+      const [created] = await tx
+        .insert(businessSubscriptions)
+        .values({
+          id: newEntityId(),
+          businessId: params.businessId,
           status: params.status ?? "active",
           plan: params.plan,
           billingProvider: params.provider,
@@ -234,23 +223,40 @@ export async function activateSubscription(
           paymentMethod: params.paymentMethod ?? null,
           currentPeriodStart: params.currentPeriodStart ?? now,
           currentPeriodEnd: params.currentPeriodEnd ?? null,
-          canceledAt: null,
+          createdAt: now,
           updatedAt: now,
-        },
-      })
-      .returning();
+        })
+        .onConflictDoUpdate({
+          target: businessSubscriptions.businessId,
+          set: {
+            status: params.status ?? "active",
+            plan: params.plan,
+            billingProvider: params.provider,
+            billingCurrency: params.currency,
+            providerCustomerId: params.providerCustomerId ?? null,
+            providerSubscriptionId: params.providerSubscriptionId ?? null,
+            providerCheckoutId: params.providerCheckoutId ?? null,
+            paymentMethod: params.paymentMethod ?? null,
+            currentPeriodStart: params.currentPeriodStart ?? now,
+            currentPeriodEnd: params.currentPeriodEnd ?? null,
+            canceledAt: null,
+            updatedAt: now,
+          },
+        })
+        .returning();
 
-    subscription = created!;
-  }
+      subscription = created!;
+    }
 
-  // Keep the denormalized businesses.plan column in sync so UI reads
-  // are immediately consistent without waiting for cache revalidation.
-  await db
-    .update(businesses)
-    .set({ plan: params.plan, updatedAt: now })
-    .where(eq(businesses.id, params.businessId));
+    // Keep the denormalized businesses.plan column in sync so UI reads
+    // are immediately consistent without waiting for cache revalidation.
+    await tx
+      .update(businesses)
+      .set({ plan: params.plan, updatedAt: now })
+      .where(eq(businesses.id, params.businessId));
 
-  return subscription;
+    return subscription;
+  });
 }
 
 /**
@@ -438,55 +444,4 @@ export async function syncSubscriptionFromPolar(
     console.error("[billing] Failed to sync subscription from Polar:", error);
     return false;
   }
-}
-
-/* ── Legacy wrappers (temporarily supported) ──────────────────────────────── */
-
-/** @deprecated Use `getEffectivePlanForBusiness` instead. */
-export async function getEffectivePlan(businessId: string): Promise<BusinessPlan> {
-  return getEffectivePlanForBusiness(businessId);
-}
-
-/** @deprecated Use `getCachedEffectivePlanForBusiness` instead. */
-export async function getCachedEffectivePlan(
-  businessId: string,
-): Promise<BusinessPlan> {
-  return getCachedEffectivePlanForBusiness(businessId);
-}
-
-/**
- * @deprecated User-scoped plan reads are no longer a source of truth.
- * This resolves the first owned business (if any) and returns its effective plan.
- */
-export async function getEffectivePlanForUser(userId: string): Promise<BusinessPlan> {
-  const [biz] = await db
-    .select({ id: businesses.id })
-    .from(businesses)
-    .where(eq(businesses.ownerUserId, userId))
-    .limit(1);
-
-  if (!biz) return "free";
-  return getEffectivePlanForBusiness(biz.id);
-}
-
-/**
- * @deprecated Cached user-scoped plan reads are no longer a source of truth.
- * This resolves the first owned business (if any) and returns its cached effective plan.
- */
-export async function getCachedEffectivePlanForUser(
-  userId: string,
-): Promise<BusinessPlan> {
-  "use cache";
-
-  cacheLife(billingShellCacheLife);
-  cacheTag(...getBusinessBillingCacheTags(userId));
-
-  const [biz] = await db
-    .select({ id: businesses.id })
-    .from(businesses)
-    .where(eq(businesses.ownerUserId, userId))
-    .limit(1);
-
-  if (!biz) return "free";
-  return getCachedEffectivePlanForBusiness(biz.id);
 }

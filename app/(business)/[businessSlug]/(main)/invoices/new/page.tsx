@@ -43,7 +43,7 @@ export default function NewInvoicePage({ params, searchParams }: NewInvoicePageP
   );
 }
 
-function NewInvoiceSkeleton() {
+export function NewInvoiceSkeleton() {
   return (
     <>
       <PageHeader eyebrow="New invoice" title="Create a new invoice" />

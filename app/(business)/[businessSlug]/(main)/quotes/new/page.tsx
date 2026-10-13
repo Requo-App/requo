@@ -56,7 +56,7 @@ export default function NewQuotePage({
   );
 }
 
-function NewQuoteEditorSkeleton() {
+export function NewQuoteEditorSkeleton() {
   return (
     <>
       <PageHeader
@@ -64,7 +64,7 @@ function NewQuoteEditorSkeleton() {
         title="Create a new quote"
       />
       <div className="flex flex-col gap-6">
- <div className="section-panel animate-pulse">
+        <div className="section-panel animate-pulse">
           <div className="flex flex-col gap-5">
             <div className="h-6 w-32 rounded-md bg-muted" />
             <div className="grid gap-5 sm:grid-cols-2">

@@ -70,7 +70,7 @@ Always wire sandbox first. Production cutover is documented below; do not skip s
    - `order.updated`
    - `order.refunded`
 
-5. The integration uses the canonical `@polar-sh/nextjs` `Checkout` adapter at `app/api/billing/polar/checkout/route.ts`. Frontend navigates to that adapter URL with `?products=<polarProductId>&customerExternalId=<businessId>&customerEmail=<email>`. The thin redirect at `app/api/account/billing/checkout/route.ts` runs eligibility checks (auth, isPolarConfigured, already-active, missing email, product id resolution) before forwarding to the adapter. Webhook payloads are resolved back to a Requo business via `customer.externalId` first, then `business_subscriptions.providerCustomerId`, then `providerSubscriptionId`, with `metadata.businessId` as a tertiary legacy fallback.
+5. `app/api/account/billing/checkout/route.ts` runs eligibility checks (auth, isPolarConfigured, already-active, missing email, product id resolution) then creates the Polar checkout session directly via `lib/billing/polar-client.ts` and returns `{ checkoutUrl }`. Webhook payloads are resolved back to a Requo business via `customer.externalId` first, then `business_subscriptions.providerCustomerId`, then `providerSubscriptionId`, with `metadata.businessId` as a tertiary legacy fallback.
 
 ## Production cutover
 

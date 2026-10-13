@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { toast } from "@/components/base/notification/notify";
+import { toast } from "@/components/shared/notify";
 import {
   ArchiveRestore,
   ArrowUpRight,

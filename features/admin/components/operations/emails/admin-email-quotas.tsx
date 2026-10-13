@@ -1,5 +1,6 @@
 import { DashboardSection } from "@/components/shared/dashboard-layout";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { getAdminEmailQuotas } from "@/features/admin/queries";
 import type { AdminEmailQuota } from "@/features/admin/types";
 
@@ -71,5 +72,18 @@ export async function AdminEmailQuotasSection() {
         })}
       </ul>
     </DashboardSection>
+  );
+}
+
+export function AdminEmailQuotasFallback() {
+  return (
+    <div className="section-panel space-y-3">
+      <Skeleton className="h-5 w-32 rounded-md" />
+      <div className="grid gap-3 sm:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <Skeleton className="h-24 w-full rounded-lg" key={index} />
+        ))}
+      </div>
+    </div>
   );
 }

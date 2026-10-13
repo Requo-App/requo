@@ -69,9 +69,9 @@ vi.mock("next/navigation", () => ({
  * 1. `businesses.plan` is only a denormalized read cache. The effective plan
  *    resolves through `business_subscriptions` (fail-closed to `free` when no
  *    row exists), so granting a plan means writing a subscription row.
- * 2. The effective plan is inherited per *owner*, resolved from the first
- *    business that owner owns. The suite therefore acts as `outsiderUserId`,
- *    who owns exactly one business, so the resolution is deterministic.
+ * 2. The effective plan is resolved from the requested business's own
+ *    `business_subscriptions` row. The suite acts as `outsiderUserId`, who
+ *    owns exactly one business, so the authorization assertions stay scoped.
  *
  * `knowledgeBase` is available on every plan and metered by source count
  * instead (see `lib/plans/usage-limits.ts`), so the AI agent — the pro-gated

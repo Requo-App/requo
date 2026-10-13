@@ -60,7 +60,7 @@ import {
   isNotificationUnread,
 } from "@/features/notifications/utils";
 import {
-  getBusinessDashboardPath,
+  getBusinessHomePath,
   getBusinessInquiryPath,
   getBusinessNotificationsPath,
   getBusinessQuotePath,
@@ -291,7 +291,7 @@ export function DashboardNotificationBell({
               ? getBusinessQuotePath(businessSlug, row.quote_id)
               : row.inquiry_id
                 ? getBusinessInquiryPath(businessSlug, row.inquiry_id)
-                : getBusinessDashboardPath(businessSlug),
+                : getBusinessHomePath(businessSlug),
             createdAt: row.created_at,
             unread,
           };

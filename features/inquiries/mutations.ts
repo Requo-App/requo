@@ -325,7 +325,7 @@ export async function createManualInquirySubmission({
 /**
  * Shared submission path for the customer-facing Agent surface.
  *
- * Preserves AI attribution (`source: "ai_agent"`, `aiAssisted: true`) while
+ * Preserves AI attribution (`source: "ai_assistant"`, `aiAssisted: true`) while
  * reusing intake behaviour (form linkage, activity, notifications,
  * acknowledgement email, qualification) identically to the public path.
  */
@@ -345,7 +345,7 @@ export async function createAgentInquirySubmission({
     source: inquirySources.aiAssistant,
     activity: {
       type: "inquiry.submitted_ai_agent",
-      summary: "Inquiry submitted through AI assistant conversation.",
+      summary: "Inquiry submitted through AI agent conversation.",
     },
     notifyInAppOnNewInquiry: true,
     aiAssisted: true,
@@ -984,27 +984,65 @@ export async function bulkArchiveInquiriesForBusiness({
 }): Promise<{ affected: number; skipped: number }> {
   const now = new Date();
 
-  const result = await db
-    .update(inquiries)
-    .set({
-      archivedAt: now,
-      archivedBy: actorUserId,
-      updatedAt: now,
-    })
-    .where(
-      and(
-        eq(inquiries.businessId, businessId),
-        inArray(inquiries.id, inquiryIds),
-        isNull(inquiries.archivedAt),
-        isNull(inquiries.deletedAt),
-      ),
-    )
-    .returning({ id: inquiries.id });
+  return db.transaction(async (tx) => {
+    const result = await tx
+      .update(inquiries)
+      .set({
+        archivedAt: now,
+        archivedBy: actorUserId,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(inquiries.businessId, businessId),
+          inArray(inquiries.id, inquiryIds),
+          isNull(inquiries.archivedAt),
+          isNull(inquiries.deletedAt),
+        ),
+      )
+      .returning({
+        id: inquiries.id,
+        status: inquiries.status,
+        customerName: inquiries.customerName,
+      });
 
-  return {
-    affected: result.length,
-    skipped: inquiryIds.length - result.length,
-  };
+    if (result.length > 0) {
+      await tx.insert(activityLogs).values(
+        result.map((row) => ({
+          id: newEntityId(),
+          businessId,
+          inquiryId: row.id,
+          actorUserId,
+          type: "inquiry.archived",
+          summary: "Inquiry archived.",
+          metadata: {
+            previousStatus: row.status,
+          },
+          createdAt: now,
+          updatedAt: now,
+        })),
+      );
+
+      for (const row of result) {
+        await writeAuditLog(tx, {
+          businessId,
+          actorUserId,
+          entityType: "request",
+          entityId: row.id,
+          action: "request.archived",
+          metadata: {
+            customerName: row.customerName,
+          },
+          createdAt: now,
+        });
+      }
+    }
+
+    return {
+      affected: result.length,
+      skipped: inquiryIds.length - result.length,
+    };
+  });
 }
 
 export async function bulkDeleteInquiriesForBusiness({
@@ -1018,26 +1056,64 @@ export async function bulkDeleteInquiriesForBusiness({
 }): Promise<{ affected: number; skipped: number }> {
   const now = new Date();
 
-  const result = await db
-    .update(inquiries)
-    .set({
-      deletedAt: now,
-      deletedBy: actorUserId,
-      updatedAt: now,
-    })
-    .where(
-      and(
-        eq(inquiries.businessId, businessId),
-        inArray(inquiries.id, inquiryIds),
-        isNull(inquiries.deletedAt),
-      ),
-    )
-    .returning({ id: inquiries.id });
+  return db.transaction(async (tx) => {
+    const result = await tx
+      .update(inquiries)
+      .set({
+        deletedAt: now,
+        deletedBy: actorUserId,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(inquiries.businessId, businessId),
+          inArray(inquiries.id, inquiryIds),
+          isNull(inquiries.deletedAt),
+        ),
+      )
+      .returning({
+        id: inquiries.id,
+        status: inquiries.status,
+        customerName: inquiries.customerName,
+      });
 
-  return {
-    affected: result.length,
-    skipped: inquiryIds.length - result.length,
-  };
+    if (result.length > 0) {
+      await tx.insert(activityLogs).values(
+        result.map((row) => ({
+          id: newEntityId(),
+          businessId,
+          inquiryId: row.id,
+          actorUserId,
+          type: "inquiry.deleted",
+          summary: "Inquiry deleted.",
+          metadata: {
+            previousStatus: row.status,
+          },
+          createdAt: now,
+          updatedAt: now,
+        })),
+      );
+
+      for (const row of result) {
+        await writeAuditLog(tx, {
+          businessId,
+          actorUserId,
+          entityType: "request",
+          entityId: row.id,
+          action: "request.deleted",
+          metadata: {
+            customerName: row.customerName,
+          },
+          createdAt: now,
+        });
+      }
+    }
+
+    return {
+      affected: result.length,
+      skipped: inquiryIds.length - result.length,
+    };
+  });
 }
 
 export async function bulkChangeInquiryStatusForBusiness({
@@ -1053,32 +1129,78 @@ export async function bulkChangeInquiryStatusForBusiness({
 }): Promise<{ affected: number; skipped: number }> {
   const now = new Date();
 
-  // Only update non-archived, non-deleted inquiries
-  const result = await db
-    .update(inquiries)
-    .set({
-      status: targetStatus,
-      updatedAt: now,
-    })
-    .where(
-      and(
-        eq(inquiries.businessId, businessId),
-        inArray(inquiries.id, inquiryIds),
-        isNull(inquiries.archivedAt),
-        isNull(inquiries.deletedAt),
-      ),
-    )
-    .returning({ id: inquiries.id });
+  return db.transaction(async (tx) => {
+    const previousRows = await tx
+      .select({ id: inquiries.id, status: inquiries.status })
+      .from(inquiries)
+      .where(
+        and(
+          eq(inquiries.businessId, businessId),
+          inArray(inquiries.id, inquiryIds),
+          isNull(inquiries.archivedAt),
+          isNull(inquiries.deletedAt),
+        ),
+      );
+    const previousById = new Map(previousRows.map((row) => [row.id, row.status]));
 
-  return {
-    affected: result.length,
-    skipped: inquiryIds.length - result.length,
-  };
+    // Only update non-archived, non-deleted inquiries
+    const result = await tx
+      .update(inquiries)
+      .set({
+        status: targetStatus,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(inquiries.businessId, businessId),
+          inArray(inquiries.id, inquiryIds),
+          isNull(inquiries.archivedAt),
+          isNull(inquiries.deletedAt),
+        ),
+      )
+      .returning({ id: inquiries.id });
+
+    // Mirror single-record semantics: already-at-target rows count as
+    // affected (preserved contract) but receive no success event.
+    const changed = result.filter(
+      (row) => previousById.get(row.id) !== targetStatus,
+    );
+
+    if (changed.length > 0) {
+      await tx.insert(activityLogs).values(
+        changed.map((row) => {
+          const previousStatus = previousById.get(row.id) ?? targetStatus;
+          return {
+            id: newEntityId(),
+            businessId,
+            inquiryId: row.id,
+            actorUserId,
+            type: "inquiry.status_changed",
+            summary: `Inquiry moved from ${getInquiryStatusLabel(
+              previousStatus,
+            )} to ${getInquiryStatusLabel(targetStatus)}.`,
+            metadata: {
+              previousStatus,
+              nextStatus: targetStatus,
+            },
+            createdAt: now,
+            updatedAt: now,
+          };
+        }),
+      );
+    }
+
+    return {
+      affected: result.length,
+      skipped: inquiryIds.length - result.length,
+    };
+  });
 }
 
 export async function bulkUnarchiveInquiriesForBusiness({
   businessId,
   inquiryIds,
+  actorUserId,
 }: {
   businessId: string;
   inquiryIds: string[];
@@ -1086,45 +1208,82 @@ export async function bulkUnarchiveInquiriesForBusiness({
 }): Promise<{ affected: number; skipped: number }> {
   const now = new Date();
 
-  const cleared = await db
-    .update(inquiries)
-    .set({
-      archivedAt: null,
-      archivedBy: null,
-      updatedAt: now,
-    })
-    .where(
-      and(
-        eq(inquiries.businessId, businessId),
-        inArray(inquiries.id, inquiryIds),
-        isNotNull(inquiries.archivedAt),
-        isNull(inquiries.deletedAt),
-      ),
-    )
-    .returning({ id: inquiries.id });
-
-  if (cleared.length === 0) {
-    return { affected: 0, skipped: inquiryIds.length };
-  }
-
-  // Legacy rows archived under the old "archived" status restore as "waiting",
-  // mirroring `unarchiveInquiryForBusiness`.
-  await db
-    .update(inquiries)
-    .set({ status: "waiting", updatedAt: now })
-    .where(
-      and(
-        eq(inquiries.businessId, businessId),
-        inArray(
-          inquiries.id,
-          cleared.map((row) => row.id),
+  return db.transaction(async (tx) => {
+    const previousRows = await tx
+      .select({ id: inquiries.id, status: inquiries.status })
+      .from(inquiries)
+      .where(
+        and(
+          eq(inquiries.businessId, businessId),
+          inArray(inquiries.id, inquiryIds),
+          isNotNull(inquiries.archivedAt),
+          isNull(inquiries.deletedAt),
         ),
-        eq(inquiries.status, "archived"),
-      ),
+      );
+    const previousById = new Map(previousRows.map((row) => [row.id, row.status]));
+
+    const cleared = await tx
+      .update(inquiries)
+      .set({
+        archivedAt: null,
+        archivedBy: null,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(inquiries.businessId, businessId),
+          inArray(inquiries.id, inquiryIds),
+          isNotNull(inquiries.archivedAt),
+          isNull(inquiries.deletedAt),
+        ),
+      )
+      .returning({ id: inquiries.id });
+
+    if (cleared.length === 0) {
+      return { affected: 0, skipped: inquiryIds.length };
+    }
+
+    // Legacy rows archived under the old "archived" status restore as "waiting",
+    // mirroring `unarchiveInquiryForBusiness`.
+    await tx
+      .update(inquiries)
+      .set({ status: "waiting", updatedAt: now })
+      .where(
+        and(
+          eq(inquiries.businessId, businessId),
+          inArray(
+            inquiries.id,
+            cleared.map((row) => row.id),
+          ),
+          eq(inquiries.status, "archived"),
+        ),
+      );
+
+    await tx.insert(activityLogs).values(
+      cleared.map((row) => {
+        const previousStatus = previousById.get(row.id) ?? "new";
+        const restoredStatus =
+          previousStatus === "archived" ? "waiting" : previousStatus;
+        return {
+          id: newEntityId(),
+          businessId,
+          inquiryId: row.id,
+          actorUserId,
+          type: "inquiry.unarchived",
+          summary: "Inquiry restored to active.",
+          metadata: {
+            previousStatus,
+            restoredStatus,
+          },
+          createdAt: now,
+          updatedAt: now,
+        };
+      }),
     );
 
-  return {
-    affected: cleared.length,
-    skipped: inquiryIds.length - cleared.length,
-  };
+    return {
+      affected: cleared.length,
+      skipped: inquiryIds.length - cleared.length,
+    };
+  });
 }

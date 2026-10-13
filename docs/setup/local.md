@@ -7,9 +7,35 @@
 - PostgreSQL
 - A `.env` file copied from `.env.example`
 
+## One-command Docker setup
+
+```bash
+cp .env.example .env.local
+npx supabase start   # one-time: local Postgres, Storage, realtime
+npm run db:migrate
+npm run db:seed
+docker compose up --build
+```
+
+This starts `app` (Next.js dev server with hot reload on
+http://localhost:3000) and `inngest` (Dev Server on http://localhost:8288),
+both wired to the Supabase local stack. The `db` service (standalone
+Postgres on `:5432`) is for setups that do not use the Supabase stack.
+
+Notes:
+
+- Rebuild the `app` image after dependency changes (`docker compose up
+  --build`); code edits hot-reload without a rebuild.
+- Inside containers, Postgres is reached by container hostname over the
+  `supabase_network_<project>` network with `?sslmode=disable` (honored by
+  the dev health check); browsers on Docker Desktop resolve
+  `host.docker.internal` for Supabase Storage/realtime.
+- The native flow below stays supported; use it when you want the dev
+  server, Inngest, or ngrok running as host processes instead.
+
 ## Environment Setup
 
-Copy `.env.example` to `.env` and fill in the values you want to use locally.
+Copy `.env.example` to `.env.local` and fill in the values you want to use locally.
 
 Minimum local requirements:
 
@@ -162,6 +188,51 @@ Notes:
 - Local data is separate from the Supabase project. Re-seed rather than
   expecting shared state, and switch `DATABASE_URL` back when you need to read
   real project data.
+
+### Supabase local (full stack: database + realtime + storage)
+
+When the hosted project is unreachable (or you want a fully offline loop),
+run Supabase locally via the CLI (`supabase` devDependency, `npx supabase`).
+Needs a container runtime: Docker Desktop with WSL integration enabled for
+your distro, then `docker ps` must work from this shell.
+
+```bash
+npx supabase start    # first run pulls images; prints URLs and keys
+npx supabase status   # re-print URLs and keys at any time
+npx supabase stop     # stop; database volumes are kept
+```
+
+Point the Supabase envs at the local stack (defaults):
+
+```env
+DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres
+DATABASE_MIGRATION_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres
+NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<ANON_KEY from status>
+SUPABASE_SERVICE_ROLE_KEY=<SERVICE_ROLE_KEY from status>
+SUPABASE_JWT_SECRET=<JWT_SECRET from status>
+```
+
+Then `npm run db:migrate` (buckets come from migration `0034`) and
+`npm run db:seed`. Scripts using bare `dotenv/config` (`db:seed`,
+`db:reset` consumers, e2e fixtures) only read `.env`, so keep a copy:
+`cp .env.local .env`.
+
+Two local-only steps (never as Drizzle migrations — they must not run on
+hosted prod):
+
+- Realtime tables need the `supabase_realtime` publication (Studio SQL
+  editor at `http://127.0.0.1:54323`, or any PG client on port `54322`):
+  `ALTER PUBLICATION supabase_realtime ADD TABLE
+  public.business_notifications, public.business_notification_states,
+  public.inquiries;`
+- Live row events need one extra local-only step (the Drizzle migrations keep
+  default-deny RLS for prod parity, and `business_members` is deny-all too, so
+  a plain policy subquery sees nothing). Run once per fresh database:
+  `npx tsx scripts/apply-local-realtime-policies.ts` — it adds a
+  `SECURITY DEFINER` membership helper plus own-business `SELECT` policies on
+  the three bell tables. The script refuses non-local hosts, so hosted prod
+  is untouched (the bell's polling fallback still covers prod).
 
 ### Email Delivery
 

@@ -22,7 +22,6 @@ import { StatusBadge, type StatusTone } from "@/components/shared/status-badge";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";

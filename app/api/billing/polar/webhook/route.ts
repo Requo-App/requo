@@ -33,6 +33,7 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 import { Webhooks } from "@polar-sh/nextjs";
+import type { NextRequest } from "next/server";
 import type { validateEvent } from "@polar-sh/sdk/webhooks";
 
 import {
@@ -199,7 +200,7 @@ async function handleUnhandledPayload(
 
 /* ── Adapter wiring ───────────────────────────────────────────────────────── */
 
-export const POST = Webhooks({
+const adapter = Webhooks({
   webhookSecret: env.POLAR_WEBHOOK_SECRET ?? "",
   onSubscriptionCreated: handleSubscriptionCreated,
   onSubscriptionActive: handleSubscriptionActive,
@@ -212,3 +213,12 @@ export const POST = Webhooks({
   onOrderRefunded: handleOrderRefunded,
   onPayload: handleUnhandledPayload,
 });
+
+// Fail-closed when the webhook secret is unconfigured (adapter would verify
+// against "" otherwise).
+export async function POST(request: NextRequest): Promise<Response> {
+  if (!env.POLAR_WEBHOOK_SECRET) {
+    return new Response("Webhook not configured.", { status: 503 });
+  }
+  return adapter(request);
+}

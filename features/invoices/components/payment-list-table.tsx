@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { MotionState } from "@/hooks/use-animated-list";
+import type { ItemRefCallback, MotionState } from "@/hooks/use-animated-list";
 
 import { TruncatedTextWithTooltip } from "@/components/shared/truncated-text-with-tooltip";
 import {
@@ -20,12 +20,14 @@ type PaymentListTableProps = {
   payments: PaymentListItem[];
   businessSlug: string;
   getMotionState?: (id: string) => MotionState;
+  getItemRef?: ItemRefCallback;
 };
 
 export function PaymentListTable({
   payments,
   businessSlug,
   getMotionState,
+  getItemRef,
 }: PaymentListTableProps) {
   return (
     <div className="hidden overflow-x-auto no-scrollbar xl:block">
@@ -47,7 +49,7 @@ export function PaymentListTable({
             const invoiceHref = getBusinessInvoicePath(businessSlug, payment.invoiceId);
 
             return (
-              <TableRow className="motion-list-item group/row" data-motion-state={getMotionState?.(payment.id)} key={payment.id}>
+              <TableRow className="motion-list-item group/row" data-motion-state={getMotionState?.(payment.id)} key={payment.id} ref={getItemRef?.(payment.id)}>
                 <TableCell className="w-[15rem]">
                   <div className="table-meta-stack max-w-full">
                     <TruncatedTextWithTooltip

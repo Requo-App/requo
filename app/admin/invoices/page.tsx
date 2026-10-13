@@ -3,9 +3,9 @@ import { Suspense } from "react";
 
 import { DashboardPage } from "@/components/shared/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
+import { AdminListContentFallback } from "@/features/admin/components/list/admin-list-content-fallback";
+import { AdminListControlsFallback } from "@/features/admin/components/list/admin-list-controls-fallback";
 import {
-  AdminListContentFallback,
-  AdminListControlsFallback,
   AdminInvoicesListContentSection,
   AdminInvoicesListControlsSection,
 } from "@/features/admin/components/product/invoices/admin-invoices-list-sections";
@@ -39,7 +39,10 @@ export default function AdminInvoicesPage({
 }: AdminInvoicesPageProps) {
   return (
     <DashboardPage>
-      <PageHeader title="Invoices" />
+      <PageHeader
+        title="Invoices"
+        description="Manual-payment invoices across every business."
+      />
       <div className="dashboard-table-shell" data-list-card>
         <Suspense fallback={<AdminListControlsFallback />}>
           <AdminInvoicesControlsRegion searchParams={searchParams} />

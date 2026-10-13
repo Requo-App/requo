@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { RiHomeLine, RiSearchLine, RiSettings4Line } from "@remixicon/react";
 
-import { cx } from "@/utils/cx";
+import { cn } from "@/lib/utils";
 
 export type MobileFloatingDockProps = {
   navOpen: boolean;
@@ -93,7 +93,7 @@ export function MobileFloatingDock({
     <nav
       aria-label="Mobile navigation"
       data-scroll-state={scrollState}
-      className={cx(
+      className={cn(
         "fixed bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-1/2 z-40 -translate-x-1/2 lg:hidden",
         "transition-[translate,opacity] duration-(--motion-duration-base) ease-(--motion-ease-emphasized)",
         hidden
@@ -108,7 +108,7 @@ export function MobileFloatingDock({
           onClick={onHomeClick}
           aria-label="Open navigation"
           aria-expanded={navOpen}
-          className={cx(
+          className={cn(
             "flex size-11 items-center justify-center rounded-full transition-colors active:scale-95",
             "outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring",
             navOpen
@@ -123,7 +123,7 @@ export function MobileFloatingDock({
           onClick={onSearchClick}
           aria-label="Search records"
           aria-expanded={searchOpen}
-          className={cx(
+          className={cn(
             "flex size-11 items-center justify-center rounded-full transition-colors active:scale-95",
             "outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring",
             searchOpen
@@ -138,7 +138,7 @@ export function MobileFloatingDock({
           onClick={onSettingsClick}
           aria-label="Open settings"
           aria-expanded={settingsOpen}
-          className={cx(
+          className={cn(
             "flex size-11 items-center justify-center rounded-full transition-colors active:scale-95",
             "outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring",
             settingsOpen

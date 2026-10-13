@@ -12,7 +12,7 @@ import {
   sendMagicLinkEmail,
   sendPasswordResetEmail,
   sendVerificationEmail,
-} from "@/lib/resend/client";
+} from "@/lib/email/transactional";
 
 function toOrigin(value: string) {
   return new URL(value).origin;
@@ -30,7 +30,7 @@ function toOrigin(value: string) {
  *   back to `/login`. Host-only cookies work fine.
  */
 function getCookieDomain(): string {
-  const baseUrl = process.env.BETTER_AUTH_URL;
+  const baseUrl = env.BETTER_AUTH_URL;
   if (!baseUrl) return "";
   try {
     const hostname = new URL(baseUrl).hostname;
@@ -106,12 +106,13 @@ function buildTrustedOrigins() {
 }
 
 const shouldSkipTransactionalAuthEmails =
-  process.env.DISABLE_TRANSACTIONAL_EMAILS === "1";
+  env.DISABLE_TRANSACTIONAL_EMAILS === "1" ||
+  env.DISABLE_TRANSACTIONAL_EMAILS === "true";
 
 const shouldSkipMagicLinkEmail =
   shouldSkipTransactionalAuthEmails ||
-  process.env.DISABLE_MAGIC_LINK === "1" ||
-  process.env.DISABLE_MAGIC_LINK === "true";
+  env.DISABLE_MAGIC_LINK === "1" ||
+  env.DISABLE_MAGIC_LINK === "true";
 
 // Empty in local dev (see getCookieDomain) — the cross-subdomain option
 // below is omitted entirely in that case.

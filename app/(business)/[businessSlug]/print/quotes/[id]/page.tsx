@@ -6,8 +6,7 @@ import { QuotePrintDocument } from "@/features/quotes/components/quote-print-doc
 import { getAcceptanceForBusiness, getQuoteDetailForBusiness } from "@/features/quotes/queries";
 import { quoteRouteParamsSchema } from "@/features/quotes/schemas";
 import { getBusinessQuotePath } from "@/features/businesses/routes";
-import { getBusinessRequestContextForSlug } from "@/lib/db/business-access";
-import { hasFeatureAccess } from "@/lib/plans";
+import { requireExportRequestContext } from "@/lib/exports";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 
 export const metadata: Metadata = createNoIndexMetadata({
@@ -26,24 +25,14 @@ export default async function QuotePrintPage({
   params,
 }: QuotePrintPageProps) {
   const resolvedParams = await params;
-  const requestContext = await getBusinessRequestContextForSlug(
-    resolvedParams.businessSlug,
-  );
+  const requestContext =
+    await requireExportRequestContext(resolvedParams.businessSlug);
 
   const parsedParams = quoteRouteParamsSchema.safeParse({
     id: resolvedParams.id,
   });
 
-  if (!parsedParams.success || !requestContext) {
-    notFound();
-  }
-
-  if (
-    !hasFeatureAccess(
-      requestContext.businessContext.business.plan,
-      "exports",
-    )
-  ) {
+  if (!parsedParams.success) {
     notFound();
   }
 

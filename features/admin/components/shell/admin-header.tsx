@@ -7,7 +7,7 @@ import { RiDashboardLine } from "@remixicon/react";
 import {
   Breadcrumb,
   BreadcrumbItem,
-} from "@/components/base/breadcrumb/breadcrumb";
+} from "@/components/shared/breadcrumb";
 import { BrandMark } from "@/components/shared/brand-mark";
 import {
   ADMIN_ROOT_PATH,

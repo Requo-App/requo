@@ -13,7 +13,6 @@ import { Input } from "@/components/ui/input";
 import {
   businessCurrencyOptions,
 } from "@/features/businesses/locale";
-import type { BusinessType } from "@/features/inquiries/business-types";
 import {
   businessTypeOptions,
 } from "@/features/inquiries/business-types";

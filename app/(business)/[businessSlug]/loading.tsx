@@ -12,7 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
  */
 export default function BusinessSlugLoading() {
   return (
-    <div className="group/sidebar-wrapper flex min-h-svh w-full bg-background animate-[shell-entrance_400ms_var(--motion-ease-emphasized)_both]">
+    <div className="group/sidebar-wrapper flex min-h-svh w-full bg-background">
       {/* Sidebar frame — structural chrome renders immediately */}
       <div className="group peer hidden text-sidebar-foreground lg:block">
         <div

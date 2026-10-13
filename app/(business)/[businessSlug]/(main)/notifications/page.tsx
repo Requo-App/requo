@@ -51,10 +51,8 @@ async function NotificationsContent({ params }: NotificationsPageProps) {
 
   return (
     <NotificationsList
-      businessId={businessContext.business.id}
       businessSlug={businessContext.business.slug}
       initialView={view}
-      userId={user.id}
     />
   );
 }

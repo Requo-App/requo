@@ -5,4 +5,4 @@
 // with the Requo system. `app/layout.tsx` keeps rendering `<Toaster />`
 // unchanged.
 
-export { NotificationToaster as Toaster } from "@/components/base/notification/notification-toaster";
+export { NotificationToaster as Toaster } from "@/components/shared/notification-toaster";

@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { db } from "@/lib/db/client";
@@ -6,10 +7,7 @@ import { getBusinessRequestContextForSlug } from "@/lib/db/business-access";
 import { analyticsGoalThresholds } from "@/lib/db/schema";
 import { hasFeatureAccess } from "@/lib/plans";
 import { newEntityId } from "@/lib/ids";
-
-const routeParamsSchema = z.object({
-  slug: z.string().trim().min(1).max(120),
-});
+import { slugParamSchema as routeParamsSchema } from "@/lib/api/params";
 
 const putBodySchema = z.object({
   metricKey: z.string().trim().min(1).max(100),
@@ -23,7 +21,7 @@ export async function GET(
   const parsedParams = routeParamsSchema.safeParse(await context.params);
 
   if (!parsedParams.success) {
-    return Response.json({ error: "Not found." }, { status: 404 });
+    return NextResponse.json({ error: "Not found." }, { status: 404 });
   }
 
   const requestContext = await getBusinessRequestContextForSlug(
@@ -31,7 +29,7 @@ export async function GET(
   );
 
   if (!requestContext) {
-    return Response.json({ error: "Not found." }, { status: 404 });
+    return NextResponse.json({ error: "Not found." }, { status: 404 });
   }
 
   if (
@@ -40,7 +38,7 @@ export async function GET(
       "analyticsConversion",
     )
   ) {
-    return Response.json(
+    return NextResponse.json(
       { error: "Upgrade to Pro to use goal thresholds." },
       { status: 403 },
     );
@@ -56,7 +54,7 @@ export async function GET(
       ),
     );
 
-  return Response.json({ goals });
+  return NextResponse.json({ goals });
 }
 
 export async function PUT(
@@ -66,7 +64,7 @@ export async function PUT(
   const parsedParams = routeParamsSchema.safeParse(await context.params);
 
   if (!parsedParams.success) {
-    return Response.json({ error: "Not found." }, { status: 404 });
+    return NextResponse.json({ error: "Not found." }, { status: 404 });
   }
 
   const requestContext = await getBusinessRequestContextForSlug(
@@ -74,7 +72,7 @@ export async function PUT(
   );
 
   if (!requestContext) {
-    return Response.json({ error: "Not found." }, { status: 404 });
+    return NextResponse.json({ error: "Not found." }, { status: 404 });
   }
 
   if (
@@ -83,7 +81,7 @@ export async function PUT(
       "analyticsConversion",
     )
   ) {
-    return Response.json(
+    return NextResponse.json(
       { error: "Upgrade to Pro to use goal thresholds." },
       { status: 403 },
     );
@@ -93,7 +91,7 @@ export async function PUT(
   const parsedBody = putBodySchema.safeParse(body);
 
   if (!parsedBody.success) {
-    return Response.json(
+    return NextResponse.json(
       { error: "Invalid input.", details: parsedBody.error.flatten() },
       { status: 400 },
     );
@@ -125,5 +123,5 @@ export async function PUT(
     })
     .returning();
 
-  return Response.json({ goal });
+  return NextResponse.json({ goal });
 }

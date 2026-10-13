@@ -8,7 +8,12 @@ type ControllableOpenStateProps = {
   open?: boolean
 }
 
-const OVERLAY_EXIT_DURATION_MS = 220
+const OVERLAY_EXIT_DURATION_MS = 250
+
+/** Backdrop fades faster than the panel it dims. */
+export const OVERLAY_BACKDROP_EXIT_MS = 150
+/** Longest panel exit (sheet sidebar / mobile sheet). Presence exceeds this. */
+export const OVERLAY_PANEL_EXIT_MS = 220
 
 export function useControllableOpenState({
   defaultOpen = false,

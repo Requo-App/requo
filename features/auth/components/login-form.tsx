@@ -9,7 +9,7 @@ import { Mail } from "lucide-react";
 import { authClient } from "@/lib/auth/client";
 import { getAuthPathWithNext, getSafeAuthRedirectPath } from "@/lib/auth/redirects";
 import { onboardingPath } from "@/features/onboarding/routes";
-import { dashboardPath } from "@/features/businesses/routes";
+import { homePath } from "@/features/businesses/routes";
 import {
   AuthEmailDivider,
   SocialAuthButtons,
@@ -20,11 +20,16 @@ import {
   getFieldError,
   getMagicLinkQueryErrorMessage,
   getValidationState,
+  requestSocialSignIn,
 } from "@/features/auth/utils";
 import { loginSchema, magicLinkEmailSchema } from "@/features/auth/schemas";
 import type { AuthFormState } from "@/features/auth/types";
 import { AuthFormFeedback } from "@/features/auth/components/auth-form-feedback";
-import { FormActions } from "@/components/shared/form-layout";
+import {
+  AuthEmailField,
+  AuthPasswordField,
+  AuthSubmitButton,
+} from "@/features/auth/components/auth-form-fields";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -43,7 +48,6 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { PasswordInput } from "@/features/auth/components/password-input";
 
 const resetSuccessMessage =
   "Your password has been updated. Sign in with your new password.";
@@ -61,11 +65,11 @@ export function LoginForm({
   const router = useRouter();
   const searchParams = useSearchParams();
   const rawNext = searchParams.get("next");
-  const nextPath = getSafeAuthRedirectPath(rawNext, dashboardPath);
+  const nextPath = getSafeAuthRedirectPath(rawNext, homePath);
   // Only forward ?next when it's a genuine non-default redirect
   const signupHref = getAuthPathWithNext(
     "/signup",
-    rawNext && nextPath !== dashboardPath ? nextPath : null,
+    rawNext && nextPath !== homePath ? nextPath : null,
   );
   const [state, setState] = useState<AuthFormState>({});
   const [loadingAction, setLoadingAction] = useState<
@@ -117,6 +121,7 @@ export function LoginForm({
         return;
       }
 
+      // Full-page load so server components read the fresh session cookie.
       window.location.assign(nextPath);
     });
   }
@@ -126,20 +131,15 @@ export function LoginForm({
     setLoadingAction(provider);
 
     startTransition(async () => {
-      const result = await authClient.signIn.social({
-        provider,
+      const error = await requestSocialSignIn(provider, {
         callbackURL: nextPath,
         newUserCallbackURL: "/onboarding",
+        fallbackMessage: `We couldn't continue with ${provider} right now.`,
       });
 
-      if (result.error) {
+      if (error) {
         setLoadingAction(null);
-        setState({
-          error: getAuthErrorMessage(
-            result.error,
-            `We couldn't continue with ${provider} right now.`,
-          ),
-        });
+        setState({ error });
       }
     });
   }
@@ -152,7 +152,12 @@ export function LoginForm({
     });
 
     if (!validationResult.success) {
-      setMagicLinkError(validationResult.error.issues[0]?.message ?? "Enter a valid email.");
+      setMagicLinkError(
+        getFieldError(
+          getValidationState(validationResult.error).fieldErrors,
+          "email",
+        ) ?? "Enter a valid email.",
+      );
       return;
     }
 
@@ -185,9 +190,14 @@ export function LoginForm({
       }
 
       setMagicLinkOpen(false);
-      router.push(
-        `/check-email?reason=magic-link&email=${encodeURIComponent(validationResult.data.email)}`,
-      );
+      const checkEmailParams = new URLSearchParams({
+        reason: "magic-link",
+        email: validationResult.data.email,
+      });
+      if (rawNext && nextPath !== homePath) {
+        checkEmailParams.set("next", nextPath);
+      }
+      router.push(`/check-email?${checkEmailParams.toString()}`);
     });
   }
 
@@ -242,65 +252,33 @@ export function LoginForm({
       <AuthEmailDivider />
 
       <FieldGroup>
-        <Field data-invalid={Boolean(emailError) || undefined}>
-          <FieldLabel htmlFor="login-email">Email address</FieldLabel>
-          <FieldContent>
-            <Input
-              id="login-email"
-              name="email"
-              type="email"
-              autoComplete="email"
-              maxLength={320}
-              placeholder="owner@example.com"
-              required
-              aria-invalid={Boolean(emailError) || undefined}
-              disabled={isPending}
-            />
-            <FieldError errors={emailError ? [{ message: emailError }] : undefined} />
-          </FieldContent>
-        </Field>
+        <AuthEmailField id="login-email" error={emailError} disabled={isPending} />
 
-        <Field data-invalid={Boolean(passwordError) || undefined}>
-          <div className="flex items-center justify-between gap-3">
-            <FieldLabel htmlFor="password">Password</FieldLabel>
+        <AuthPasswordField
+          id="password"
+          name="password"
+          label="Password"
+          autoComplete="current-password"
+          placeholder="Enter your password"
+          error={passwordError}
+          disabled={isPending}
+          labelAction={
             <Link
               className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
               href="/forgot-password"
             >
               Forgot password?
             </Link>
-          </div>
-          <FieldContent>
-            <PasswordInput
-              id="password"
-              name="password"
-              autoComplete="current-password"
-              maxLength={128}
-              minLength={8}
-              placeholder="Enter your password"
-              required
-              aria-invalid={Boolean(passwordError) || undefined}
-              disabled={isPending}
-            />
-            <FieldError
-              errors={passwordError ? [{ message: passwordError }] : undefined}
-            />
-          </FieldContent>
-        </Field>
+          }
+        />
       </FieldGroup>
 
-      <FormActions className="items-stretch sm:items-stretch">
-        <Button className="w-full" disabled={isPending} type="submit" size="lg">
-          {isPending && loadingAction === "email" ? (
-            <>
-              <Spinner data-icon="inline-start" aria-hidden="true" />
-              Signing in...
-            </>
-          ) : (
-            "Sign in"
-          )}
-        </Button>
-      </FormActions>
+      <AuthSubmitButton
+        pending={isPending && loadingAction === "email"}
+        pendingLabel="Signing in..."
+      >
+        Sign in
+      </AuthSubmitButton>
 
       <p className="pt-1 text-center text-sm text-muted-foreground">
         New here?{" "}
@@ -323,6 +301,7 @@ export function LoginForm({
         }}>
           <DialogContent className="max-w-md">
             <form onSubmit={handleMagicLinkSubmit}>
+              <AuthFormFeedback error={magicLinkError} />
               <DialogHeader>
                 <DialogTitle>Sign in with a link</DialogTitle>
                 <DialogDescription>

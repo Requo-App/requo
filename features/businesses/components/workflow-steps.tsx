@@ -5,7 +5,6 @@ import {
   Eye,
   FileEdit,
   Inbox,
-  Loader,
   Send,
   ThumbsUp,
   X,

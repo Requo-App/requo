@@ -116,7 +116,7 @@ export const getBusinessBillingShellOverview = cache(
 
 /**
  * Returns a full billing overview for the account billing UI.
- * The subscription is resolved from the business owner's account.
+ * Subscription and plan are resolved for the requested business.
  */
 export async function getAccountBillingOverview(
   businessId: string,

@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { getSession } from "@/lib/auth/session";
 import { getBusinessActionContext } from "@/lib/db/business-access";
 import { loadAssistantSession } from "@/features/owner-assistant/session-service";
-import { db } from "@/lib/db/client";
-import { ownerAssistantMessages } from "@/lib/db/schema/owner-assistant";
-import { asc, eq } from "drizzle-orm";
+
+const sessionParamsSchema = z.object({
+  sessionId: z.string().trim().min(1).max(128),
+});
+const sessionQuerySchema = z.object({
+  businessSlug: z.string().trim().min(1).max(120),
+});
 
 type RouteParams = {
   params: Promise<{ sessionId: string }>;
@@ -29,13 +34,19 @@ export async function GET(request: Request, { params }: RouteParams) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { sessionId } = await params;
+    const parsedParams = sessionParamsSchema.safeParse(await params);
+    if (!parsedParams.success) {
+      return NextResponse.json({ error: "Not found." }, { status: 404 });
+    }
+    const { sessionId } = parsedParams.data;
 
     // Get business context from URL (session record contains businessId, but we need to validate membership)
     const url = new URL(request.url);
-    const businessSlug = url.searchParams.get("businessSlug");
+    const parsedQuery = sessionQuerySchema.safeParse(
+      Object.fromEntries(url.searchParams.entries()),
+    );
 
-    if (!businessSlug) {
+    if (!parsedQuery.success) {
       return NextResponse.json(
         { error: "businessSlug query parameter required" },
         { status: 400 },
@@ -43,7 +54,9 @@ export async function GET(request: Request, { params }: RouteParams) {
     }
 
     // Validate business access
-    const result = await getBusinessActionContext({ businessSlug });
+    const result = await getBusinessActionContext({
+      businessSlug: parsedQuery.data.businessSlug,
+    });
 
     if (!result.ok) {
       return NextResponse.json({ error: result.error }, { status: 403 });
@@ -51,7 +64,8 @@ export async function GET(request: Request, { params }: RouteParams) {
 
     const { business } = result.businessContext;
 
-    // Load session read-only (enforces businessId + userId scoping)
+    // Load session read-only (enforces businessId + userId scoping;
+    // messages come from features/owner-assistant/session-service).
     const sessionData = await loadAssistantSession({
       businessId: business.id,
       userId: session.user.id,
@@ -66,33 +80,17 @@ export async function GET(request: Request, { params }: RouteParams) {
       );
     }
 
-    // Full rows (including tool calls/results) for transcript rehydration.
-    const rows = await db
-      .select({
-        id: ownerAssistantMessages.id,
-        role: ownerAssistantMessages.role,
-        content: ownerAssistantMessages.content,
-        toolName: ownerAssistantMessages.toolName,
-        toolCallId: ownerAssistantMessages.toolCallId,
-        createdAt: ownerAssistantMessages.createdAt,
-      })
-      .from(ownerAssistantMessages)
-      .where(eq(ownerAssistantMessages.sessionId, sessionData.sessionId))
-      // (createdAt, id) keeps same-millisecond tool rows in a stable order.
-      .orderBy(asc(ownerAssistantMessages.createdAt), asc(ownerAssistantMessages.id))
-      .limit(100);
-
     // Return session data
     return NextResponse.json({
       sessionId: sessionData.sessionId,
       title: sessionData.title,
-      messages: rows.map((row) => ({
-        id: row.id,
+      messages: sessionData.messages.map((row, index) => ({
+        id: row.id ?? `${sessionData.sessionId}-${index}`,
         role: row.role,
         content: row.content,
-        toolName: row.toolName,
-        toolCallId: row.toolCallId,
-        createdAt: row.createdAt.toISOString(),
+        toolName: row.toolName ?? null,
+        toolCallId: row.toolCallId ?? null,
+        createdAt: row.createdAt?.toISOString(),
       })),
       state: sessionData.state,
       createdAt: sessionData.createdAt,

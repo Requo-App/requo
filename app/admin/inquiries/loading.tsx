@@ -6,7 +6,10 @@ import { AdminListControlsFallback } from "@/features/admin/components/list/admi
 export default function AdminInquiriesLoading() {
   return (
     <DashboardPage>
-      <PageHeader title="Inquiries" />
+      <PageHeader
+        title="Inquiries"
+        description="Inbound customer requests across every business."
+      />
       <div className="dashboard-table-shell" data-list-card>
         <AdminListControlsFallback />
         <AdminListContentFallback />

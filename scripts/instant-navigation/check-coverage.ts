@@ -157,7 +157,6 @@ async function main(): Promise<void> {
   // Output
   // ---------------------------------------------------------------------------
 
-  const passed = results.filter((r) => r.status !== "fail");
   const failed = results.filter((r) => r.status === "fail");
 
   console.log(

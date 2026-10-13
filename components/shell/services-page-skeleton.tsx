@@ -1,4 +1,5 @@
 import { Skeleton } from "@/components/ui/skeleton";
+import { ListToolbarStripSkeleton } from "@/components/shared/skeleton-blocks";
 
 /**
  * Services page skeleton fallback — matches the structure of the
@@ -15,15 +16,7 @@ export function ServicesPageSkeleton() {
 
       {/* Results card */}
       <div className="dashboard-table-shell" data-list-card>
-        <div className="data-list-toolbar-strip" aria-hidden="true">
-          <div className="data-list-toolbar-grid">
-            <Skeleton className="h-9 min-w-0 flex-1 rounded-md sm:h-8" />
-            <Skeleton className="h-9 w-full rounded-md sm:h-8 sm:max-w-44" />
-            <Skeleton className="h-9 w-full rounded-md sm:h-8 sm:max-w-44" />
-            <Skeleton className="hidden h-8 w-20 shrink-0 rounded-md sm:block" />
-          </div>
-          <Skeleton className="h-4 w-28 rounded-md" />
-        </div>
+        <ListToolbarStripSkeleton filterCount={2} />
 
         {/* Mobile cards */}
         <div className="flex flex-col gap-2 p-3 sm:hidden">

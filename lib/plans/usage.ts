@@ -13,10 +13,8 @@ import { and, count, eq, gte, isNull, lt, sql } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import {
   activityLogs,
-  businesses,
   businessInquiryForms,
   businessMembers,
-  inquiries,
   quotes,
 } from "@/lib/db/schema";
 import type { BusinessPlan } from "@/lib/plans/plans";
@@ -45,51 +43,6 @@ function getCurrentDayBounds() {
   );
 
   return { start, end };
-}
-
-/**
- * Counts inquiries created in the current UTC month for a business.
- */
-export async function getMonthlyInquiryCount(
-  businessId: string,
-): Promise<number> {
-  const { start, end } = getCurrentMonthBounds();
-
-  const [row] = await db
-    .select({ value: count() })
-    .from(inquiries)
-    .where(
-      and(
-        eq(inquiries.businessId, businessId),
-        gte(inquiries.createdAt, start),
-        lt(inquiries.createdAt, end),
-      ),
-    );
-
-  return Number(row?.value ?? 0);
-}
-
-/**
- * Counts quotes created in the current UTC month for a business.
- */
-export async function getMonthlyQuoteCount(
-  businessId: string,
-): Promise<number> {
-  const { start, end } = getCurrentMonthBounds();
-
-  const [row] = await db
-    .select({ value: count() })
-    .from(quotes)
-    .where(
-      and(
-        eq(quotes.businessId, businessId),
-        isNull(quotes.deletedAt),
-        gte(quotes.createdAt, start),
-        lt(quotes.createdAt, end),
-      ),
-    );
-
-  return Number(row?.value ?? 0);
 }
 
 async function getBusinessQuoteSendCountByMethod(
@@ -205,25 +158,6 @@ export async function getActiveAutoFollowUpCount(
         isNull(quotes.customerRespondedAt),
         isNull(quotes.deletedAt),
         sql`${quotes.autoFollowUpAttempts} < ${quotes.autoFollowUpMaxAttempts}`,
-      ),
-    );
-
-  return Number(row?.value ?? 0);
-}
-
-/**
- * Counts the number of businesses owned by a user.
- */
-export async function getUserBusinessCount(
-  ownerUserId: string,
-): Promise<number> {
-  const [row] = await db
-    .select({ value: count() })
-    .from(businesses)
-    .where(
-      and(
-        eq(businesses.ownerUserId, ownerUserId),
-        isNull(businesses.deletedAt),
       ),
     );
 

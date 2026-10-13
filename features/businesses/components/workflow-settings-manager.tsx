@@ -126,7 +126,7 @@ export function WorkflowSettingsManager({ data }: { data: WorkflowSettingsData }
           </p>
         </div>
         {data.recipes.map((recipe) => (
-          <div key={recipe.kind} className="soft-panel flex flex-col gap-2 p-4">
+          <div key={recipe.kind} className="soft-panel flex flex-col gap-2">
             <h3 className="text-sm font-medium capitalize text-foreground">
               {recipe.kind.replace("_", " ")}
             </h3>

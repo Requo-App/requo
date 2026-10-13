@@ -1,5 +1,5 @@
 import { Copy, PenLine, PencilRuler } from "lucide-react";
-import type { MotionState } from "@/hooks/use-animated-list";
+import type { ItemRefCallback, MotionState } from "@/hooks/use-animated-list";
 import { MobileRecordRow } from "@/components/shared/mobile-record-row";
 import type { DashboardInquiryListItem } from "@/features/inquiries/types";
 import {
@@ -24,6 +24,7 @@ type InquiryListCardsProps = {
   isAtLimit?: boolean;
   onToggle?: (id: string) => void;
   getMotionState?: (id: string) => MotionState;
+  getItemRef?: ItemRefCallback;
 };
 
 export function InquiryListCards({
@@ -33,6 +34,7 @@ export function InquiryListCards({
   isAtLimit,
   onToggle,
   getMotionState,
+  getItemRef,
 }: InquiryListCardsProps) {
   return (
     <div className="flex flex-col gap-2.5 p-4 xl:hidden">
@@ -51,6 +53,7 @@ export function InquiryListCards({
             isSelectionDisabled={disabled}
             onToggleSelect={onToggle}
             motionState={getMotionState?.(inquiry.id)}
+            itemRef={getItemRef?.(inquiry.id)}
             title={
               <span className="flex items-center gap-1.5 min-w-0">
                 {inquiry.isUnread ? (

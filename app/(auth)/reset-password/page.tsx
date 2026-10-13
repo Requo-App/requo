@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { redirect } from "next/navigation";
 
 import { AuthShell } from "@/components/shell/auth-shell";
-import { dashboardPath } from "@/features/businesses/routes";
+import { homePath } from "@/features/businesses/routes";
+import { AuthenticatedRedirectGuard } from "@/features/auth/components/auth-redirect-guard";
 import { ResetPasswordForm } from "@/features/auth/components/reset-password-form";
-import { getOptionalSession } from "@/lib/auth/session";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 
 export const metadata: Metadata = createNoIndexMetadata({
@@ -23,17 +22,9 @@ export default function ResetPasswordPage() {
       layout="centered"
     >
       <Suspense fallback={null}>
-        <AuthRedirectGuard />
+        <AuthenticatedRedirectGuard nextPath={homePath} />
       </Suspense>
       <ResetPasswordForm />
     </AuthShell>
   );
-}
-
-async function AuthRedirectGuard() {
-  const session = await getOptionalSession();
-  if (session) {
-    redirect(dashboardPath);
-  }
-  return null;
 }

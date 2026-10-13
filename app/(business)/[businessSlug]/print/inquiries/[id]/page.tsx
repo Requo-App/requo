@@ -6,8 +6,7 @@ import { InquiryPrintDocument } from "@/features/inquiries/components/inquiry-pr
 import { getInquiryDetailForBusiness } from "@/features/inquiries/queries";
 import { inquiryRouteParamsSchema } from "@/features/inquiries/schemas";
 import { getBusinessInquiryPath } from "@/features/businesses/routes";
-import { getBusinessRequestContextForSlug } from "@/lib/db/business-access";
-import { hasFeatureAccess } from "@/lib/plans";
+import { requireExportRequestContext } from "@/lib/exports";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 
 export const metadata: Metadata = createNoIndexMetadata({
@@ -26,24 +25,14 @@ export default async function InquiryPrintPage({
   params,
 }: InquiryPrintPageProps) {
   const resolvedParams = await params;
-  const requestContext = await getBusinessRequestContextForSlug(
-    resolvedParams.businessSlug,
-  );
+  const requestContext =
+    await requireExportRequestContext(resolvedParams.businessSlug);
 
   const parsedParams = inquiryRouteParamsSchema.safeParse({
     id: resolvedParams.id,
   });
 
-  if (!parsedParams.success || !requestContext) {
-    notFound();
-  }
-
-  if (
-    !hasFeatureAccess(
-      requestContext.businessContext.business.plan,
-      "exports",
-    )
-  ) {
+  if (!parsedParams.success) {
     notFound();
   }
 

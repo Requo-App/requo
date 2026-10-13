@@ -1,4 +1,4 @@
-import type { MotionState } from "@/hooks/use-animated-list";
+import type { ItemRefCallback, MotionState } from "@/hooks/use-animated-list";
 import { MobileRecordRow } from "@/components/shared/mobile-record-row";
 import { PaymentStatusBadge } from "@/features/invoices/components/payment-status-badge";
 import { formatQuoteMoney, getPaymentMethodLabel } from "@/features/invoices/utils";
@@ -9,12 +9,14 @@ type PaymentListCardsProps = {
   payments: PaymentListItem[];
   businessSlug: string;
   getMotionState?: (id: string) => MotionState;
+  getItemRef?: ItemRefCallback;
 };
 
 export function PaymentListCards({
   payments,
   businessSlug,
   getMotionState,
+  getItemRef,
 }: PaymentListCardsProps) {
   return (
     <div className="flex flex-col gap-2.5 p-4 xl:hidden">
@@ -25,6 +27,7 @@ export function PaymentListCards({
             id={payment.id}
             href={getBusinessPaymentPath(businessSlug, payment.id)}
             motionState={getMotionState?.(payment.id)}
+            itemRef={getItemRef?.(payment.id)}
             title={
               <span className="truncate">
                 {payment.paymentNumber} <span className="text-muted-foreground font-normal">· {payment.invoiceNumber}</span>

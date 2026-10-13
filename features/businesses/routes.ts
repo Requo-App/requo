@@ -26,7 +26,7 @@ export function getActiveBusinessCookieAttributes(): {
   };
 }
 
-export const dashboardPath = "/home";
+export const homePath = "/home";
 export const newBusinessPath = "/new";
 
 export type BusinessSettingsSection =
@@ -49,7 +49,7 @@ export function getBusinessPath(slug: string) {
   return `/${slug}`;
 }
 
-export function getBusinessDashboardPath(slug: string) {
+export function getBusinessHomePath(slug: string) {
   return `${getBusinessPath(slug)}/home`;
 }
 
@@ -281,7 +281,7 @@ export function getBusinessServicePreviewPath(slug: string, serviceSlug: string)
   return `${getBusinessPath(slug)}/preview/inquiry/${serviceSlug}`;
 }
 
-export function getBusinessDashboardSlugFromPathname(pathname: string) {
+export function getBusinessSlugFromPathname(pathname: string) {
   const match = /^\/([^/]+)(?:\/|$)/.exec(pathname);
 
   return match ? decodeURIComponent(match[1]) : null;

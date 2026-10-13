@@ -14,7 +14,7 @@
 import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
-import { count, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 import { db, dbConnection } from "../lib/db/client";
 import { adminAuditLogs, user } from "../lib/db/schema";

@@ -42,10 +42,8 @@ export function BulkActionBar({
     if (selectedCount > 0) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsVisible(true);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsExiting(false);
     } else if (isVisible) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsExiting(true);
       const timer = setTimeout(() => {
         setIsVisible(false);

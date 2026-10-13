@@ -1,8 +1,8 @@
 import { z } from "zod";
 
-import { businessMemberRoles } from "@/lib/business-members";
+import { businessMemberAssignableRoles, businessMemberRoles } from "@/lib/business-members";
 
-const inviteRoleSchema = z.enum(businessMemberRoles);
+const inviteRoleSchema = z.enum(businessMemberAssignableRoles);
 
 export const businessMemberInviteSchema = z.object({
   email: z.string().trim().max(320).email("Enter a valid email address."),

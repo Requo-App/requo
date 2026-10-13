@@ -3,9 +3,9 @@ import { Suspense } from "react";
 
 import { DashboardPage } from "@/components/shared/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
+import { AdminListContentFallback } from "@/features/admin/components/list/admin-list-content-fallback";
+import { AdminListControlsFallback } from "@/features/admin/components/list/admin-list-controls-fallback";
 import {
-  AdminListContentFallback,
-  AdminListControlsFallback,
   AdminQuotesListContentSection,
   AdminQuotesListControlsSection,
 } from "@/features/admin/components/product/quotes/admin-quotes-list-sections";
@@ -39,7 +39,10 @@ export default function AdminQuotesPage({
 }: AdminQuotesPageProps) {
   return (
     <DashboardPage>
-      <PageHeader title="Quotes" />
+      <PageHeader
+        title="Quotes"
+        description="Quote drafts, deliveries, and customer responses."
+      />
       <div className="dashboard-table-shell" data-list-card>
         <Suspense fallback={<AdminListControlsFallback />}>
           <AdminQuotesControlsRegion searchParams={searchParams} />

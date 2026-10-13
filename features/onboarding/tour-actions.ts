@@ -3,7 +3,7 @@
 import { and, eq } from "drizzle-orm";
 import { revalidatePath, updateTag } from "next/cache";
 
-import { getBusinessDashboardPath } from "@/features/businesses/routes";
+import { getBusinessHomePath } from "@/features/businesses/routes";
 import { requireUser } from "@/lib/auth/session";
 import {
   getBusinessChecklistCacheTags,
@@ -100,7 +100,7 @@ export async function resetDashboardTourForDevAction({
     .where(eq(businessMembers.id, membership.id));
 
   updateCacheTags(getBusinessChecklistCacheTags(businessId));
-  revalidatePath(getBusinessDashboardPath(businessSlug));
+  revalidatePath(getBusinessHomePath(businessSlug));
 }
 
 export async function completeFormEditorTourAction() {

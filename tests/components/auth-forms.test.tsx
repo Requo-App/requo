@@ -48,7 +48,7 @@ vi.mock("@/lib/auth/client", () => ({
   },
 }));
 
-vi.mock("@/components/base/notification/notify", () => ({
+vi.mock("@/components/shared/notify", () => ({
   toast: {
     error: toastErrorMock,
     success: toastSuccessMock,
@@ -77,13 +77,22 @@ describe("auth forms", () => {
   beforeEach(() => {
     assignMock.mockReset();
     searchParamsMock.mockReturnValue(new URLSearchParams());
+    // mockClear: re-stubbing alone keeps prior call history across tests.
+    for (const mock of [
+      signInEmailMock,
+      signInSocialMock,
+      signUpEmailMock,
+      requestPasswordResetMock,
+      routerPushMock,
+      toastErrorMock,
+      toastSuccessMock,
+    ]) {
+      mock.mockClear();
+    }
     signInEmailMock.mockResolvedValue({ error: null });
     signInSocialMock.mockResolvedValue({ error: null });
     signUpEmailMock.mockResolvedValue({ error: null });
     requestPasswordResetMock.mockResolvedValue({ error: null });
-    routerPushMock.mockReset();
-    toastErrorMock.mockReset();
-    toastSuccessMock.mockReset();
   });
 
   it("submits the login form with a safe callback and redirects after success", async () => {
@@ -144,7 +153,7 @@ describe("auth forms", () => {
     );
     await waitFor(() =>
       expect(routerPushMock).toHaveBeenCalledWith(
-        "/check-email?email=alicia%40example.com",
+        "/check-email?email=alicia%40example.com&next=%2Fdemo%2Fhome",
       ),
     );
     expect(toastSuccessMock).not.toHaveBeenCalled();

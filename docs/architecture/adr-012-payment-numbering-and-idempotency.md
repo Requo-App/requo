@@ -1,3 +1,0 @@
-# Per-business yearly payment numbers with a locked counter + idempotency-key replay
-
-Recording a payment allocates `PAY-YYYY-NNNN` per business per year inside the same transaction via a single atomic upsert on `business_payment_counters`, so concurrent recordings serialize on the counter row and never collide or skip. Duplicate form submissions carry a client-generated UUID (`payments.idempotency_key`, partial-unique per business, kept forever); a replay returns the original payment instead of recording twice. We chose a counter table over max-plus-one retries because retries burn numbers and still race across invoices.

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { PenLine, PencilRuler } from "lucide-react";
-import type { MotionState } from "@/hooks/use-animated-list";
+import type { ItemRefCallback, MotionState } from "@/hooks/use-animated-list";
 
 import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -40,6 +40,7 @@ type InquiryListTableProps = {
   allOnPageSelected?: boolean;
   onSelectAllOnPage?: () => void;
   getMotionState?: (id: string) => MotionState;
+  getItemRef?: ItemRefCallback;
 };
 
 export function InquiryListTable({
@@ -51,6 +52,7 @@ export function InquiryListTable({
   allOnPageSelected,
   onSelectAllOnPage,
   getMotionState,
+  getItemRef,
 }: InquiryListTableProps) {
   return (
     <div className="hidden overflow-x-auto no-scrollbar xl:block">
@@ -79,7 +81,7 @@ export function InquiryListTable({
             const disabled = !checked && (isAtLimit ?? false);
 
             return (
-              <TableRow className="motion-list-item group/row" data-motion-state={getMotionState?.(inquiry.id)} key={inquiry.id}>
+              <TableRow className="motion-list-item group/row" data-motion-state={getMotionState?.(inquiry.id)} key={inquiry.id} ref={getItemRef?.(inquiry.id)}>
                 <TableCell className="w-[3rem]">
                   <Checkbox
                     aria-label={`Select inquiry from ${inquiry.customerName}`}

@@ -1,21 +1,22 @@
 "use server";
 
-import { revalidateTag, updateTag } from "next/cache";
-import { isRedirectError } from "next/dist/client/components/redirect-error";
+import { revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { getValidationActionState } from "@/lib/action-state";
+import { runRecordAction } from "@/lib/actions/run-record-action";
 import {
   getBusinessInquiryDetailCacheTags,
   getBusinessInquiryFormsCacheTags,
   getBusinessInquiryListCacheTags,
   uniqueCacheTags,
+  updateCacheTags,
 } from "@/lib/cache/business-tags";
 import {
   getWorkspaceBusinessActionContext,
 } from "@/lib/db/business-access";
-import { getplanByBusinessId } from "@/lib/plans/queries";
+import { getEffectivePlanForBusiness } from "@/lib/billing/subscription-service";
 import { assertPublicActionRateLimit } from "@/lib/rate-limit/redis-rate-limiter";
 import {
   addInquiryNoteForBusiness,
@@ -64,12 +65,6 @@ function getTextValue(formData: FormData, key: string) {
   const value = formData.get(key);
 
   return typeof value === "string" ? value : null;
-}
-
-function updateCacheTags(tags: string[]) {
-  for (const tag of uniqueCacheTags(tags)) {
-    updateTag(tag);
-  }
 }
 
 function getInquiryMutationCacheTags(businessId: string, inquiryId: string) {
@@ -133,7 +128,7 @@ export async function submitPublicInquiryAction(
     };
   }
 
-  const { plan } = await getplanByBusinessId(business.id);
+  const plan = await getEffectivePlanForBusiness(business.id);
 
   const effectiveFormConfig = resolveInquiryFormConfigForPlan(
     business.inquiryFormConfig,
@@ -427,66 +422,30 @@ async function runInquiryRecordAction(
     redirectHref?: string;
   },
 ): Promise<InquiryRecordActionState> {
-  const ownerAccess = await getWorkspaceBusinessActionContext();
-
-  if (!ownerAccess.ok) {
-    return {
-      error: ownerAccess.error,
-    };
-  }
-
-  const { user, businessContext } = ownerAccess;
-
-  let redirectTarget: string | null = null;
-
-  try {
-    const result = await mutation({
-      businessId: businessContext.business.id,
-      inquiryId,
-      actorUserId: user.id,
-    });
-
-    if (!result) {
-      return {
-        error: messages.missing ?? "That inquiry could not be found.",
-      };
-    }
-
-    updateCacheTags(getInquiryMutationCacheTags(businessContext.business.id, inquiryId));
-
-    if (result.locked) {
-      return {
-        error: messages.archivedLocked ?? "Unarchive this inquiry first.",
-      };
-    }
-
-    if (messages.redirectHref && (result.changed || result.deleted)) {
-      redirectTarget = messages.redirectHref;
-    } else {
-      return {
-        success: result.changed || result.deleted ? messages.success : messages.unchanged,
-      };
-    }
-  } catch (error) {
-    if (isRedirectError(error)) {
-      throw error;
-    }
-    console.error(messages.fallbackError, error);
-
-    return {
-      error: "We couldn't update that inquiry right now.",
-    };
-  }
-
-  if (redirectTarget) {
-    redirect(redirectTarget);
-  }
-
-  // Unreachable when redirectTarget is set (redirect throws); keeps the
-  // return type satisfied for the non-redirect fall-through path.
-  return {
-    success: messages.success,
-  };
+  return runRecordAction<InquiryRecordActionState, {
+    changed: boolean;
+    deleted?: boolean;
+    locked?: boolean;
+    lockedReason?: "archived";
+  }>({
+    runMutation: ({ businessId, actorUserId }) =>
+      mutation({ businessId, inquiryId, actorUserId }),
+    missingError: messages.missing ?? "That inquiry could not be found.",
+    lockedError: (result) =>
+      result.locked
+        ? (messages.archivedLocked ?? "Unarchive this inquiry first.")
+        : null,
+    isSuccessful: (result) => (result.changed || result.deleted) ?? false,
+    invalidate: (result, businessId) =>
+      updateCacheTags(getInquiryMutationCacheTags(businessId, inquiryId)),
+    messages: {
+      success: messages.success,
+      unchanged: messages.unchanged,
+      fallbackError: messages.fallbackError,
+      genericError: "We couldn't update that inquiry right now.",
+      redirectHref: messages.redirectHref,
+    },
+  });
 }
 
 export async function archiveInquiryAction(

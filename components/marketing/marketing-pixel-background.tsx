@@ -94,9 +94,7 @@ export interface MarketingPixelBackgroundProps {
   scale?: number;
   speed?: number;
   band?: boolean;
-  center?: number;
   edgeFade?: number;
-  quiet?: number;
   fixed?: boolean;
   className?: string;
   style?: React.CSSProperties;
@@ -110,9 +108,7 @@ export function MarketingPixelBackground({
   scale = 0.025,
   speed = 0.25,
   band = true,
-  center = 0.3,
   edgeFade = 0.15,
-  quiet = 240,
   fixed = true,
   className,
   style,
@@ -219,18 +215,12 @@ export function MarketingPixelBackground({
 
       const timeOffset = timestamp * 0.001 * speed;
       const halfCols = currentCols / 2 || 1;
-      const centerCol = currentCols * center || 1;
-      const centerRow = 0.48 * currentRows;
-      const bandWidth = 0.75 * halfCols;
       const edgeFadeDistance = halfCols * edgeFade;
-      const quietDistance = quiet / pixelSize;
 
       for (let y = 0; y < currentRows; y++) {
         const rowNoiseY = y * scale;
         const rowOffset = y * cols;
         const bayerRowIndex = (y & 3) * 4;
-        const distFromCenterY = Math.abs(y - centerRow);
-
         for (let x = 0; x < currentCols; x++) {
           // Normalized noise in [0, 1]
           const noiseVal = 0.5 * noise3D(x * scale, rowNoiseY, timeOffset) + 0.5;
@@ -348,7 +338,7 @@ export function MarketingPixelBackground({
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       resizeObserver?.disconnect();
     };
-  }, [pixelSize, color, darkColor, scale, speed, fixed, band, center, edgeFade, quiet]);
+  }, [pixelSize, color, darkColor, scale, speed, fixed, band, edgeFade]);
 
   return (
     <canvas

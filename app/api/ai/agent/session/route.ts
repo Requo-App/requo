@@ -1,6 +1,9 @@
 import { connection, NextResponse } from "next/server";
+import { z } from "zod";
 import { loadSessionByToken } from "@/features/ai-agent/session-service";
 import { loadRecentMessages } from "@/features/ai-agent/message-service";
+
+const sessionTokenSchema = z.string().regex(/^[a-f0-9]{64}$/);
 
 /**
  * Agent transcript rehydration (customer-owned).
@@ -23,7 +26,7 @@ export async function GET(request: Request) {
       : "";
     const token = bearer || (url.searchParams.get("token") ?? "");
 
-    if (!/^[a-f0-9]{64}$/.test(token)) {
+    if (!sessionTokenSchema.safeParse(token).success) {
       return NextResponse.json(
         { error: "Invalid session token." },
         { status: 400 },

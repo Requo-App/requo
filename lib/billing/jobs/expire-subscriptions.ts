@@ -4,7 +4,7 @@ import { and, eq, isNotNull, lt } from "drizzle-orm";
 
 import { expireSubscription } from "@/lib/billing/subscription-service";
 import { db } from "@/lib/db/client";
-import { accountSubscriptions } from "@/lib/db/schema/subscriptions";
+import { businessSubscriptions } from "@/lib/db/schema/subscriptions";
 
 export type ExpireSubscriptionsSummary = {
   processed: number;
@@ -21,29 +21,29 @@ export async function processExpiredSubscriptions(): Promise<ExpireSubscriptions
 
   const stale = await db
     .select({
-      id: accountSubscriptions.id,
-      userId: accountSubscriptions.userId,
-      currentPeriodEnd: accountSubscriptions.currentPeriodEnd,
+      id: businessSubscriptions.id,
+      businessId: businessSubscriptions.businessId,
+      currentPeriodEnd: businessSubscriptions.currentPeriodEnd,
     })
-    .from(accountSubscriptions)
+    .from(businessSubscriptions)
     .where(
       and(
-        eq(accountSubscriptions.status, "canceled"),
-        isNotNull(accountSubscriptions.currentPeriodEnd),
-        lt(accountSubscriptions.currentPeriodEnd, now),
+        eq(businessSubscriptions.status, "canceled"),
+        isNotNull(businessSubscriptions.currentPeriodEnd),
+        lt(businessSubscriptions.currentPeriodEnd, now),
       ),
     );
 
   for (const row of stale) {
     try {
-      await expireSubscription(row.userId);
+      await expireSubscription(row.businessId);
       succeeded++;
     } catch (error) {
       failed++;
       const message = error instanceof Error ? error.message : String(error);
-      errors.push(`${row.userId}: ${message}`);
+      errors.push(`${row.businessId}: ${message}`);
       console.error(
-        `[expire-subscriptions] Failed to expire subscription for user ${row.userId}:`,
+        `[expire-subscriptions] Failed to expire subscription for business ${row.businessId}:`,
         error,
       );
     }

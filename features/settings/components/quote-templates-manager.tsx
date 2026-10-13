@@ -89,7 +89,7 @@ export function QuoteTemplatesManager({
     useState<DashboardQuoteLibraryEntry | null>(null);
   const isAtLimit = pricingLimit !== null && totalLibraryCount >= pricingLimit;
 
-  const { items: animatedTemplates, getMotionState, removeItem } = useAnimatedList(templates);
+  const { items: animatedTemplates, getMotionState, getItemRef, removeItem } = useAnimatedList(templates);
 
   function openCreate() {
     setEditorState({ mode: "create" });
@@ -141,6 +141,7 @@ export function QuoteTemplatesManager({
                   entry={entry}
                   key={entry.id}
                   motionState={getMotionState(entry.id)}
+                  itemRef={getItemRef(entry.id)}
                   onDelete={() => setDeleteTarget(entry)}
                   onEdit={() => openEdit(entry)}
                 />
@@ -274,16 +275,18 @@ export function QuoteTemplatesManager({
 function TemplateRow({
   entry,
   motionState,
+  itemRef,
   onDelete,
   onEdit,
 }: {
   entry: DashboardQuoteLibraryEntry;
   motionState?: MotionState;
+  itemRef?: (node: HTMLElement | null) => void;
   onDelete: () => void;
   onEdit: () => void;
 }) {
   return (
-    <div className="motion-list-item group flex items-start gap-3 px-4 py-3.5 transition-colors hover:bg-muted/20 sm:items-center sm:gap-4 sm:px-5 sm:py-4" data-motion-state={motionState}>
+    <div ref={itemRef} className="motion-list-item group flex items-start gap-3 px-4 py-3.5 transition-colors hover:bg-muted/20 sm:items-center sm:gap-4 sm:px-5 sm:py-4" data-motion-state={motionState}>
       <div className="mt-0.5 rounded-lg bg-muted/60 p-2 sm:mt-0">
         <FileText className="size-4 text-muted-foreground" />
       </div>

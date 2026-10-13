@@ -24,6 +24,7 @@ export interface OwnerAssistantSession {
     toolName?: string | null;
     toolCallId?: string | null;
     id?: string;
+    createdAt?: Date;
   }>; // Loaded from DB
   createdAt: Date;
   updatedAt: Date;

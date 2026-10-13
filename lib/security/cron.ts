@@ -29,3 +29,19 @@ export function isAuthorizedCronRequest(request: Request): boolean {
 
   return timingSafeEqual(a, b);
 }
+
+/**
+ * Single factory for Vercel Cron GET routes (was copy-pasted 4×).
+ * Verifies the cron secret, runs `fn`, returns `{ success: true, ...result }`.
+ */
+export function makeCronRoute<T extends Record<string, unknown>>(
+  fn: () => Promise<T>,
+): (request: Request) => Promise<Response> {
+  return async (request: Request) => {
+    if (!isAuthorizedCronRequest(request)) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const result = await fn();
+    return Response.json({ success: true, ...result });
+  };
+}

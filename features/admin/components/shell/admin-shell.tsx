@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AdminHeader } from "@/features/admin/components/shell/admin-header";
 import { AdminMobileNav } from "@/features/admin/components/shell/admin-mobile-nav";
-import { BoarduiAdminSidebar } from "@/features/admin/components/shell/admin-sidebar";
+import { AdminSidebar } from "@/features/admin/components/shell/admin-sidebar";
 
 export type AdminShellProps = {
   children: ReactNode;
@@ -49,7 +49,7 @@ export function AdminShell({
       <div className="flex min-h-svh flex-1 bg-background" data-admin-shell="">
         {/* Desktop rail — hidden below lg; mobile uses the topbar + bottom dock. */}
         <div className="sticky top-0 hidden h-svh shrink-0 self-start lg:block">
-          <BoarduiAdminSidebar userSlot={sidebarUserSlot} />
+          <AdminSidebar userSlot={sidebarUserSlot} />
         </div>
 
         <div className="flex min-w-0 flex-1 flex-col" data-slot="sidebar-inset">

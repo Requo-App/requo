@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import {
   activeBusinessSlugCookieName,
   getActiveBusinessCookieAttributes,
-  getBusinessDashboardSlugFromPathname,
+  getBusinessSlugFromPathname,
   isValidActiveBusinessSlug,
 } from "@/features/businesses/routes";
 import { renderAdminForbiddenPageHtml } from "@/features/admin/forbidden-page";
@@ -213,9 +213,14 @@ export async function proxy(request: NextRequest) {
   // Business slug cookie for dashboard routing. Only well-formed slugs are
   // persisted so a crafted path segment cannot poison the active-business
   // cookie used by cookie-dependent server actions.
-  const businessSlug = getBusinessDashboardSlugFromPathname(
+  const businessSlug = getBusinessSlugFromPathname(
     request.nextUrl.pathname,
   );
+
+  // Single-segment paths (e.g. /home, /login) are top-level routes, not business slugs.
+  if (request.nextUrl.pathname.split("/").filter(Boolean).length < 2) {
+    return finalizeProxyResponse(request, NextResponse.next());
+  }
 
   if (!businessSlug || !isValidActiveBusinessSlug(businessSlug)) {
     return finalizeProxyResponse(request, NextResponse.next());

@@ -47,7 +47,6 @@ import {
   getWorkspaceBusinessActionContext,
   getBusinessContextForMembershipSlug,
 } from "@/lib/db/business-access";
-import { getBusinessContextForUser } from "@/lib/db/business-access";
 import { businessSubscriptions, businesses } from "@/lib/db/schema";
 
 import { closeTestDb, testDb } from "@/tests/support/db";
@@ -217,7 +216,7 @@ describe("business access control", () => {
     }
   });
 
-  it("uses the authoritative subscription row when cached business plan lags", async () => {
+  it("resolves plans from each business subscription when a cached plan lags", async () => {
     await testDb
       .update(businesses)
       .set({ plan: "free", updatedAt: new Date() })
@@ -236,35 +235,23 @@ describe("business access control", () => {
         createdAt: new Date(),
         updatedAt: new Date(),
       },
-      {
-        id: `${prefix}_subscription_active_archived`,
-        businessId: ids.archivedBusinessId,
-        status: "active",
-        plan: "business",
-        billingProvider: "polar",
-        billingCurrency: "USD",
-        currentPeriodStart: new Date("2099-05-01T00:00:00.000Z"),
-        currentPeriodEnd: new Date("2099-06-01T00:00:00.000Z"),
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
     ]);
 
     try {
-      const [businessContext, secondaryBusinessContext] = await Promise.all([
+      const [businessContext, archivedBusinessContext] = await Promise.all([
         getBusinessContextForMembershipSlug(ids.ownerUserId, ids.businessSlug),
-        getBusinessContextForUser(ids.ownerUserId, ids.businessSlug),
+        getBusinessContextForMembershipSlug(
+          ids.ownerUserId,
+          ids.archivedBusinessSlug,
+        ),
       ]);
 
       expect(businessContext?.business.plan).toBe("business");
-      expect(secondaryBusinessContext?.business.plan).toBe("business");
+      expect(archivedBusinessContext?.business.plan).toBe("free");
     } finally {
       await testDb
         .delete(businessSubscriptions)
         .where(eq(businessSubscriptions.businessId, ids.businessId));
-      await testDb
-        .delete(businessSubscriptions)
-        .where(eq(businessSubscriptions.businessId, ids.archivedBusinessId));
       await testDb
         .update(businesses)
         .set({ plan: "pro", updatedAt: new Date() })

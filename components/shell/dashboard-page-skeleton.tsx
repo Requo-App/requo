@@ -1,6 +1,10 @@
 import {
   DashboardPage,
 } from "@/components/shared/dashboard-layout";
+import {
+  SectionHeaderSkeleton,
+  StatTilesSkeleton,
+} from "@/components/shared/skeleton-blocks";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export function DashboardPageSkeleton() {
@@ -23,17 +27,7 @@ export function DashboardPageSkeleton() {
             </div>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, index) => (
-              <div className="info-tile" key={index}>
-                <div className="flex flex-col gap-2">
-                  <Skeleton className="h-3 w-24 rounded-md" />
-                  <Skeleton className="h-8 w-16 rounded-md" />
-                  <Skeleton className="h-3 w-28 rounded-md" />
-                </div>
-              </div>
-            ))}
-          </div>
+          <StatTilesSkeleton />
         </div>
       </section>
 
@@ -69,10 +63,10 @@ export function DashboardPageSkeleton() {
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_18rem]">
         <section data-padding="none" className="section-panel overflow-hidden">
-          <div className="flex items-center justify-between gap-4 border-b border-border/70 px-4 py-3 sm:px-5">
-            <Skeleton className="h-6 w-36 rounded-md" />
-            <Skeleton className="h-9 w-28 rounded-md sm:h-8" />
-          </div>
+          <SectionHeaderSkeleton
+            titleClassName="h-6 w-36 rounded-md"
+            actionClassName="h-9 w-28 rounded-md sm:h-8"
+          />
           <div className="divide-y divide-border/70">
             {Array.from({ length: 3 }).map((_, index) => (
               <div

@@ -130,8 +130,8 @@ export const createQuoteSchema = z.object({
     .array(
       z.object({
         description: z.string().min(1),
-        quantity: z.number().min(1),
-        unitPrice: z.number().min(0),
+        quantity: z.number().min(1).max(999_999),
+        unitPrice: z.number().min(0).max(1_000_000),
         productId: z.string().min(1).optional(),
       })
     )

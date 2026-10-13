@@ -4,51 +4,97 @@
 
 <h1 align="center">Requo</h1>
 
-<p align="center"><strong>Inquiry-to-quote software for service businesses.</strong></p>
+<p align="center"><strong>Owner-led inquiry-to-quote-to-invoice software for service businesses.</strong></p>
 
-<p align="center">Capture requests, build clear quotes, share them professionally, and follow up consistently.</p>
+<p align="center">Capture requests, send clear quotes, follow up consistently, and invoice accepted work — with AI assistance that never overrules the owner.</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Next.js-16.3-black" alt="Next.js 16.3" />
+  <img src="https://img.shields.io/badge/React-19-61dafb" alt="React 19" />
+  <img src="https://img.shields.io/badge/Node-%3E%3D22-339933" alt="Node 22 or newer" />
+  <img src="https://img.shields.io/badge/License-AGPL--3.0-blue" alt="AGPL-3.0-only" />
+</p>
+
+## Screenshots
+
+![Requo landing page and dashboard preview](public/screenshots/landing.png)
+
+| Business dashboard | Inquiries inbox |
+| --- | --- |
+| ![Business dashboard with analytics and priority queue](public/screenshots/dashboard-home.png) | ![Inquiries inbox with status tracking](public/screenshots/inquiries.png) |
+
+![Customer-facing public quote page with accept and sign](public/screenshots/public-quote.png)
+
+Seeded demo data. Regenerate with `npm run screenshots` (needs the local database from [Local setup](docs/setup/local.md)).
+
+## Who It's For
+
+- **Business owners and operators** — qualify requests, prepare quotes, and see what needs action in one workspace.
+- **Business members** — work inquiries, quotes, and invoices according to their assigned role.
+- **Prospective customers** — submit inquiries and respond to shared quotes without needing a Requo account.
+
+## How It Works
+
+1. An owner creates a business during onboarding (guided starter templates), configures services and inquiry forms, and publishes public intake pages.
+2. A customer submits an inquiry through a public form or chat — or the owner enters it manually. The owner reviews, qualifies, and prepares a quote from reusable products and quote-library data.
+3. The quote is shared by public link or email. The customer views, accepts, rejects, or requests a revision; the owner follows up manually or with supported automated follow-up emails.
+4. An accepted quote continues into an invoice. Money received outside Requo is recorded as a manual payment entry, and a record/receipt can be issued.
+5. Analytics, notifications, audit history, members, and settings keep the workspace managed. Optional AI surfaces help customers qualify requests and help members work with business data.
 
 ## What Requo Does
 
-Requo supports the workflow from a new customer request to a quote response:
+- **Customer intake:** public business/service pages, configurable forms, manual inquiry creation, attachments, duplicate signals, qualification, and status tracking.
+- **Quote work:** drafting and revisions, reusable product/quote library, version snapshots, public quote pages, customer responses (accept / reject / revision), and email templates.
+- **Follow-up and visibility:** owner reminder tasks, supported automatic follow-up emails, conversion and workflow analytics, CSV exports, in-app notifications, web push, activity/audit records, and business membership.
+- **Commercial continuation:** invoices from accepted quotes, manually recorded payments, quote acceptance records, approval flows, typed scope blocks, commercial schedules, and change orders.
+- **Workspace management:** business onboarding templates, multiple businesses per account, role-aware membership, plan entitlements, and Polar subscriptions (Free, Pro, Business).
 
-- Public inquiry pages and configurable inquiry forms, plus manual inquiry entry
-- Business-scoped inboxes with qualification, duplicate detection, notes, attachments, and status tracking
-- Quote editor with reusable Products, line items, revisions, public quote pages, and response tracking
-- Quote delivery by public link or Requo email, with configurable email templates
-- Manual and automatic follow-ups with reminders and AI-assisted message drafting
-- Conversion and workflow analytics, CSV exports, notifications, audit logs, and business members
-- AI-assisted quote drafting grounded in business knowledge files and the Products library
-- Business onboarding templates, multi-business accounts, and Polar subscriptions with Free, Pro, and Business plans
+> **Agent vs Assistant:** the **Agent** is public customer-facing chat — its proposed inquiry needs customer confirmation before creation. The **Assistant** is the authenticated, business-scoped owner chat — it needs confirmation for customer-visible or pipeline-mutating work. AI drafts quote text grounded in business knowledge files, but **models never emit prices**: quote candidates return `unitPriceInCents: 0` and the server hydrates real prices from the database.
 
-Requo is intentionally focused on service-business inquiry-to-quote workflows. It does not currently include jobs, invoices, calendar scheduling, a mobile app, marketplace features, or a general-purpose AI chat product.
+> **Manual payments only:** a payment record attests that the business received money *outside* Requo. Requo never processes money, charges cards, or provides a customer payment gateway. Records are voided, never edited or deleted.
+
+## What Requo Is Not
+
+No dispatch/job management, general calendar or crew scheduling, mobile app, marketplace, payroll, shared customer/CRM entity, payment processing, or general-purpose chatbot. Commercial schedules and approval workflows are quote/work-order concepts, not a calendar product.
 
 ## Stack
 
-- Next.js 16.2 App Router, React 19, TypeScript
-- Tailwind CSS v4, shadcn/ui, Radix UI
-- PostgreSQL with Drizzle ORM
-- Better Auth for authentication
-- Supabase for storage and realtime notification plumbing
-- Resend with Mailtrap/Brevo fallbacks for transactional email
-- Vercel AI SDK with Groq, Cerebras, Gemini, Mistral, Cloudflare Workers AI, NVIDIA NIM, and OpenRouter routing
-- Inngest for background jobs
-- Polar for subscriptions and checkout
+| Area | Implementation |
+| --- | --- |
+| Runtime | Node.js 22+, Next.js 16.3.5 App Router, React 19, TypeScript (strict) |
+| UI | React Server Components by default, Tailwind CSS v4, shadcn/ui, Radix UI |
+| Data | PostgreSQL, Drizzle ORM, `postgres-js`; committed SQL migrations under `drizzle/` |
+| Identity | Better Auth (Drizzle adapter) — the only identity provider; every business query is `businessId`-scoped |
+| Storage / realtime | Supabase private storage (via authenticated server routes) and realtime notification plumbing |
+| Email | Resend, with Mailtrap then Brevo fallbacks |
+| AI | Vercel AI SDK with a shared model router (Groq → Cerebras → Gemini → Mistral → Cloudflare → NVIDIA NIM → OpenRouter) |
+| Background work | Inngest (local Dev Server) plus Vercel Cron route handlers |
+| Billing | Polar subscriptions and checkout; role authorization stays separate from plan entitlement, enforced server-side |
 
 ## Quick Start
 
-Prerequisites: Node.js 22+, npm, PostgreSQL, and environment values from `.env.example`.
+Prerequisites: Docker and a copy of `.env.example`.
 
 ```bash
-npm install
+cp .env.example .env.local
+# Set at minimum: BETTER_AUTH_SECRET (32+ chars). The compose setup below
+# targets the Supabase local stack; see docs/setup/local.md for every knob.
+npx supabase start   # one-time: local Postgres, Storage, realtime (data persists)
 npm run db:migrate
 npm run db:seed
-npm run dev:app
+docker compose up --build
 ```
 
-`npm run db:seed` resets application data and creates deterministic local accounts and businesses. It is for development only. The seed prints the account emails and password at completion; do not use these credentials outside a local environment.
+That starts the Next.js dev server with hot reload (http://localhost:3000),
+the local Inngest Dev Server (http://localhost:8288), and a standalone
+Postgres for non-Supabase setups. `npm run db:seed` resets application data
+and creates deterministic local accounts and businesses — development only.
+It prints the account emails and password when it finishes; never use those
+credentials outside a local environment.
 
-Run `npm run dev` when you also need the local Inngest server and an ngrok tunnel for webhook testing.
+Prefer native tooling? `docker compose up -d db` (or your own Postgres),
+then `npm install`, `npm run db:migrate`, `npm run db:seed`, `npm run dev:app`
+— plus `npm run dev:inngest` in a second terminal with `INNGEST_DEV=1`.
 
 ## Useful Commands
 
@@ -58,7 +104,7 @@ Run `npm run dev` when you also need the local Inngest server and an ngrok tunne
 | `npm run dev:inngest` | Start the local Inngest Dev Server |
 | `npm run check` | Lint, typecheck, and repository audits |
 | `npm run test` | Unit and component tests |
-| `npm run test:integration` | Postgres-backed integration tests |
+| `npm run test:integration` | Postgres-backed integration tests (migrates first) |
 | `npm run test:e2e:smoke` | Playwright smoke journeys |
 | `npm run build` | Production build |
 | `npm run db:migrate` | Apply Drizzle migrations |
@@ -68,31 +114,36 @@ Run `npm run dev` when you also need the local Inngest server and an ngrok tunne
 ## Project Layout
 
 ```text
-app/           Routes, layouts, pages, and API handlers
-components/    Shared UI, shell, and marketing components
-features/      Product logic, queries, actions, and feature UI
-lib/           Auth, database, providers, caching, and utilities
+app/           Route groups (marketing, auth, business, public, checkout,
+               onboarding), admin console, and API/webhook/cron handlers
+features/      Product rules per domain (inquiries, quotes, invoices, …):
+               actions, queries, mutations, schemas, components
+lib/           Shared infrastructure: auth, database, AI router, billing,
+               email, caching, providers
+components/    ui/ primitives, shared/ compositions, shell/ navigation
+emails/        Transactional email templates
 scripts/       Migrations, seeders, audits, and operational tools
 tests/         Unit, component, integration, and end-to-end tests
-docs/          Setup, architecture, billing, and support documentation
+docs/          Setup, product, architecture, and domain documentation
 ```
+
+`app/` stays thin (routing/rendering); product logic lives in `features/`; shared infrastructure lives in `lib/`. See [Development](docs/engineering/DEVELOPMENT.md) for the canonical patterns.
 
 ## Documentation
 
-- [Local setup](./docs/setup/local.md)
-- [Deployment](./docs/setup/deployment.md)
-- [Billing](./docs/setup/billing.md)
-- [Architecture](./docs/architecture/requo-architecture.md)
-- [Design system](./DESIGN.md)
-- [Testing](./tests/README.md)
-- [Agent guide](./AGENTS.md)
+- [Documentation index](docs/README.md) — map to every guide; start here
+- [Product requirements](docs/product/PRD.md) — what Requo currently provides
+- [Technical reference](docs/architecture/TRD.md) — how it is implemented
+- [Local setup](docs/setup/local.md) — environment variables and database options
+- [Deployment](docs/operations/DEPLOYMENT.md) and [deployment setup](docs/setup/deployment.md)
+- [Billing](docs/setup/billing.md) — Polar setup
+- [Design system](DESIGN.md) — visual language and component standards
+- [Domain language](CONTEXT.md) — payments, follow-ups, and acceptance terms
+- [Testing](tests/README.md) — test tiers and fixtures
+- [Contributing](CONTRIBUTING.md) — ground rules and verification
+- [Security](SECURITY.md) — how to report vulnerabilities
+- [Changelog](CHANGELOG.md) — notable changes
 
-## Verification
+## License
 
-```bash
-npm run check
-npm run test
-npm run test:integration
-npm run build
-npm run test:e2e:smoke
-```
+AGPL-3.0-only, see [LICENSE](LICENSE). If you run a modified version as a network service, you must offer its source to users (AGPL section 13).

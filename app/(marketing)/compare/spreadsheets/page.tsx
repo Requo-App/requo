@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { cacheLife } from "next/cache";
 
 import { EditorialPage } from "@/components/marketing/editorial-page";
-import { InViewReveal } from "@/components/marketing/in-view-reveal";
+import { CompareTable } from "@/components/marketing/compare-table";
 import { StructuredData } from "@/components/seo/structured-data";
 import { absoluteUrl, createPageMetadata } from "@/lib/seo/site";
 import {
@@ -128,43 +128,15 @@ export default async function CompareSpreadsheetsPage() {
           aria-label="Requo versus spreadsheets"
           className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 xl:px-0"
         >
-          <InViewReveal>
-            <div className="overflow-hidden rounded-xl border border-border bg-card">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border bg-muted">
-                    <th className="w-[34%] px-5 py-4 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground sm:px-8">
-                      Capability
-                    </th>
-                    <th className="w-[33%] px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Spreadsheets
-                    </th>
-                    <th className="w-[33%] px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider text-foreground">
-                      Requo
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((row) => (
-                    <tr
-                      className="border-b border-border last:border-b-0"
-                      key={row.label}
-                    >
-                      <td className="px-5 py-3.5 font-medium text-foreground sm:px-8">
-                        {row.label}
-                      </td>
-                      <td className="px-4 py-3.5 text-muted-foreground">
-                        {row.sheets}
-                      </td>
-                      <td className="px-4 py-3.5 text-foreground">
-                        {row.requo}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </InViewReveal>
+          <CompareTable
+            leftHeader="Spreadsheets"
+            rightHeader="Requo"
+            rows={rows.map((row) => ({
+              label: row.label,
+              left: row.sheets,
+              right: row.requo,
+            }))}
+          />
         </section>
       </EditorialPage>
     </>

@@ -362,8 +362,7 @@ export function polarSubscriptionRevokedPayload(
 /**
  * `order.paid` payload — a successful collection that should produce
  * a `payment_attempts` row keyed by `data.id` with status
- * `succeeded`. Subscription state must remain unchanged
- * (Requirement 8.5).
+ * `succeeded`. Subscription state must remain unchanged.
  */
 export function polarOrderPaidPayload(
   overrides: PolarFixtureOverrides = {},

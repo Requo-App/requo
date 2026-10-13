@@ -37,7 +37,7 @@ async function AppearanceFormRegion() {
   return <AppearanceSettingsForm userId={session.user.id} />;
 }
 
-function AppearanceFormSkeleton() {
+export function AppearanceFormSkeleton() {
   return (
     <div className="flex w-full flex-col gap-8" aria-hidden="true">
       <div className="flex flex-col gap-3">

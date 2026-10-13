@@ -3,9 +3,9 @@ import { Suspense } from "react";
 
 import { DashboardPage } from "@/components/shared/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
+import { AdminListContentFallback } from "@/features/admin/components/list/admin-list-content-fallback";
+import { AdminListControlsFallback } from "@/features/admin/components/list/admin-list-controls-fallback";
 import {
-  AdminListContentFallback,
-  AdminListControlsFallback,
   AdminInquiriesListContentSection,
   AdminInquiriesListControlsSection,
 } from "@/features/admin/components/product/inquiries/admin-inquiries-list-sections";
@@ -39,7 +39,10 @@ export default function AdminInquiriesPage({
 }: AdminInquiriesPageProps) {
   return (
     <DashboardPage>
-      <PageHeader title="Inquiries" />
+      <PageHeader
+        title="Inquiries"
+        description="Inbound customer requests across every business."
+      />
       <div className="dashboard-table-shell" data-list-card>
         <Suspense fallback={<AdminListControlsFallback />}>
           <AdminInquiriesControlsRegion searchParams={searchParams} />

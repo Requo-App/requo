@@ -1,20 +1,12 @@
 import type { Metadata } from "next";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 
 import { BusinessInquiryPreviewShell } from "@/features/inquiries/components/business-inquiry-preview-shell";
 import { submitPublicInquiryAction } from "@/features/inquiries/actions";
 import { getInquiryBusinessPreviewByFormSlug } from "@/features/inquiries/queries";
-import { requireSession } from "@/lib/auth/session";
-import {
-  getBusinessContextForMembershipSlug,
-  hasOperationalBusinessAccess,
-} from "@/lib/db/business-access";
+import { getBusinessOperationalPageContext } from "../../../settings/_lib/page-context";
 import { timed } from "@/lib/dev/server-timing";
-import {
-  getBusinessDashboardPath,
-  getBusinessServicePath,
-} from "@/features/businesses/routes";
-import { dashboardPath } from "@/features/businesses/routes";
+import { getBusinessServicePath } from "@/features/businesses/routes";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 
 export const metadata: Metadata = createNoIndexMetadata({
@@ -28,28 +20,17 @@ export default async function BusinessInquiryFormPreviewPage({
 }: {
   params: Promise<{ businessSlug: string; formSlug: string }>;
 }) {
-  const [session, { businessSlug, formSlug }] = await Promise.all([
-    requireSession(),
-    params,
-  ]);
-  const [businessContext, business] = await timed(
+  const { businessSlug, formSlug } = await params;
+  const [, business] = await timed(
     "previewInquiryForm.parallelContextAndBusiness",
     Promise.all([
-      getBusinessContextForMembershipSlug(session.user.id, businessSlug),
+      getBusinessOperationalPageContext(businessSlug),
       getInquiryBusinessPreviewByFormSlug({
         businessSlug: businessSlug,
         formSlug,
       }),
     ]),
   );
-
-  if (!businessContext) {
-    redirect(dashboardPath);
-  }
-
-  if (!hasOperationalBusinessAccess(businessContext.role)) {
-    redirect(getBusinessDashboardPath(businessContext.business.slug));
-  }
 
   if (!business) {
     notFound();

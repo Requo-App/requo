@@ -11,9 +11,8 @@ import { resolveUserAvatarSrc } from "@/features/account/utils";
 import { createBusinessAction } from "@/features/businesses/actions";
 import { CreateBusinessForm } from "@/features/businesses/components/create-business-form";
 import { getBusinessQuotaForUser } from "@/features/businesses/quota";
-import { dashboardPath } from "@/features/businesses/routes";
+import { homePath } from "@/features/businesses/routes";
 import { newEntityId } from "@/lib/ids";
-import { getEffectivePlanForUser } from "@/lib/billing/subscription-service";
 import { onboardingPath } from "@/features/onboarding/routes";
 import { UpgradePrompt } from "@/features/paywall";
 import { requireSession } from "@/lib/auth/session";
@@ -39,10 +38,9 @@ async function NewBusinessPageContent() {
   const session = await requireSession();
   const userId = session.user.id;
 
-  const [profile, businessQuota, effectivePlan] = await Promise.all([
+  const [profile, businessQuota] = await Promise.all([
     getAccountProfileForUser(userId),
     getBusinessQuotaForUser({ ownerUserId: userId }),
-    getEffectivePlanForUser(userId),
   ]);
 
   if (!profile?.onboardingCompletedAt) {
@@ -87,7 +85,7 @@ async function NewBusinessPageContent() {
           <CreateBusinessForm
             action={createBusinessAction}
             businessId={businessId}
-            plan={effectivePlan}
+            plan="free"
             standalone
           />
         ) : (
@@ -113,7 +111,7 @@ function NewBusinessHeader({
         <div className="dashboard-topbar-inner min-w-0 flex-1">
           <div className="flex min-h-9 min-w-0 items-center gap-2 md:gap-2.5">
             <div className="min-w-0 flex-1">
-              <BrandMark href={dashboardPath} subtitle={null} />
+              <BrandMark href={homePath} subtitle={null} />
             </div>
             <div className="flex shrink-0 items-center gap-2">
               {userMenu}

@@ -42,19 +42,109 @@ const tabsListVariants = cva(
 function TabsList({
   className,
   variant = "default",
+  children,
   ...props
 }: React.ComponentProps<typeof TabsPrimitive.List> &
   VariantProps<typeof tabsListVariants>) {
+  const listRef = React.useRef<HTMLDivElement>(null);
+  const [thumb, setThumb] = React.useState<{
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+  } | null>(null);
+
+  React.useLayoutEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    const measure = () => {
+      const active = el.querySelector<HTMLElement>(
+        '[role="tab"][data-state="active"]',
+      );
+      if (!active) {
+        setThumb(null);
+        return;
+      }
+      const isLine = el.dataset.variant === "line";
+      const isVertical =
+        el.closest('[data-orientation="vertical"]') !== null;
+      if (!isLine) {
+        setThumb({
+          x: active.offsetLeft,
+          y: active.offsetTop,
+          w: active.offsetWidth,
+          h: active.offsetHeight,
+        });
+        return;
+      }
+      // Line variant: travel a thin strip along the tab edge.
+      if (isVertical) {
+        setThumb({
+          x: active.offsetLeft + active.offsetWidth + 4,
+          y: active.offsetTop,
+          w: 2,
+          h: active.offsetHeight,
+        });
+      } else {
+        setThumb({
+          x: active.offsetLeft,
+          y: active.offsetTop + active.offsetHeight + 5,
+          w: active.offsetWidth,
+          h: 2,
+        });
+      }
+    };
+    measure();
+    const mo = new MutationObserver(measure);
+    mo.observe(el, {
+      attributes: true,
+      subtree: true,
+      attributeFilter: ["data-state", "data-variant", "class"],
+    });
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => {
+      mo.disconnect();
+      ro.disconnect();
+    };
+  }, []);
+
   return (
     <TabsPrimitive.List
+      ref={listRef as React.Ref<HTMLDivElement>}
       data-slot="tabs-list"
       data-variant={variant}
-      className={cn(tabsListVariants({ variant }), className)}
+      className={cn(tabsListVariants({ variant }), "relative", className)}
       {...props}
-    />
-  )
+    >
+      {variant === "default" && thumb ? (
+        <span
+          aria-hidden
+          data-slot="tabs-indicator"
+          className="pointer-events-none absolute top-0 left-0 z-0 rounded-md border border-border/80 bg-[var(--control-bg)] shadow-[var(--control-shadow)] transition-[transform,width,height] duration-200 ease-[var(--motion-ease-emphasized)] motion-reduce:hidden"
+          style={{
+            transform: `translate(${thumb.x}px, ${thumb.y}px)`,
+            width: thumb.w,
+            height: thumb.h,
+          }}
+        />
+      ) : null}
+      {variant === "line" && thumb ? (
+        <span
+          aria-hidden
+          data-slot="tabs-indicator"
+          className="pointer-events-none absolute top-0 left-0 z-0 rounded-full bg-primary transition-[transform,width,height] duration-200 ease-[var(--motion-ease-emphasized)] motion-reduce:hidden"
+          style={{
+            transform: `translate(${thumb.x}px, ${thumb.y}px)`,
+            width: thumb.w,
+            height: thumb.h,
+          }}
+        />
+      ) : null}
+      {children}
+    </TabsPrimitive.List>
+  );
 }
-
 function TabsTrigger({
   className,
   ...props

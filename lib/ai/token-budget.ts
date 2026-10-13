@@ -14,8 +14,6 @@ const DEFAULT_TPM: Record<AiProviderName, number> = {
   openrouter: 20_000,
 };
 
-const RESERVED_HEADROOM = 0.8;
-
 function envNumber(name: string, fallback: number): number {
   const value = Number(process.env[name]);
   return Number.isFinite(value) && value > 0 ? Math.floor(value) : fallback;
@@ -36,10 +34,6 @@ export function getProviderTpm(provider: AiProviderName): number {
     // Catalog unavailable (e.g. in a minimal test env) — use defaults.
   }
   return envNumber(`AI_TPM_${provider.toUpperCase()}`, DEFAULT_TPM[provider]);
-}
-
-export function getProviderBudgetTpm(provider: AiProviderName): number {
-  return Math.floor(getProviderTpm(provider) * RESERVED_HEADROOM);
 }
 
 /** Cheap, deterministic estimate suitable for preflight routing. */

@@ -228,12 +228,14 @@ export async function loadAssistantSession({
           toolName?: string | null;
           toolCallId?: string | null;
           id?: string;
+          createdAt?: Date;
         }) => ({
           role: m.role,
           content: m.content,
           toolName: m.toolName ?? null,
           toolCallId: m.toolCallId ?? null,
           id: m.id,
+          createdAt: m.createdAt,
         }),
       ),
     createdAt: existing.createdAt,
