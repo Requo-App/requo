@@ -17,6 +17,9 @@ follow-up, and invoice workflows. The authoritative documentation map is
 ## Source of truth
 
 - This file defines how to work; it is not product or architecture reference.
+- When modifying, reviewing, or planning repository changes, load the
+  `requo-repo-guide` skill and follow the reference file it points to
+  for the task.
 - Read the documentation index and the relevant sections of the
   [PRD](docs/product/PRD.md) and [TRD](docs/architecture/TRD.md) for product or
   architecture changes. Read [`DESIGN.md`](DESIGN.md) before UI work.
