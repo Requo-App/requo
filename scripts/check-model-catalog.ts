@@ -17,15 +17,24 @@
  * the catalog was really compared, not skipped.
  *
  * Usage:
- *   npx tsx scripts/check-model-catalog.ts           # listing check (CI)
- *   npx tsx scripts/check-model-catalog.ts --probe  # + live tool probe
+ *   npx tsx scripts/check-model-catalog.ts                    # listing check (strict)
+ *   npx tsx scripts/check-model-catalog.ts --allow-missing   # CI: skip providers without credentials
+ *   npx tsx scripts/check-model-catalog.ts --probe           # + live tool probe
+ *
+ * PR CI sets `CATALOG_DRIFT_ALLOW_MISSING=1` (see `.github/workflows/ci.yml`)
+ * so `npm run check` stays green without live provider keys. The scheduled
+ * `model-drift` workflow runs without that flag and with real secrets, so a
+ * green nightly run means the catalog was really compared.
  */
 
 import { getModelCatalog } from "../lib/ai/catalog";
 import { diffCatalogAgainstLive } from "../lib/ai/catalog-drift";
-import { EMBEDDING_MODEL } from "../lib/ai/embeddings";
+import { EMBEDDING_MODEL } from "../lib/ai/embedding-constants";
 
 const PROBE = process.argv.includes("--probe");
+const ALLOW_MISSING =
+  process.argv.includes("--allow-missing") ||
+  process.env.CATALOG_DRIFT_ALLOW_MISSING === "1";
 
 /**
  * Identifiers the app calls that are not routing candidates, so they are not
@@ -206,12 +215,20 @@ async function main() {
   // embedding model fails for reasons that say nothing about availability.
   const listingIds = [...catalogIds, ...OFF_CATALOG_MODEL_IDS];
   let failures = 0;
+  let skipped = 0;
 
   for (const provider of providers()) {
     const missingEnv = provider.envKeys.filter(
       (k) => !(process.env[k] ?? "").trim(),
     );
     if (missingEnv.length > 0) {
+      if (ALLOW_MISSING) {
+        console.warn(
+          `[catalog-drift] SKIP: ${provider.name}: missing credentials (${missingEnv.join(", ")}). PR CI skips live comparison; the scheduled model-drift workflow compares with real secrets.`,
+        );
+        skipped += 1;
+        continue;
+      }
       console.error(
         `[catalog-drift] FAIL: ${provider.name}: missing credentials (${missingEnv.join(", ")}). Set them — a green check must mean the catalog was compared.`,
       );
@@ -253,6 +270,12 @@ async function main() {
   if (failures > 0) {
     console.error(`[catalog-drift] ${failures} provider(s) failed.`);
     process.exit(1);
+  }
+  if (skipped > 0) {
+    console.info(
+      `[catalog-drift] Skipped live comparison for ${skipped} provider(s) (no credentials). Scheduled model-drift workflow does the full comparison with secrets.`,
+    );
+    return;
   }
   console.info("[catalog-drift] Catalog matches live providers.");
 }
