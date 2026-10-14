@@ -8,6 +8,13 @@ import { createGoogleGenerativeAI } from "@ai-sdk/google";
 
 import { cacheLayer } from "@/lib/ai/cache-layer";
 import {
+  EMBEDDING_CACHE_TTL_SECONDS,
+  EMBEDDING_DIMENSIONS,
+  EMBEDDING_MAX_ATTEMPTS_READ,
+  EMBEDDING_MAX_ATTEMPTS_WRITE,
+  EMBEDDING_MODEL,
+} from "@/lib/ai/embedding-constants";
+import {
   AiProviderError,
   isTransientProviderError,
   wrapProviderError,
@@ -29,13 +36,13 @@ import { env, isGeminiConfigured } from "@/lib/env";
  * back to lexical immediately.
  */
 
-export const EMBEDDING_MODEL = "gemini-embedding-001";
-export const EMBEDDING_DIMENSIONS = 768;
-export const EMBEDDING_CACHE_TTL_SECONDS = 60 * 60 * 24; // 24 hours
-/** Ingestion: a `null` here is permanent data loss until the backfill runs. */
-export const EMBEDDING_MAX_ATTEMPTS_WRITE = 3;
-/** Retrieval: fail fast to lexical rather than stall quote generation. */
-export const EMBEDDING_MAX_ATTEMPTS_READ = 1;
+export {
+  EMBEDDING_CACHE_TTL_SECONDS,
+  EMBEDDING_DIMENSIONS,
+  EMBEDDING_MAX_ATTEMPTS_READ,
+  EMBEDDING_MAX_ATTEMPTS_WRITE,
+  EMBEDDING_MODEL,
+};
 
 const EMBEDDING_CACHE_PREFIX = "embed:";
 const MAX_EMBEDDING_INPUT_LENGTH = 20_000;

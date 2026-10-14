@@ -1,20 +1,71 @@
-name: ci
+name: CI
 
 on:
   push:
     branches: [main]
   pull_request:
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
   check:
+    name: check (lint + typecheck + audits + catalog)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/requo
+      BETTER_AUTH_SECRET: test-secret-at-least-32-characters-long-so-zod-passes
+      BETTER_AUTH_URL: http://localhost:3000
+      NEXT_PUBLIC_SUPABASE_URL: http://localhost:54321
+      SUPABASE_SERVICE_ROLE_KEY: test-service-key
+      # PR CI has no live provider keys: skip live model-listing comparison.
+      # The scheduled model-drift workflow runs the strict comparison nightly.
+      CATALOG_DRIFT_ALLOW_MISSING: "1"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: .nvmrc
           cache: npm
       - run: npm ci
       - run: npm run check
+
+  test:
+    name: test (unit + components)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      # Unit/component tiers seed their own deterministic env via
+      # tests/setup.ts -> applyTestEnv(); no secrets or DB needed.
       - run: npm run test
+
+  build:
+    name: build (next build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/requo
+      BETTER_AUTH_SECRET: test-secret-at-least-32-characters-long-so-zod-passes
+      BETTER_AUTH_URL: http://localhost:3000
+      NEXT_PUBLIC_SUPABASE_URL: http://localhost:54321
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: test-anon-key
+      SUPABASE_SERVICE_ROLE_KEY: test-service-key
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
       - run: npm run build

@@ -47,9 +47,13 @@ workflow. Full procedure and production constraints: [Database Migrations](../da
 
 Focused commands include `npm run test:unit`, `npm run test:components`, and
 `npm run check:models`. `npm run test:integration` checks the database, applies
-migrations, then runs integration tests. The normal CI workflow runs
-`npm run check`, `npm run test`, and `npm run build`; it does not currently run
-integration or Playwright suites.
+migrations, then runs integration tests. PR CI (`.github/workflows/ci.yml`)
+runs three parallel jobs — `check` (`npm run check` with dummy base env and
+`CATALOG_DRIFT_ALLOW_MISSING=1`, so live provider listing is skipped),
+`test` (`npm run test`), and `build` (`npm run build` with placeholder
+`NEXT_PUBLIC_*`) — it does not run integration or Playwright suites. The live
+catalog comparison runs strictly in the scheduled `model-drift` workflow with
+real provider secrets (`npm run check:models` without the allow-missing flag).
 
 ## Repository conventions
 
