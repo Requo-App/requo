@@ -1,28 +1,32 @@
 /**
  * scripts/apply-local-realtime-policies.ts
  *
- * Local-dev only: lets the `authenticated` role receive Realtime
- * `postgres_changes` for the notification bell's tables, scoped to the
- * subscriber's own businesses.
+ * Local-dev only: makes the dashboard notification bell receive Realtime
+ * `postgres_changes` live updates from the local Supabase stack.
  *
- * The Drizzle migrations intentionally keep default-deny RLS everywhere
- * (prod parity), so this runs OUTSIDE migrations, directly against the
- * local database. It REFUSES non-local hosts — prod (Cloud) keeps
- * deny-all and the bell's polling fallback there.
+ * Two jobs, both configured OUTSIDE the Drizzle migrations (they must never
+ * run on hosted prod):
  *
- * Membership is checked through a SECURITY DEFINER helper because
- * `business_members` itself is deny-all; a plain policy subquery would
- * see zero rows. Re-run after `db:reset` / fresh `db:migrate`.
+ * 1. Add the bell's tables to the `supabase_realtime` publication so the
+ *    Realtime service streams their changes at all.
+ * 2. Let the `authenticated` role receive those events for the subscriber's
+ *    own businesses. The migrations intentionally keep default-deny RLS
+ *    everywhere (prod parity), so Realtime would otherwise deliver nothing.
+ *    Membership is checked through a SECURITY DEFINER helper because
+ *    `business_members` itself is deny-all; a plain policy subquery would
+ *    see zero rows.
  *
- * Run: npx tsx scripts/apply-local-realtime-policies.ts
+ * It REFUSES non-local hosts — hosted prod keeps deny-all and relies on the
+ * bell's polling fallback. Re-run after `db:reset` / a fresh `db:migrate`.
+ *
+ * Run: npm run db:local:setup (or npx tsx scripts/apply-local-realtime-policies.ts)
  */
-import { config } from "dotenv";
+import "./load-env";
+
 import postgres from "postgres";
 
-config({ path: ".env.local" });
-config();
-
 const POLICY = "realtime_authenticated_select_own_business";
+const PUBLICATION = "supabase_realtime";
 const TABLES = [
   "business_notifications",
   "business_notification_states",
@@ -66,6 +70,36 @@ async function main(): Promise<void> {
       $$`);
     await sql`GRANT EXECUTE ON FUNCTION public.is_business_member(text) TO authenticated`;
     console.log("helper public.is_business_member ready");
+
+    const [publication] = await sql<{ pubname: string }[]>`
+      SELECT pubname FROM pg_publication WHERE pubname = ${PUBLICATION}
+    `;
+
+    if (!publication) {
+      throw new Error(
+        `Publication "${PUBLICATION}" not found. Is the local Supabase stack running (npx supabase start)?`,
+      );
+    }
+
+    const publishedTables = await sql<{ tablename: string }[]>`
+      SELECT tablename
+      FROM pg_publication_tables
+      WHERE pubname = ${PUBLICATION} AND schemaname = 'public'
+    `;
+    const alreadyPublished = new Set(
+      publishedTables.map((row) => row.tablename),
+    );
+
+    for (const table of TABLES) {
+      if (alreadyPublished.has(table)) {
+        continue;
+      }
+
+      await sql.unsafe(
+        `ALTER PUBLICATION ${PUBLICATION} ADD TABLE public."${table}"`,
+      );
+      console.log("publication added:", table);
+    }
 
     for (const table of TABLES) {
       await sql.unsafe(

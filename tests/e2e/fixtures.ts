@@ -1,4 +1,4 @@
-import "dotenv/config";
+import "../../scripts/load-env";
 
 export const demoOwnerEmail =
   process.env.DEMO_OWNER_EMAIL ?? "demo@requo.local";

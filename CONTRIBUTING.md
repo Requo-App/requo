@@ -13,14 +13,22 @@ Thanks for considering a contribution. Requo is owner-led SaaS for service busin
 
 ## Local setup
 
+Cloud Supabase (fill `.env.local` with cloud Supabase + database values):
+
 ```bash
 cp .env.example .env.local
-# Set DATABASE_URL, BETTER_AUTH_SECRET, NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
-docker compose up -d db
 npm install
 npm run db:migrate
-npm run db:seed
-npm run dev:app
+npm run dev
+```
+
+Full local (Supabase CLI + Docker):
+
+```bash
+cp .env.example .env.local   # local values from `npx supabase status`
+npx supabase start
+npm run db:local:setup
+docker compose up --build
 ```
 
 See `docs/setup/local.md` for full setup, `docs/setup/deployment.md` for deploy, `docs/setup/billing.md` for Polar.

@@ -16,10 +16,11 @@
     "uuid": "^11.1.1"
   },
   "scripts": {
-    "dev": "tsx scripts/dev-health-check.ts && concurrently \"npm run dev:app\" \"npm run dev:inngest\" \"ngrok http 3000\"",
+    "dev": "concurrently \"npm run dev:app\" \"npm run dev:inngest\"",
     "dev:check": "tsx scripts/dev-health-check.ts",
     "dev:app": "tsx scripts/dev-health-check.ts && node --max-old-space-size=4096 ./node_modules/next/dist/bin/next dev",
     "dev:inngest": "npx inngest-cli@latest dev",
+    "dev:tunnel": "concurrently \"npm run dev:app\" \"npm run dev:inngest\" \"ngrok http 3000\"",
     "build": "next build",
     "vercel-build": "npm run db:migrate:strict && next build",
     "start": "next start",
@@ -56,6 +57,7 @@
     "db:studio": "drizzle-kit studio",
     "db:seed-demo": "tsx --conditions=react-server scripts/seed.ts",
     "db:seed": "tsx --conditions=react-server scripts/seed.ts",
+    "db:local:setup": "npm run db:migrate && npm run db:seed && tsx scripts/apply-local-realtime-policies.ts",
     "db:seed-prod": "tsx --conditions=react-server scripts/seed-prod.ts",
     "test": "node scripts/test/run-sequential.mjs test:unit test:components",
     "test:integration": "node scripts/test/check-db.mjs && npm run db:migrate && vitest run tests/integration/ -c vitest.integration.config.ts",

@@ -10,9 +10,10 @@
  * Requires: DATABASE_URL, BETTER_AUTH_SECRET, BETTER_AUTH_URL, and other
  * required app env vars used by lib/env.ts.
  *
- * Dev only. This truncates app data before seeding.
+ * Dev only. This truncates app data before seeding. Refuses non-local
+ * databases unless ALLOW_REMOTE_SEED=1 is set.
  */
-import "dotenv/config";
+import "./load-env";
 
 process.env.DISABLE_TRANSACTIONAL_EMAILS ??= "1";
 
@@ -2669,6 +2670,39 @@ async function seedStableAnalyticsAndNotifications(input: {
   ]);
 }
 
+/**
+ * The demo seeder truncates app data, so it must never run against a hosted
+ * database. `ALLOW_REMOTE_SEED=1` is the explicit escape hatch for disposable
+ * remote dev databases (mirrors `ALLOW_REMOTE_RESET` in scripts/db-reset.ts).
+ */
+function assertLocalDatabaseTarget() {
+  const databaseUrl = process.env.DATABASE_URL;
+
+  if (!databaseUrl || process.env.ALLOW_REMOTE_SEED === "1") {
+    return;
+  }
+
+  let hostname: string;
+  try {
+    hostname = new URL(databaseUrl).hostname;
+  } catch {
+    throw new Error(
+      "DATABASE_URL is not a valid URL; refusing to seed.\n" +
+        "Set a valid local DATABASE_URL or remove it to use the app defaults.",
+    );
+  }
+
+  if (["localhost", "127.0.0.1", "::1"].includes(hostname)) {
+    return;
+  }
+
+  throw new Error(
+    "db:seed refuses to run against non-local databases.\n" +
+      "If you really need this (e.g. a disposable dev database on Supabase),\n" +
+      "set ALLOW_REMOTE_SEED=1 in your environment.",
+  );
+}
+
 async function main() {
   console.log("");
   console.log("Requo Demo Seeder");
@@ -2677,6 +2711,7 @@ async function main() {
   console.log("Includes all status combinations for comprehensive testing");
   console.log("");
 
+  assertLocalDatabaseTarget();
   await resetDatabase();
 
   const summary: Array<{

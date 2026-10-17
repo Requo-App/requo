@@ -41,7 +41,7 @@ export default defineConfig({
       DATABASE_URL:
         process.env.TEST_DATABASE_URL ??
         process.env.DATABASE_URL ??
-        'postgresql://postgres:postgres@127.0.0.1:5432/requo',
+        'postgresql://postgres:postgres@127.0.0.1:54322/postgres',
       EMAIL_DOMAIN: 'example.com',
       EMAIL_FROM_DEFAULT: 'Requo <noreply@example.com>',
       EMAIL_FROM_NOTIFICATIONS: 'Requo Notifications <notifications@example.com>',

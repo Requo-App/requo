@@ -1,28 +1,12 @@
-# One-command local development: `docker compose up --build`
+# Full-local development: `docker compose up --build`
+#
+# Expects the Supabase CLI stack to be running first (`npx supabase start`)
+# because the app joins its Docker network, and the database to be prepared
+# with `npm run db:local:setup`. See docs/setup/local.md.
 #
 # - app: Next.js dev server with hot reload (http://localhost:3000)
 # - inngest: local Inngest Dev Server (http://localhost:8288)
-# - db: standalone Postgres for setups that do not use the Supabase stack.
-#   The default app config below targets the Supabase local stack instead
-#   (see docs/setup/local.md); `db` stays for non-Supabase local setups.
 services:
-  db:
-    image: postgres:17
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: requo
-    ports:
-      - "5432:5432"
-    volumes:
-      - requo-db:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
   app:
     build:
       context: .
@@ -72,9 +56,6 @@ services:
     ports:
       - "8288:8288"
     command: npx inngest-cli@latest dev -u http://app:3000/api/inngest --port 8288
-
-volumes:
-  requo-db:
 
 networks:
   # Created by `npx supabase start`; external so CLI restarts keep working.

@@ -73,42 +73,48 @@ No dispatch/job management, general calendar or crew scheduling, mobile app, mar
 
 ## Quick Start
 
-Prerequisites: Docker and a copy of `.env.example`.
+Prerequisites: Node.js 22+ and npm, plus either a cloud Supabase project or
+Docker for the full-local stack. Copy `.env.example` to `.env.local` first.
+
+### Cloud Supabase
 
 ```bash
-cp .env.example .env.local
-# Set at minimum: BETTER_AUTH_SECRET (32+ chars). The compose setup below
-# targets the Supabase local stack; see docs/setup/local.md for every knob.
-npx supabase start   # one-time: local Postgres, Storage, realtime (data persists)
-npm run db:migrate
-npm run db:seed
-docker compose up --build
+cp .env.example .env.local   # fill in cloud Supabase + database values
+npm install
+npm run db:migrate           # first run, or after pulling new migrations
+npm run dev                  # app on http://localhost:3000
 ```
 
-That starts the Next.js dev server with hot reload (http://localhost:3000),
-the local Inngest Dev Server (http://localhost:8288), and a standalone
-Postgres for non-Supabase setups. `npm run db:seed` resets application data
-and creates deterministic local accounts and businesses — development only.
-It prints the account emails and password when it finishes; never use those
-credentials outside a local environment.
+### Full local (Docker)
 
-Prefer native tooling? `docker compose up -d db` (or your own Postgres),
-then `npm install`, `npm run db:migrate`, `npm run db:seed`, `npm run dev:app`
-— plus `npm run dev:inngest` in a second terminal with `INNGEST_DEV=1`.
+```bash
+cp .env.example .env.local   # set local database/Supabase values from `npx supabase status`
+npx supabase start           # one-time: local Postgres, Storage, realtime (data persists)
+npm run db:local:setup       # migrate + demo seed + local realtime setup
+docker compose up --build    # app on http://localhost:3000, Inngest on http://localhost:8288
+```
+
+`npm run db:local:setup` resets application data and creates deterministic
+local accounts and businesses — development only, and it refuses non-local
+databases. It prints the account emails and password when it finishes; never
+use those credentials outside a local environment. See
+[Local setup](docs/setup/local.md) for every knob.
 
 ## Useful Commands
 
 | Command | Purpose |
 | --- | --- |
-| `npm run dev:app` | Start the Next.js development server |
-| `npm run dev:inngest` | Start the local Inngest Dev Server |
+| `npm run dev` | Start the Next.js development server and Inngest Dev Server |
+| `npm run dev:tunnel` | `npm run dev` plus an ngrok tunnel for inbound callbacks |
+| `npm run dev:app` | Start only the Next.js development server |
 | `npm run check` | Lint, typecheck, and repository audits |
 | `npm run test` | Unit and component tests |
 | `npm run test:integration` | Postgres-backed integration tests (migrates first) |
 | `npm run test:e2e:smoke` | Playwright smoke journeys |
 | `npm run build` | Production build |
 | `npm run db:migrate` | Apply Drizzle migrations |
-| `npm run db:seed` | Reset and seed local demo data |
+| `npm run db:local:setup` | Full-local: migrations + demo seed + realtime setup |
+| `npm run db:seed` | Reset and seed local demo data (refuses non-local databases) |
 | `npm run db:studio` | Open Drizzle Studio |
 
 ## Project Layout

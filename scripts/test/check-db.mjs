@@ -10,6 +10,14 @@
 
 import { createConnection } from "node:net";
 
+import { config } from "dotenv";
+
+// Scripts run outside Next.js, which only auto-loads `.env.local` for the
+// app itself. Load `.env.local` first, then `.env` as a fallback, so the
+// commands above work from a checkout that only has `.env.local`.
+config({ path: ".env.local" });
+config();
+
 const TIMEOUT_MS = 10_000;
 const SUPPORTED_PROTOCOLS = new Set(["postgres:", "postgresql:"]);
 

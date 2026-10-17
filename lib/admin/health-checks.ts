@@ -196,7 +196,7 @@ async function checkEnvironment(): Promise<AdminHealthCheckResult> {
       name: "Environment variables",
       status: "fail",
       message: `Missing required: ${missing.join(", ")}`,
-      hint: "Copy .env.example to .env and fill in the required values.",
+      hint: "Copy .env.example to .env.local and fill in the required values.",
       category: "core",
     };
   }
