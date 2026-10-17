@@ -12,7 +12,6 @@ import {
   SolutionFaq,
   SolutionFeatures,
   SolutionHeroCard,
-  SolutionSectionBackdrop,
   SolutionsFinalCta,
 } from "@/components/marketing/solutions/solutions-shared";
 import { PublicPageShell } from "@/components/shared/public-page-shell";
@@ -29,16 +28,6 @@ export function SolutionDetailPage({ detail }: { detail: SolutionDetail }) {
         header={<MarketingHeader />}
       >
         <section className="relative overflow-hidden px-4 pb-14 pt-12 sm:px-6 sm:pb-20 sm:pt-16 lg:px-8 lg:pb-24 lg:pt-24 xl:px-0">
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute -top-12 left-1/2 -z-10 h-[560px] w-[800px] max-w-[120vw] -translate-x-1/2 bg-background"
-            style={{
-              WebkitMaskImage:
-                "radial-gradient(ellipse 70% 65% at 50% 45%, black 40%, transparent 100%)",
-              maskImage:
-                "radial-gradient(ellipse 70% 65% at 50% 45%, black 40%, transparent 100%)",
-            }}
-          />
           <div className="relative z-10 mx-auto grid w-full max-w-6xl items-center gap-10 lg:grid-cols-[1.05fr_1fr] lg:gap-14">
             <InViewReveal className="flex w-full flex-col items-start gap-5 sm:gap-6">
               <h1 className="font-sans text-[2.5rem] font-normal leading-[1.08] tracking-[-0.035em] text-foreground sm:text-6xl sm:leading-[1.05] lg:text-[4.25rem]">
@@ -78,7 +67,6 @@ export function SolutionDetailPage({ detail }: { detail: SolutionDetail }) {
           aria-labelledby="solution-features-heading"
           className="relative z-10 mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 xl:px-0"
         >
-          <SolutionSectionBackdrop />
           <InViewReveal className="relative z-10 flex max-w-2xl flex-col items-start gap-3">
             <h2
               className="font-heading text-3xl font-semibold tracking-tight text-balance sm:text-4xl"
@@ -100,7 +88,6 @@ export function SolutionDetailPage({ detail }: { detail: SolutionDetail }) {
           className="relative z-10 mx-auto mt-20 w-full max-w-6xl scroll-mt-24 px-4 sm:mt-28 sm:px-6 lg:px-8 xl:px-0"
           id="workflow"
         >
-          <SolutionSectionBackdrop />
           <InViewReveal className="relative z-10 flex max-w-2xl flex-col items-start gap-3">
             <p className="meta-label">Same record</p>
             <h2
@@ -122,7 +109,6 @@ export function SolutionDetailPage({ detail }: { detail: SolutionDetail }) {
           aria-labelledby="solution-customer-heading"
           className="relative z-10 mx-auto mt-20 w-full max-w-6xl px-4 sm:mt-28 sm:px-6 lg:px-8 xl:px-0"
         >
-          <SolutionSectionBackdrop />
           <InViewReveal className="relative z-10 flex max-w-2xl flex-col items-start gap-3">
             <h2
               className="font-heading text-3xl font-semibold tracking-tight text-balance sm:text-4xl"
@@ -144,7 +130,6 @@ export function SolutionDetailPage({ detail }: { detail: SolutionDetail }) {
           aria-labelledby="solution-faq-heading"
           className="relative z-10 mx-auto mt-20 w-full max-w-6xl px-4 sm:mt-28 sm:px-6 lg:px-8 xl:px-0"
         >
-          <SolutionSectionBackdrop />
           <InViewReveal className="relative z-10 flex max-w-2xl flex-col items-start gap-3">
             <h2
               className="font-heading text-3xl font-semibold tracking-tight text-balance sm:text-4xl"
@@ -162,7 +147,6 @@ export function SolutionDetailPage({ detail }: { detail: SolutionDetail }) {
           aria-labelledby="solution-more-heading"
           className="relative z-10 mx-auto mt-20 w-full max-w-6xl px-4 sm:mt-28 sm:px-6 lg:px-8 xl:px-0"
         >
-          <SolutionSectionBackdrop />
           <InViewReveal className="relative z-10 flex max-w-2xl flex-col items-start gap-3">
             <h2
               className="font-heading text-3xl font-semibold tracking-tight text-balance sm:text-4xl"

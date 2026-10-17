@@ -1,3 +1,5 @@
+"use client"
+
 import * as React from "react"
 import { cva } from "class-variance-authority"
 import { cn } from "@/lib/utils"
@@ -95,19 +97,59 @@ function NavigationMenuContent({
 }
 
 /**
- * Shared viewport card. Opens with a 100ms fade + settle, and morphs its
- * width/height when moving between triggers — the content swaps in place,
- * so no cross-fade / slide motion classes belong on `NavigationMenuContent`.
+ * Shared viewport card. Opens with a 100ms fade + settle, morphs its
+ * width/height when moving between triggers, and shifts horizontally so its
+ * left edge sits on the active trigger — the content swaps in place, so no
+ * cross-fade / slide motion classes belong on `NavigationMenuContent`.
  */
 function NavigationMenuViewport({
   className,
   ...props
 }: React.ComponentProps<typeof NavigationMenuPrimitive.Viewport>) {
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const [offsetX, setOffsetX] = React.useState(0);
+
+  React.useLayoutEffect(() => {
+    const root = containerRef.current?.closest<HTMLElement>(
+      '[data-slot="navigation-menu"]',
+    );
+    if (!root) return;
+
+    // Radix only exposes the viewport's width/height, so track the active
+    // trigger ourselves (same MutationObserver pattern as the tabs indicator)
+    // and align the card's left edge with the open item.
+    const measure = () => {
+      const active = root.querySelector<HTMLElement>(
+        '[data-slot="navigation-menu-item"] [data-state="open"]',
+      );
+      const item = active?.closest<HTMLElement>(
+        '[data-slot="navigation-menu-item"]',
+      );
+      if (item) setOffsetX(item.offsetLeft);
+    };
+
+    measure();
+    const mutationObserver = new MutationObserver(measure);
+    mutationObserver.observe(root, {
+      attributes: true,
+      subtree: true,
+      attributeFilter: ["data-state"],
+    });
+    const resizeObserver = new ResizeObserver(measure);
+    resizeObserver.observe(root);
+    return () => {
+      mutationObserver.disconnect();
+      resizeObserver.disconnect();
+    };
+  }, []);
+
   return (
     <div
+      ref={containerRef}
       className={cn(
-        "absolute top-full left-0 isolate z-50 flex justify-center"
+        "absolute top-full left-0 isolate z-50 flex justify-center transition-transform duration-100 motion-reduce:transition-none"
       )}
+      style={{ transform: `translateX(${offsetX}px)` }}
     >
       <NavigationMenuPrimitive.Viewport
         data-slot="navigation-menu-viewport"
