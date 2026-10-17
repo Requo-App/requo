@@ -79,6 +79,8 @@ follow-up, and invoice workflows. The authoritative documentation map is
 ## Change management
 
 - Keep edits scoped to the request and preserve unrelated working-tree changes.
+- Before creating a branch, committing, pushing, or opening a pull request,
+  load the `requo-commit-pr-guide` skill and follow it.
 - Never rewrite committed SQL migrations; follow
   [`Database Migrations`](docs/database-migrations.md).
 - When behavior or architecture changes, update the one authoritative
