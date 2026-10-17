@@ -34,7 +34,7 @@ const wordmarkNoSubtitleSizeClass: Record<BrandMarkSize, string> = {
 export function BrandMark({
   className,
   collapseLabel = false,
-  subtitle = "Owner-led service",
+  subtitle = "Service workflow",
   href = "/",
   size = "default",
 }: BrandMarkProps) {

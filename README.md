@@ -4,7 +4,7 @@
 
 <h1 align="center">Requo</h1>
 
-<p align="center"><strong>Owner-led inquiry-to-quote-to-invoice software for service businesses.</strong></p>
+<p align="center"><strong>Inquiry-to-quote-to-invoice software for service businesses.</strong></p>
 
 <p align="center">Capture requests, send clear quotes, follow up consistently, and invoice accepted work — with AI assistance that never overrules the owner.</p>
 
