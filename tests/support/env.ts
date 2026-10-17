@@ -17,7 +17,7 @@ export function applyTestEnv(): void {
     APP_TOKEN_HASH_SECRET: 'test-token-hash-secret-at-least-32-characters',
     BETTER_AUTH_URL: 'http://127.0.0.1:3000',
     NEXT_PUBLIC_BETTER_AUTH_URL: 'http://127.0.0.1:3000/api/auth',
-    DATABASE_URL: 'postgresql://postgres:postgres@127.0.0.1:5432/requo',
+    DATABASE_URL: 'postgresql://postgres:postgres@127.0.0.1:54322/postgres',
     NEXT_PUBLIC_SUPABASE_URL: 'http://localhost:54321',
     NEXT_PUBLIC_SUPABASE_ANON_KEY: 'test-anon-key',
     SUPABASE_SERVICE_ROLE_KEY: 'test-service-key',

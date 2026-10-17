@@ -12,7 +12,7 @@
  * Run: npx tsx scripts/backfill-pack-recipes.ts
  * Requires: DATABASE_URL (or the standard app env).
  */
-import "dotenv/config";
+import "./load-env";
 
 import { and, eq, isNull } from "drizzle-orm";
 

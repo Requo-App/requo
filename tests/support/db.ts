@@ -10,7 +10,7 @@ config();
 const connectionString =
   process.env.TEST_DATABASE_URL ??
   process.env.DATABASE_URL ??
-  "postgresql://postgres:postgres@127.0.0.1:5432/requo";
+  "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
 
 if (!process.env.DATABASE_URL) {
   process.env.DATABASE_URL = connectionString;

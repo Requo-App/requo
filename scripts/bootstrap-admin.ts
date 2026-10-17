@@ -11,7 +11,7 @@
  * Run:  npx tsx --conditions=react-server scripts/bootstrap-admin.ts
  * Reqs: DATABASE_URL + BETTER_AUTH_SECRET + ADMIN_EMAILS in env
  */
-import "dotenv/config";
+import "./load-env";
 
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";

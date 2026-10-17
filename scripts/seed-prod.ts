@@ -7,7 +7,7 @@
  * Run:  npx tsx --conditions=react-server scripts/seed-prod.ts
  * Reqs: DATABASE_URL + BETTER_AUTH_SECRET + ADMIN_EMAILS in env
  */
-import "dotenv/config";
+import "./load-env";
 
 import { eq } from "drizzle-orm";
 
