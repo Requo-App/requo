@@ -5,7 +5,7 @@
 Requo deploys as a Next.js app with a Postgres database, Supabase storage credentials,
 Better Auth secrets, transactional email providers, AI provider keys, and optional billing providers.
 
-The deployed product is aimed at owner-led service businesses that need to capture
+The deployed product is aimed at service businesses that need to capture
 inquiries, turn them into quotes, share or send quotes, follow up, and track quote
 views plus customer responses from one place.
 

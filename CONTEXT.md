@@ -1,6 +1,6 @@
 # Requo
 
-Owner-led SaaS for service businesses: inquiry → quote → invoice → manual payment record. Requo records money received outside Requo; it never processes money.
+SaaS for service businesses: inquiry → quote → invoice → manual payment record. Requo records money received outside Requo; it never processes money.
 
 ## Language
 

@@ -71,14 +71,14 @@ export function AuthShell({
           </div>
 
           <div className="flex max-w-2xl flex-col gap-5">
-            <span className="eyebrow">Owner-led service workflow</span>
+            <span className="eyebrow">Service workflow</span>
             <div className="flex flex-col gap-3">
               <h1 className="font-heading text-5xl font-semibold leading-[0.96] tracking-tight text-balance">
                 Capture inquiries, qualify leads, and send quotes from one place.
               </h1>
               <p className="max-w-xl text-base leading-snug sm:leading-7 text-muted-foreground">
                 Requo keeps inbound inquiries, pricing, and follow-up organized
-                for owner-led service businesses and lean teams.
+                for service businesses and lean teams.
               </p>
             </div>
           </div>

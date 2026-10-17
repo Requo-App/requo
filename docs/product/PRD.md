@@ -11,7 +11,7 @@ business rules remain authoritative in code, database constraints, and tests.
 
 ## Product overview
 
-Requo is owner-led business software for service businesses. It helps a
+Requo is business software for service businesses. It helps a
 business receive a customer request, qualify and manage it, prepare and share a
 quote, follow up, record the customer's response, and continue accepted work
 into an invoice and payment records. Public service pages and configurable

@@ -1,6 +1,6 @@
 # Contributing to Requo
 
-Thanks for considering a contribution. Requo is owner-led SaaS for service businesses (inquiry → quote → follow-up → invoice, manual payments only).
+Thanks for considering a contribution. Requo is SaaS for service businesses (inquiry → quote → follow-up → invoice, manual payments only).
 
 ## Ground rules
 
