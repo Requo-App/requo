@@ -113,7 +113,7 @@ export function MarketingHero() {
             <div
               className="rounded-xl border border-border/80 bg-card/40 p-1.5 shadow-[0_24px_70px_rgba(0,0,0,0.22)] sm:p-2 dark:border-border/60 dark:bg-card/30 dark:shadow-[0_30px_100px_rgba(0,0,0,0.7)]"
               role="img"
-              aria-label="Requo quote management dashboard showing inquiry inbox, quote builder, and follow-up schedule for service businesses"
+              aria-label="Requo dashboard home showing the business assistant, quote performance stats, and a priority queue of follow-ups, inquiries, and quotes for service businesses"
             >
               <div className="overflow-hidden rounded-xl bg-background">
                 <ScaledDashboardStage>
