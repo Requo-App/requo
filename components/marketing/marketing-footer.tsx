@@ -132,11 +132,6 @@ const footerColumns: FooterColumn[] = [
 export function MarketingFooter() {
   return (
     <footer className="relative z-10 w-full bg-background text-muted-foreground">
-      {/* Subtle, soft gradient fade extending above the footer so dots dissolve seamlessly into the background with no line or border */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -top-36 sm:-top-48 inset-x-0 h-36 sm:h-48 bg-gradient-to-b from-transparent to-background"
-      />
       <div className="mx-auto flex max-w-6xl flex-col justify-between gap-12 px-4 py-16 sm:px-6 lg:flex-row lg:items-start lg:gap-16 lg:px-8 xl:px-0">
         {/* Left column: Brand & Desktop Copyright */}
         <div className="flex flex-col justify-between self-stretch">

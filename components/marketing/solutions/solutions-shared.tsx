@@ -16,7 +16,6 @@ import {
   type SolutionFeature,
 } from "@/components/marketing/solutions-data";
 import type { SolutionDetail } from "@/components/marketing/solutions-data";
-import { MarketingSectionBackdrop } from "@/components/marketing/marketing-section-backdrop";
 import {
   Accordion,
   AccordionContent,
@@ -95,15 +94,6 @@ export function SolutionCardShell({
 
 export function SolutionHeroCard({ card }: { card: SolutionCardData }) {
   return <SolutionCardShell card={card} />;
-}
-
-/**
- * Soft backdrop in front of the pixel canvas, same as the landing FAQ
- * section — covers dots behind solution content while fading smoothly on
- * all 4 edges for readability.
- */
-export function SolutionSectionBackdrop() {
-  return <MarketingSectionBackdrop />;
 }
 
 export function SolutionFeatures({

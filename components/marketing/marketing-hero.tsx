@@ -13,7 +13,6 @@ import {
   landingFeatureItems,
 } from "@/components/marketing/marketing-data";
 import { MarketingDashboardPreview } from "@/components/marketing/marketing-dashboard-preview";
-import { MarketingSectionBackdrop } from "@/components/marketing/marketing-section-backdrop";
 import { ScaledDashboardStage } from "@/components/marketing/scaled-dashboard-stage";
 import { InViewReveal } from "@/components/marketing/in-view-reveal";
 import { MarketingFooter } from "@/components/marketing/marketing-footer";
@@ -81,16 +80,6 @@ export function MarketingHero() {
         header={<MarketingHeader />}
       >
       <section className="relative overflow-hidden px-5 pb-14 pt-12 sm:px-6 sm:pb-28 sm:pt-16 lg:px-8 lg:pb-36 lg:pt-24 xl:px-0">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -left-12 -top-12 -z-10 h-[560px] w-[800px] max-w-[120vw] bg-background"
-          style={{
-            WebkitMaskImage:
-              "radial-gradient(ellipse 70% 65% at 45% 45%, black 40%, transparent 100%)",
-            maskImage:
-              "radial-gradient(ellipse 70% 65% at 45% 45%, black 40%, transparent 100%)",
-          }}
-        />
         <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col items-start gap-8 sm:gap-10 lg:gap-12">
           <div className="flex w-full max-w-4xl flex-col items-start gap-5 text-left sm:gap-5">
             <h1 className="text-balance font-sans text-[2.75rem] font-medium leading-[1.02] tracking-[-0.04em] text-foreground sm:text-[3.75rem] sm:leading-[1.08] sm:tracking-[-0.035em] lg:text-[4.75rem] lg:leading-[1.05]">
@@ -142,7 +131,6 @@ export function MarketingHero() {
         className="relative z-10 mx-auto mt-24 w-full max-w-6xl px-4 sm:mt-32 sm:px-6 lg:mt-40 lg:px-8 xl:px-0"
         id="why-requo"
       >
-        <MarketingSectionBackdrop />
         <InViewReveal className="relative z-10 grid gap-6 lg:grid-cols-2 lg:gap-12 xl:gap-16">
           <div className="flex flex-col gap-4">
             <p className="meta-label !text-primary">WHY REQUO</p>
@@ -195,7 +183,6 @@ export function MarketingHero() {
         className="relative z-10 mx-auto mt-24 w-full max-w-6xl px-4 sm:mt-32 sm:px-6 lg:mt-40 lg:px-8 xl:px-0"
         id="workflow"
       >
-        <MarketingSectionBackdrop />
         <InViewReveal className="relative z-10 mx-auto flex max-w-2xl flex-col items-center gap-4 text-center">
           <p className="meta-label !text-primary">HOW IT WORKS</p>
           <h2 className="font-heading text-2xl font-semibold tracking-tight text-balance sm:text-3xl lg:text-4xl xl:text-5xl">
@@ -215,57 +202,14 @@ export function MarketingHero() {
         className="relative z-10 left-1/2 mt-24 w-screen -translate-x-1/2 overflow-x-clip py-16 sm:mt-32 sm:py-20 lg:mt-40 lg:py-24"
         id="features"
       >
-        <MarketingSectionBackdrop />
         <InViewReveal className="relative z-10 mx-auto grid w-full max-w-6xl gap-4 px-4 sm:gap-5 sm:px-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-end lg:px-8 xl:px-0">
           <div className="relative z-10 flex flex-col gap-3 sm:gap-4">
-            {/* Soft backdrop covering dots behind section title */}
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute -inset-x-8 -inset-y-8 sm:-inset-x-12 sm:-inset-y-10 z-0"
-              style={{
-                WebkitMaskImage:
-                  "linear-gradient(to bottom, transparent 0%, black 32px, black calc(100% - 32px), transparent 100%)",
-                maskImage:
-                  "linear-gradient(to bottom, transparent 0%, black 32px, black calc(100% - 32px), transparent 100%)",
-              }}
-            >
-              <div
-                className="size-full bg-background"
-                style={{
-                  WebkitMaskImage:
-                    "linear-gradient(to right, transparent 0%, black 32px, black calc(100% - 32px), transparent 100%)",
-                  maskImage:
-                    "linear-gradient(to right, transparent 0%, black 32px, black calc(100% - 32px), transparent 100%)",
-                }}
-              />
-            </div>
             <p className="relative z-10 meta-label !text-primary">THE REQUO WORKSPACE</p>
             <h2 className="relative z-10 max-w-3xl font-heading text-2xl font-semibold tracking-tight text-balance sm:text-3xl lg:text-4xl xl:text-5xl">
               One connected workflow from inquiry to accepted quote.
             </h2>
           </div>
           <div className="relative z-10">
-            {/* Soft backdrop covering dots behind section description */}
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute -inset-x-6 -inset-y-6 sm:-inset-x-8 sm:-inset-y-8 z-0"
-              style={{
-                WebkitMaskImage:
-                  "linear-gradient(to bottom, transparent 0%, black 24px, black calc(100% - 24px), transparent 100%)",
-                maskImage:
-                  "linear-gradient(to bottom, transparent 0%, black 24px, black calc(100% - 24px), transparent 100%)",
-              }}
-            >
-              <div
-                className="size-full bg-background"
-                style={{
-                  WebkitMaskImage:
-                    "linear-gradient(to right, transparent 0%, black 24px, black calc(100% - 24px), transparent 100%)",
-                  maskImage:
-                    "linear-gradient(to right, transparent 0%, black 24px, black calc(100% - 24px), transparent 100%)",
-                }}
-              />
-            </div>
             <p className="relative z-10 max-w-md text-sm leading-snug text-muted-foreground sm:text-base sm:leading-6 lg:pb-1">
               Capture requests, send professional quotes, and see what needs attention without switching tools.
             </p>
@@ -287,8 +231,6 @@ export function MarketingHero() {
       </section>
 
       <section className="relative z-10 mx-auto mt-24 w-full max-w-4xl px-4 sm:mt-32 sm:px-6 lg:mt-40 lg:px-8 xl:px-0" id="faq">
-        {/* Soft backdrop in front of pixel canvas that covers dots behind FAQ while fading out smoothly on all 4 edges */}
-        <MarketingSectionBackdrop />
         <InViewReveal className="relative z-10 flex flex-col items-start gap-3 sm:gap-4">
           <p className="meta-label !text-primary">FAQ</p>
           <h2 className="font-heading text-2xl font-semibold tracking-tight text-balance sm:text-3xl lg:text-4xl xl:text-5xl">
@@ -350,16 +292,6 @@ export function MarketingHero() {
         delay={120}
       >
         <section className="relative flex flex-col items-center gap-6 py-10 text-center sm:gap-8 sm:py-14">
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute -inset-x-16 -inset-y-20 -z-10 bg-background sm:-inset-x-28 sm:-inset-y-24"
-            style={{
-              WebkitMaskImage:
-                "radial-gradient(ellipse 75% 70% at 50% 50%, black 40%, transparent 100%)",
-              maskImage:
-                "radial-gradient(ellipse 75% 70% at 50% 50%, black 40%, transparent 100%)",
-            }}
-          />
           <h2 className="max-w-3xl font-heading text-3xl font-bold tracking-tighter text-foreground sm:text-4xl lg:text-5xl xl:text-6xl">
             Stop losing track of customer requests.
           </h2>

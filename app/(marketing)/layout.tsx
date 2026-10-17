@@ -1,5 +1,4 @@
 import { CrispChatWidgetServer } from "@/components/integrations/crisp/crisp-chat-widget-server";
-import { MarketingPixelBackground } from "@/components/marketing/marketing-pixel-background";
 
 export default function MarketingLayout({
   children,
@@ -8,10 +7,8 @@ export default function MarketingLayout({
 }) {
   return (
     <div className="font-scope-geist relative isolate min-h-screen dark:[--background:#161616] dark:bg-[#161616]">
-      <MarketingPixelBackground />
       {children}
       <CrispChatWidgetServer />
     </div>
   );
 }
-

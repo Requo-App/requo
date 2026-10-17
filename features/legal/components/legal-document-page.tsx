@@ -28,27 +28,6 @@ export function LegalDocumentPage({
       header={<MarketingHeader />}
     >
       <div className="relative mx-auto w-full max-w-3xl px-6 py-12 md:py-20">
-        {/* Soft backdrop in front of the pixel canvas that covers dots behind legal content while fading out smoothly on all 4 edges (same pattern as FAQ) */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -inset-y-16 left-1/2 w-screen -translate-x-1/2"
-          style={{
-            WebkitMaskImage:
-              "linear-gradient(to bottom, transparent 0%, black 64px, black calc(100% - 64px), transparent 100%)",
-            maskImage:
-              "linear-gradient(to bottom, transparent 0%, black 64px, black calc(100% - 64px), transparent 100%)",
-          }}
-        >
-          <div
-            className="size-full bg-background"
-            style={{
-              WebkitMaskImage:
-                "linear-gradient(to right, transparent 0%, black 15%, black 85%, transparent 100%)",
-              maskImage:
-                "linear-gradient(to right, transparent 0%, black 15%, black 85%, transparent 100%)",
-            }}
-          />
-        </div>
         <div className="relative z-10 mb-8">
           <p className="text-sm font-medium leading-none text-muted-foreground">
             Effective date: {legalConfig.effectiveDate}
