@@ -4,8 +4,10 @@ import { type ReactNode, useLayoutEffect, useRef, useState } from "react";
 
 import { cn } from "@/lib/utils";
 
-const STAGE_WIDTH = 1152;
-const STAGE_HEIGHT = 540;
+// Canonical desktop reference: the width the /home dashboard is designed and
+// captured at. The crop ends at the bottom border of the queue's first row.
+const STAGE_WIDTH = 1440;
+const STAGE_HEIGHT = 725;
 
 export function ScaledDashboardStage({ children }: { children: ReactNode }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -36,7 +38,10 @@ export function ScaledDashboardStage({ children }: { children: ReactNode }) {
   return (
     <div
       ref={containerRef}
-      className={cn("w-full overflow-hidden", !measured && "aspect-[16/10]")}
+      className={cn(
+        "w-full overflow-hidden",
+        !measured && "aspect-[1440/725]",
+      )}
       style={
         measured ? { height: Math.round(STAGE_HEIGHT * scale) } : undefined
       }
