@@ -246,6 +246,7 @@ Do not invent new variant or size names in feature code. Add a new name only if 
 
 - Auth, marketing, and public pages still use the same semantic color and surface system.
 - Reuse existing shared classes such as `hero-panel`, `section-panel`, `soft-panel`, `eyebrow`, and `meta-label`.
+- The marketing home renders cards flat: `MarketingHero` sets `data-marketing-flat-cards`, and `app/globals.css` suppresses `surface-card` / `soft-panel` elevation under that root. Do not add card shadows there.
 - Avoid one-off gradients, shadows, radii, or raw palette utilities unless they are promoted into shared tokens or classes first.
 
 ## Do's and Don'ts

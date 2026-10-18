@@ -72,7 +72,7 @@ const faqGroups = [
 
 export function MarketingHero() {
   return (
-    <div className="overflow-x-clip">
+    <div className="overflow-x-clip" data-marketing-flat-cards>
       <PublicPageShell
         brandSubtitle={null}
         brandSize="lg"
@@ -112,7 +112,7 @@ export function MarketingHero() {
             {/* Device frame. A figure, not `role="img"`: the stage now carries
                 a real play/pause control, which an image role would hide from
                 assistive technology. */}
-            <figure className="rounded-xl border border-border/80 bg-card/40 p-1.5 shadow-[0_24px_70px_rgba(0,0,0,0.22)] sm:p-2 dark:border-border/60 dark:bg-card/30 dark:shadow-[0_30px_100px_rgba(0,0,0,0.7)]">
+            <figure className="rounded-xl border border-border/80 bg-card/40 p-1.5 sm:p-2 dark:border-border/60 dark:bg-card/30">
               <figcaption className="sr-only">
                 Recorded Requo walkthrough: the dashboard home with the business
                 assistant, quote stats, and priority queue, an inquiry filtered
@@ -155,7 +155,7 @@ export function MarketingHero() {
 
             return (
               <InViewReveal delay={80 + index * 60} key={point.hook}>
-                <article className="surface-card group relative flex h-full flex-col overflow-hidden rounded-2xl transition-shadow duration-200 hover:shadow-[var(--surface-shadow-lg)]">
+                <article className="surface-card group relative flex h-full flex-col overflow-hidden rounded-2xl">
                   <GraphicComponent />
 
                   {/* Content */}

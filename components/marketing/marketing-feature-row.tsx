@@ -107,7 +107,7 @@ function MarketingFeaturePreview({
       <div className="absolute inset-x-3 bottom-0 top-3 rounded-2xl border border-border/50 bg-muted/50" />
       <div
         aria-label={`Preview of ${featureId}`}
-        className="relative overflow-hidden rounded-2xl border border-border/70 bg-card shadow-[0_24px_60px_rgba(0,0,0,0.12),0_8px_18px_rgba(0,0,0,0.06)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.5),0_8px_18px_rgba(0,0,0,0.25)]"
+        className="relative overflow-hidden rounded-2xl border border-border/70 bg-card"
       >
         <MarketingFeatureMock featureId={featureId} />
       </div>

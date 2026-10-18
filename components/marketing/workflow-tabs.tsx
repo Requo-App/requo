@@ -73,7 +73,7 @@ export function WorkflowTabs() {
   const [title, subtitle, description] = steps[active];
 
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-background shadow-[0_18px_50px_rgba(0,0,0,0.08)]">
+    <div className="overflow-hidden rounded-lg border border-border bg-background">
       <div className="grid grid-cols-4 border-b border-border" role="tablist" aria-label="How Requo works">
         {steps.map(([label, , , StepIcon], index) => (
           <button key={label} type="button" role="tab" aria-selected={index === active} onClick={() => setActive(index)} className={cn("relative flex min-w-0 items-center justify-center gap-2 px-2 py-3.5 text-xs font-medium sm:px-4 sm:py-4 sm:text-sm", index === active ? "text-foreground" : "text-muted-foreground hover:text-foreground")}>
@@ -82,7 +82,7 @@ export function WorkflowTabs() {
         ))}
       </div>
       <div className="grid min-h-[24rem] lg:grid-cols-[1.05fr_1fr]" role="tabpanel">
-        <div className="flex min-h-[19rem] items-center justify-center bg-muted/25 p-5 sm:p-8"><div className="w-full max-w-lg overflow-hidden rounded-xl border border-border/60 bg-background shadow-sm"><StepPreview active={active} /></div></div>
+        <div className="flex min-h-[19rem] items-center justify-center bg-muted/25 p-5 sm:p-8"><div className="w-full max-w-lg overflow-hidden rounded-xl border border-border/60 bg-background"><StepPreview active={active} /></div></div>
         <div className="flex flex-col justify-center border-t border-border p-7 sm:p-10 lg:border-l lg:border-t-0 lg:p-12"><p className="meta-label mb-4 text-primary">STEP 0{active + 1} / {title}</p><h3 className="font-heading text-2xl font-semibold tracking-tight sm:text-3xl">{subtitle}</h3><p className="mt-4 max-w-md text-sm leading-5 text-muted-foreground sm:text-base sm:leading-6">{description}</p><Link className="mt-7 inline-flex w-fit items-center gap-2 text-sm font-medium text-primary hover:underline" href="/signup">Start free <ArrowRight className="size-4" /></Link></div>
       </div>
     </div>
