@@ -20,7 +20,7 @@ import { MarketingHeader } from "@/components/marketing/marketing-header";
 import {
   MarketingFeatureRow,
 } from "@/components/marketing/marketing-feature-row";
-import { WorkflowTabs } from "@/components/marketing/workflow-tabs";
+import { WorkflowSteps } from "@/components/marketing/workflow-steps";
 import {
   ChecklistGraphic,
   IntegrationsGraphic,
@@ -136,7 +136,7 @@ export function MarketingHero() {
       >
         <InViewReveal className="relative z-10 grid gap-6 lg:grid-cols-2 lg:gap-12 xl:gap-16">
           <div className="flex flex-col gap-4">
-            <p className="meta-label !text-primary">WHY REQUO</p>
+            <p className="meta-label-plain text-primary">WHY REQUO</p>
             <h2 className="font-heading text-2xl font-semibold tracking-tight text-balance sm:text-3xl lg:text-4xl xl:text-5xl">
               Every missed inquiry is an opportunity someone else can win.
             </h2>
@@ -187,7 +187,7 @@ export function MarketingHero() {
         id="workflow"
       >
         <InViewReveal className="relative z-10 mx-auto flex max-w-2xl flex-col items-center gap-4 text-center">
-          <p className="meta-label !text-primary">HOW IT WORKS</p>
+          <p className="meta-label-plain text-primary">HOW IT WORKS</p>
           <h2 className="font-heading text-2xl font-semibold tracking-tight text-balance sm:text-3xl lg:text-4xl xl:text-5xl">
             Keep every opportunity moving.
           </h2>
@@ -197,7 +197,7 @@ export function MarketingHero() {
         </InViewReveal>
 
         <InViewReveal className="relative z-10 mt-14 sm:mt-16 lg:mt-20">
-          <WorkflowTabs />
+          <WorkflowSteps />
         </InViewReveal>
       </section>
 
@@ -207,7 +207,7 @@ export function MarketingHero() {
       >
         <InViewReveal className="relative z-10 mx-auto grid w-full max-w-6xl gap-4 px-4 sm:gap-5 sm:px-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-end lg:px-8 xl:px-0">
           <div className="relative z-10 flex flex-col gap-3 sm:gap-4">
-            <p className="relative z-10 meta-label !text-primary">THE REQUO WORKSPACE</p>
+            <p className="relative z-10 meta-label-plain text-primary">THE REQUO WORKSPACE</p>
             <h2 className="relative z-10 max-w-3xl font-heading text-2xl font-semibold tracking-tight text-balance sm:text-3xl lg:text-4xl xl:text-5xl">
               One connected workflow from inquiry to accepted quote.
             </h2>
@@ -235,7 +235,7 @@ export function MarketingHero() {
 
       <section className="relative z-10 mx-auto mt-24 w-full max-w-4xl px-4 sm:mt-32 sm:px-6 lg:mt-40 lg:px-8 xl:px-0" id="faq">
         <InViewReveal className="relative z-10 flex flex-col items-start gap-3 sm:gap-4">
-          <p className="meta-label !text-primary">FAQ</p>
+          <p className="meta-label-plain text-primary">FAQ</p>
           <h2 className="font-heading text-2xl font-semibold tracking-tight text-balance sm:text-3xl lg:text-4xl xl:text-5xl">
             Questions you&rsquo;re probably asking.
           </h2>
@@ -255,7 +255,7 @@ export function MarketingHero() {
                 <span className="font-mono text-[9px] font-semibold text-muted-foreground/60 sm:text-[10px]">
                   0{groupIndex + 1}
                 </span>
-                <p className="meta-label text-primary">{group.label}</p>
+                <p className="meta-label-plain text-primary">{group.label}</p>
               </div>
 
               <Accordion

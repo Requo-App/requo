@@ -363,14 +363,14 @@ Established patterns above win for new work. These contradictions exist in the c
 - **BoardUI migration (done).** The former `components/base/*` + `components/application/` + `components/foundations/` system was recreated 1:1 as shadcn-style components (`cva` + `cn`, same classes/DOM/props) under `components/shared/*` and deleted. One component system remains: `components/ui/*` (primitives) + `components/shared/*` (composed). See [`docs/technical-debt.md`](docs/technical-debt.md). `app/globals.css` still carries the shared token layer (tone aliases, composite type ramp) — `components/ui/*` uses it, so it stays.
 - **Legacy styling debt.** Remaining `space-y-*`/`space-x-*` stacks (use `flex`/`grid` + `gap-*`). Flagged by `audit:density`.
 - **Raw palette on non-pill surfaces.** Status *pills* are tokenized — `components/shared/status-badge.tsx` owns them and `audit:status-tokens` enforces it — but raw palette still colours some semantic surfaces: the archived-record banner, the paywall accent, the quote-editor amber alerts, and the public quote option cards. Move them to `--warning`/`--success`/`--destructive` opportunistically. See `docs/technical-debt.md` §4.
-- **`!important` outside status.** `meta-label !text-primary` (marketing) and `!bg-sidebar-accent` (`dashboard-sidebar.tsx`) are the same cascade-order problem the status migration removed: a custom class in `@layer utilities` setting a colour a utility then cannot override. Fix by giving the custom class a variant that sets no colour, not by keeping the `!`.
+- **`!important` outside status.** `!bg-sidebar-accent` (`dashboard-sidebar.tsx`) is the same cascade-order problem the status migration removed: a custom class in `@layer utilities` setting a colour a utility then cannot override. Fix by giving the custom class a variant that sets no colour, not by keeping the `!` (marketing eyebrows already use the colourless `meta-label-plain`).
 - **Quote editor grid class.** The quote editor `<form>` carries the raw `dashboard-detail-layout` grid class because the shared layout wrapper cannot wrap forms yet — migrate when the wrapper supports form elements.
 
 ## Cleanup Targets
 
 - Replace remaining `space-y-*` and `space-x-*` stacks with `flex`/`grid` plus `gap-*`.
 - Replace raw palette colours on non-pill semantic surfaces with `--warning`/`--success`/`--destructive`. Status pills are already done and enforced by `audit:status-tokens`.
-- Remove the remaining `!important` colour overrides by giving the underlying custom class a colourless variant — `meta-label` in marketing, and the flat variant in `dashboard-sidebar`.
+- Remove the remaining `!important` colour override by giving the flat variant in `dashboard-sidebar` a colourless equivalent (`meta-label-plain` completed the marketing `meta-label` half).
 - Reduce repeated arbitrary shadows and hard-coded visual values by promoting reusable classes or tokens when a pattern repeats (radii are done: single shared `--radius`, enforced by `audit:radius`).
 - The quote editor `<form>` carries the raw `dashboard-detail-layout` grid
   class directly because the shared layout wrapper cannot currently be used

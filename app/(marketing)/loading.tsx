@@ -1,4 +1,5 @@
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 /**
  * Structural loading state for the marketing home page.
@@ -76,13 +77,37 @@ export default function MarketingHomeLoading() {
           <Skeleton className="h-4 w-full max-w-md rounded-md" />
         </div>
         <div className="mt-14 sm:mt-16 lg:mt-20">
-          <div className="rounded-xl border border-border/70 bg-card p-1.5">
-            <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-col gap-8 sm:gap-10">
+            <div className="flex items-center justify-center rounded-xl bg-muted px-4 py-8 sm:px-10 sm:py-12">
+              <Skeleton className="h-[20.5rem] w-full max-w-xl rounded-xl sm:h-[22rem]" />
+            </div>
+
+            <div className="grid gap-y-10 sm:grid-cols-2 sm:gap-x-8 lg:grid-cols-4">
               {Array.from({ length: 4 }).map((_, i) => (
-                <Skeleton className="h-9 w-28 rounded-lg" key={i} />
+                <div
+                  className={cn(
+                    "flex flex-col gap-4",
+                    i > 0 && "lg:border-l lg:border-border/50 lg:pl-8",
+                  )}
+                  key={`workflow-step-${i}`}
+                >
+                  <div className="h-0.5 w-full bg-border" />
+                  <div className="flex flex-col gap-3">
+                    <Skeleton className="h-3 w-16 rounded-md" />
+                    <Skeleton
+                      className={cn(
+                        "h-7 rounded-md",
+                        ["w-40", "w-44", "w-52", "w-52"][i],
+                      )}
+                    />
+                    <div className="flex flex-col gap-2">
+                      <Skeleton className="h-4 w-full rounded-md" />
+                      <Skeleton className="h-4 w-5/6 rounded-md" />
+                    </div>
+                  </div>
+                </div>
               ))}
             </div>
-            <Skeleton className="mt-3 h-72 w-full rounded-lg sm:h-96" />
           </div>
         </div>
       </section>

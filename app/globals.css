@@ -70,6 +70,9 @@
   --animate-accordion-up: accordion-up 200ms cubic-bezier(0.32, 0.72, 0, 1);
   --animate-collapsible-down: collapsible-down 220ms var(--motion-ease-standard);
   --animate-collapsible-up: collapsible-up 200ms var(--motion-ease-standard);
+  /* The "How it works" stepper's active bar: one 5s fill per step. The step
+     advances on `animationend`, so this duration is the pace of the cycle. */
+  --animate-workflow-progress: workflow-progress 5s linear forwards;
 
   @keyframes accordion-down {
     from {
@@ -112,6 +115,15 @@
     to {
       height: 0;
       opacity: 0;
+    }
+  }
+
+  @keyframes workflow-progress {
+    from {
+      transform: scaleX(0);
+    }
+    to {
+      transform: scaleX(1);
     }
   }
 }
@@ -2096,6 +2108,13 @@ html[data-reload-loading="fade-out"] #app-root-content {
       color-mix(in srgb, var(--color-border) 90%, transparent),
       transparent
     );
+  }
+
+  /* Colourless variant for call sites that set their own tone: the utility
+     cannot override the colour `meta-label` sets (DESIGN.md, `!important`
+     outside status). */
+  .meta-label-plain {
+    @apply text-[0.6875rem] font-medium uppercase tracking-[0.14em];
   }
 
   .meta-label {

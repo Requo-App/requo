@@ -10,13 +10,13 @@ import {
 } from "react";
 
 import { MarketingDashboardPreview } from "@/components/marketing/marketing-dashboard-preview";
+import { usePageVisible } from "@/hooks/use-page-visible";
+import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
 import { cn } from "@/lib/utils";
 
 // Recorded on the seeded local demo (see scripts/marketing/record-landing-walkthrough.mjs).
 const WALKTHROUGH_SRC = "/marketing/requo-walkthrough.webm";
 const WALKTHROUGH_POSTER_SRC = "/marketing/requo-walkthrough-poster.png";
-
-const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 
 /** Fraction of the stage that must be visible before the loop plays. */
 const IN_VIEW_THRESHOLD = 0.35;
@@ -196,22 +196,6 @@ function useWalkthroughPlayable() {
   );
 }
 
-function usePrefersReducedMotion() {
-  return useSyncExternalStore(
-    subscribeToReducedMotion,
-    prefersReducedMotion,
-    () => false,
-  );
-}
-
-function usePageVisible() {
-  return useSyncExternalStore(
-    subscribeToVisibilityChange,
-    pageIsVisible,
-    () => true,
-  );
-}
-
 let canPlayWalkthroughCache: boolean | null = null;
 
 function canPlayWalkthrough() {
@@ -226,28 +210,6 @@ function canPlayWalkthrough() {
   return canPlayWalkthroughCache;
 }
 
-function prefersReducedMotion() {
-  return window.matchMedia(REDUCED_MOTION_QUERY).matches;
-}
-
-function pageIsVisible() {
-  return document.visibilityState === "visible";
-}
-
 function subscribeToNothing() {
   return () => {};
-}
-
-function subscribeToReducedMotion(onStoreChange: () => void) {
-  const media = window.matchMedia(REDUCED_MOTION_QUERY);
-
-  media.addEventListener("change", onStoreChange);
-
-  return () => media.removeEventListener("change", onStoreChange);
-}
-
-function subscribeToVisibilityChange(onStoreChange: () => void) {
-  document.addEventListener("visibilitychange", onStoreChange);
-
-  return () => document.removeEventListener("visibilitychange", onStoreChange);
 }
