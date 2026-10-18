@@ -34,7 +34,7 @@ function MiniCard({
   return (
     <div
       className={cn(
-        "rounded-xl border border-border/80 bg-card shadow-[var(--surface-shadow-sm)]",
+        "rounded-xl border border-border/80 bg-card",
         className,
       )}
     >
@@ -73,7 +73,7 @@ function Punchline({
     <div className="absolute bottom-0 left-1/2 z-10 -translate-x-1/2">
       <span
         className={cn(
-          "inline-flex items-center gap-1.5 rounded-full border bg-card px-2.5 py-1 text-[0.62rem] font-semibold shadow-sm",
+          "inline-flex items-center gap-1.5 rounded-full border bg-card px-2.5 py-1 text-[0.62rem] font-semibold",
           tone === "primary"
             ? "border-primary/25 text-primary"
             : "border-border/80 text-muted-foreground",

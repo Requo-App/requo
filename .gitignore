@@ -72,3 +72,6 @@ next-env.d.ts
 # Local agent state (Freebuff)
 .freebuff/
 .workbuddy-ai/
+
+# Landing walkthrough recordings (scripts/marketing/record-landing-walkthrough.mjs)
+.walkthrough/

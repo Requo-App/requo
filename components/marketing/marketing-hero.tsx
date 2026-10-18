@@ -12,7 +12,7 @@ import {
   faqItems,
   landingFeatureItems,
 } from "@/components/marketing/marketing-data";
-import { MarketingDashboardPreview } from "@/components/marketing/marketing-dashboard-preview";
+import { DashboardWalkthroughVideo } from "@/components/marketing/dashboard-walkthrough-video";
 import { ScaledDashboardStage } from "@/components/marketing/scaled-dashboard-stage";
 import { InViewReveal } from "@/components/marketing/in-view-reveal";
 import { MarketingFooter } from "@/components/marketing/marketing-footer";
@@ -72,7 +72,7 @@ const faqGroups = [
 
 export function MarketingHero() {
   return (
-    <div className="overflow-x-clip">
+    <div className="overflow-x-clip" data-marketing-flat-cards>
       <PublicPageShell
         brandSubtitle={null}
         brandSize="lg"
@@ -109,18 +109,21 @@ export function MarketingHero() {
           </div>
 
           <div className="w-full">
-            {/* Device frame */}
-            <div
-              className="rounded-xl border border-border/80 bg-card/40 p-1.5 shadow-[0_24px_70px_rgba(0,0,0,0.22)] sm:p-2 dark:border-border/60 dark:bg-card/30 dark:shadow-[0_30px_100px_rgba(0,0,0,0.7)]"
-              role="img"
-              aria-label="Requo dashboard home showing the business assistant, quote performance stats, and a priority queue of follow-ups, inquiries, and quotes for service businesses"
-            >
+            {/* Device frame. A figure, not `role="img"`: the stage now carries
+                a real play/pause control, which an image role would hide from
+                assistive technology. */}
+            <figure className="rounded-xl border border-border/80 bg-card/40 p-1.5 sm:p-2 dark:border-border/60 dark:bg-card/30">
+              <figcaption className="sr-only">
+                Recorded Requo walkthrough: the dashboard home with the business
+                assistant, quote stats, and priority queue, an inquiry filtered
+                out of the inbox, and a quote priced and saved as a draft
+              </figcaption>
               <div className="overflow-hidden rounded-xl bg-background">
                 <ScaledDashboardStage>
-                  <MarketingDashboardPreview />
+                  <DashboardWalkthroughVideo />
                 </ScaledDashboardStage>
               </div>
-            </div>
+            </figure>
           </div>
         </div>
       </section>
@@ -152,7 +155,7 @@ export function MarketingHero() {
 
             return (
               <InViewReveal delay={80 + index * 60} key={point.hook}>
-                <article className="surface-card group relative flex h-full flex-col overflow-hidden rounded-2xl transition-shadow duration-200 hover:shadow-[var(--surface-shadow-lg)]">
+                <article className="surface-card group relative flex h-full flex-col overflow-hidden rounded-2xl">
                   <GraphicComponent />
 
                   {/* Content */}
