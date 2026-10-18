@@ -74,7 +74,7 @@ export function MarketingFeatureRow({
               reverse ? "lg:ml-auto" : "lg:mr-auto",
             )}
           >
-            <p className="meta-label !text-primary">{featureKickers[featureId]}</p>
+            <p className="meta-label-plain text-primary">{featureKickers[featureId]}</p>
             <h3 className="font-heading text-2xl font-semibold tracking-tight text-balance sm:text-3xl">
               {title}
             </h3>

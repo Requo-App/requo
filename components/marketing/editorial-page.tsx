@@ -87,7 +87,7 @@ export function EditorialPage({
                   </ol>
                 </nav>
               ) : null}
-              <p className="meta-label !text-primary">{eyebrow}</p>
+              <p className="meta-label-plain text-primary">{eyebrow}</p>
               <h1 className="max-w-3xl font-sans text-[2.5rem] font-normal leading-[1.08] tracking-[-0.035em] text-foreground sm:text-6xl sm:leading-[1.05] lg:text-[4.25rem]">
                 {title}
               </h1>
