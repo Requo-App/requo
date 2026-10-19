@@ -90,11 +90,14 @@ Business analytics aggregations live in
 tab has one cached aggregator (`getOverviewData`, `getPerformanceData`,
 `getOperationsData`, `getTeamData`) that combines live tables with
 `analytics_daily_rollups`; rollups cover complete past days and the current day
-is read live. Preset ranges use `"use cache"` with `hotBusinessCacheLife` and
-business/tab tags, while custom ranges compute directly. Plan access is checked
-server-side before a tab's aggregator runs, and the export route re-resolves
-the window so plan caps cannot be bypassed. Goals, annotations, and scheduled
-reports are workspace-scoped records managed through
+is read live. When a window contains days the rollup job has not processed
+(yet), the series builder fills those days from the live source tables, so a
+trend chart never reads as a flat zero line for a workspace whose history
+predates the job. Preset ranges use `"use cache"` with `hotBusinessCacheLife`
+and business/tab tags, while custom ranges compute directly. Plan access is
+checked server-side before a tab's aggregator runs, and the export route
+re-resolves the window so plan caps cannot be bypassed. Goals, annotations, and
+scheduled reports are workspace-scoped records managed through
 `app/api/business/[slug]/analytics/*`.
 
 ## Persistence and migrations

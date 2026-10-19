@@ -50,6 +50,43 @@ State rules:
 - Status colour has exactly one home: `components/shared/status-badge.tsx`. Feature code picks a `StatusTone` and renders `StatusBadge` — it never writes status colour itself. A per-domain `Record<Enum, StatusTone>` map is the only extension point, and keeping it exhaustive means a new enum member fails the typecheck.
 - Never reach for `!important` (`!bg-*`, `!text-*`, …) to win a colour conflict. Custom classes and Tailwind utilities both land in `@layer utilities`, so source order — not class order — decides the winner, and `tailwind-merge` cannot arbitrate a class it does not recognise. Use a variant or tone that carries no conflicting colour instead. Enforced by `scripts/audit-status-tokens.ts`.
 
+### Data Visualization Tokens
+
+Charts read colour from tokens, never from literals. The shared chart
+primitives (`components/ui/chart.tsx`) keep their `ChartConfig` contract; the
+tokens below are the palette they configure.
+
+| Token | Role | Light | Dark |
+| --- | --- | --- | --- |
+| `--chart-1…5` | Legacy categorical series | see `app/globals.css` | see `app/globals.css` |
+| `--chart-series-1` | First series — the brand accent | `var(--primary)` | `var(--primary)` |
+| `--chart-series-2` | Second series — neutral | `var(--muted-foreground)` | `var(--muted-foreground)` |
+| `--chart-series-3` | Third series — lighter neutral | 60% muted-foreground | 60% muted-foreground |
+| `--chart-neutral-1…5` | Neutral ramp for stacked series | muted-foreground steps | muted-foreground steps |
+| `--chart-grid` | Horizontal gridline hairline | `rgb(23 43 36 / 0.08)` | `rgb(255 255 255 / 0.06)` |
+| `--chart-track` | Unfilled bar and meter track | `var(--muted)` | `var(--muted)` |
+| `--chart-tooltip-surface` | Chart tooltip background | `var(--popover)` | `var(--popover)` |
+| `--chart-tooltip-border` | Chart tooltip border | `var(--border)` | `var(--border)` |
+| `--analytics-sparkline-height` | Inline KPI sparkline height | `2.5rem` | `2.5rem` |
+
+Chart rules:
+
+- One accent plus neutrals. A second hue is never used to categorise data;
+  `success`, `warning`, and `destructive` appear only where the value carries
+  that meaning (accepted, aging, overdue).
+- At most three series per chart. Anything wider is a table, not a plot.
+- No plot border, vertical gridlines, axis lines, or tick marks. Three or four
+  horizontal gridlines only, drawn in `--chart-grid`.
+- The axis domain comes from the data. A chart whose values are all zero draws
+  nothing and shows the empty state instead of a flat line on a fixed scale.
+- Count series are sparse: unsmoothed lines, never curves that imply values
+  between buckets. Revenue uses rounded-top bars with the average deal as a
+  thin line over them.
+- The only gradients are soft chart area fills; a filled area fades from ~12%
+  to 0.
+- `.analytics-card` is the analytics card surface: a 1px low-contrast border
+  with no elevation, so a page of cards reads as one plane.
+
 ### Typography Scale
 
 Fonts:

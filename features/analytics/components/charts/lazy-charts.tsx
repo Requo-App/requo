@@ -17,20 +17,20 @@ import { AnalyticsChartSkeleton } from "@/features/analytics/components/states/s
  */
 
 // ssr: false — Recharts relies on browser DOM APIs (SVG measurement, ResizeObserver) for chart rendering
-const InternalTrendAreaChart = dynamic(
-  () => import("./trend-area-chart").then((mod) => mod.TrendAreaChart),
+const InternalTrendChart = dynamic(
+  () => import("./trend-chart").then((mod) => mod.TrendChart),
   { ssr: false, loading: () => <AnalyticsChartSkeleton /> },
 );
 
 // ssr: false — Recharts relies on browser DOM APIs (SVG measurement, ResizeObserver) for chart rendering
-const InternalQuoteOutcomesDonut = dynamic(
-  () => import("./quote-outcomes-donut").then((mod) => mod.QuoteOutcomesDonut),
+const InternalRevenueChart = dynamic(
+  () => import("./revenue-chart").then((mod) => mod.RevenueChart),
   { ssr: false, loading: () => <AnalyticsChartSkeleton /> },
 );
 
 // ssr: false — Recharts relies on browser DOM APIs (SVG measurement, ResizeObserver) for chart rendering
-const InternalAgingBarChart = dynamic(
-  () => import("./aging-bar-chart").then((mod) => mod.AgingBarChart),
+const InternalDonut = dynamic(
+  () => import("../primitives/donut").then((mod) => mod.Donut),
   { ssr: false, loading: () => <AnalyticsChartSkeleton /> },
 );
 
@@ -44,39 +44,33 @@ const InternalFollowUpComparisonChart = dynamic(
 );
 
 // ssr: false — Recharts relies on browser DOM APIs (SVG measurement, ResizeObserver) for chart rendering
-const InternalRevenueTrendChart = dynamic(
-  () => import("./revenue-trend-chart").then((mod) => mod.RevenueTrendChart),
-  { ssr: false, loading: () => <AnalyticsChartSkeleton /> },
-);
-
-// ssr: false — Recharts relies on browser DOM APIs (SVG measurement, ResizeObserver) for chart rendering
 const InternalTeamActivityChart = dynamic(
   () => import("./team-activity-chart").then((mod) => mod.TeamActivityChart),
   { ssr: false, loading: () => <AnalyticsChartSkeleton /> },
 );
 
-export function LazyTrendAreaChart(props: ComponentProps<typeof InternalTrendAreaChart>) {
+export function LazyTrendChart(props: ComponentProps<typeof InternalTrendChart>) {
   return (
     <LazyErrorBoundary>
-      <InternalTrendAreaChart {...props} />
+      <InternalTrendChart {...props} />
     </LazyErrorBoundary>
   );
 }
 
-export function LazyQuoteOutcomesDonut(
-  props: ComponentProps<typeof InternalQuoteOutcomesDonut>,
+export function LazyRevenueChart(
+  props: ComponentProps<typeof InternalRevenueChart>,
 ) {
   return (
     <LazyErrorBoundary>
-      <InternalQuoteOutcomesDonut {...props} />
+      <InternalRevenueChart {...props} />
     </LazyErrorBoundary>
   );
 }
 
-export function LazyAgingBarChart(props: ComponentProps<typeof InternalAgingBarChart>) {
+export function LazyDonut(props: ComponentProps<typeof InternalDonut>) {
   return (
     <LazyErrorBoundary>
-      <InternalAgingBarChart {...props} />
+      <InternalDonut {...props} />
     </LazyErrorBoundary>
   );
 }
@@ -87,16 +81,6 @@ export function LazyFollowUpComparisonChart(
   return (
     <LazyErrorBoundary>
       <InternalFollowUpComparisonChart {...props} />
-    </LazyErrorBoundary>
-  );
-}
-
-export function LazyRevenueTrendChart(
-  props: ComponentProps<typeof InternalRevenueTrendChart>,
-) {
-  return (
-    <LazyErrorBoundary>
-      <InternalRevenueTrendChart {...props} />
     </LazyErrorBoundary>
   );
 }

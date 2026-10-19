@@ -49,6 +49,8 @@ export type AnalyticsOutcomeSlice = {
   count: number;
   /** Share of all quotes represented in the slice list (0–1). */
   share: number;
+  /** Value behind the slice, in cents; omitted when the slice has no value. */
+  valueInCents?: number;
 };
 
 export type AnalyticsRankedItem = {
@@ -56,6 +58,8 @@ export type AnalyticsRankedItem = {
   count: number;
   /** Optional secondary value shown under the count (e.g. accepted value). */
   detail?: string;
+  /** Money behind the row, in cents, when the row ranks by value. */
+  valueInCents?: number;
   /** Share of the list total (0–1). */
   share: number;
   href: string | null;
@@ -167,6 +171,12 @@ export type OverviewPeriod = {
   quotedValueInCents: number;
   collectedInCents: number;
   invoicedInCents: number;
+  /** Value behind the accepted quotes, in cents. */
+  acceptedValueInCents: number;
+  /** Value behind the rejected quotes, in cents. */
+  rejectedValueInCents: number;
+  /** Value behind the expired quotes, in cents. */
+  expiredValueInCents: number;
 };
 
 /** Current receivables position (a snapshot, not window-scoped). */
@@ -182,10 +192,16 @@ export type OverviewData = {
   current: OverviewPeriod;
   /** null for Free and all-time (no comparable prior window). */
   prior: OverviewPeriod | null;
+  /** Average hours from inquiry to the first team response; null when unknown. */
+  firstResponseHours: number | null;
+  /** The same measure for the comparison window. */
+  priorFirstResponseHours: number | null;
   series: AnalyticsSeriesPoint[];
   funnel: AnalyticsFunnelStep[];
   outcomes: AnalyticsOutcomeSlice[];
   receivables: OverviewReceivables;
+  /** Outstanding invoice balances by days past due (a live snapshot). */
+  arAging: AnalyticsAgingBucket[];
   attention: AnalyticsAttentionItem[];
   usage: AnalyticsUsageMeter[];
   /** False when the workspace has never recorded an inquiry or quote. */

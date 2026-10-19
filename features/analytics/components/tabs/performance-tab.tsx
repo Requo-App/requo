@@ -5,23 +5,22 @@ import { getPerformanceData } from "@/features/analytics/queries";
 import type { BusinessPlan } from "@/lib/plans";
 
 import {
-  PerformanceAcquisitionCard,
-  PerformanceAgingCard,
-  PerformanceBenchmarksCard,
-  PerformanceCollectionsCard,
-  PerformanceCustomersCard,
-  PerformanceDealValueCard,
+  AnalyticsRow,
+  AnalyticsSectionGate,
+} from "../primitives/analytics-section";
+import {
+  PerformanceAudienceRow,
+  PerformanceBenchmarksRow,
+  PerformanceCollectionsRow,
   PerformanceEmptyGuard,
-  PerformanceQuoteFunnelCard,
-  PerformanceReceivablesCard,
-  PerformanceReportsCard,
-  PerformanceRevenueCard,
-  PerformanceServicesCard,
-  PerformanceSourcesCard,
-  PerformanceTimingCard,
-  PerformanceWinRatesCard,
+  PerformanceFunnelRow,
+  PerformanceLiveRow,
+  PerformanceReportsRow,
+  PerformanceServicesRow,
+  PerformanceTimingRow,
 } from "../sections/performance";
 import {
+  AnalyticsBarsSkeleton,
   AnalyticsChartCardSkeleton,
   AnalyticsListSkeleton,
   AnalyticsTableSkeleton,
@@ -34,6 +33,9 @@ import {
  * promise into every section, each behind its own Suspense boundary. This
  * component never awaits the promise — the shared query starts on the first
  * section render and every later boundary resolves from the same request.
+ *
+ * Three sections: Performance (the period), Audience (who is converting),
+ * and Live (the snapshot). Every row is a symmetric split.
  */
 export function PerformanceTab({
   businessId,
@@ -48,103 +50,73 @@ export function PerformanceTab({
 }) {
   const dataPromise = getPerformanceData({ businessId, businessSlug, window, plan });
   const sectionProps = { dataPromise, businessSlug, window };
+  const hasData = (data: Awaited<typeof dataPromise>) => data.hasData;
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-8">
       <Suspense fallback={null}>
         <PerformanceEmptyGuard {...sectionProps} />
       </Suspense>
 
-      <Suspense fallback={<AnalyticsChartCardSkeleton />}>
-        <PerformanceAcquisitionCard {...sectionProps} />
+      <Suspense
+        fallback={
+          <div className="flex flex-col gap-4">
+            <AnalyticsRow>
+              <AnalyticsChartCardSkeleton className="md:col-span-6" />
+              <AnalyticsListSkeleton className="md:col-span-6" />
+            </AnalyticsRow>
+            <AnalyticsTableSkeleton rows={6} />
+          </div>
+        }
+      >
+        <AnalyticsSectionGate
+          title="Performance"
+          waitFor={dataPromise}
+          when={hasData}
+        >
+          <PerformanceFunnelRow {...sectionProps} />
+          <PerformanceServicesRow {...sectionProps} />
+          <PerformanceTimingRow {...sectionProps} />
+          <PerformanceCollectionsRow {...sectionProps} />
+          <PerformanceBenchmarksRow {...sectionProps} />
+          <PerformanceReportsRow {...sectionProps} />
+        </AnalyticsSectionGate>
       </Suspense>
 
       <Suspense
         fallback={
-          <div className="grid gap-4 lg:grid-cols-2">
-            <AnalyticsListSkeleton rows={4} />
-            <AnalyticsListSkeleton rows={4} />
-          </div>
+          <AnalyticsRow>
+            <AnalyticsBarsSkeleton className="md:col-span-4" />
+            <AnalyticsListSkeleton className="md:col-span-4" />
+            <AnalyticsBarsSkeleton className="md:col-span-4" />
+          </AnalyticsRow>
         }
       >
-        <PerformanceSourcesCard {...sectionProps} />
-      </Suspense>
-
-      <Suspense fallback={<AnalyticsTableSkeleton rows={6} />}>
-        <PerformanceServicesCard {...sectionProps} />
-      </Suspense>
-
-      <Suspense fallback={<AnalyticsChartCardSkeleton bodyHeight="h-32" />}>
-        <PerformanceTimingCard {...sectionProps} />
-      </Suspense>
-
-      <Suspense fallback={<AnalyticsChartCardSkeleton />}>
-        <PerformanceQuoteFunnelCard {...sectionProps} />
-      </Suspense>
-
-      <Suspense fallback={<AnalyticsChartCardSkeleton />}>
-        <PerformanceAgingCard {...sectionProps} />
+        <AnalyticsSectionGate
+          title="Audience"
+          waitFor={dataPromise}
+          when={hasData}
+        >
+          <PerformanceAudienceRow {...sectionProps} />
+        </AnalyticsSectionGate>
       </Suspense>
 
       <Suspense
         fallback={
-          <div className="grid gap-4 lg:grid-cols-2">
-            <AnalyticsListSkeleton rows={3} />
-            <AnalyticsListSkeleton rows={3} />
-          </div>
+          <AnalyticsRow>
+            <AnalyticsBarsSkeleton className="md:col-span-6" />
+            <AnalyticsBarsSkeleton className="md:col-span-6" />
+          </AnalyticsRow>
         }
       >
-        <PerformanceDealValueCard {...sectionProps} />
-      </Suspense>
-
-      <Suspense fallback={<AnalyticsChartCardSkeleton />}>
-        <PerformanceWinRatesCard {...sectionProps} />
-      </Suspense>
-
-      <Suspense fallback={<AnalyticsChartCardSkeleton />}>
-        <PerformanceRevenueCard {...sectionProps} />
-      </Suspense>
-
-      <Suspense fallback={<AnalyticsChartCardSkeleton />}>
-        <PerformanceReceivablesCard {...sectionProps} />
-      </Suspense>
-
-      <Suspense
-        fallback={
-          <div className="grid gap-4 lg:grid-cols-2">
-            <AnalyticsListSkeleton rows={3} />
-            <AnalyticsListSkeleton rows={3} />
-          </div>
-        }
-      >
-        <PerformanceCollectionsCard {...sectionProps} />
-      </Suspense>
-
-      <Suspense
-        fallback={
-          <div className="grid gap-4 lg:grid-cols-2">
-            <AnalyticsListSkeleton rows={3} />
-            <AnalyticsListSkeleton rows={3} />
-          </div>
-        }
-      >
-        <PerformanceCustomersCard {...sectionProps} />
-      </Suspense>
-
-      <Suspense fallback={<AnalyticsListSkeleton rows={4} />}>
-        <PerformanceBenchmarksCard {...sectionProps} />
-      </Suspense>
-
-      <Suspense
-        fallback={
-          <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
-            <AnalyticsListSkeleton rows={3} />
-            <AnalyticsListSkeleton rows={3} />
-            <AnalyticsListSkeleton rows={3} />
-          </div>
-        }
-      >
-        <PerformanceReportsCard {...sectionProps} />
+        <AnalyticsSectionGate
+          title="Live"
+          live
+          waitFor={dataPromise}
+          when={hasData}
+        >
+          <PerformanceLiveRow {...sectionProps} />
+        </AnalyticsSectionGate>
       </Suspense>
     </div>
   );

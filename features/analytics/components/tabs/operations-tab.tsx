@@ -5,19 +5,18 @@ import { getOperationsData } from "@/features/analytics/queries";
 import type { BusinessPlan } from "@/lib/plans";
 
 import {
-  OperationsAgentCard,
-  OperationsAiImpactCard,
-  OperationsAutomationCard,
-  OperationsEffectivenessCard,
-  OperationsEmailCard,
+  AnalyticsRow,
+  AnalyticsSectionGate,
+} from "../primitives/analytics-section";
+import {
+  OperationsAssistantRow,
+  OperationsAutomationRow,
+  OperationsDeliveryRow,
   OperationsEmptyGuard,
-  OperationsFollowUpHealthCard,
-  OperationsKnowledgeCard,
-  OperationsVerticalsCard,
+  OperationsFollowUpRow,
 } from "../sections/operations";
 import {
   AnalyticsChartCardSkeleton,
-  AnalyticsKpiRowSkeleton,
   AnalyticsListSkeleton,
 } from "../states/skeletons";
 
@@ -28,6 +27,8 @@ import {
  * promise into every section, each behind its own Suspense boundary. This
  * component never awaits the promise; sections that have nothing to show hide
  * themselves, so a quiet range still streams a short page.
+ *
+ * Two sections, each a stack of symmetric six-column rows.
  */
 export function OperationsTab({
   businessId,
@@ -42,43 +43,48 @@ export function OperationsTab({
 }) {
   const dataPromise = getOperationsData({ businessId, window, plan });
   const sectionProps = { dataPromise, businessSlug, window };
+  const hasData = (data: Awaited<typeof dataPromise>) => data.hasData;
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-8">
       <Suspense fallback={null}>
         <OperationsEmptyGuard {...sectionProps} />
       </Suspense>
 
-      <Suspense fallback={<AnalyticsListSkeleton rows={3} />}>
-        <OperationsFollowUpHealthCard {...sectionProps} />
+      <Suspense
+        fallback={
+          <AnalyticsRow>
+            <AnalyticsListSkeleton className="md:col-span-6" />
+            <AnalyticsChartCardSkeleton className="md:col-span-6" />
+          </AnalyticsRow>
+        }
+      >
+        <AnalyticsSectionGate
+          title="Follow-up"
+          waitFor={dataPromise}
+          when={hasData}
+        >
+          <OperationsFollowUpRow {...sectionProps} />
+          <OperationsAutomationRow {...sectionProps} />
+        </AnalyticsSectionGate>
       </Suspense>
 
-      <Suspense fallback={<AnalyticsChartCardSkeleton />}>
-        <OperationsEffectivenessCard {...sectionProps} />
-      </Suspense>
-
-      <Suspense fallback={<AnalyticsChartCardSkeleton />}>
-        <OperationsAutomationCard {...sectionProps} />
-      </Suspense>
-
-      <Suspense fallback={<AnalyticsChartCardSkeleton />}>
-        <OperationsAiImpactCard {...sectionProps} />
-      </Suspense>
-
-      <Suspense fallback={<AnalyticsChartCardSkeleton />}>
-        <OperationsAgentCard {...sectionProps} />
-      </Suspense>
-
-      <Suspense fallback={<AnalyticsChartCardSkeleton />}>
-        <OperationsKnowledgeCard {...sectionProps} />
-      </Suspense>
-
-      <Suspense fallback={<AnalyticsChartCardSkeleton bodyHeight="h-24" />}>
-        <OperationsEmailCard {...sectionProps} />
-      </Suspense>
-
-      <Suspense fallback={<AnalyticsKpiRowSkeleton />}>
-        <OperationsVerticalsCard {...sectionProps} />
+      <Suspense
+        fallback={
+          <AnalyticsRow>
+            <AnalyticsListSkeleton className="md:col-span-6" />
+            <AnalyticsListSkeleton className="md:col-span-6" />
+          </AnalyticsRow>
+        }
+      >
+        <AnalyticsSectionGate
+          title="Assistant"
+          waitFor={dataPromise}
+          when={hasData}
+        >
+          <OperationsAssistantRow {...sectionProps} />
+          <OperationsDeliveryRow {...sectionProps} />
+        </AnalyticsSectionGate>
       </Suspense>
     </div>
   );

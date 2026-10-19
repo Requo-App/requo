@@ -12,6 +12,11 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ### Changed
 
+- Redesigned the whole analytics page around one calm, symmetrical layout: a centred 1280px container, a 12-column grid with 16px gaps, 32px between sections, and rows that only ever split 12, 6/6, 4/4/4, or 3/3/3/3 (the KPI strip is six 2-column tiles). Every card now shares one anatomy — title with an optional definition tooltip on the left, a Chart | Table toggle or "View all" on the right, one-line description, body, optional summary footer — and stats inside a card are separated by 1px dividers instead of nested bordered tiles.
+- Rebuilt the analytics vocabulary as reusable primitives: `Stat`, `DeltaBadge`, `BarList` (the single horizontal-bar primitive behind funnels, aging, sources, win rate, and usage), `Funnel` (one hue, fading by stage), `AgingList` (accent → warning → danger), `Donut`, `DataTable`, `AttentionList`, `UsageMeter`, `EmptyState`, and one formatter module for currency, percent, duration, and compact numbers.
+- Redrew every chart: unsmoothed lines for sparse counts, a soft area fill on the primary series only, the previous period as a 1px dashed neutral line, dots on hover, a shared compact tooltip, 3–4 horizontal gridlines and no axis lines, and a domain taken from the data instead of a fixed 0–4 scale. Revenue is rounded-top bars with the average accepted deal as a thin line.
+- Regrouped the analytics tabs into sections: Overview (KPI strip, activity and revenue trends, funnel, quote outcomes) and Live (attention, receivables, plan usage) on the Overview tab; Performance, Audience, and Live on the Performance tab. Acquisition trend is now the Traffic tab of Activity, Campaigns is the Campaigns tab of Traffic sources, and Open quote aging plus Expiring within 7 days are one Open quote backlog card.
+- Added the analytics data-visualization tokens (`--chart-series-*`, `--chart-grid`, `--chart-track`, `--chart-tooltip-*`, `--analytics-sparkline-height`) and documented them, with the chart and card rules, in `DESIGN.md`.
 - README screenshots are now captured in native Windows Chrome at 2x by `npm run screenshots` (scripts/marketing/capture-readme-screenshots.mjs), so the images render with the same font rasterisation as the landing walkthrough recording; the Playwright capture stays available as `npm run screenshots:fallback`.
 
 - Renamed the analytics entitlements from `analyticsConversion` and `analyticsWorkflow` to `analyticsPerformance` and `analyticsOperations`, and added `analyticsTeam` for Business-only team analytics.
@@ -28,6 +33,9 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ### Fixed
 
+- Analytics trend charts no longer read as flat zero lines when the daily rollup job has not processed the window yet (a seeded workspace, a range that predates the job, a fresh install). The series builder now falls back to the live source tables for the days the rollup is missing, so the trend shows the activity that actually happened.
+- The Top customers card now shows won value as currency ("$1,750") instead of the raw cent amount ("175,000").
+- Both win-rate definitions now carry their formula in a tooltip: accepted ÷ decided quotes on the KPI tile and the breakdown card, accepted ÷ quotes sent on the service performance table.
 - Dashboard notifications now subscribe with a fresh realtime channel topic on every mount, so an in-flight channel removal can no longer trigger the "cannot add `postgres_changes` callbacks after `subscribe()`" runtime error.
 
 ### Cleaned

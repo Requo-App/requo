@@ -3,16 +3,6 @@ import { ArrowRight } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { MobileRecordRow } from "@/components/shared/mobile-record-row";
-import { DeltaPill } from "@/components/shared/delta-pill";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { chartSeries } from "@/features/analytics/lib/chart-theme";
 import {
   formatDayLabel,
   formatDays,
@@ -31,22 +21,24 @@ import {
 import type { AnalyticsWindow } from "@/features/analytics/lib/window";
 import type {
   AnalyticsGoalRow,
-  AnalyticsTimingMetric,
   PerformanceData,
   ServicePerformanceRow,
 } from "@/features/analytics/types";
 import { cn } from "@/lib/utils";
 
-import { AnalyticsChartCard, ChartDataTable } from "../chart-card";
-import { BenchmarkBars } from "../charts/benchmark-bar";
-import { FunnelBars } from "../charts/funnel-bars";
+import { AgingList } from "../primitives/aging-list";
+import { AnalyticsCard } from "../primitives/analytics-card";
+import { AnalyticsChartCard } from "../primitives/analytics-chart-card";
 import {
-  LazyAgingBarChart,
-  LazyRevenueTrendChart,
-  LazyTrendAreaChart,
-} from "../charts/lazy-charts";
-import { RankedBarList } from "../charts/ranked-bar-list";
-import { AnalyticsMetricTile as MetricTile } from "../metric-tile";
+  AnalyticsRow,
+  analyticsCol,
+} from "../primitives/analytics-section";
+import { AnalyticsTabbedCard } from "../primitives/analytics-tabbed-card";
+import { BarList, type BarListItem } from "../primitives/bar-list";
+import { DataTable } from "../primitives/data-table";
+import { EmptyState } from "../primitives/empty-state";
+import { Funnel } from "../primitives/funnel";
+import { Stat, StatGrid } from "../primitives/stat";
 import { AnalyticsRangeEmpty } from "../states/analytics-empty";
 
 /**
@@ -58,6 +50,10 @@ import { AnalyticsRangeEmpty } from "../states/analytics-empty";
  * resilient in isolation — each one re-checks the slice it renders. The
  * `PerformanceEmptyGuard` renders the range-empty state once instead of every
  * card repeating "no data".
+ *
+ * Rows are symmetric: two cards of six columns, one card of twelve, or three
+ * cards of four. A row whose second card has no data gives its remaining
+ * card the full width instead of leaving a hole.
  */
 
 export type PerformanceSectionProps = {
@@ -75,96 +71,94 @@ export async function PerformanceEmptyGuard(props: PerformanceSectionProps) {
 }
 
 // ---------------------------------------------------------------------------
-// Acquisition
+// Quote funnel and win-rate breakdown
 // ---------------------------------------------------------------------------
 
-export async function PerformanceAcquisitionCard(props: PerformanceSectionProps) {
-  const data = await props.dataPromise;
-  if (!data.hasData || data.series.length < 2) return null;
-
-  const compare = data.series.some((point) => point.priorVisitors !== null);
-
-  return (
-    <AnalyticsChartCard
-      title="Acquisition trend"
-      description={
-        compare
-          ? "Form views, visitors, and inquiries per bucket — dashed lines repeat the previous period."
-          : "Form views, visitors, and inquiries per bucket."
-      }
-    >
-      <div className="flex flex-col gap-4">
-        <LazyTrendAreaChart
-          points={data.series}
-          showCompare={compare}
-          ariaLabel={`Acquisition trend for ${props.window.label}`}
-          series={[
-            {
-              key: "formViews",
-              label: "Form views",
-              color: chartSeries(0),
-            },
-            {
-              key: "visitors",
-              label: "Visitors",
-              color: chartSeries(1),
-              priorKey: "priorVisitors",
-            },
-            {
-              key: "inquiries",
-              label: "Inquiries",
-              color: chartSeries(2),
-              priorKey: "priorInquiries",
-            },
-          ]}
-        />
-        <ChartDataTable
-          columns={[
-            { key: "bucket", header: "Period" },
-            { key: "formViews", header: "Form views", align: "end" },
-            { key: "visitors", header: "Visitors", align: "end" },
-            { key: "inquiries", header: "Inquiries", align: "end" },
-          ]}
-          rows={data.series.map((point) => ({
-            bucket: point.label,
-            formViews: formatNumber(point.formViews),
-            visitors: formatNumber(point.visitors),
-            inquiries: formatNumber(point.inquiries),
-          }))}
-        />
-      </div>
-    </AnalyticsChartCard>
-  );
-}
-
-export async function PerformanceSourcesCard(props: PerformanceSectionProps) {
+export async function PerformanceFunnelRow(props: PerformanceSectionProps) {
   const data = await props.dataPromise;
   if (!data.hasData) return null;
-  if (data.sources.length === 0 && data.campaigns.length === 0) return null;
+
+  const first = data.quoteFunnel[0]?.count ?? 0;
+  const hasWinRates =
+    data.winRates.byService.length > 0 || data.winRates.bySource.length > 0;
+
+  const funnelCard = (
+    <AnalyticsChartCard
+      className={analyticsCol(hasWinRates ? 6 : 12)}
+      title="Quote funnel"
+      description="Sent → viewed → responded → accepted, with step conversion so drop-off is visible."
+      info="Every quote sent in the period, in order. The muted line under a stage is the conversion from the stage before it."
+      chart={
+        <Funnel
+          steps={data.quoteFunnel}
+          ariaLabel={`Quote funnel for ${props.window.label}`}
+        />
+      }
+      table={
+        <DataTable
+          columns={[
+            { key: "step", header: "Stage" },
+            { key: "count", header: "Quotes", align: "end" },
+            { key: "share", header: "Of sent", align: "end" },
+          ]}
+          rows={data.quoteFunnel.map((step) => ({
+            step: step.label,
+            count: formatNumber(step.count),
+            share: first > 0 ? formatPercent(step.count / first) : "—",
+          }))}
+        />
+      }
+    />
+  );
+
+  if (!hasWinRates) {
+    return <AnalyticsRow>{funnelCard}</AnalyticsRow>;
+  }
+
+  const serviceItems: BarListItem[] = data.winRates.byService.map((item) => ({
+    key: `service-${item.label}`,
+    label: item.label,
+    value: formatPercent(item.share),
+    share: item.share,
+    href: item.href,
+    meta: item.detail,
+  }));
+
+  const sourceItems: BarListItem[] = data.winRates.bySource.map((item) => ({
+    key: `source-${item.label}`,
+    label: item.label,
+    value: formatPercent(item.share),
+    share: item.share,
+    href: item.href,
+    meta: item.detail,
+  }));
 
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
-      <AnalyticsChartCard
-        title="Where form views come from"
-        description="Referrer domains on service-page views. Direct means no referrer was recorded."
+    <AnalyticsRow>
+      {funnelCard}
+      <AnalyticsCard
+        className={analyticsCol(6)}
+        title="Win rate by service and source"
+        description="Accepted ÷ decided (accepted + rejected + expired) for quotes sent in this period."
+        info="Win rate is accepted quotes ÷ decided quotes. A quote is decided once it is accepted, rejected, or expired — quotes still awaiting a decision are excluded."
+        bodyClassName="gap-5"
       >
-        <RankedBarList
-          items={data.sources}
-          barColor={chartSeries(0)}
-          emptyLabel="No form views in this period."
-        />
-      </AnalyticsChartCard>
-      <AnalyticsChartCard
-        title="Campaigns"
-        description="Views tagged with UTM parameters, grouped by source and campaign."
-      >
-        <RankedBarList
-          items={data.campaigns}
-          barColor={chartSeries(1)}
-          emptyLabel="No UTM-tagged views in this period."
-        />
-      </AnalyticsChartCard>
-    </div>
+        <div className="flex min-w-0 flex-col gap-2">
+          <span className="meta-label">By service</span>
+          <BarList
+            items={serviceItems}
+            emptyLabel="No decided quotes by service yet."
+          />
+        </div>
+        <div className="flex min-w-0 flex-col gap-2">
+          <span className="meta-label">By inquiry source</span>
+          <BarList
+            items={sourceItems}
+            emptyLabel="No decided quotes by source yet."
+          />
+        </div>
+      </AnalyticsCard>
+    </AnalyticsRow>
   );
 }
 
@@ -201,421 +195,182 @@ function ServiceMobileRow({
   );
 }
 
-export async function PerformanceServicesCard(props: PerformanceSectionProps) {
+export async function PerformanceServicesRow(props: PerformanceSectionProps) {
   const data = await props.dataPromise;
   if (!data.hasData || data.services.length === 0) return null;
   const { currency } = data;
 
   return (
-    <AnalyticsChartCard
-      title="Service performance"
-      description="How each service page converts visitors into inquiries, quotes, and won work."
-      contentClassName="gap-0"
-    >
-      <div className="flex flex-col gap-2.5 lg:hidden">
-        {data.services.map((row) => (
-          <ServiceMobileRow
-            key={row.formSlug}
-            row={row}
-            businessSlug={props.businessSlug}
-            currency={currency}
-          />
-        ))}
-      </div>
+    <AnalyticsRow>
+      <AnalyticsCard
+        className={analyticsCol(12)}
+        title="Service performance"
+        description="How each service page converts visitors into inquiries, quotes, and won work."
+        info="Win rate here is accepted quotes ÷ quotes sent, which is not the same as the win rate over decided quotes."
+        bodyClassName="gap-0"
+      >
+        <div className="flex flex-col gap-2.5 lg:hidden">
+          {data.services.map((row) => (
+            <ServiceMobileRow
+              key={row.formSlug}
+              row={row}
+              businessSlug={props.businessSlug}
+              currency={currency}
+            />
+          ))}
+        </div>
 
-      <div className="hidden overflow-x-auto no-scrollbar lg:block">
-        <Table className="min-w-[46rem]">
-          <TableHeader>
-            <TableRow>
-              <TableHead>Service</TableHead>
-              <TableHead className="text-right">Visitors</TableHead>
-              <TableHead className="text-right">Submissions</TableHead>
-              <TableHead className="text-right">Conv.</TableHead>
-              <TableHead className="text-right">Quotes</TableHead>
-              <TableHead className="text-right">Win rate</TableHead>
-              <TableHead className="text-right">Avg won</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.services.map((row) => (
-              <TableRow key={row.formSlug}>
-                <TableCell className="font-medium text-foreground">
-                  <Link
-                    href={getInquiriesListHref(props.businessSlug, { form: row.formSlug })}
-                    className="inline-flex items-center gap-1 rounded-sm outline-none transition-colors hover:text-primary focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    {row.name}
-                    <ArrowRight className="size-3.5 text-muted-foreground/70" aria-hidden />
-                  </Link>
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {formatNumber(row.visitors)}
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {formatNumber(row.inquiries)}
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {formatPercent(row.conversionRate)}
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {formatNumber(row.quotesSent)}
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {formatPercent(row.winRate)}
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {formatMoney(row.avgAcceptedValueInCents, currency)}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-    </AnalyticsChartCard>
+        <div className="hidden min-w-0 lg:block">
+          <DataTable
+            minWidthClassName="min-w-[46rem]"
+            columns={[
+              { key: "service", header: "Service" },
+              { key: "visitors", header: "Visitors", align: "end" },
+              { key: "submissions", header: "Submissions", align: "end" },
+              { key: "conversion", header: "Conv.", align: "end" },
+              { key: "quotes", header: "Quotes", align: "end" },
+              {
+                key: "winRate",
+                header: "Win rate",
+                align: "end",
+                headerHint:
+                  "Accepted quotes ÷ quotes sent for this service in the selected period.",
+              },
+              { key: "avgWon", header: "Avg won", align: "end" },
+            ]}
+            rows={data.services.map((row) => ({
+              service: (
+                <Link
+                  href={getInquiriesListHref(props.businessSlug, { form: row.formSlug })}
+                  className="inline-flex items-center gap-1 rounded-sm outline-none transition-colors hover:text-primary focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  {row.name}
+                  <ArrowRight className="size-3.5 text-muted-foreground/70" aria-hidden />
+                </Link>
+              ),
+              visitors: formatNumber(row.visitors),
+              submissions: formatNumber(row.inquiries),
+              conversion: formatPercent(row.conversionRate),
+              quotes: formatNumber(row.quotesSent),
+              winRate: formatPercent(row.winRate),
+              avgWon: formatMoney(row.avgAcceptedValueInCents, currency),
+            }))}
+          />
+        </div>
+      </AnalyticsCard>
+    </AnalyticsRow>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Timing
+// Timing, quote value, discounting
 // ---------------------------------------------------------------------------
 
-function TimingTile({ metric }: { metric: AnalyticsTimingMetric }) {
+function TimingStat({
+  metric,
+}: {
+  metric: PerformanceData["timing"][number];
+}) {
   const delta = formatSpeedDelta(metric.hours, metric.priorHours);
   const hasCompare = metric.hours !== null && metric.priorHours !== null;
 
   return (
-    <div className="soft-panel flex flex-col gap-1 rounded-xl border border-border/60">
-      <span className="meta-label">{metric.label}</span>
-      <span className="text-2xl font-semibold tracking-tight text-foreground tabular-nums">
-        {formatDuration(metric.hours)}
-      </span>
-      <span className="text-xs text-muted-foreground">{metric.description}</span>
-      {hasCompare ? (
-        <div className="mt-1 w-fit">
-          <DeltaPill
-            delta={delta.label}
-            direction={delta.direction}
-            sentiment={getDeltaSentiment(delta.direction, true)}
-          />
-        </div>
-      ) : null}
-    </div>
+    <Stat
+      label={metric.label}
+      value={formatDuration(metric.hours)}
+      caption={metric.description}
+      delta={hasCompare ? delta.label : null}
+      deltaDirection={delta.direction}
+      deltaSentiment={getDeltaSentiment(delta.direction, true)}
+    />
   );
 }
 
-export async function PerformanceTimingCard(props: PerformanceSectionProps) {
+export async function PerformanceTimingRow(props: PerformanceSectionProps) {
   const data = await props.dataPromise;
   if (!data.hasData) return null;
   if (data.timing.every((metric) => metric.hours === null)) return null;
 
-  return (
-    <AnalyticsChartCard
-      title="Response and turnaround times"
-      description="Averages from inquiry submitted to each milestone. Lower is better."
-    >
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {data.timing.map((metric) => (
-          <TimingTile key={metric.key} metric={metric} />
-        ))}
-      </div>
-    </AnalyticsChartCard>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Quote funnel, aging, discounts
-// ---------------------------------------------------------------------------
-
-export async function PerformanceQuoteFunnelCard(props: PerformanceSectionProps) {
-  const data = await props.dataPromise;
-  if (!data.hasData) return null;
-
-  const first = data.quoteFunnel[0]?.count ?? 0;
-
-  return (
-    <AnalyticsChartCard
-      title="Quote funnel"
-      description="Sent → viewed → responded → accepted, with step conversion so drop-off is visible."
-    >
-      <div className="flex flex-col gap-4">
-        <FunnelBars
-          steps={data.quoteFunnel}
-          ariaLabel={`Quote funnel for ${props.window.label}`}
-        />
-        <ChartDataTable
-          columns={[
-            { key: "step", header: "Stage" },
-            { key: "count", header: "Quotes", align: "end" },
-            { key: "share", header: "Of sent", align: "end" },
-          ]}
-          rows={data.quoteFunnel.map((step) => ({
-            step: step.label,
-            count: formatNumber(step.count),
-            share: first > 0 ? formatPercent(step.count / first) : "—",
-          }))}
-        />
-      </div>
-    </AnalyticsChartCard>
-  );
-}
-
-export async function PerformanceAgingCard(props: PerformanceSectionProps) {
-  const data = await props.dataPromise;
-  const agingTotal = data.aging.reduce((sum, bucket) => sum + bucket.count, 0);
-  const hasExpiring = data.expiring.count > 0;
-  if (agingTotal === 0 && !hasExpiring) return null;
-  const { currency } = data;
-
-  return (
-    <div className="grid gap-4 lg:grid-cols-2">
-      <AnalyticsChartCard
-        title="Open quote aging"
-        description="Unanswered quotes by age since they were sent — the live backlog, not the selected range."
-      >
-        <div className="flex flex-col gap-4">
-          <LazyAgingBarChart
-            buckets={data.aging}
-            currency={currency}
-            ariaLabel="Open quotes by age bucket"
-          />
-          <ChartDataTable
-            columns={[
-              { key: "bucket", header: "Age" },
-              { key: "count", header: "Open quotes", align: "end" },
-              { key: "value", header: "Value", align: "end" },
-            ]}
-            rows={data.aging.map((bucket) => ({
-              bucket: bucket.label,
-              count: formatNumber(bucket.count),
-              value: formatMoney(bucket.valueInCents, currency),
-            }))}
-          />
-        </div>
-      </AnalyticsChartCard>
-
-      <AnalyticsChartCard
-        title="Expiring within 7 days"
-        description="Sent quotes approaching their valid-until date. Reach out before they lapse."
-        action={
-          <Link
-            href={getQuotesListHref(props.businessSlug, { status: "sent" })}
-            className="text-sm font-medium text-primary outline-none transition-colors hover:text-primary/80 focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            View sent quotes
-          </Link>
-        }
-      >
-        <div className="grid gap-3 sm:grid-cols-2">
-          <MetricTile
-            label="Quotes"
-            value={formatNumber(data.expiring.count)}
-            caption="Awaiting a response, expiring soon"
-          />
-          <MetricTile
-            label="Value at risk"
-            value={formatMoney(data.expiring.valueInCents, currency)}
-            caption="Total value of expiring quotes"
-            tone="warning"
-          />
-        </div>
-      </AnalyticsChartCard>
-    </div>
-  );
-}
-
-export async function PerformanceDealValueCard(props: PerformanceSectionProps) {
-  const data = await props.dataPromise;
-  if (!data.hasData) return null;
   const { currency, values, discounts } = data;
   const discountShare =
-    discounts.quotedCount > 0 ? discounts.discountedCount / discounts.quotedCount : 0;
+    discounts.quotedCount > 0
+      ? discounts.discountedCount / discounts.quotedCount
+      : 0;
 
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
-      <AnalyticsChartCard
-        title="Quote value"
-        description="Value sent and how it resolved in this period, plus invoice averages."
+    <AnalyticsRow>
+      <AnalyticsCard
+        className={analyticsCol(6)}
+        title="Response and turnaround"
+        description="Averages from inquiry submitted to each milestone. Lower is better."
+        info="Each figure is the average time between the inquiry arriving and the milestone being reached."
       >
-        <div className="grid gap-3 sm:grid-cols-2">
-          <MetricTile
+        <StatGrid columns={2}>
+          {data.timing.map((metric) => (
+            <TimingStat key={metric.key} metric={metric} />
+          ))}
+        </StatGrid>
+      </AnalyticsCard>
+
+      <AnalyticsCard
+        className={analyticsCol(6)}
+        title="Quote value and discounting"
+        description="What was quoted in this period, and how much of it was given away."
+        info="Quoted is the total value of the quotes sent. Discounts are measured against the subtotal of those quotes."
+        footer={
+          <>
+            <span>
+              Accepted {formatMoney(values.acceptedInCents, currency)}
+            </span>
+            <span aria-hidden>·</span>
+            <span>Rejected {formatMoney(values.rejectedInCents, currency)}</span>
+            <span aria-hidden>·</span>
+            <span>Expired {formatMoney(values.expiredInCents, currency)}</span>
+          </>
+        }
+      >
+        <StatGrid columns={3}>
+          <Stat
             label="Quoted"
             value={formatMoney(values.quotedInCents, currency)}
-            caption="Total of quotes sent"
+            caption="Total value of quotes sent"
           />
-          <MetricTile
-            label="Accepted"
-            value={formatMoney(values.acceptedInCents, currency)}
-            caption="Won value in this period"
-            tone="positive"
-          />
-          <MetricTile
-            label="Rejected"
-            value={formatMoney(values.rejectedInCents, currency)}
-            caption="Lost to declines"
-          />
-          <MetricTile
-            label="Expired"
-            value={formatMoney(values.expiredInCents, currency)}
-            caption="Lapsed without a decision"
-          />
-          <MetricTile
+          <Stat
             label="Avg accepted deal"
             value={formatMoney(values.averageAcceptedInCents, currency)}
             caption="Average won quote value"
           />
-          <MetricTile
+          <Stat
             label="Avg invoice"
             value={formatMoney(values.averageInvoiceInCents, currency)}
             caption={`Includes ${formatMoney(values.taxInCents, currency)} tax`}
           />
-        </div>
-      </AnalyticsChartCard>
-
-      <AnalyticsChartCard
-        title="Discounting"
-        description="How often quotes carry a discount and how deep it goes."
-      >
-        <div className="grid gap-3 sm:grid-cols-2">
-          <MetricTile
+          <Stat
             label="Discounted quotes"
             value={formatNumber(discounts.discountedCount)}
             caption={`of ${formatNumber(discounts.quotedCount)} sent (${formatPercent(discountShare)})`}
           />
-          <MetricTile
+          <Stat
             label="Average discount"
             value={formatPercentValue(discounts.averageDiscountPercent)}
             caption="Discount ÷ subtotal across sent quotes"
           />
-          <MetricTile
+          <Stat
             label="Total discount"
             value={formatMoney(discounts.totalDiscountInCents, currency)}
             caption="Value given away in this period"
-            tone="warning"
           />
-        </div>
-      </AnalyticsChartCard>
-    </div>
-  );
-}
-
-export async function PerformanceWinRatesCard(props: PerformanceSectionProps) {
-  const data = await props.dataPromise;
-  if (!data.hasData) return null;
-  if (data.winRates.byService.length === 0 && data.winRates.bySource.length === 0) {
-    return null;
-  }
-
-  const formatWinRate = (item: { share: number }) => formatPercent(item.share);
-
-  return (
-    <AnalyticsChartCard
-      title="Win rate breakdown"
-      description="Accepted ÷ decided (accepted + rejected + expired) for quotes sent in this period."
-    >
-      <div className="grid gap-6 lg:grid-cols-2">
-        <div className="flex min-w-0 flex-col gap-3">
-          <h3 className="text-sm font-medium text-foreground">By service</h3>
-          <RankedBarList
-            items={data.winRates.byService}
-            formatValue={formatWinRate}
-            barColor={chartSeries(0)}
-            emptyLabel="No decided quotes by service yet."
-          />
-        </div>
-        <div className="flex min-w-0 flex-col gap-3">
-          <h3 className="text-sm font-medium text-foreground">By inquiry source</h3>
-          <RankedBarList
-            items={data.winRates.bySource}
-            formatValue={formatWinRate}
-            barColor={chartSeries(3)}
-            emptyLabel="No decided quotes by source yet."
-          />
-        </div>
-      </div>
-    </AnalyticsChartCard>
-  );
-}
-
-export async function PerformanceRevenueCard(props: PerformanceSectionProps) {
-  const data = await props.dataPromise;
-  if (!data.hasData || data.series.length < 2) return null;
-  const { currency } = data;
-
-  return (
-    <AnalyticsChartCard
-      title="Revenue trend"
-      description="Won value per bucket, with the average accepted deal size as a line."
-    >
-      <div className="flex flex-col gap-4">
-        <LazyRevenueTrendChart
-          points={data.series}
-          currency={currency}
-          ariaLabel={`Revenue won for ${props.window.label}`}
-        />
-        <ChartDataTable
-          columns={[
-            { key: "bucket", header: "Period" },
-            { key: "revenue", header: "Revenue won", align: "end" },
-            { key: "quotes", header: "Accepted", align: "end" },
-            { key: "avgDeal", header: "Avg deal", align: "end" },
-          ]}
-          rows={data.series.map((point) => ({
-            bucket: point.label,
-            revenue: formatMoney(point.revenueInCents, currency),
-            quotes: formatNumber(point.quotesAccepted),
-            avgDeal:
-              point.quotesAccepted > 0
-                ? formatMoney(
-                    Math.round(point.revenueInCents / point.quotesAccepted),
-                    currency,
-                  )
-                : "—",
-          }))}
-        />
-      </div>
-    </AnalyticsChartCard>
+        </StatGrid>
+      </AnalyticsCard>
+    </AnalyticsRow>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Collections
+// Collections and payment mix
 // ---------------------------------------------------------------------------
 
-export async function PerformanceReceivablesCard(props: PerformanceSectionProps) {
-  const data = await props.dataPromise;
-  const total = data.arAging.reduce((sum, bucket) => sum + bucket.count, 0);
-  if (total === 0) return null;
-  const { currency } = data;
-
-  return (
-    <AnalyticsChartCard
-      title="Accounts receivable aging"
-      description="Outstanding balances by days past due — a live snapshot, not limited to the selected range."
-    >
-      <div className="flex flex-col gap-4">
-        <LazyAgingBarChart
-          buckets={data.arAging}
-          currency={currency}
-          ariaLabel="Outstanding invoice balances by age bucket"
-        />
-        <ChartDataTable
-          columns={[
-            { key: "bucket", header: "Bucket" },
-            { key: "count", header: "Invoices", align: "end" },
-            { key: "value", header: "Balance", align: "end" },
-          ]}
-          rows={data.arAging.map((bucket) => ({
-            bucket: bucket.label,
-            count: formatNumber(bucket.count),
-            value: formatMoney(bucket.valueInCents, currency),
-          }))}
-        />
-      </div>
-    </AnalyticsChartCard>
-  );
-}
-
-export async function PerformanceCollectionsCard(props: PerformanceSectionProps) {
+export async function PerformanceCollectionsRow(props: PerformanceSectionProps) {
   const data = await props.dataPromise;
   const { collections, paymentMix } = data;
   const paidCount = collections.onTimeCount + collections.lateCount;
@@ -623,139 +378,125 @@ export async function PerformanceCollectionsCard(props: PerformanceSectionProps)
     return null;
   }
 
+  const mixItems: BarListItem[] = paymentMix.map((item) => ({
+    key: item.label,
+    label: item.label,
+    value: formatNumber(item.count),
+    share: item.share,
+    href: item.href,
+    meta: item.detail,
+  }));
+
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
-      <AnalyticsChartCard
+    <AnalyticsRow>
+      <AnalyticsCard
+        className={analyticsCol(6)}
         title="Collection velocity"
         description="How quickly payments land after an invoice is sent and due."
       >
-        <div className="grid gap-3 sm:grid-cols-2">
-          <MetricTile
+        <StatGrid columns={2}>
+          <Stat
             label="Avg days to pay"
             value={formatDays(collections.averageDaysToPay)}
             caption="Invoice sent → payment received"
           />
-          <MetricTile
+          <Stat
             label="Avg days late"
             value={formatDays(collections.averageDaysLate)}
             caption="Only for payments past the due date"
-            tone={collections.averageDaysLate && collections.averageDaysLate > 0 ? "warning" : "default"}
+            valueClassName={
+              collections.averageDaysLate && collections.averageDaysLate > 0
+                ? "text-warning"
+                : undefined
+            }
           />
-          <MetricTile
+          <Stat
             label="On time"
             value={formatNumber(collections.onTimeCount)}
             caption="Payments on or before the due date"
-            tone="positive"
+            valueClassName="text-success"
           />
-          <MetricTile
+          <Stat
             label="Late"
             value={formatNumber(collections.lateCount)}
             caption="Payments after the due date"
-            tone={collections.lateCount > 0 ? "warning" : "default"}
+            valueClassName={
+              collections.lateCount > 0 ? "text-warning" : undefined
+            }
           />
-          <MetricTile
-            label="Partially paid"
-            value={formatNumber(collections.partialCount)}
-            caption="Invoices with an open balance"
-          />
-        </div>
-      </AnalyticsChartCard>
+        </StatGrid>
+      </AnalyticsCard>
 
-      <AnalyticsChartCard
+      <AnalyticsCard
+        className={analyticsCol(6)}
         title="Payment mix"
         description="Recorded payments in this period by method."
       >
-        <RankedBarList
-          items={paymentMix}
-          barColor={chartSeries(4)}
+        <BarList
+          items={mixItems}
           emptyLabel="No payments recorded in this period."
         />
-      </AnalyticsChartCard>
-    </div>
+      </AnalyticsCard>
+    </AnalyticsRow>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Customers
+// Benchmarks and goals
 // ---------------------------------------------------------------------------
 
-export async function PerformanceCustomersCard(props: PerformanceSectionProps) {
+export async function PerformanceBenchmarksRow(props: PerformanceSectionProps) {
   const data = await props.dataPromise;
-  if (!data.hasData) return null;
-  const { currency, repeat, topCustomers } = data;
-  const returningShare =
-    repeat.revenueInCents > 0
-      ? repeat.returningRevenueInCents / repeat.revenueInCents
-      : 0;
+  const hasBenchmarks = data.benchmarks.length > 0;
+  const hasGoals = data.goals.length > 0;
+  if (!hasBenchmarks && !hasGoals) return null;
+
+  const { currency } = data;
+
+  const benchmarkItems: BarListItem[] = data.benchmarks.map((row) => ({
+    key: row.key,
+    label: row.label,
+    value:
+      row.format === "percent"
+        ? formatPercentValue(row.yours ?? 0)
+        : formatDuration(row.yours ?? null),
+    share:
+      row.yours !== null && row.median !== null && row.median > 0
+        ? Math.min(row.yours / row.median, 1)
+        : 0,
+    meta: `Median ${row.format === "percent" ? formatPercentValue(row.median ?? 0) : formatDuration(row.median ?? null)} · ${row.businessCount ?? 0} businesses`,
+  }));
 
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
-      <AnalyticsChartCard
-        title="New vs returning customers"
-        description="Returning means the email had an earlier inquiry with this workspace."
-      >
-        <div className="grid gap-3 sm:grid-cols-2">
-          <MetricTile
-            label="New inquiries"
-            value={formatNumber(repeat.newInquiries)}
-            caption={`${formatPercent(repeat.newWinRate)} win rate`}
-          />
-          <MetricTile
-            label="Returning inquiries"
-            value={formatNumber(repeat.returningInquiries)}
-            caption={`${formatPercent(repeat.returningWinRate)} win rate`}
-            tone="positive"
-          />
-          <MetricTile
-            label="Returning revenue"
-            value={formatMoney(repeat.returningRevenueInCents, currency)}
-            caption={`${formatPercent(returningShare)} of won value`}
-          />
-          <MetricTile
-            label="Total won"
-            value={formatMoney(repeat.revenueInCents, currency)}
-            caption="Accepted value in this period"
-          />
-        </div>
-      </AnalyticsChartCard>
+    <AnalyticsRow>
+      {hasBenchmarks ? (
+        <AnalyticsCard
+          className={analyticsCol(hasGoals ? 6 : 12)}
+          title="How you compare"
+          description="Your numbers against the median for similar businesses. Benchmarks publish once at least 10 businesses share data."
+        >
+          <BarList items={benchmarkItems} />
+        </AnalyticsCard>
+      ) : null}
 
-      <AnalyticsChartCard
-        title="Top customers"
-        description="Won value by customer in this period."
-        action={
-          <Link
-            href={getQuotesListHref(props.businessSlug, { status: "accepted" })}
-            className="text-sm font-medium text-primary outline-none transition-colors hover:text-primary/80 focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            View won quotes
-          </Link>
-        }
-      >
-        <RankedBarList
-          items={topCustomers}
-          barColor={chartSeries(2)}
-          emptyLabel="No won quotes in this period."
-        />
-      </AnalyticsChartCard>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Benchmarks & reports
-// ---------------------------------------------------------------------------
-
-export async function PerformanceBenchmarksCard(props: PerformanceSectionProps) {
-  const data = await props.dataPromise;
-  if (data.benchmarks.length === 0) return null;
-
-  return (
-    <AnalyticsChartCard
-      title="How you compare"
-      description="Your numbers against the median for similar businesses. Benchmarks publish once at least 10 businesses share data."
-    >
-      <BenchmarkBars rows={data.benchmarks} />
-    </AnalyticsChartCard>
+      {hasGoals ? (
+        <AnalyticsCard
+          className={analyticsCol(hasBenchmarks ? 6 : 12)}
+          title="Goals"
+          description="Targets configured for this workspace, measured against the selected period."
+        >
+          <ul className="flex flex-col gap-5">
+            {data.goals.map((goal) => (
+              <GoalProgressRow
+                key={goal.metricKey}
+                goal={goal}
+                currency={currency}
+              />
+            ))}
+          </ul>
+        </AnalyticsCard>
+      ) : null}
+    </AnalyticsRow>
   );
 }
 
@@ -794,9 +535,9 @@ function GoalProgressRow({
           </span>
         </span>
       </div>
-      <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+      <div className="analytics-track h-1.5 w-full overflow-hidden rounded-full">
         <div
-          className={cn("h-full rounded-full", met ? "bg-success" : "bg-chart-1")}
+          className={cn("h-full rounded-full", met ? "bg-success" : "bg-primary")}
           style={{ width: `${Math.max(ratio * 100, 2)}%` }}
         />
       </div>
@@ -807,42 +548,36 @@ function GoalProgressRow({
   );
 }
 
-export async function PerformanceReportsCard(props: PerformanceSectionProps) {
+// ---------------------------------------------------------------------------
+// Tracking notes and scheduled reports
+// ---------------------------------------------------------------------------
+
+export async function PerformanceReportsRow(props: PerformanceSectionProps) {
   const data = await props.dataPromise;
-  const { goals, annotations, scheduledReports } = data;
-  if (goals.length === 0 && annotations.length === 0 && scheduledReports.length === 0) {
-    return null;
-  }
+  const hasNotes = data.annotations.length > 0;
+  const hasReports = data.scheduledReports.length > 0;
+  if (!hasNotes && !hasReports) return null;
 
   return (
-    <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
-      {goals.length > 0 ? (
-        <AnalyticsChartCard
-          title="Goals"
-          description="Targets configured for this workspace, measured against the selected period."
-        >
-          <ul className="flex flex-col gap-5">
-            {goals.map((goal) => (
-              <GoalProgressRow key={goal.metricKey} goal={goal} currency={data.currency} />
-            ))}
-          </ul>
-        </AnalyticsChartCard>
-      ) : null}
-
-      {annotations.length > 0 ? (
-        <AnalyticsChartCard
+    <AnalyticsRow>
+      {hasNotes ? (
+        <AnalyticsCard
+          className={analyticsCol(hasReports ? 6 : 12)}
           title="Tracking notes"
           description="Annotations recorded inside this period."
+          bodyClassName="gap-0"
         >
           <ul className="flex flex-col">
-            {annotations.map((annotation) => (
+            {data.annotations.map((annotation) => (
               <li
                 key={annotation.id}
-                className="flex items-center gap-2.5 border-b border-border/60 py-2.5 last:border-0"
+                className="flex items-center gap-2.5 border-b border-border/50 py-2.5 last:border-0"
               >
                 <span
-                  className="size-2.5 shrink-0 rounded-full"
-                  style={{ backgroundColor: annotation.color ?? chartSeries(0) }}
+                  className="size-2.5 shrink-0 rounded-full bg-primary"
+                  style={
+                    annotation.color ? { backgroundColor: annotation.color } : undefined
+                  }
                   aria-hidden
                 />
                 <span className="min-w-0 flex-1 truncate text-sm text-foreground">
@@ -854,16 +589,17 @@ export async function PerformanceReportsCard(props: PerformanceSectionProps) {
               </li>
             ))}
           </ul>
-        </AnalyticsChartCard>
+        </AnalyticsCard>
       ) : null}
 
-      {scheduledReports.length > 0 ? (
-        <AnalyticsChartCard
+      {hasReports ? (
+        <AnalyticsCard
+          className={analyticsCol(hasNotes ? 6 : 12)}
           title="Scheduled reports"
           description="Digests emailed to your team on a schedule."
         >
           <ul className="flex flex-col gap-4">
-            {scheduledReports.map((report) => (
+            {data.scheduledReports.map((report) => (
               <li key={report.id} className="flex flex-col gap-1">
                 <div className="flex items-center justify-between gap-2">
                   <span className="min-w-0 truncate text-sm text-foreground">
@@ -882,8 +618,218 @@ export async function PerformanceReportsCard(props: PerformanceSectionProps) {
               </li>
             ))}
           </ul>
-        </AnalyticsChartCard>
+        </AnalyticsCard>
       ) : null}
-    </div>
+    </AnalyticsRow>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Audience
+// ---------------------------------------------------------------------------
+
+export async function PerformanceAudienceRow(props: PerformanceSectionProps) {
+  const data = await props.dataPromise;
+  if (!data.hasData) return null;
+
+  const { currency, repeat, topCustomers } = data;
+  const returningShare =
+    repeat.revenueInCents > 0
+      ? repeat.returningRevenueInCents / repeat.revenueInCents
+      : 0;
+
+  const hasCustomers = topCustomers.length > 0;
+
+  const sourceItems: BarListItem[] = data.sources.map((item) => ({
+    key: `source-${item.label}`,
+    label: item.label,
+    value: formatNumber(item.count),
+    share: item.share,
+    href: item.href,
+  }));
+
+  const campaignItems: BarListItem[] = data.campaigns.map((item) => ({
+    key: `campaign-${item.label}`,
+    label: item.label,
+    value: formatNumber(item.count),
+    share: item.share,
+    href: item.href,
+  }));
+
+  const customerItems: BarListItem[] = topCustomers.map((item) => ({
+    key: `customer-${item.label}`,
+    label: item.label,
+    value: formatMoney(item.valueInCents ?? 0, currency),
+    share: item.share,
+    href: item.href,
+    meta: item.detail
+      ? `${item.detail} · ${formatNumber(item.count)} ${
+          item.count === 1 ? "quote" : "quotes"
+        }`
+      : `${formatNumber(item.count)} ${item.count === 1 ? "quote" : "quotes"}`,
+  }));
+
+  return (
+    <AnalyticsRow>
+      <AnalyticsTabbedCard
+        className={analyticsCol(4)}
+        title="Traffic sources"
+        description="Where the service-page views came from. Direct means no referrer was recorded."
+        info="Referrer domains on service-page views. Campaign rows come from UTM-tagged views, grouped by source and campaign."
+        tabs={[
+          {
+            id: "referrers",
+            label: "Referrers",
+            chart: (
+              <BarList
+                items={sourceItems}
+                emptyLabel="No form views in this period."
+              />
+            ),
+          },
+          {
+            id: "campaigns",
+            label: "Campaigns",
+            chart: (
+              <BarList
+                items={campaignItems}
+                emptyLabel="No UTM-tagged views in this period."
+              />
+            ),
+          },
+        ]}
+      />
+
+      <AnalyticsCard
+        className={analyticsCol(4)}
+        title="New vs returning"
+        description="Returning means the email had an earlier inquiry with this workspace."
+      >
+        <StatGrid columns={2}>
+          <Stat
+            label="New inquiries"
+            value={formatNumber(repeat.newInquiries)}
+            caption={`${formatPercent(repeat.newWinRate)} win rate`}
+          />
+          <Stat
+            label="Returning inquiries"
+            value={formatNumber(repeat.returningInquiries)}
+            caption={`${formatPercent(repeat.returningWinRate)} win rate`}
+          />
+          <Stat
+            label="Returning revenue"
+            value={formatMoney(repeat.returningRevenueInCents, currency)}
+            caption={`${formatPercent(returningShare)} of won value`}
+          />
+          <Stat
+            label="Total won"
+            value={formatMoney(repeat.revenueInCents, currency)}
+            caption="Accepted value in this period"
+          />
+        </StatGrid>
+      </AnalyticsCard>
+
+      <AnalyticsCard
+        className={analyticsCol(4)}
+        title="Top customers"
+        description="Won value by customer in this period."
+        action={
+          <Link
+            href={getQuotesListHref(props.businessSlug, { status: "accepted" })}
+            className="text-sm font-medium text-primary outline-none transition-colors hover:text-primary/80 focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            Won quotes
+          </Link>
+        }
+      >
+        <BarList
+          items={customerItems}
+          emptyLabel={
+            hasCustomers ? "No won quotes in this period." : "No won quotes yet."
+          }
+        />
+      </AnalyticsCard>
+    </AnalyticsRow>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Live: receivables and quote backlog
+// ---------------------------------------------------------------------------
+
+export async function PerformanceLiveRow(props: PerformanceSectionProps) {
+  const data = await props.dataPromise;
+  const { currency } = data;
+
+  const backlogTotal = data.aging.reduce((sum, bucket) => sum + bucket.count, 0);
+  const backlogValue = data.aging.reduce(
+    (sum, bucket) => sum + bucket.valueInCents,
+    0,
+  );
+  const hasBacklog = backlogTotal > 0 || data.expiring.count > 0;
+
+  if (!hasBacklog) return null;
+
+  return (
+    <AnalyticsRow>
+      <AnalyticsCard
+        className={analyticsCol(12)}
+        title="Open quote backlog"
+        description="Unanswered quotes by age since they were sent — the live backlog, not the selected range."
+        action={
+          <Link
+            href={getQuotesListHref(props.businessSlug, { status: "sent" })}
+            className="text-sm font-medium text-primary outline-none transition-colors hover:text-primary/80 focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            Sent quotes
+          </Link>
+        }
+        footer={
+          <>
+            <span>
+              {formatNumber(data.expiring.count)}{" "}
+              {data.expiring.count === 1 ? "quote" : "quotes"} worth{" "}
+              {formatMoney(data.expiring.valueInCents, currency)} at risk
+            </span>
+            <span aria-hidden>·</span>
+            <span>expiring within 7 days</span>
+          </>
+        }
+        bodyClassName="gap-6 lg:flex-row lg:items-start lg:gap-10"
+      >
+        <div className="flex min-w-0 flex-1 flex-col gap-2">
+          <span className="meta-label">By age</span>
+          {backlogTotal > 0 ? (
+            <AgingList
+              buckets={data.aging}
+              currency={currency}
+              emptyLabel="No unanswered quotes."
+            />
+          ) : (
+            <EmptyState label="No unanswered quotes right now." />
+          )}
+        </div>
+        <div className="flex min-w-0 shrink-0 flex-col gap-4 lg:w-64">
+          <Stat
+            label="Open quotes"
+            value={formatNumber(backlogTotal)}
+            caption="Sent and still unanswered"
+          />
+          <Stat
+            label="Value at risk"
+            value={formatMoney(backlogValue, currency)}
+            caption="Total value of the open backlog"
+          />
+          <Stat
+            label="Expiring in 7 days"
+            value={formatNumber(data.expiring.count)}
+            caption={formatMoney(data.expiring.valueInCents, currency)}
+            valueClassName={
+              data.expiring.count > 0 ? "text-warning" : undefined
+            }
+          />
+        </div>
+      </AnalyticsCard>
+    </AnalyticsRow>
   );
 }

@@ -162,6 +162,9 @@ function emptyOverviewPeriod(): OverviewPeriod {
     quotedValueInCents: 0,
     collectedInCents: 0,
     invoicedInCents: 0,
+    acceptedValueInCents: 0,
+    rejectedValueInCents: 0,
+    expiredValueInCents: 0,
   };
 }
 
@@ -373,6 +376,175 @@ async function loadLiveDayDaily(
   return row;
 }
 
+/**
+ * Live per-day metrics for a window.
+ *
+ * `analytics_daily_rollups` only covers the days the nightly rollup job has
+ * processed. Anything the job has not reached yet — a workspace seeded with
+ * history, a window that predates the job, a fresh install — would read as a
+ * flat zero series. This query mirrors the rollup's definitions and is used
+ * to fill the days the rollup is missing, so the trend chart always shows the
+ * activity that actually happened.
+ */
+async function loadLiveDailies(
+  businessId: string,
+  since: Date,
+  until: Date,
+): Promise<Map<string, DailyMetricRow>> {
+  const sinceIso = since.toISOString();
+  const untilIso = until.toISOString();
+
+  const rows = await executeRows<{
+    date: string;
+    form_views: string | number;
+    unique_visitors: string | number;
+    inquiry_submissions: string | number;
+    quotes_sent: string | number;
+    quotes_accepted: string | number;
+    quotes_rejected: string | number;
+    revenue_cents: string | number;
+  }>(sql`
+    with view_days as (
+      select
+        to_char(deduped.occurred_at::date, 'YYYY-MM-DD') as date,
+        count(*)::int as form_views,
+        count(distinct deduped.visitor_hash)::int as unique_visitors
+      from (
+        select
+          date_trunc('second', ${analyticsEvents.occurredAt} at time zone 'UTC') as occurred_at,
+          ${analyticsEvents.visitorHash} as visitor_hash
+        from ${analyticsEvents}
+        where ${analyticsEvents.businessId} = ${businessId}
+          and ${analyticsEvents.eventType} = 'inquiry_form_viewed'
+          and ${analyticsEvents.businessInquiryFormId} is not null
+          and ${analyticsEvents.occurredAt} >= ${sinceIso}
+          and ${analyticsEvents.occurredAt} < ${untilIso}
+        group by 1, 2
+      ) deduped
+      group by 1
+    ),
+    inquiry_days as (
+      select
+        to_char((${inquiries.submittedAt} at time zone 'UTC')::date, 'YYYY-MM-DD') as date,
+        count(*)::int as inquiry_submissions
+      from ${inquiries}
+      where ${inquiries.businessId} = ${businessId}
+        and ${inquiries.deletedAt} is null
+        and ${inquiries.submittedAt} >= ${sinceIso}
+        and ${inquiries.submittedAt} < ${untilIso}
+      group by 1
+    ),
+    sent_days as (
+      select
+        to_char((${quotes.sentAt} at time zone 'UTC')::date, 'YYYY-MM-DD') as date,
+        count(*)::int as quotes_sent
+      from ${quotes}
+      where ${quotes.businessId} = ${businessId}
+        and ${quotes.deletedAt} is null
+        and ${quotes.sentAt} is not null
+        and ${quotes.sentAt} >= ${sinceIso}
+        and ${quotes.sentAt} < ${untilIso}
+      group by 1
+    ),
+    accepted_days as (
+      select
+        to_char((${quotes.acceptedAt} at time zone 'UTC')::date, 'YYYY-MM-DD') as date,
+        count(*)::int as quotes_accepted,
+        coalesce(sum(${quotes.totalInCents}), 0)::bigint as revenue_cents
+      from ${quotes}
+      where ${quotes.businessId} = ${businessId}
+        and ${quotes.deletedAt} is null
+        and ${quotes.status} = 'accepted'
+        and ${quotes.acceptedAt} >= ${sinceIso}
+        and ${quotes.acceptedAt} < ${untilIso}
+      group by 1
+    ),
+    rejected_days as (
+      select
+        to_char((${quotes.customerRespondedAt} at time zone 'UTC')::date, 'YYYY-MM-DD') as date,
+        count(*)::int as quotes_rejected
+      from ${quotes}
+      where ${quotes.businessId} = ${businessId}
+        and ${quotes.deletedAt} is null
+        and ${quotes.status} = 'rejected'
+        and ${quotes.customerRespondedAt} is not null
+        and ${quotes.customerRespondedAt} >= ${sinceIso}
+        and ${quotes.customerRespondedAt} < ${untilIso}
+      group by 1
+    )
+    select
+      coalesce(view_days.date, inquiry_days.date, sent_days.date, accepted_days.date, rejected_days.date) as date,
+      coalesce(view_days.form_views, 0)::int as form_views,
+      coalesce(view_days.unique_visitors, 0)::int as unique_visitors,
+      coalesce(inquiry_days.inquiry_submissions, 0)::int as inquiry_submissions,
+      coalesce(sent_days.quotes_sent, 0)::int as quotes_sent,
+      coalesce(accepted_days.quotes_accepted, 0)::int as quotes_accepted,
+      coalesce(rejected_days.quotes_rejected, 0)::int as quotes_rejected,
+      coalesce(accepted_days.revenue_cents, 0)::bigint as revenue_cents
+    from view_days
+    full outer join inquiry_days on inquiry_days.date = view_days.date
+    full outer join sent_days on sent_days.date = view_days.date
+    full outer join accepted_days on accepted_days.date = view_days.date
+    full outer join rejected_days on rejected_days.date = view_days.date
+  `);
+
+  const map = new Map<string, DailyMetricRow>();
+  for (const row of rows) {
+    if (!row.date) continue;
+    map.set(row.date, {
+      date: row.date,
+      formViews: num(row.form_views),
+      uniqueVisitors: num(row.unique_visitors),
+      inquirySubmissions: num(row.inquiry_submissions),
+      quotesSent: num(row.quotes_sent),
+      quotesAccepted: num(row.quotes_accepted),
+      quotesRejected: num(row.quotes_rejected),
+      revenueCents: num(row.revenue_cents),
+    });
+  }
+  return map;
+}
+
+/**
+ * Fills the days the rollup has not processed with live source-table numbers.
+ *
+ * The rollup stays the fast path; this only runs when the window contains
+ * days the job never covered.
+ */
+async function fillMissingRollupDays(
+  businessId: string,
+  since: Date,
+  until: Date,
+  dailies: Map<string, DailyMetricRow>,
+): Promise<void> {
+  const todayIso = toIso(todayStartUtc());
+  const sinceIso = toIso(since);
+  const untilIso = toIso(until);
+
+  // Only completed days are expected to have a rollup row; today is always
+  // read live.
+  const lastCompleted = todayIso < untilIso ? todayIso : untilIso;
+
+  let expected = 0;
+  for (let cursor = sinceIso; cursor < lastCompleted; cursor = toIso(addUtcDays(new Date(`${cursor}T00:00:00Z`), 1))) {
+    expected += 1;
+  }
+
+  let covered = 0;
+  for (const date of dailies.keys()) {
+    if (date >= sinceIso && date < lastCompleted) covered += 1;
+  }
+
+  if (expected === 0 || covered >= expected) return;
+
+  const live = await loadLiveDailies(businessId, since, until);
+  for (const [date, row] of live) {
+    if (!dailies.has(date)) {
+      dailies.set(date, row);
+    }
+  }
+}
+
 function sumDailies(
   buckets: ReturnType<typeof buildAnalyticsBuckets>,
   dailies: Map<string, DailyMetricRow>,
@@ -408,6 +580,12 @@ async function buildSeries(
     toIso(window.since),
     toIso(window.until),
   );
+  await fillMissingRollupDays(
+    businessId,
+    window.since,
+    window.until,
+    currentDailies,
+  );
 
   const today = todayStartUtc();
   const todayIso = toIso(today);
@@ -429,6 +607,12 @@ async function buildSeries(
       businessId,
       toIso(priorWindow.since),
       toIso(priorWindow.until),
+    );
+    await fillMissingRollupDays(
+      businessId,
+      priorWindow.since,
+      priorWindow.until,
+      priorDailies,
     );
     priorSums = sumDailies(priorBuckets, priorDailies);
   }
@@ -515,6 +699,9 @@ export async function getOverviewPeriodRows(
         rejected: string | number;
         expired: string | number;
         quoted_value: string | number;
+        accepted_value: string | number;
+        rejected_value: string | number;
+        expired_value: string | number;
       }>(sql`
         select
           count(*)::int as sent,
@@ -523,7 +710,10 @@ export async function getOverviewPeriodRows(
           count(*) filter (where ${quotes.status} = 'accepted')::int as accepted,
           count(*) filter (where ${quotes.status} = 'rejected')::int as rejected,
           count(*) filter (where ${quotes.status} = 'expired')::int as expired,
-          coalesce(sum(${quotes.totalInCents}), 0)::bigint as quoted_value
+          coalesce(sum(${quotes.totalInCents}), 0)::bigint as quoted_value,
+          coalesce(sum(${quotes.totalInCents}) filter (where ${quotes.status} = 'accepted'), 0)::bigint as accepted_value,
+          coalesce(sum(${quotes.totalInCents}) filter (where ${quotes.status} = 'rejected'), 0)::bigint as rejected_value,
+          coalesce(sum(${quotes.totalInCents}) filter (where ${quotes.status} = 'expired'), 0)::bigint as expired_value
         from ${quotes}
         where ${quotes.businessId} = ${businessId}
           and ${quotes.deletedAt} is null
@@ -581,6 +771,9 @@ export async function getOverviewPeriodRows(
     quotedValueInCents: num(quoteRows[0]?.quoted_value),
     collectedInCents: num(collectedRows[0]?.collected),
     invoicedInCents: num(invoicedRows[0]?.invoiced),
+    acceptedValueInCents: num(quoteRows[0]?.accepted_value),
+    rejectedValueInCents: num(quoteRows[0]?.rejected_value),
+    expiredValueInCents: num(quoteRows[0]?.expired_value),
   };
 }
 
@@ -829,15 +1022,30 @@ async function computeOverviewData(
 ): Promise<OverviewData> {
   const meta = await getAnalyticsBusinessMetaUncached(businessId);
 
-  const [current, prior, series, receivables, attention, usage] = await Promise.all([
+  const [
+    current,
+    prior,
+    series,
+    receivables,
+    arAging,
+    attention,
+    usage,
+    firstResponseHours,
+    priorFirstResponseHours,
+  ] = await Promise.all([
     getOverviewPeriodRows(businessId, window.since, window.until),
     window.comparison
       ? getOverviewPeriodRows(businessId, window.comparison.since, window.comparison.until)
       : Promise.resolve(null),
     buildSeries(businessId, window),
     getReceivablesSnapshot(businessId),
+    getArAging(businessId),
     getOverviewAttention(businessId, businessSlug),
     getOverviewUsageMeters(businessId, meta.plan),
+    getFirstResponseHours(businessId, window.since, window.until),
+    window.comparison
+      ? getFirstResponseHours(businessId, window.comparison.since, window.comparison.until)
+      : Promise.resolve(null),
   ]);
 
   const period = prior ?? emptyOverviewPeriod();
@@ -881,6 +1089,7 @@ async function computeOverviewData(
       label: "Accepted",
       count: current.quotesAccepted,
       share: rate(current.quotesAccepted, outcomeTotal),
+      valueInCents: current.acceptedValueInCents,
     },
     {
       key: "open",
@@ -893,12 +1102,14 @@ async function computeOverviewData(
       label: "Rejected",
       count: current.quotesRejected,
       share: rate(current.quotesRejected, outcomeTotal),
+      valueInCents: current.rejectedValueInCents,
     },
     {
       key: "expired",
       label: "Expired",
       count: current.quotesExpired,
       share: rate(current.quotesExpired, outcomeTotal),
+      valueInCents: current.expiredValueInCents,
     },
   ];
 
@@ -906,10 +1117,13 @@ async function computeOverviewData(
     currency: meta.currency,
     current,
     prior: window.comparison ? period : null,
+    firstResponseHours,
+    priorFirstResponseHours,
     series,
     funnel,
     outcomes,
     receivables,
+    arAging,
     attention: attention.attention,
     usage,
     hasAnyActivity:
@@ -1166,6 +1380,36 @@ export type TimingWindow = {
   avgTimeToViewHours: number | null;
   avgTimeToDecisionHours: number | null;
 };
+
+/**
+ * Average hours from an inquiry being submitted to the first team response.
+ *
+ * One query, so the Overview KPI strip can show first-response time without
+ * paying for the full turnaround set.
+ */
+export async function getFirstResponseHours(
+  businessId: string,
+  since: Date,
+  until: Date,
+): Promise<number | null> {
+  const rows = await executeRows<{ hours: string | number | null }>(sql`
+    select avg(extract(epoch from (response.first_response_at - ${inquiries.submittedAt})) / 3600) as hours
+    from ${inquiries}
+    inner join (
+      select ${activityLogs.inquiryId} as inquiry_id, min(${activityLogs.createdAt}) as first_response_at
+      from ${activityLogs}
+      where ${activityLogs.businessId} = ${businessId}
+        and ${activityLogs.actorUserId} is not null
+        and ${activityLogs.inquiryId} is not null
+        group by ${activityLogs.inquiryId}
+    ) response on response.inquiry_id = ${inquiries.id}
+    where ${inquiries.businessId} = ${businessId}
+      and ${inquiries.submittedAt} >= ${since.toISOString()}
+      and ${inquiries.submittedAt} < ${until.toISOString()}
+  `);
+
+  return numOrNull(rows[0]?.hours);
+}
 
 export async function getTimingForWindow(
   businessId: string,
@@ -1549,13 +1793,21 @@ async function getTopCustomers(
     limit 5
   `);
 
+  // The row ranks by won value (cents) and reports the quote count beside it;
+  // the value is never shown as a bare number, so it is carried as cents and
+  // formatted by the shared currency formatter at the edge.
   const total = rows.reduce((sum, row) => sum + num(row.value), 0);
-  return rows.map((row) =>
-    rankedItem(row.name, num(row.value), total, {
+  return rows.map((row) => {
+    const valueInCents = num(row.value);
+    return {
+      label: row.name,
+      count: num(row.count),
       detail: row.email ?? undefined,
+      valueInCents,
+      share: rate(valueInCents, total),
       href: `${getBusinessQuotesPath(businessSlug)}?status=accepted`,
-    }),
-  );
+    };
+  });
 }
 
 async function getBenchmarkRows({

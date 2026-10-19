@@ -6,6 +6,10 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  /* Analytics layout breakpoint: the 12-column grid starts here. Named
+     breakpoints sort by value, so this sits between `lg` (1024) and
+     `xl` (1280) and wins over the smaller ones. */
+  --breakpoint-analytics: 75rem;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-inter);
@@ -200,6 +204,27 @@
   --chart-3: #2f6f65;
   --chart-4: #75b48b;
   --chart-5: #1f4f45;
+  /* Chart surfaces (analytics). `--chart-grid` is the horizontal gridline
+     hairline, `--chart-track` the unfilled bar/meter track, and
+     `--chart-tooltip-surface` / `--chart-tooltip-border` the shared chart
+     tooltip shell. */
+  --chart-grid: rgb(23 43 36 / 0.08);
+  --chart-track: var(--muted);
+  --chart-tooltip-surface: var(--popover);
+  --chart-tooltip-border: var(--border);
+  /* Categorical series: the brand accent first, then two neutral steps. A
+     chart never reaches for a second hue to categorise data. */
+  --chart-series-1: var(--primary);
+  --chart-series-2: var(--muted-foreground);
+  --chart-series-3: color-mix(in srgb, var(--muted-foreground) 60%, transparent);
+  /* Neutral ramp for stacked series that need more than three steps. */
+  --chart-neutral-1: var(--muted-foreground);
+  --chart-neutral-2: color-mix(in srgb, var(--muted-foreground) 72%, transparent);
+  --chart-neutral-3: color-mix(in srgb, var(--muted-foreground) 52%, transparent);
+  --chart-neutral-4: color-mix(in srgb, var(--muted-foreground) 36%, transparent);
+  --chart-neutral-5: color-mix(in srgb, var(--muted-foreground) 24%, transparent);
+  /* The inline sparkline in a KPI tile. */
+  --analytics-sparkline-height: 2.5rem;
   --radius: 0.5rem;
   --motion-duration-fast: 160ms;
   --motion-duration-base: 220ms;
@@ -410,6 +435,10 @@ html[data-reload-loading="fade-out"] #app-root-content {
   --chart-3: #5fa4bc;
   --chart-4: #f2ca6b;
   --chart-5: #83d8c3;
+  --chart-grid: rgb(255 255 255 / 0.06);
+  --chart-track: var(--muted);
+  --chart-tooltip-surface: var(--popover);
+  --chart-tooltip-border: var(--border);
   --sidebar: #161616;
   --sidebar-foreground: #ededed;
   --sidebar-primary: #008060;
@@ -1749,6 +1778,24 @@ html[data-reload-loading="fade-out"] #app-root-content {
     background: var(--surface-elevated-bg);
     border-color: var(--surface-stroke);
     box-shadow: var(--surface-shadow-lg);
+  }
+
+  /* Analytics cards: content first, chrome last. A 1px low-contrast border
+     with no elevation, so a page of cards reads as one calm plane. The
+     surface tone still comes from the shared `--surface-elevated-bg`. */
+  .analytics-card {
+    @apply rounded-xl border border-border/60;
+    background: var(--surface-elevated-bg);
+    border-color: color-mix(in srgb, var(--border) 70%, transparent);
+  }
+
+  /* Chart plot: the hairline gridline colour and the bar/meter track. */
+  .analytics-grid-line {
+    stroke: var(--chart-grid);
+  }
+
+  .analytics-track {
+    background: var(--chart-track);
   }
 
   .eyebrow {
