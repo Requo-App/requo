@@ -34,7 +34,7 @@ Do not use for generic React/Next.js performance (see `vercel-react-best-practic
 - Inspect the affected route, feature, tests, and nearby patterns before editing. Keep diffs small and feature-scoped.
 - Doc map: `docs/README.md`; scope: `docs/product/PRD.md`; architecture: `docs/architecture/TRD.md`; visuals: `DESIGN.md`; words: `CONTEXT.md`; inconsistencies: `docs/technical-debt.md` (read before "fixing" them).
 - Stay in scope: inquiry, quote, follow-up, invoice, manual payment records, workspace billing, role membership. No marketplace, calendar/dispatch, mobile, payroll, gateways, general chat unless asked.
-- Next.js 16.3.5 pinned: read the version-matched guide under `node_modules/next/dist/docs/` before framework code. Preserve the `nextjs-agent-rules` block in `AGENTS.md`.
+- Next.js 16.3.8 pinned: read the version-matched guide under `node_modules/next/dist/docs/` before framework code. Preserve the `nextjs-agent-rules` block in `AGENTS.md`.
 - Reuse before inventing: `components/ui/*`, `components/shared/*`, `components/shell/*`, `lib/` helpers, `features/` siblings.
 
 ## Workflows

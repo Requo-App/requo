@@ -9,7 +9,7 @@ tests define exact behavior.
 
 | Area | Current implementation | Evidence |
 |---|---|---|
-| Runtime/framework | Node.js 22+, Next.js 16.3.5 App Router, React 19.2.4, TypeScript 5.9.3 | [`package.json`](../../package.json), [`.nvmrc`](../../.nvmrc), [`next.config.ts`](../../next.config.ts) |
+| Runtime/framework | Node.js 22+, Next.js 16.3.8 App Router, React 19.2.4, TypeScript 5.9.3 | [`package.json`](../../package.json), [`.nvmrc`](../../.nvmrc), [`next.config.ts`](../../next.config.ts) |
 | UI | React Server Components by default, client components where interaction requires them; Tailwind CSS 4.2.2, Radix primitives and repository-owned components | [`app/`](../../app/), [`components/`](../../components/), [`DESIGN.md`](../../DESIGN.md) |
 | Data | PostgreSQL, Drizzle ORM 0.45.2, postgres-js; SQL migrations are committed under `drizzle/` | [`lib/db/client.ts`](../../lib/db/client.ts), [`lib/db/schema/`](../../lib/db/schema/), [`drizzle/`](../../drizzle/), [`drizzle.config.ts`](../../drizzle.config.ts) |
 | Identity | Better Auth 1.7.4 with the Drizzle adapter | [`lib/auth/`](../../lib/auth/), [`auth route`](../../app/api/auth/%5B...all%5D/route.ts) |
@@ -226,7 +226,7 @@ workspace containing the code, then read the relevant guide under its
 `node_modules/next/dist/docs/`. The generator at
 `node_modules/next/dist/server/lib/generate-agent-files.js` owns the managed
 agent block. Check version-matched docs and deprecations before using public
-online docs; this app currently pins Next.js 16.3.5.
+online docs; this app currently pins Next.js 16.3.8.
 
 ## Tests and CI
 
