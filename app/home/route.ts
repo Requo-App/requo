@@ -1,10 +1,9 @@
-import { NextResponse } from "next/server";
-
 import { requireSession } from "@/lib/auth/session";
 import { getRecentlyOpenedBusinessesForUser } from "@/features/businesses/recently-opened";
 import { getBusinessMembershipsForUser } from "@/lib/db/business-access";
 import { getBusinessHomePath } from "@/features/businesses/routes";
 import { onboardingPath } from "@/features/onboarding/routes";
+import { redirectToPath } from "@/lib/routing/redirects";
 
 /**
  * GET /home
@@ -21,7 +20,7 @@ import { onboardingPath } from "@/features/onboarding/routes";
  * migrating-to-cache-components guide in `node_modules/next/dist/docs/`).
  */
 
-export async function GET(request: Request) {
+export async function GET() {
   const session = await requireSession();
   const userId = session.user.id;
 
@@ -30,8 +29,7 @@ export async function GET(request: Request) {
 
   if (recentBusinesses.length > 0) {
     const slug = recentBusinesses[0].slug;
-    const url = new URL(getBusinessHomePath(slug), request.url);
-    return NextResponse.redirect(url, 302);
+    return redirectToPath(getBusinessHomePath(slug), 302);
   }
 
   // Fall back to first membership (owner-first, then alphabetical)
@@ -39,11 +37,9 @@ export async function GET(request: Request) {
 
   if (memberships.length > 0) {
     const slug = memberships[0].business.slug;
-    const url = new URL(getBusinessHomePath(slug), request.url);
-    return NextResponse.redirect(url, 302);
+    return redirectToPath(getBusinessHomePath(slug), 302);
   }
 
   // No businesses — send to onboarding
-  const url = new URL(onboardingPath, request.url);
-  return NextResponse.redirect(url, 302);
+  return redirectToPath(onboardingPath, 302);
 }

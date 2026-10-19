@@ -1,16 +1,12 @@
-import { NextResponse } from "next/server";
+import { redirectToPath } from "@/lib/routing/redirects";
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const token = requestUrl.searchParams.get("token");
 
   if (!token) {
-    return NextResponse.redirect(new URL("/login", requestUrl));
+    return redirectToPath("/login");
   }
 
-  const verificationUrl = new URL("/api/auth/verify-email", requestUrl);
-
-  verificationUrl.search = requestUrl.search;
-
-  return NextResponse.redirect(verificationUrl);
+  return redirectToPath(`/api/auth/verify-email${requestUrl.search}`);
 }
