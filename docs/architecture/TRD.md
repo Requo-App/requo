@@ -85,6 +85,18 @@ manually recorded and voided rather than edited/deleted; non-void entries
 determine invoice balances. See [`features/`](../../features/), the schema
 modules, and integration tests for exact lifecycle transitions.
 
+Business analytics aggregations live in
+[`features/analytics/queries.ts`](../../features/analytics/queries.ts). Each
+tab has one cached aggregator (`getOverviewData`, `getPerformanceData`,
+`getOperationsData`, `getTeamData`) that combines live tables with
+`analytics_daily_rollups`; rollups cover complete past days and the current day
+is read live. Preset ranges use `"use cache"` with `hotBusinessCacheLife` and
+business/tab tags, while custom ranges compute directly. Plan access is checked
+server-side before a tab's aggregator runs, and the export route re-resolves
+the window so plan caps cannot be bypassed. Goals, annotations, and scheduled
+reports are workspace-scoped records managed through
+`app/api/business/[slug]/analytics/*`.
+
 ## Persistence and migrations
 
 `lib/db/client.ts` constructs a typed Drizzle client over postgres-js using

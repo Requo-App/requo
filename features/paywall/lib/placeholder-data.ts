@@ -10,125 +10,6 @@
 
 import type { PlanFeature } from "@/lib/plans/entitlements";
 
-// ── Analytics: Conversion ────────────────────────────────────────────────────
-
-export type PlaceholderConversionSummary = {
-  inquirySubmissions: number;
-  inquiriesWithQuote: number;
-  quotesSent: number;
-  quotesViewed: number;
-  quotesAccepted: number;
-  quotesRejected: number;
-  inquiryToQuoteRate: number;
-  quoteViewRate: number;
-  quoteAcceptanceRate: number;
-  acceptedValueInCents: number;
-  averageAcceptedValueInCents: number;
-};
-
-export type PlaceholderConversionTrendPoint = {
-  label: string;
-  weekStart: string;
-  quotesSent: number;
-  quoteViews: number;
-  acceptedQuotes: number;
-  rejectedQuotes: number;
-};
-
-export type PlaceholderConversionFunnel = {
-  inquirySubmissions: number;
-  inquiriesWithQuote: number;
-  quotesSent: number;
-  quotesViewed: number;
-  quotesAccepted: number;
-};
-
-export type PlaceholderConversionData = {
-  summary: PlaceholderConversionSummary;
-  funnel: PlaceholderConversionFunnel;
-  trend: PlaceholderConversionTrendPoint[];
-};
-
-export const placeholderConversionData: PlaceholderConversionData = {
-  summary: {
-    inquirySubmissions: 48,
-    inquiriesWithQuote: 32,
-    quotesSent: 29,
-    quotesViewed: 24,
-    quotesAccepted: 14,
-    quotesRejected: 6,
-    inquiryToQuoteRate: 66.7,
-    quoteViewRate: 82.8,
-    quoteAcceptanceRate: 58.3,
-    acceptedValueInCents: 287_500_00,
-    averageAcceptedValueInCents: 20_535_71,
-  },
-  funnel: {
-    inquirySubmissions: 48,
-    inquiriesWithQuote: 32,
-    quotesSent: 29,
-    quotesViewed: 24,
-    quotesAccepted: 14,
-  },
-  trend: [
-    { label: "Week 1", weekStart: "2024-10-07", quotesSent: 5, quoteViews: 4, acceptedQuotes: 2, rejectedQuotes: 1 },
-    { label: "Week 2", weekStart: "2024-10-14", quotesSent: 7, quoteViews: 6, acceptedQuotes: 3, rejectedQuotes: 1 },
-    { label: "Week 3", weekStart: "2024-10-21", quotesSent: 6, quoteViews: 5, acceptedQuotes: 4, rejectedQuotes: 0 },
-    { label: "Week 4", weekStart: "2024-10-28", quotesSent: 8, quoteViews: 7, acceptedQuotes: 3, rejectedQuotes: 2 },
-    { label: "Week 5", weekStart: "2024-11-04", quotesSent: 3, quoteViews: 2, acceptedQuotes: 2, rejectedQuotes: 2 },
-  ],
-};
-
-// ── Analytics: Workflow ───────────────────────────────────────────────────────
-
-export type PlaceholderWorkflowSummary = {
-  responseRate: number;
-  avgFirstResponseHours: number;
-  avgTimeToFirstQuoteHours: number;
-  avgTimeSentToDecisionHours: number;
-  quotesSent: number;
-  quotesAccepted: number;
-  quotesRejected: number;
-  staleInquiryCount: number;
-  pendingQuotesOverSevenDays: number;
-};
-
-export type PlaceholderFollowUpSummary = {
-  created: number;
-  completed: number;
-  skipped: number;
-  overdue: number;
-  completionRate: number;
-  avgDaysToComplete: number;
-};
-
-export type PlaceholderWorkflowData = {
-  summary: PlaceholderWorkflowSummary;
-  followUps: PlaceholderFollowUpSummary;
-};
-
-export const placeholderWorkflowData: PlaceholderWorkflowData = {
-  summary: {
-    responseRate: 91.7,
-    avgFirstResponseHours: 3.2,
-    avgTimeToFirstQuoteHours: 18.5,
-    avgTimeSentToDecisionHours: 52.1,
-    quotesSent: 29,
-    quotesAccepted: 14,
-    quotesRejected: 6,
-    staleInquiryCount: 3,
-    pendingQuotesOverSevenDays: 2,
-  },
-  followUps: {
-    created: 22,
-    completed: 17,
-    skipped: 3,
-    overdue: 2,
-    completionRate: 77.3,
-    avgDaysToComplete: 2.4,
-  },
-};
-
 // ── AI Suggestions ───────────────────────────────────────────────────────────
 
 export type PlaceholderAiSuggestion = {
@@ -219,8 +100,6 @@ export const placeholderReportData: PlaceholderReportData = {
  * Returns `null` for features that don't have blurred preview content.
  */
 export type PlaceholderDataMap = {
-  analyticsConversion: PlaceholderConversionData;
-  analyticsWorkflow: PlaceholderWorkflowData;
   aiQuoteDrafting: PlaceholderAiData;
   exports: PlaceholderReportData;
 };
@@ -228,8 +107,6 @@ export type PlaceholderDataMap = {
 export type PlaceholderFeature = keyof PlaceholderDataMap;
 
 const placeholderDataMap: Record<PlaceholderFeature, PlaceholderDataMap[PlaceholderFeature]> = {
-  analyticsConversion: placeholderConversionData,
-  analyticsWorkflow: placeholderWorkflowData,
   aiQuoteDrafting: placeholderAiData,
   exports: placeholderReportData,
 };

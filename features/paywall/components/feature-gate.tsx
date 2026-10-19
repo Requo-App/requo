@@ -88,7 +88,7 @@ type FeatureGateProps = {
  * 
  * @example
  * // Content block gating
- * <FeatureGate feature="analyticsConversion" plan={plan} variant="block" upgradeAction={props}>
+ * <FeatureGate feature="analyticsPerformance" plan={plan} variant="block" upgradeAction={props}>
  *   <AnalyticsChart data={data} />
  * </FeatureGate>
  * 

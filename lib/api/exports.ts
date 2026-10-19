@@ -21,7 +21,7 @@ export type ExportRequestContext = Awaited<
  */
 export async function requireExportContext(
   slug: string,
-  feature: "exports" | "analyticsConversion" = "exports",
+  feature: "exports" | "analyticsPerformance" = "exports",
 ): Promise<
   | { ok: true; requestContext: NonNullable<ExportRequestContext> }
   | { ok: false; response: Response }

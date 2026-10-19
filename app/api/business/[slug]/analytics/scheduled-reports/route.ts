@@ -1,7 +1,9 @@
 import { and, eq } from "drizzle-orm";
+import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { getBusinessScopeCacheTag } from "@/lib/cache/business-tags";
 import { db } from "@/lib/db/client";
 import { getBusinessRequestContextForSlug } from "@/lib/db/business-access";
 import { analyticsScheduledReports } from "@/lib/db/schema";
@@ -39,6 +41,23 @@ const deleteBodySchema = z.object({
   id: z.string().trim().min(1),
 });
 
+/**
+ * Recipient cap per plan: Pro sends to one address, Business to five. The
+ * schema keeps the absolute bound; this helper narrows it to the entitlement.
+ */
+function getRecipientLimit(plan: Parameters<typeof hasFeatureAccess>[0]): number {
+  return hasFeatureAccess(plan, "analyticsTeam") ? 5 : 1;
+}
+
+function recipientLimitError(limit: number) {
+  return NextResponse.json(
+    {
+      error: `Your plan allows up to ${limit} recipient ${limit === 1 ? "email" : "emails"}.`,
+    },
+    { status: 403 },
+  );
+}
+
 export async function GET(
   _request: Request,
   context: { params: Promise<{ slug: string }> },
@@ -60,7 +79,7 @@ export async function GET(
   if (
     !hasFeatureAccess(
       requestContext.businessContext.business.plan,
-      "analyticsWorkflow",
+      "analyticsOperations",
     )
   ) {
     return NextResponse.json(
@@ -103,7 +122,7 @@ export async function POST(
   if (
     !hasFeatureAccess(
       requestContext.businessContext.business.plan,
-      "analyticsWorkflow",
+      "analyticsOperations",
     )
   ) {
     return NextResponse.json(
@@ -123,6 +142,12 @@ export async function POST(
   }
 
   const { recipientEmails, schedule, timezone, enabled } = parsedBody.data;
+  const recipientLimit = getRecipientLimit(
+    requestContext.businessContext.business.plan,
+  );
+  if (recipientEmails.length > recipientLimit) {
+    return recipientLimitError(recipientLimit);
+  }
   const businessId = requestContext.businessContext.business.id;
   const now = new Date();
 
@@ -139,6 +164,8 @@ export async function POST(
       updatedAt: now,
     })
     .returning();
+
+  revalidateTag(getBusinessScopeCacheTag(businessId), { expire: 0 });
 
   return NextResponse.json({ report }, { status: 201 });
 }
@@ -164,7 +191,7 @@ export async function PUT(
   if (
     !hasFeatureAccess(
       requestContext.businessContext.business.plan,
-      "analyticsWorkflow",
+      "analyticsOperations",
     )
   ) {
     return NextResponse.json(
@@ -184,6 +211,15 @@ export async function PUT(
   }
 
   const { id, ...updates } = parsedBody.data;
+  const recipientLimit = getRecipientLimit(
+    requestContext.businessContext.business.plan,
+  );
+  if (
+    updates.recipientEmails &&
+    updates.recipientEmails.length > recipientLimit
+  ) {
+    return recipientLimitError(recipientLimit);
+  }
   const businessId = requestContext.businessContext.business.id;
   const now = new Date();
 
@@ -204,6 +240,8 @@ export async function PUT(
   if (!report) {
     return NextResponse.json({ error: "Report not found." }, { status: 404 });
   }
+
+  revalidateTag(getBusinessScopeCacheTag(businessId), { expire: 0 });
 
   return NextResponse.json({ report });
 }
@@ -229,7 +267,7 @@ export async function DELETE(
   if (
     !hasFeatureAccess(
       requestContext.businessContext.business.plan,
-      "analyticsWorkflow",
+      "analyticsOperations",
     )
   ) {
     return NextResponse.json(
@@ -272,6 +310,8 @@ export async function DELETE(
   if (!deleted) {
     return NextResponse.json({ error: "Report not found." }, { status: 404 });
   }
+
+  revalidateTag(getBusinessScopeCacheTag(businessId), { expire: 0 });
 
   return NextResponse.json({ success: true });
 }

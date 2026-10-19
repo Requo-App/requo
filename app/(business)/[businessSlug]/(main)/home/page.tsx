@@ -16,10 +16,10 @@ import {
   getBusinessMoneySnapshot,
 } from "@/features/businesses/queries";
 import {
-  getFreeAnalytics,
+  getHomeAnalyticsSummary,
   getDashboardResponseTime,
   getDashboardKpiComparison,
-} from "@/features/analytics/queries";
+} from "@/features/analytics/home-queries";
 import {
   getBusinessAnalyticsPath,
 } from "@/features/businesses/routes";
@@ -153,7 +153,7 @@ async function KpiRegion({
 
   const [money, analytics, responseTime, comparison] = await Promise.all([
     getBusinessMoneySnapshot(businessId),
-    getFreeAnalytics(businessId),
+    getHomeAnalyticsSummary(businessId),
     getDashboardResponseTime(businessId),
     getDashboardKpiComparison(businessId),
   ]);

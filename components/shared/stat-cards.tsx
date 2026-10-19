@@ -2,14 +2,11 @@
 
 import { type ComponentType } from "react";
 import {
-  RiArrowDownCircleFill,
-  RiArrowUpCircleFill,
   RiBox3Line,
   RiChatSmile2Line,
   RiCoinsFill,
   RiGroupFill,
   RiGroupLine,
-  RiIndeterminateCircleFill,
   RiInformationFill,
   RiRefund2Fill,
   RiShoppingBasket2Fill,
@@ -17,6 +14,11 @@ import {
 } from "@remixicon/react";
 import { cva } from "class-variance-authority";
 
+import {
+  DeltaPill,
+  deltaToneClass,
+  type DeltaPillSentiment,
+} from "@/components/shared/delta-pill";
 import {
   Tooltip,
   TooltipContent,
@@ -114,20 +116,14 @@ const DEFAULT_FOOTER_STATS: Stat[] = [
  *  and the rest of the dashboard (`bg-muted` + `text-foreground`).
  *  `StatTone` is kept for call-site compat but no longer affects color. */
 
-/** Pill tint by sentiment — the footer band's delta readout. The glyph is
- *  chosen separately from the metric's direction so they can disagree. */
-const deltaPillToneVariants = cva("", {
-  variants: {
-    tone: {
-      lime: "bg-success/10 text-success",
-      rose: "bg-destructive/10 text-destructive",
-      neutral: "bg-muted text-muted-foreground",
-    },
-  },
-  defaultVariants: {
-    tone: "neutral",
-  },
-});
+/** Maps the legacy pill color prop to the shared delta sentiment. */
+function sentimentFromDeltaColor(
+  deltaColor: Stat["deltaColor"],
+): DeltaPillSentiment {
+  if (deltaColor === "lime") return "positive";
+  if (deltaColor === "rose") return "negative";
+  return "neutral";
+}
 
 const statCardsGridVariants = cva("grid w-full gap-4", {
   variants: {
@@ -155,45 +151,6 @@ const statCardsGridVariants = cva("grid w-full gap-4", {
     columns: "4",
   },
 });
-
-function DeltaPill({
-  delta,
-  deltaColor,
-  deltaDirection,
-}: Pick<Stat, "delta" | "deltaColor" | "deltaDirection">) {
-  if (!delta) return null;
-
-  const sentiment = deltaColor ?? "neutral";
-  // Arrow shows which way the metric moved; color shows whether that was
-  // good. They can disagree on purpose: a lime "33% faster" points down.
-  const direction =
-    deltaDirection ??
-    (delta.trimStart().startsWith("−")
-      ? "down"
-      : delta.trimStart().startsWith("+")
-        ? "up"
-        : "flat");
-  const Icon =
-    direction === "down"
-      ? RiArrowDownCircleFill
-      : direction === "up"
-        ? RiArrowUpCircleFill
-        : RiIndeterminateCircleFill;
-
-  return (
-    <span
-      className={cn(
-        "flex shrink-0 items-center gap-1 rounded-full py-0.5 pr-2 pl-1",
-        deltaPillToneVariants({ tone: sentiment }),
-      )}
-    >
-      <Icon className="size-4 shrink-0" aria-hidden />
-      <span className="whitespace-nowrap text-xs font-medium tabular-nums">
-        {delta}
-      </span>
-    </span>
-  );
-}
 
 /** Bare info glyph with a tooltip — the footer header's trailing control. */
 function StatHint({ label, hint }: { label: string; hint: string }) {
@@ -230,7 +187,7 @@ function PlainStatCard({ stat }: { stat: Stat }) {
           <span
             className={cn(
               "inline-flex items-center justify-center rounded-md px-1.5 py-0.5 text-xs font-medium whitespace-nowrap",
-              deltaPillToneVariants({ tone: stat.deltaColor ?? "neutral" }),
+              deltaToneClass(sentimentFromDeltaColor(stat.deltaColor)),
             )}
           >
             {stat.delta}
@@ -267,8 +224,8 @@ function FooterStatCard({ stat }: { stat: Stat }) {
         </p>
         <DeltaPill
           delta={stat.delta}
-          deltaColor={stat.deltaColor}
-          deltaDirection={stat.deltaDirection}
+          direction={stat.deltaDirection}
+          sentiment={sentimentFromDeltaColor(stat.deltaColor)}
         />
       </div>
     </section>

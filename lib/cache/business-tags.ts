@@ -16,6 +16,10 @@ function getBusinessScopeTag(businessId: string) {
   return `business:${businessId}`;
 }
 
+export function getBusinessScopeCacheTag(businessId: string) {
+  return getBusinessScopeTag(businessId);
+}
+
 export function uniqueCacheTags(
   tags: Array<string | null | undefined>,
 ): string[] {

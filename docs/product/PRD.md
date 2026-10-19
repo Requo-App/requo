@@ -61,8 +61,13 @@ market research metrics.
   library, version snapshots, public quote pages, customer responses, and
   email templates.
 - **Follow-up and visibility:** owner reminder tasks, supported automatic
-  follow-up emails, analytics and exports, in-app notifications, web push,
-  activity/audit records, and business membership.
+  follow-up emails, in-app notifications, web push, activity/audit records, and
+  business membership.
+- **Business analytics:** a business-scoped analytics workspace with Overview,
+  Performance, Operations, and Business-only Team views, date-range comparison,
+  drill-downs, CSV export, goals, tracking annotations, and scheduled reports.
+  Free plans see a fixed 30-day Overview; Pro and Business plans unlock longer
+  and custom ranges plus the additional tabs.
 - **Commercial continuation:** invoices, manually recorded payments, quote
   acceptance records, approval flows, typed scope blocks, commercial schedules,
   and change orders exist in the current application. Their detailed rules are

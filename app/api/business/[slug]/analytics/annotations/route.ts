@@ -1,7 +1,9 @@
 import { and, eq, gte, lte } from "drizzle-orm";
+import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { getBusinessScopeCacheTag } from "@/lib/cache/business-tags";
 import { db } from "@/lib/db/client";
 import { getBusinessRequestContextForSlug } from "@/lib/db/business-access";
 import { analyticsAnnotations } from "@/lib/db/schema";
@@ -53,7 +55,7 @@ export async function GET(
   if (
     !hasFeatureAccess(
       requestContext.businessContext.business.plan,
-      "analyticsConversion",
+      "analyticsPerformance",
     )
   ) {
     return NextResponse.json(
@@ -107,7 +109,7 @@ export async function POST(
   if (
     !hasFeatureAccess(
       requestContext.businessContext.business.plan,
-      "analyticsConversion",
+      "analyticsPerformance",
     )
   ) {
     return NextResponse.json(
@@ -144,6 +146,8 @@ export async function POST(
     })
     .returning();
 
+  revalidateTag(getBusinessScopeCacheTag(businessId), { expire: 0 });
+
   return NextResponse.json({ annotation }, { status: 201 });
 }
 
@@ -168,7 +172,7 @@ export async function PUT(
   if (
     !hasFeatureAccess(
       requestContext.businessContext.business.plan,
-      "analyticsConversion",
+      "analyticsPerformance",
     )
   ) {
     return NextResponse.json(
@@ -212,6 +216,8 @@ export async function PUT(
     return NextResponse.json({ error: "Annotation not found." }, { status: 404 });
   }
 
+  revalidateTag(getBusinessScopeCacheTag(businessId), { expire: 0 });
+
   return NextResponse.json({ annotation });
 }
 
@@ -236,7 +242,7 @@ export async function DELETE(
   if (
     !hasFeatureAccess(
       requestContext.businessContext.business.plan,
-      "analyticsConversion",
+      "analyticsPerformance",
     )
   ) {
     return NextResponse.json(
@@ -271,6 +277,8 @@ export async function DELETE(
   if (!deleted) {
     return NextResponse.json({ error: "Annotation not found." }, { status: 404 });
   }
+
+  revalidateTag(getBusinessScopeCacheTag(businessId), { expire: 0 });
 
   return NextResponse.json({ success: true });
 }

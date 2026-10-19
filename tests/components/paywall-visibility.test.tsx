@@ -114,7 +114,7 @@ describe("Paywall visibility", () => {
 
     it("shows correct plan requirement for each feature", () => {
       const proPaidFeatures: Array<{ feature: PlanFeature; requiredPlan: string }> = [
-        { feature: "analyticsConversion", requiredPlan: "Pro" },
+        { feature: "analyticsPerformance", requiredPlan: "Pro" },
         { feature: "multipleForms", requiredPlan: "Pro" },
         { feature: "emailTemplates", requiredPlan: "Pro" },
         { feature: "removeWatermark", requiredPlan: "Pro" },
@@ -165,7 +165,7 @@ describe("Paywall visibility", () => {
     it("shows preview content with 'Demo data' badge when preview provided", () => {
       render(
         <FeaturePreviewPaywall
-          feature="analyticsConversion"
+          feature="analyticsPerformance"
           plan={FREE_PLAN}
           previewContent={<div data-testid="demo-chart">Demo analytics chart</div>}
           upgradeAction={mockUpgradeAction}
@@ -213,7 +213,7 @@ describe("Paywall visibility", () => {
     it("shows correct feature description in upgrade prompt", () => {
       render(
         <FeaturePreviewPaywall
-          feature="analyticsConversion"
+          feature="analyticsPerformance"
           plan={FREE_PLAN}
           description="Custom description for analytics"
           upgradeAction={mockUpgradeAction}
@@ -230,7 +230,7 @@ describe("Paywall visibility", () => {
     it("shows upgrade card with lock icon instead of content when locked", () => {
       render(
         <PremiumContentBlur
-          feature="analyticsConversion"
+          feature="analyticsPerformance"
           plan={FREE_PLAN}
           upgradeAction={mockUpgradeAction}
         >
@@ -296,7 +296,7 @@ describe("Paywall visibility", () => {
     it("block variant: shows upgrade card instead of content", () => {
       render(
         <FeatureGate
-          feature="analyticsConversion"
+          feature="analyticsPerformance"
           plan={FREE_PLAN}
           variant="block"
           upgradeAction={mockUpgradeAction}
@@ -360,7 +360,7 @@ describe("Paywall visibility", () => {
 
   describe("Pro plan - business-tier features locked", () => {
     it("shows business-tier features locked for pro plan users", () => {
-      const businessOnlyFeatures: PlanFeature[] = ["members", "auditLogs"];
+      const businessOnlyFeatures: PlanFeature[] = ["members", "auditLogs", "analyticsTeam"];
 
       for (const feature of businessOnlyFeatures) {
         const { unmount } = render(
@@ -388,7 +388,7 @@ describe("Paywall visibility", () => {
     it("shows pro features unlocked for pro plan users", () => {
       render(
         <LockedAction
-          feature="analyticsConversion"
+          feature="analyticsPerformance"
           plan={PRO_PLAN}
           upgradeAction={{ ...mockUpgradeAction, currentPlan: PRO_PLAN }}
         >
@@ -418,7 +418,7 @@ describe("Paywall visibility", () => {
 
           {/* Pro tier content - locked for free users */}
           <PremiumContentBlur
-            feature="analyticsConversion"
+            feature="analyticsPerformance"
             plan={FREE_PLAN}
             upgradeAction={mockUpgradeAction}
           >
@@ -427,7 +427,7 @@ describe("Paywall visibility", () => {
 
           {/* Business tier content - locked for free users */}
           <FeatureGate
-            feature="analyticsWorkflow"
+            feature="analyticsOperations"
             plan={FREE_PLAN}
             variant="block"
             upgradeAction={mockUpgradeAction}
@@ -476,7 +476,7 @@ describe("Paywall visibility", () => {
     it("upgrade cards have proper semantic structure", () => {
       render(
         <PremiumContentBlur
-          feature="analyticsConversion"
+          feature="analyticsPerformance"
           plan={FREE_PLAN}
           upgradeAction={mockUpgradeAction}
         >
@@ -522,8 +522,9 @@ describe("Paywall visibility", () => {
   describe("No features hidden by plan", () => {
     it("all plan-gated features remain visible in UI as locked/paywalled states", () => {
       const allPaidFeatures: PlanFeature[] = [
-        "analyticsConversion",
-        "analyticsWorkflow",
+        "analyticsPerformance",
+        "analyticsOperations",
+        "analyticsTeam",
         "multipleForms",
         "inquiryPageCustomization",
         "emailTemplates",
