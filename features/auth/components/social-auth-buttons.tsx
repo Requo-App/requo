@@ -116,16 +116,13 @@ function InAppBrowserWarning({ appName }: { appName: string | null }) {
   );
 }
 
-/** Horizontal rule with label, placed between OAuth (primary) and email fields (secondary). */
+/** Divided label, placed between OAuth (primary) and email fields (secondary). */
 export function AuthEmailDivider() {
   return (
-    <div className="relative py-1">
-      <div className="absolute inset-0 flex items-center">
-        <span className="w-full border-t border-border/70" />
-      </div>
-      <div className="relative flex justify-center text-xs uppercase tracking-[0.14em] text-muted-foreground">
-        <span className="bg-card px-3">Or continue with email</span>
-      </div>
+    <div className="flex items-center gap-3 text-sm leading-snug text-muted-foreground">
+      <span aria-hidden="true" className="h-px flex-1 bg-border/70" />
+      <span>Or continue with email</span>
+      <span aria-hidden="true" className="h-px flex-1 bg-border/70" />
     </div>
   );
 }
