@@ -10,8 +10,15 @@ import {
 } from "../e2e/fixtures";
 
 /**
- * README screenshots. Each test saves one PNG into public/screenshots/.
- * Run with `npm run screenshots` (or against a running server with
+ * Fallback README screenshots. Each test saves one PNG into
+ * public/screenshots/.
+ *
+ * The committed images come from the native Windows capture
+ * (`npm run screenshots`, scripts/marketing/capture-readme-screenshots.mjs);
+ * this spec is the portable path for machines without Windows Chrome and
+ * renders the same screens at 1x with Playwright's bundled Chromium.
+ *
+ * Run with `npm run screenshots:fallback` (or against a running server with
  * PLAYWRIGHT_BASE_URL=http://127.0.0.1:<port>).
  */
 async function settle(page: Page) {

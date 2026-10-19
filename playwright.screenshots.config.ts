@@ -1,12 +1,19 @@
 import { defineConfig, devices } from "@playwright/test";
 
 /**
- * Screenshots config for README and marketing assets.
+ * Fallback screenshots config for README and marketing assets.
+ *
+ * The committed README images come from the native Windows capture
+ * (`npm run screenshots`, scripts/marketing/capture-readme-screenshots.mjs),
+ * which renders them in the browser a reader actually uses, at 2x. This
+ * config is the portable path for machines without Windows Chrome: it
+ * captures the same four screens with Playwright's bundled Chromium at 1x,
+ * so the glyph rendering and the resolution differ from the committed set.
  *
  * Self-contained like the e2e config: unless PLAYWRIGHT_BASE_URL is set, it
  * migrates + reseeds the local database and starts the dev server itself, so
- * `npm run screenshots` works from a clean checkout (needs Docker for the
- * local database — see docs/setup/local.md).
+ * `npm run screenshots:fallback` works from a clean checkout (needs Docker
+ * for the local database — see docs/setup/local.md).
  *
  * Screenshots land in public/screenshots/ via explicit paths in
  * tests/screenshots/*.spec.ts.
