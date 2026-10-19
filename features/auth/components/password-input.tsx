@@ -36,16 +36,16 @@ export function PasswordInput({
             className={cn(
               "absolute size-4 transition-[opacity,transform] duration-200 [transition-timing-function:var(--motion-ease-standard)]",
               isVisible
-                ? "pointer-events-none scale-75 opacity-0 rotate-[-10deg]"
-                : "scale-100 opacity-100 rotate-0",
+                ? "scale-100 opacity-100 rotate-0"
+                : "pointer-events-none scale-75 opacity-0 rotate-[-10deg]",
             )}
           />
           <EyeOff
             className={cn(
               "absolute size-4 transition-[opacity,transform] duration-200 [transition-timing-function:var(--motion-ease-standard)]",
               isVisible
-                ? "scale-100 opacity-100 rotate-0"
-                : "pointer-events-none scale-75 opacity-0 rotate-[10deg]",
+                ? "pointer-events-none scale-75 opacity-0 rotate-[10deg]"
+                : "scale-100 opacity-100 rotate-0",
             )}
           />
         </span>
