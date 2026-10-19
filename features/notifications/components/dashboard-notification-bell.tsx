@@ -97,6 +97,17 @@ type SupabaseBrowserClient = ReturnType<
 >;
 type RealtimeChannel = ReturnType<SupabaseBrowserClient["channel"]>;
 
+let realtimeChannelSequence = 0;
+
+function createRealtimeChannelId() {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+
+  realtimeChannelSequence += 1;
+  return `${Date.now().toString(36)}-${realtimeChannelSequence.toString(36)}`;
+}
+
 export function DashboardNotificationBell({
   businessId,
   businessSlug,
@@ -188,6 +199,10 @@ export function DashboardNotificationBell({
     }
 
     let isActive = true;
+    // Supabase reuses channels by topic and `removeChannel()` is async, so a
+    // remount can observe the previous run's still-subscribed channel. A
+    // unique topic per effect run keeps listener registration independent.
+    const channelId = createRealtimeChannelId();
     let notificationChannel: RealtimeChannel | null = null;
     let stateChannel: RealtimeChannel | null = null;
     let inquiryChannel: RealtimeChannel | null = null;
@@ -272,6 +287,12 @@ export function DashboardNotificationBell({
 
       await supabase.realtime.setAuth(nextToken.token);
 
+      // The effect may have been cleaned up while setAuth was in flight. Do not
+      // create channels that the cleanup has already passed.
+      if (!isActive) {
+        return;
+      }
+
       const handleRealtimeNotification = (row: RealtimeNotificationRow) => {
         setView((currentView) => {
           if (currentView.items.some((item) => item.id === row.id)) {
@@ -331,7 +352,7 @@ export function DashboardNotificationBell({
       };
 
       notificationChannel = supabase
-        .channel(`business-notifications:${businessId}:${userId}`)
+        .channel(`business-notifications:${businessId}:${userId}:${channelId}`)
         .on(
           "postgres_changes",
           {
@@ -347,7 +368,7 @@ export function DashboardNotificationBell({
         .subscribe(handleSubscribeStatus("business_notifications"));
 
       stateChannel = supabase
-        .channel(`business-notification-states:${businessId}:${userId}`)
+        .channel(`business-notification-states:${businessId}:${userId}:${channelId}`)
         .on(
           "postgres_changes",
           {
@@ -375,7 +396,7 @@ export function DashboardNotificationBell({
         .subscribe(handleSubscribeStatus("business_notification_states"));
 
       inquiryChannel = supabase
-        .channel(`business-inquiries:${businessId}:${userId}`)
+        .channel(`business-inquiries:${businessId}:${userId}:${channelId}`)
         .on(
           "postgres_changes",
           {
@@ -397,7 +418,11 @@ export function DashboardNotificationBell({
       scheduleTokenRefresh(nextToken.expiresAt);
     }
 
-    void connectRealtime();
+    void connectRealtime().catch((error) => {
+      if (isActive) {
+        console.warn("[notifications] realtime connection failed", error);
+      }
+    });
 
     return () => {
       isActive = false;

@@ -24,6 +24,10 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 - Removed the analytics AI narrative summary card; the rebuilt tabs present the same period data directly.
 
+### Fixed
+
+- Dashboard notifications now subscribe with a fresh realtime channel topic on every mount, so an in-flight channel removal can no longer trigger the "cannot add `postgres_changes` callbacks after `subscribe()`" runtime error.
+
 ### Cleaned
 
 - Repo-wide refactor-only cleanup: kebab-case file conventions, hook colocations, dead-link fixes, stricter assistant quote limits, env-validated app URLs, avatar fetch-priority tuning, and open-source readiness files. No product behavior changes.
