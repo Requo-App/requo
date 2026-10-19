@@ -3,10 +3,14 @@ import {
   formatPointsDelta,
   formatRelativeDelta,
   formatSpeedDelta,
-  type KpiDeltaLabel,
-} from "@/features/analytics/utils";
+  type DeltaLabel,
+} from "@/features/analytics/lib/format";
 import type { getBusinessMoneySnapshot } from "@/features/businesses/queries";
-import type { getDashboardKpiComparison, getDashboardResponseTime, getFreeAnalytics } from "@/features/analytics/queries";
+import type {
+  DashboardKpiComparison,
+  DashboardResponseTime,
+  HomeAnalyticsSummary,
+} from "@/features/analytics/home-queries";
 import type { HomeKpiStat } from "@/features/businesses/components/home-kpi-cards";
 
 /**
@@ -30,7 +34,7 @@ export function formatHomeResponseTime(hours: number | null): string {
 }
 
 function deltaColorFromDirection(
-  delta: KpiDeltaLabel,
+  delta: DeltaLabel,
   inverted = false,
 ): HomeKpiStat["deltaColor"] {
   if (delta.direction === "flat") return "neutral";
@@ -45,9 +49,9 @@ export function buildHomeKpiStats({
   comparison,
 }: {
   money: Awaited<ReturnType<typeof getBusinessMoneySnapshot>>;
-  analytics: Awaited<ReturnType<typeof getFreeAnalytics>>;
-  responseTimeHours: Awaited<ReturnType<typeof getDashboardResponseTime>>["avgTimeToQuoteHours"];
-  comparison: Awaited<ReturnType<typeof getDashboardKpiComparison>>;
+  analytics: HomeAnalyticsSummary;
+  responseTimeHours: DashboardResponseTime["avgTimeToQuoteHours"];
+  comparison: DashboardKpiComparison;
 }): HomeKpiStat[] {
   const priorAcceptanceRate =
     comparison.quotesSentPrior > 0
@@ -70,7 +74,7 @@ export function buildHomeKpiStats({
   );
 
   const deltas: Array<{
-    delta: KpiDeltaLabel | null;
+    delta: DeltaLabel | null;
     deltaColor: HomeKpiStat["deltaColor"];
   }> = [
     { delta: moneyDelta, deltaColor: deltaColorFromDirection(moneyDelta) },

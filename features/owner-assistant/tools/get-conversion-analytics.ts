@@ -1,6 +1,6 @@
 /**
  * Get Conversion Analytics Tool
- * Requires Pro+ plan (analyticsConversion feature)
+ * Requires Pro+ plan (analyticsPerformance feature)
  */
 
 import { tool } from "ai";
@@ -39,7 +39,7 @@ export const getConversionAnalyticsTool = tool<
     const context = options.experimental_context as ToolExecutionContext;
 
     // Check plan access
-    if (!hasFeatureAccess(context.plan as BusinessPlan, "analyticsConversion")) {
+    if (!hasFeatureAccess(context.plan as BusinessPlan, "analyticsPerformance")) {
       return {
         type: "error",
         error: "PLAN_LIMIT",

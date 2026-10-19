@@ -1,48 +1,8 @@
 import "server-only";
 
-import {
-  and,
-  asc,
-  count,
-  desc,
-  eq,
-  gte,
-  isNotNull,
-  isNull,
-  lt,
-  lte,
-  or,
-  sql,
-} from "drizzle-orm";
+import { and, asc, eq, gte, isNotNull, isNull, lt, sql } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
-import { cache } from "react";
 
-import type {
-  AiUsageSummary,
-  BusinessAnalyticsData,
-  FollowUpSummary,
-  FormPerformanceRow,
-  FreeAnalyticsData,
-  FunnelStep,
-  ReferrerSource,
-  RevenueForecast,
-  MetricSparklineData,
-  OperationalAlerts,
-  ProAnalyticsData,
-  RevenueSummary,
-  TrendPoint,
-  WorkflowTimingData,
-} from "@/features/analytics/types";
-import { interpolateSparklineData } from "@/features/analytics/utils/sparkline-interpolation";
-import { formatWeekLabel } from "@/features/analytics/utils";
-import {
-  getNonDeletedQuoteCondition,
-  getOperationalQuoteCondition,
-} from "@/features/quotes/queries";
-import {
-  getEffectiveInquiryStatus,
-  getOperationalInquiryCondition,
-} from "@/features/inquiries/queries";
 import {
   getBusinessAnalyticsCacheTags,
   hotBusinessCacheLife,
@@ -51,1386 +11,3414 @@ import { withCircuitBreaker } from "@/lib/db/circuit-breaker";
 import { db, executeRows } from "@/lib/db/client";
 import {
   activityLogs,
-  aiTokenLogs,
+  aiAgentSessions,
+  analyticsAnnotations,
+  analyticsBenchmarks,
   analyticsDailyRollups,
   analyticsEvents,
+  analyticsGoalThresholds,
+  analyticsScheduledReports,
+  approvals,
   businessInquiryForms,
+  businessKnowledgeFiles,
+  businessMembers,
+  businessMemories,
   businesses,
+  changeOrders,
+  commercialScheduleItems,
+  commercialSchedules,
+  emailOutbox,
   followUps,
   inquiries,
+  invoices,
+  payments,
+  quoteScopeBlocks,
   quotes,
+  user,
 } from "@/lib/db/schema";
+import type { BusinessPlan } from "@/lib/plans/plans";
+import { getUsageLimit } from "@/lib/plans/usage-limits";
+import {
+  getActiveAutoFollowUpCount,
+  getMonthlyAutoFollowUpSendCount,
+  getMonthlyRequoQuoteSendCount,
+} from "@/lib/plans/usage";
+import { getMonthlyUsageSummary } from "@/lib/ai/usage-limiter";
+import {
+  buildAnalyticsBuckets,
+  formatBucketLabel,
+  type AnalyticsWindow,
+} from "@/features/analytics/lib/window";
+import { formatDayLabel, formatMonthLabel } from "@/features/analytics/lib/format";
+import {
+  ANALYTICS_GOAL_METRICS,
+  type AnalyticsGoalMetricKey,
+} from "@/features/analytics/lib/goal-metrics";
+import {
+  getBusinessFollowUpsPath,
+  getBusinessInquiriesPath,
+  getBusinessQuotesPath,
+} from "@/features/businesses/routes";
+import type {
+  AiImpactData,
+  AnalyticsAgingBucket,
+  AnalyticsAnnotation,
+  AnalyticsAttentionItem,
+  AnalyticsBenchmarkRow,
+  AnalyticsCohortRow,
+  AnalyticsFunnelStep,
+  AnalyticsGoalRow,
+  AnalyticsOutcomeSlice,
+  AnalyticsRankedItem,
+  AnalyticsScheduledReport,
+  AnalyticsSeriesPoint,
+  AnalyticsTimingMetric,
+  AnalyticsUsageMeter,
+  AgentFunnelData,
+  AutomationHealthData,
+  EmailDeliveryData,
+  FollowUpEffectivenessData,
+  FollowUpCohort,
+  FollowUpHealthData,
+  KnowledgeData,
+  OperationsData,
+  OverviewData,
+  OverviewPeriod,
+  OverviewReceivables,
+  PerformanceData,
+  ServicePerformanceRow,
+  TeamData,
+  TeamMemberRole,
+  TeamMemberRow,
+  VerticalWorkflowData,
+} from "@/features/analytics/types";
 
 // ---------------------------------------------------------------------------
-// Helpers
+// Primitives
 // ---------------------------------------------------------------------------
 
-const DEFAULT_SUMMARY_DAYS = 30;
-const TREND_WEEKS = 12;
+const RESPONSE_SLA_HOURS = 24;
 
-/** Preset range days mapped to cache-tag suffixes. */
-const PRESET_RANGE_MAP: Record<number, string> = {
-  7: "7d",
-  30: "30d",
-  90: "90d",
-};
-
-function subtractDays(date: Date, days: number) {
-  const d = new Date(date);
-  d.setUTCDate(d.getUTCDate() - days);
-  return d;
+function num(value: unknown): number {
+  if (value === null || value === undefined) return 0;
+  const parsed = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function startOfUtcWeek(date: Date) {
-  const d = new Date(date);
-  const day = d.getUTCDay();
-  d.setUTCHours(0, 0, 0, 0);
-  d.setUTCDate(d.getUTCDate() - ((day + 6) % 7));
-  return d;
+function numOrNull(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+  const parsed = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(parsed) ? Math.round(parsed * 10) / 10 : null;
 }
 
-function addUtcWeeks(date: Date, weeks: number) {
-  const d = new Date(date);
-  d.setUTCDate(d.getUTCDate() + weeks * 7);
-  return d;
+function rate(numerator: number, denominator: number): number {
+  return denominator > 0 ? numerator / denominator : 0;
 }
 
-function toIso(date: Date) {
+function toIso(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
-function roundHours(v: number | string | null | undefined) {
-  if (v === null || v === undefined) return null;
-  return Math.round(Number(v) * 10) / 10;
-}
-
-/**
- * Resolves the effective date window. When since/until are not provided,
- * defaults to the last DEFAULT_SUMMARY_DAYS (30) days.
- */
-function resolveDateWindow(since?: Date, until?: Date): { since: Date; until: Date } {
-  const effectiveUntil = until ?? new Date();
-  const effectiveSince = since ?? subtractDays(effectiveUntil, DEFAULT_SUMMARY_DAYS);
-  return { since: effectiveSince, until: effectiveUntil };
-}
-
-/**
- * Determines the cache range suffix for preset ranges. Returns the suffix
- * string (e.g. "7d", "30d", "90d") if the date window matches a preset,
- * or undefined for custom ranges (which bypass caching).
- */
-function detectPresetRange(since: Date, until: Date): string | undefined {
-  const diffMs = until.getTime() - since.getTime();
-  const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
-  return PRESET_RANGE_MAP[diffDays];
-}
-
-function buildDedupedFormViews(businessId: string, since?: Date) {
-  return db
-    .select({
-      businessInquiryFormId: analyticsEvents.businessInquiryFormId,
-      visitorHash: analyticsEvents.visitorHash,
-      occurredAt: sql<Date>`min(${analyticsEvents.occurredAt})`.as("occurred_at"),
-    })
-    .from(analyticsEvents)
-    .where(
-      and(
-        eq(analyticsEvents.businessId, businessId),
-        eq(analyticsEvents.eventType, "inquiry_form_viewed"),
-        isNotNull(analyticsEvents.businessInquiryFormId),
-        since ? gte(analyticsEvents.occurredAt, since) : undefined,
-      ),
-    )
-    .groupBy(
-      analyticsEvents.businessInquiryFormId,
-      analyticsEvents.visitorHash,
-      sql`date_trunc('second', ${analyticsEvents.occurredAt})`,
-    )
-    .as("deduped_form_views");
-}
-
-function buildFirstQuoteSq(businessId: string) {
-  return db
-    .select({
-      inquiryId: quotes.inquiryId,
-      firstQuoteAt: sql<Date>`min(${quotes.createdAt})`.as("first_quote_at"),
-    })
-    .from(quotes)
-    .where(
-      and(
-        eq(quotes.businessId, businessId),
-        isNotNull(quotes.inquiryId),
-        getNonDeletedQuoteCondition(),
-      ),
-    )
-    .groupBy(quotes.inquiryId)
-    .as("first_quote_sq");
-}
-
-function buildFirstResponseSq(businessId: string) {
-  return db
-    .select({
-      inquiryId: activityLogs.inquiryId,
-      firstResponseAt: sql<Date>`min(${activityLogs.createdAt})`.as("first_response_at"),
-    })
-    .from(activityLogs)
-    .where(
-      and(
-        eq(activityLogs.businessId, businessId),
-        isNotNull(activityLogs.inquiryId),
-        isNotNull(activityLogs.actorUserId),
-      ),
-    )
-    .groupBy(activityLogs.inquiryId)
-    .as("first_response_sq");
-}
-
-// ---------------------------------------------------------------------------
-// Free tier query
-// ---------------------------------------------------------------------------
-
-async function _getFreeAnalytics(
-  businessId: string,
-  since?: Date,
-  until?: Date,
-): Promise<FreeAnalyticsData> {
-  const { since: effectiveSince, until: effectiveUntil } = resolveDateWindow(since, until);
-  const rangeSuffix = detectPresetRange(effectiveSince, effectiveUntil);
-
-  // For preset ranges, use cross-request caching. Custom ranges query directly.
-  if (rangeSuffix) {
-    return withCircuitBreaker(
-      `dashboard:analytics-free:${businessId}:${rangeSuffix}`,
-      () => getFreeAnalyticsCached(businessId, effectiveSince, effectiveUntil, rangeSuffix),
-    );
-  }
-
-  return withCircuitBreaker(
-    `dashboard:analytics-free:${businessId}:custom`,
-    () => getFreeAnalyticsUncached(businessId, effectiveSince, effectiveUntil),
-  );
-}
-
-/**
- * Two-layer read (AGENTS.md "Performance & Caching"): the inner `"use cache"`
- * function handles cross-request reuse and tag invalidation, while this outer
- * `React.cache()` dedupes within a single request. Seven call sites read the
- * default window as `getFreeAnalytics(businessId)` — three of them in
- * `analytics-dashboard.tsx` alone — so without the outer layer one render
- * resolves the same cache entry repeatedly.
- *
- * `React.cache()` keys on argument identity, so the explicit-range callers
- * (which pass fresh `Date` objects) do not dedupe against each other. Those
- * are one call per request, so nothing is lost.
- */
-export const getFreeAnalytics = cache(_getFreeAnalytics);
-
-async function getFreeAnalyticsCached(
-  businessId: string,
-  since: Date,
-  until: Date,
-  rangeSuffix: string,
-): Promise<FreeAnalyticsData> {
-  "use cache";
-
-  cacheLife(hotBusinessCacheLife);
-  cacheTag(...getBusinessAnalyticsCacheTags(businessId, rangeSuffix));
-
-  return getFreeAnalyticsUncached(businessId, since, until);
-}
-
-async function getFreeAnalyticsUncached(
-  businessId: string,
-  since: Date,
-  _until: Date,
-): Promise<FreeAnalyticsData> {
-  const formViews = buildDedupedFormViews(businessId, since);
-
-  const firstQuoteSq = buildFirstQuoteSq(businessId);
-
-  const [viewRows, inquiryRows, quoteRows, followUpRows] = await Promise.all([
-    db
-      .select({
-        formViews: sql<number>`count(*)`,
-        uniqueVisitors: sql<number>`count(distinct ${formViews.visitorHash})`,
-      })
-      .from(formViews),
-    db
-      .select({
-        submissions: sql<number>`count(distinct ${inquiries.id})`,
-        withQuote: sql<number>`count(distinct ${inquiries.id}) filter (where ${firstQuoteSq.firstQuoteAt} is not null)`,
-      })
-      .from(inquiries)
-      .leftJoin(firstQuoteSq, eq(firstQuoteSq.inquiryId, inquiries.id))
-      .where(
-        and(
-          eq(inquiries.businessId, businessId),
-          gte(inquiries.submittedAt, since),
-          isNull(inquiries.deletedAt),
-        ),
-      ),
-    db
-      .select({
-        sent: sql<number>`count(distinct ${quotes.id}) filter (where ${quotes.sentAt} is not null and ${quotes.sentAt} >= ${since.toISOString()})`,
-        viewed: sql<number>`count(distinct ${quotes.id}) filter (where ${quotes.publicViewedAt} is not null and ${quotes.publicViewedAt} >= ${since.toISOString()})`,
-        accepted: sql<number>`count(distinct ${quotes.id}) filter (where ${quotes.status} = 'accepted' and ${quotes.acceptedAt} >= ${since.toISOString()})`,
-        rejected: sql<number>`count(distinct ${quotes.id}) filter (where ${quotes.status} = 'rejected' and ${quotes.customerRespondedAt} >= ${since.toISOString()})`,
-        expired: sql<number>`count(distinct ${quotes.id}) filter (where ${quotes.status} = 'expired')`,
-      })
-      .from(quotes)
-      .where(
-        and(
-          eq(quotes.businessId, businessId),
-          getNonDeletedQuoteCondition(),
-          or(
-            gte(quotes.sentAt, since),
-            gte(quotes.publicViewedAt, since),
-            gte(quotes.acceptedAt, since),
-            gte(quotes.customerRespondedAt, since),
-          ),
-        ),
-      ),
-    db
-      .select({
-        active: sql<number>`count(*) filter (where ${followUps.status} = 'pending')`,
-        overdue: sql<number>`count(*) filter (where ${followUps.status} = 'pending' and ${followUps.dueAt} < now())`,
-      })
-      .from(followUps)
-      .where(eq(followUps.businessId, businessId)),
-  ]);
-
-  const fv = Number(viewRows[0]?.formViews ?? 0);
-  const uv = Number(viewRows[0]?.uniqueVisitors ?? 0);
-  const submissions = Number(inquiryRows[0]?.submissions ?? 0);
-  const withQuote = Number(inquiryRows[0]?.withQuote ?? 0);
-  const sent = Number(quoteRows[0]?.sent ?? 0);
-  const viewed = Number(quoteRows[0]?.viewed ?? 0);
-  const accepted = Number(quoteRows[0]?.accepted ?? 0);
-  const rejected = Number(quoteRows[0]?.rejected ?? 0);
-  const expired = Number(quoteRows[0]?.expired ?? 0);
-  const activeFollowUps = Number(followUpRows[0]?.active ?? 0);
-  const overdueFollowUps = Number(followUpRows[0]?.overdue ?? 0);
-  const totalDecisions = accepted + rejected;
-
-  return {
-    formViews: fv,
-    uniqueVisitors: uv,
-    inquirySubmissions: submissions,
-    inquiriesWithQuote: withQuote,
-    quotesSent: sent,
-    quotesViewed: viewed,
-    quotesAccepted: accepted,
-    quotesRejected: rejected,
-    quotesExpired: expired,
-    formConversionRate: uv ? submissions / uv : 0,
-    inquiryToQuoteRate: submissions ? withQuote / submissions : 0,
-    quoteAcceptanceRate: sent ? accepted / sent : 0,
-    quoteViewRate: sent ? viewed / sent : 0,
-    winRate: totalDecisions ? accepted / totalDecisions : 0,
-    activeFollowUps,
-    overdueFollowUps,
-  };
-}
-
-// ---------------------------------------------------------------------------
-// Dashboard response time (lightweight, free-tier compatible)
-// ---------------------------------------------------------------------------
-
-export type DashboardResponseTime = {
-  /** Average hours from inquiry submission to first business response, or null when no data. */
-  avgResponseHours: number | null;
-  /** Average hours from inquiry submission to first quote created, or null when no data. */
-  avgTimeToQuoteHours: number | null;
-};
-
-async function _getDashboardResponseTime(
-  businessId: string,
-): Promise<DashboardResponseTime> {
-  return withCircuitBreaker(
-    `dashboard:response-time:${businessId}`,
-    () => getDashboardResponseTimeCached(businessId),
-  );
-}
-
-/**
- * Two-layer read (AGENTS.md "Performance & Caching"): the inner `"use cache"`
- * function handles cross-request reuse and tag invalidation, while this outer
- * `React.cache()` dedupes within a single request.
- */
-export const getDashboardResponseTime = cache(_getDashboardResponseTime);
-
-async function getDashboardResponseTimeCached(
-  businessId: string,
-): Promise<DashboardResponseTime> {
-  "use cache";
-
-  cacheLife(hotBusinessCacheLife);
-  cacheTag(...getBusinessAnalyticsCacheTags(businessId));
-
-  const since = subtractDays(new Date(), DEFAULT_SUMMARY_DAYS);
-  const firstResponse = buildFirstResponseSq(businessId);
-  const firstQuote = buildFirstQuoteSq(businessId);
-
-  const [rows] = await Promise.all([
-    db
-      .select({
-        avgFirstResponse: sql<number | null>`avg(extract(epoch from (${firstResponse.firstResponseAt} - ${inquiries.submittedAt})) / 3600) filter (where ${firstResponse.firstResponseAt} is not null)`,
-        avgToQuote: sql<number | null>`avg(extract(epoch from (${firstQuote.firstQuoteAt} - ${inquiries.submittedAt})) / 3600) filter (where ${firstQuote.firstQuoteAt} is not null)`,
-      })
-      .from(inquiries)
-      .leftJoin(firstResponse, eq(firstResponse.inquiryId, inquiries.id))
-      .leftJoin(firstQuote, eq(firstQuote.inquiryId, inquiries.id))
-      .where(and(eq(inquiries.businessId, businessId), gte(inquiries.submittedAt, since))),
-  ]);
-
-  return {
-    avgResponseHours: roundHours(rows[0]?.avgFirstResponse),
-    avgTimeToQuoteHours: roundHours(rows[0]?.avgToQuote),
-  };
-}
-
-// ---------------------------------------------------------------------------
-// Dashboard KPI comparison (previous 30-day window, for stat-card deltas)
-// ---------------------------------------------------------------------------
-
-export type DashboardKpiComparison = {
-  /** Value of quotes accepted in the previous 30-day window. */
-  wonInCentsPrior: number;
-  /** Count of quotes accepted in the previous 30-day window. */
-  wonCountPrior: number;
-  /** Quotes sent in the previous 30-day window. */
-  quotesSentPrior: number;
-  /** Quotes accepted in the previous 30-day window. */
-  quotesAcceptedPrior: number;
-  /** Avg hours from inquiry to first quote, previous window, or null when no data. */
-  avgTimeToQuoteHoursPrior: number | null;
-};
-
-/**
- * Period-over-period comparison for the home KPI row: the same four metrics,
- * measured over the 30-day window immediately before the current one
- * (30–60 days ago). Each predicate mirrors its current-window counterpart in
- * `getCachedBusinessMoneySnapshot` / `getFreeAnalytics` /
- * `getDashboardResponseTimeCached` so the delta is apples-to-apples.
- */
-async function _getDashboardKpiComparison(
-  businessId: string,
-): Promise<DashboardKpiComparison> {
-  return withCircuitBreaker(
-    `dashboard:kpi-comparison:${businessId}`,
-    () => getDashboardKpiComparisonCached(businessId),
-  );
-}
-
-/**
- * Two-layer read (AGENTS.md "Performance & Caching"): the inner `"use cache"`
- * function handles cross-request reuse and tag invalidation, while this outer
- * `React.cache()` dedupes within a single request.
- */
-export const getDashboardKpiComparison = cache(_getDashboardKpiComparison);
-
-async function getDashboardKpiComparisonCached(
-  businessId: string,
-): Promise<DashboardKpiComparison> {
-  "use cache";
-
-  cacheLife(hotBusinessCacheLife);
-  cacheTag(...getBusinessAnalyticsCacheTags(businessId));
-
+function todayStartUtc(): Date {
   const now = new Date();
-  const currentSince = subtractDays(now, DEFAULT_SUMMARY_DAYS);
-  const priorSince = subtractDays(now, DEFAULT_SUMMARY_DAYS * 2);
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+}
 
-  const firstQuote = buildFirstQuoteSq(businessId);
+function addUtcDays(date: Date, days: number): Date {
+  const next = new Date(date);
+  next.setUTCDate(next.getUTCDate() + days);
+  return next;
+}
 
-  const [wonRows, sentRows, acceptedRows, timingRows] = await Promise.all([
-    // Won value + count — mirrors the current-window accepted-quotes predicate
-    // in the money snapshot (operational, accepted, acceptedAt in window).
-    db
-      .select({
-        totalInCents: sql<number>`coalesce(sum(${quotes.totalInCents}), 0)`,
-        count: sql<number>`count(*)`,
-      })
-      .from(quotes)
-      .where(
-        and(
-          eq(quotes.businessId, businessId),
-          getOperationalQuoteCondition(),
-          eq(quotes.status, "accepted"),
-          gte(quotes.acceptedAt, priorSince),
-          lt(quotes.acceptedAt, currentSince),
-        ),
-      ),
-    // Sent count — mirrors the current-window sent predicate in free analytics.
-    db
-      .select({ sent: sql<number>`count(*)` })
-      .from(quotes)
-      .where(
-        and(
-          eq(quotes.businessId, businessId),
-          getNonDeletedQuoteCondition(),
-          isNotNull(quotes.sentAt),
-          gte(quotes.sentAt, priorSince),
-          lt(quotes.sentAt, currentSince),
-        ),
-      ),
-    // Accepted count — mirrors the current-window accepted predicate in free analytics.
-    db
-      .select({ accepted: sql<number>`count(*)` })
-      .from(quotes)
-      .where(
-        and(
-          eq(quotes.businessId, businessId),
-          getNonDeletedQuoteCondition(),
-          eq(quotes.status, "accepted"),
-          gte(quotes.acceptedAt, priorSince),
-          lt(quotes.acceptedAt, currentSince),
-        ),
-      ),
-    // Avg time to quote — same shape as getDashboardResponseTimeCached,
-    // windowed on the previous 30 days of inquiry submissions.
-    db
-      .select({
-        avgToQuote: sql<number | null>`avg(extract(epoch from (${firstQuote.firstQuoteAt} - ${inquiries.submittedAt})) / 3600) filter (where ${firstQuote.firstQuoteAt} is not null)`,
-      })
-      .from(inquiries)
-      .leftJoin(firstQuote, eq(firstQuote.inquiryId, inquiries.id))
-      .where(
-        and(
-          eq(inquiries.businessId, businessId),
-          gte(inquiries.submittedAt, priorSince),
-          lt(inquiries.submittedAt, currentSince),
-        ),
-      ),
-  ]);
+/**
+ * Cache-key suffix for a resolved window. Presets are stable for the whole
+ * UTC day; custom ranges never reach a cached function.
+ */
+function windowCacheSuffix(window: AnalyticsWindow): string {
+  return [
+    window.preset,
+    window.bucket,
+    toIso(window.since),
+    toIso(window.until),
+    window.comparison ? "cmp" : "nocmp",
+  ].join(":");
+}
 
+function emptyOverviewPeriod(): OverviewPeriod {
   return {
-    wonInCentsPrior: Number(wonRows[0]?.totalInCents ?? 0),
-    wonCountPrior: Number(wonRows[0]?.count ?? 0),
-    quotesSentPrior: Number(sentRows[0]?.sent ?? 0),
-    quotesAcceptedPrior: Number(acceptedRows[0]?.accepted ?? 0),
-    avgTimeToQuoteHoursPrior: roundHours(timingRows[0]?.avgToQuote),
+    visitors: 0,
+    formViews: 0,
+    inquiries: 0,
+    inquiriesWithQuote: 0,
+    quotesSent: 0,
+    quotesViewed: 0,
+    quotesResponded: 0,
+    quotesAccepted: 0,
+    quotesRejected: 0,
+    quotesExpired: 0,
+    winRate: 0,
+    acceptanceRate: 0,
+    revenueWonInCents: 0,
+    quotedValueInCents: 0,
+    collectedInCents: 0,
+    invoicedInCents: 0,
   };
 }
 
 // ---------------------------------------------------------------------------
-// Dashboard monthly revenue (revenue chart card, current vs. previous year)
+// Business metadata
 // ---------------------------------------------------------------------------
 
-export type MonthlyRevenuePoint = {
-  /** Short month label on the chart axis ("Jan"). */
-  label: string;
-  /** Accepted-quote revenue this year for the month, in cents. */
-  current: number;
-  /** Accepted-quote revenue for the same month a year earlier, in cents. */
-  previous: number;
-};
-
-export type DashboardMonthlyRevenue = {
-  /** Business default currency code the sums are denominated in. */
+export type AnalyticsBusinessMeta = {
   currency: string;
-  /** Twelve points, one per calendar month, oldest first. */
-  points: MonthlyRevenuePoint[];
+  plan: BusinessPlan;
+  industryCategory: string | null;
+  createdAt: Date;
 };
 
-const MONTH_LABELS = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
-];
-
-/**
- * Monthly accepted-quote revenue for the revenue chart card: each point is
- * one calendar month of this year against the same month a year earlier.
- * Mirrors the accepted-quotes predicate in the money snapshot (operational,
- * status accepted, windowed on acceptedAt) so the chart agrees with the
- * "Revenue won" KPI card above it.
- */
-async function _getDashboardMonthlyRevenue(
+async function getAnalyticsBusinessMetaUncached(
   businessId: string,
-): Promise<DashboardMonthlyRevenue> {
-  return withCircuitBreaker(
-    `dashboard:monthly-revenue:${businessId}`,
-    () => getDashboardMonthlyRevenueCached(businessId),
+): Promise<AnalyticsBusinessMeta> {
+  const [row] = await db
+    .select({
+      currency: businesses.defaultCurrency,
+      plan: businesses.plan,
+      industryCategory: businesses.industryCategory,
+      createdAt: businesses.createdAt,
+    })
+    .from(businesses)
+    .where(eq(businesses.id, businessId))
+    .limit(1);
+
+  return {
+    currency: row?.currency ?? "USD",
+    plan: (row?.plan as BusinessPlan | null) ?? "free",
+    industryCategory: row?.industryCategory ?? null,
+    createdAt: row?.createdAt ?? new Date(),
+  };
+}
+
+export async function getAnalyticsBusinessMeta(
+  businessId: string,
+): Promise<AnalyticsBusinessMeta> {
+  return withCircuitBreaker(`analytics:meta:${businessId}`, () =>
+    getAnalyticsBusinessMetaCached(businessId),
   );
 }
 
-/**
- * Two-layer read (AGENTS.md "Performance & Caching"): the inner `"use cache"`
- * function handles cross-request reuse and tag invalidation, while this outer
- * `React.cache()` dedupes within a single request.
- */
-export const getDashboardMonthlyRevenue = cache(_getDashboardMonthlyRevenue);
-
-async function getDashboardMonthlyRevenueCached(
+async function getAnalyticsBusinessMetaCached(
   businessId: string,
-): Promise<DashboardMonthlyRevenue> {
+): Promise<AnalyticsBusinessMeta> {
   "use cache";
 
   cacheLife(hotBusinessCacheLife);
   cacheTag(...getBusinessAnalyticsCacheTags(businessId));
 
-  const now = new Date();
-  const year = now.getUTCFullYear();
-  // Calendar-year windows: this year's months against the same months of
-  // last year, so the headline reads "revenue this year vs. last year" and
-  // the chart line ends at the current month.
-  const yearStart = new Date(Date.UTC(year, 0, 1));
-  const yearEnd = new Date(Date.UTC(year + 1, 0, 1));
-  const lastYearStart = new Date(Date.UTC(year - 1, 0, 1));
+  return getAnalyticsBusinessMetaUncached(businessId);
+}
 
-  const [currencyRow, revenueRows] = await Promise.all([
-    db
-      .select({ defaultCurrency: businesses.defaultCurrency })
-      .from(businesses)
-      .where(eq(businesses.id, businessId))
-      .limit(1),
-    // One scan over both years: each accepted quote lands in the calendar
-    // month of its acceptedAt, and the filter clause routes the sum to this
-    // year's or last year's series. Rows come back as one per month bucket.
-    db
-      .select({
-        monthIndex: sql<number>`extract(month from ${quotes.acceptedAt})::int - 1`,
-        currentTotal: sql<number>`coalesce(sum(${quotes.totalInCents}) filter (
-          where ${quotes.acceptedAt} >= ${yearStart.toISOString()}
-        ), 0)`,
-        previousTotal: sql<number>`coalesce(sum(${quotes.totalInCents}) filter (
-          where ${quotes.acceptedAt} < ${yearStart.toISOString()}
-        ), 0)`,
-      })
-      .from(quotes)
-      .where(
-        and(
-          eq(quotes.businessId, businessId),
-          getOperationalQuoteCondition(),
-          eq(quotes.status, "accepted"),
-          isNotNull(quotes.acceptedAt),
-          gte(quotes.acceptedAt, lastYearStart),
-          lt(quotes.acceptedAt, yearEnd),
-        ),
-      )
-      .groupBy(
-        sql`extract(month from ${quotes.acceptedAt})::int - 1`,
-      ),
-  ]);
+// ---------------------------------------------------------------------------
+// Daily series (rollups + live supplement for today)
+// ---------------------------------------------------------------------------
 
-  const sumsByMonth = new Map<number, { current: number; previous: number }>();
-  for (const row of revenueRows) {
-    sumsByMonth.set(Number(row.monthIndex), {
-      current: Number(row.currentTotal),
-      previous: Number(row.previousTotal),
-    });
-  }
+type DailyMetricRow = {
+  date: string;
+  formViews: number;
+  uniqueVisitors: number;
+  inquirySubmissions: number;
+  quotesSent: number;
+  quotesAccepted: number;
+  quotesRejected: number;
+  revenueCents: number;
+};
 
-  const points: MonthlyRevenuePoint[] = MONTH_LABELS.map((label, month) => ({
-    label,
-    current: sumsByMonth.get(month)?.current ?? 0,
-    previous: sumsByMonth.get(month)?.previous ?? 0,
-  }));
-
+function emptyDailyRow(date: string): DailyMetricRow {
   return {
-    currency: currencyRow[0]?.defaultCurrency ?? "USD",
-    points,
+    date,
+    formViews: 0,
+    uniqueVisitors: 0,
+    inquirySubmissions: 0,
+    quotesSent: 0,
+    quotesAccepted: 0,
+    quotesRejected: 0,
+    revenueCents: 0,
   };
 }
 
-// ---------------------------------------------------------------------------
-// Sparkline data for basic metrics
-// ---------------------------------------------------------------------------
-
-export async function getBasicSparklineData(
+async function loadRollupDailies(
   businessId: string,
-  since?: Date,
-  until?: Date,
-): Promise<MetricSparklineData> {
-  const { since: effectiveSince, until: effectiveUntil } = resolveDateWindow(since, until);
-  const rangeSuffix = detectPresetRange(effectiveSince, effectiveUntil);
-
-  if (rangeSuffix) {
-    return withCircuitBreaker(
-      `dashboard:sparkline:${businessId}:${rangeSuffix}`,
-      () => getBasicSparklineDataCached(businessId, effectiveSince, effectiveUntil, rangeSuffix),
-    );
-  }
-
-  return withCircuitBreaker(
-    `dashboard:sparkline:${businessId}:custom`,
-    () => getBasicSparklineDataUncached(businessId, effectiveSince, effectiveUntil),
-  );
-}
-
-async function getBasicSparklineDataCached(
-  businessId: string,
-  since: Date,
-  until: Date,
-  rangeSuffix: string,
-): Promise<MetricSparklineData> {
-  "use cache";
-
-  cacheLife(hotBusinessCacheLife);
-  cacheTag(...getBusinessAnalyticsCacheTags(businessId, `sparkline:${rangeSuffix}`));
-
-  return getBasicSparklineDataUncached(businessId, since, until);
-}
-
-async function getBasicSparklineDataUncached(
-  businessId: string,
-  since: Date,
-  until: Date,
-): Promise<MetricSparklineData> {
+  sinceIso: string,
+  untilIso: string,
+): Promise<Map<string, DailyMetricRow>> {
   const rows = await db
     .select({
       date: analyticsDailyRollups.date,
       formViews: analyticsDailyRollups.formViews,
+      uniqueVisitors: analyticsDailyRollups.uniqueVisitors,
       inquirySubmissions: analyticsDailyRollups.inquirySubmissions,
       quotesSent: analyticsDailyRollups.quotesSent,
       quotesAccepted: analyticsDailyRollups.quotesAccepted,
       quotesRejected: analyticsDailyRollups.quotesRejected,
+      revenueCents: analyticsDailyRollups.revenueCents,
     })
     .from(analyticsDailyRollups)
     .where(
       and(
         eq(analyticsDailyRollups.businessId, businessId),
-        gte(analyticsDailyRollups.date, toIso(since)),
-        lte(analyticsDailyRollups.date, toIso(until)),
+        gte(analyticsDailyRollups.date, sinceIso),
+        lt(analyticsDailyRollups.date, untilIso),
       ),
     )
     .orderBy(asc(analyticsDailyRollups.date));
 
-  const toDailyValues = (extractor: (row: (typeof rows)[number]) => number) =>
-    rows.map((r) => ({ date: r.date, value: extractor(r) }));
-
-  return {
-    formViews: interpolateSparklineData(toDailyValues((r) => r.formViews), since, until),
-    inquirySubmissions: interpolateSparklineData(toDailyValues((r) => r.inquirySubmissions), since, until),
-    quotesSent: interpolateSparklineData(toDailyValues((r) => r.quotesSent), since, until),
-    quotesAccepted: interpolateSparklineData(toDailyValues((r) => r.quotesAccepted), since, until),
-    quotesRejected: interpolateSparklineData(toDailyValues((r) => r.quotesRejected), since, until),
-    quotesViewed: interpolateSparklineData(
-      // Daily rollups don't have quotesViewed, fall back to empty (renders as flat zeros)
-      [],
-      since,
-      until,
-    ),
-  };
-}
-
-// ---------------------------------------------------------------------------
-// Pro tier query
-// ---------------------------------------------------------------------------
-
-export async function getProAnalytics(
-  businessId: string,
-  since?: Date,
-  until?: Date,
-): Promise<ProAnalyticsData> {
-  const { since: effectiveSince, until: effectiveUntil } = resolveDateWindow(since, until);
-  const rangeSuffix = detectPresetRange(effectiveSince, effectiveUntil);
-
-  if (rangeSuffix) {
-    return withCircuitBreaker(
-      `dashboard:analytics-pro:${businessId}:${rangeSuffix}`,
-      () => getProAnalyticsCached(businessId, effectiveSince, effectiveUntil, rangeSuffix),
-    );
-  }
-
-  return withCircuitBreaker(
-    `dashboard:analytics-pro:${businessId}:custom`,
-    () => getProAnalyticsUncached(businessId, effectiveSince, effectiveUntil),
-  );
-}
-
-async function getProAnalyticsCached(
-  businessId: string,
-  since: Date,
-  until: Date,
-  rangeSuffix: string,
-): Promise<ProAnalyticsData> {
-  "use cache";
-
-  cacheLife(hotBusinessCacheLife);
-  cacheTag(...getBusinessAnalyticsCacheTags(businessId, rangeSuffix));
-
-  return getProAnalyticsUncached(businessId, since, until);
-}
-
-async function getProAnalyticsUncached(
-  businessId: string,
-  since: Date,
-  until: Date,
-): Promise<ProAnalyticsData> {
-  const summaryDays = Math.round((until.getTime() - since.getTime()) / (1000 * 60 * 60 * 24));
-  const priorStart = subtractDays(since, summaryDays);
-  const trendStart = addUtcWeeks(startOfUtcWeek(until), -(TREND_WEEKS - 1));
-  const formViewsPrior = buildDedupedFormViews(businessId, priorStart);
-  const firstQuote = buildFirstQuoteSq(businessId);
-
-  // Prior period
-  const [priorFormRows, priorInqRows, priorQuoteRows] = await Promise.all([
-    db
-      .select({
-        formViews: sql<number>`count(*)`,
-      })
-      .from(formViewsPrior)
-      .where(lt(formViewsPrior.occurredAt, sql`${since.toISOString()}::timestamp`)),
-    db
-      .select({ count: sql<number>`count(distinct ${inquiries.id})` })
-      .from(inquiries)
-      .where(
-        and(
-          eq(inquiries.businessId, businessId),
-          gte(inquiries.submittedAt, priorStart),
-          lt(inquiries.submittedAt, since),
-        ),
-      ),
-    db
-      .select({
-        sent: sql<number>`count(distinct ${quotes.id}) filter (where ${quotes.sentAt} >= ${priorStart.toISOString()} and ${quotes.sentAt} < ${since.toISOString()})`,
-        accepted: sql<number>`count(distinct ${quotes.id}) filter (where ${quotes.status} = 'accepted' and ${quotes.acceptedAt} >= ${priorStart.toISOString()} and ${quotes.acceptedAt} < ${since.toISOString()})`,
-      })
-      .from(quotes)
-      .where(
-        and(
-          eq(quotes.businessId, businessId),
-          getNonDeletedQuoteCondition(),
-          or(
-            and(gte(quotes.sentAt, priorStart), lt(quotes.sentAt, since)),
-            and(gte(quotes.acceptedAt, priorStart), lt(quotes.acceptedAt, since)),
-          ),
-        ),
-      ),
-  ]);
-
-  // Trends — reads from daily rollup table for complete past days, and falls
-  // back to raw event scan for the current (partial) day. Results are combined
-  // and grouped by week for the final trend output.
-  const today = new Date();
-  const todayIso = toIso(today);
-  const trendStartIso = toIso(trendStart);
-
-  // Determine if we need a partial-day supplement for today
-  const todayIsInRange = today >= trendStart;
-
-  // Read complete days from the rollup table (excludes today since it's partial)
-  const rollupRows = await db
-    .select({
-      date: analyticsDailyRollups.date,
-      formViews: analyticsDailyRollups.formViews,
-      inquirySubmissions: analyticsDailyRollups.inquirySubmissions,
-      quotesSent: analyticsDailyRollups.quotesSent,
-      quotesAccepted: analyticsDailyRollups.quotesAccepted,
-    })
-    .from(analyticsDailyRollups)
-    .where(
-      and(
-        eq(analyticsDailyRollups.businessId, businessId),
-        gte(analyticsDailyRollups.date, trendStartIso),
-        lt(analyticsDailyRollups.date, todayIso),
-      ),
-    )
-    .orderBy(asc(analyticsDailyRollups.date));
-
-  // For the current day (partial), query raw events in real-time
-  let todayData = { formViews: 0, inquirySubmissions: 0, quotesSent: 0, acceptedQuotes: 0 };
-  if (todayIsInRange) {
-    const todayRows = (await executeRows<{
-      form_views: string;
-      inquiry_submissions: string;
-      quotes_sent: string;
-      accepted_quotes: string;
-    }>(sql`
-      WITH today_events AS (
-        SELECT occurred_at AS ts, 'form_view' AS metric
-        FROM (
-          SELECT min(${analyticsEvents.occurredAt}) AS occurred_at
-          FROM ${analyticsEvents}
-          WHERE ${analyticsEvents.businessId} = ${businessId}
-            AND ${analyticsEvents.eventType} = 'inquiry_form_viewed'
-            AND ${analyticsEvents.businessInquiryFormId} IS NOT NULL
-            AND ${analyticsEvents.occurredAt} >= ${todayIso}::timestamp
-          GROUP BY ${analyticsEvents.businessInquiryFormId}, ${analyticsEvents.visitorHash}, date_trunc('second', ${analyticsEvents.occurredAt})
-        ) deduped
-
-        UNION ALL
-
-        SELECT ${inquiries.submittedAt} AS ts, 'inquiry' AS metric
-        FROM ${inquiries}
-        WHERE ${inquiries.businessId} = ${businessId}
-          AND ${inquiries.submittedAt} >= ${todayIso}::timestamp
-
-        UNION ALL
-
-        SELECT ${quotes.sentAt} AS ts, 'sent' AS metric
-        FROM ${quotes}
-        WHERE ${quotes.businessId} = ${businessId}
-          AND ${quotes.deletedAt} IS NULL
-          AND ${quotes.sentAt} IS NOT NULL
-          AND ${quotes.sentAt} >= ${todayIso}::timestamp
-
-        UNION ALL
-
-        SELECT ${quotes.acceptedAt} AS ts, 'accepted' AS metric
-        FROM ${quotes}
-        WHERE ${quotes.businessId} = ${businessId}
-          AND ${quotes.deletedAt} IS NULL
-          AND ${quotes.acceptedAt} IS NOT NULL
-          AND ${quotes.acceptedAt} >= ${todayIso}::timestamp
-      )
-      SELECT
-        count(*) FILTER (WHERE metric = 'form_view') AS form_views,
-        count(*) FILTER (WHERE metric = 'inquiry') AS inquiry_submissions,
-        count(*) FILTER (WHERE metric = 'sent') AS quotes_sent,
-        count(*) FILTER (WHERE metric = 'accepted') AS accepted_quotes
-      FROM today_events
-    `))[0];
-    if (todayRows) {
-      const row = todayRows as unknown as {
-        form_views: string;
-        inquiry_submissions: string;
-        quotes_sent: string;
-        accepted_quotes: string;
-      };
-      todayData = {
-        formViews: Number(row.form_views),
-        inquirySubmissions: Number(row.inquiry_submissions),
-        quotesSent: Number(row.quotes_sent),
-        acceptedQuotes: Number(row.accepted_quotes),
-      };
-    }
-  }
-
-  // Build a daily map combining rollup data + today's partial data
-  const dailyMap = new Map<string, { formViews: number; inquirySubmissions: number; quotesSent: number; acceptedQuotes: number }>();
-  for (const row of rollupRows) {
-    dailyMap.set(row.date, {
+  const map = new Map<string, DailyMetricRow>();
+  for (const row of rows) {
+    map.set(row.date, {
+      date: row.date,
       formViews: row.formViews,
+      uniqueVisitors: row.uniqueVisitors,
       inquirySubmissions: row.inquirySubmissions,
       quotesSent: row.quotesSent,
-      acceptedQuotes: row.quotesAccepted,
+      quotesAccepted: row.quotesAccepted,
+      quotesRejected: row.quotesRejected,
+      revenueCents: row.revenueCents,
     });
   }
-  if (todayIsInRange) {
-    dailyMap.set(todayIso, todayData);
-  }
-
-  // Aggregate daily data into weekly buckets
-  const trendMap = new Map<string, { formViews: number; inquirySubmissions: number; quotesSent: number; acceptedQuotes: number }>();
-  for (const [dateStr, data] of dailyMap) {
-    const d = new Date(dateStr + "T00:00:00Z");
-    const weekStart = toIso(startOfUtcWeek(d));
-    const existing = trendMap.get(weekStart);
-    if (existing) {
-      existing.formViews += data.formViews;
-      existing.inquirySubmissions += data.inquirySubmissions;
-      existing.quotesSent += data.quotesSent;
-      existing.acceptedQuotes += data.acceptedQuotes;
-    } else {
-      trendMap.set(weekStart, { ...data });
-    }
-  }
-
-  const trend: TrendPoint[] = Array.from({ length: TREND_WEEKS }).map((_, i) => {
-    const ws = addUtcWeeks(startOfUtcWeek(trendStart), i);
-    const iso = toIso(ws);
-    const data = trendMap.get(iso);
-    return {
-      label: formatWeekLabel(ws),
-      weekStart: iso,
-      formViews: data?.formViews ?? 0,
-      inquirySubmissions: data?.inquirySubmissions ?? 0,
-      quotesSent: data?.quotesSent ?? 0,
-      acceptedQuotes: data?.acceptedQuotes ?? 0,
-    };
-  });
-
-  // Funnel (reuse free data or compute fresh — here we compute inline)
-  const freeFormViews = buildDedupedFormViews(businessId, since);
-  const [funnelView, funnelInq, funnelQuote] = await Promise.all([
-    db.select({ uv: sql<number>`count(distinct ${freeFormViews.visitorHash})` }).from(freeFormViews),
-    db
-      .select({
-        submissions: sql<number>`count(distinct ${inquiries.id})`,
-        withQuote: sql<number>`count(distinct ${inquiries.id}) filter (where ${firstQuote.firstQuoteAt} is not null)`,
-      })
-      .from(inquiries)
-      .leftJoin(firstQuote, eq(firstQuote.inquiryId, inquiries.id))
-      .where(and(eq(inquiries.businessId, businessId), gte(inquiries.submittedAt, since))),
-    db
-      .select({
-        accepted: sql<number>`count(distinct ${quotes.id}) filter (where ${quotes.status} = 'accepted' and ${quotes.acceptedAt} >= ${since.toISOString()})`,
-      })
-      .from(quotes)
-      .where(and(eq(quotes.businessId, businessId), getNonDeletedQuoteCondition())),
-  ]);
-
-  const funnel: FunnelStep[] = [
-    { label: "Visitors", count: Number(funnelView[0]?.uv ?? 0) },
-    { label: "Submissions", count: Number(funnelInq[0]?.submissions ?? 0) },
-    { label: "Quoted", count: Number(funnelInq[0]?.withQuote ?? 0) },
-    { label: "Accepted", count: Number(funnelQuote[0]?.accepted ?? 0) },
-  ];
-
-  // Form performance
-  const formViewStats = buildDedupedFormViews(businessId, since);
-  const fvStatsSq = db
-    .select({
-      formId: formViewStats.businessInquiryFormId,
-      viewCount: sql<number>`count(*)`.as("view_count"),
-      uvCount: sql<number>`count(distinct ${formViewStats.visitorHash})`.as("uv_count"),
-    })
-    .from(formViewStats)
-    .groupBy(formViewStats.businessInquiryFormId)
-    .as("fv_stats");
-
-  const formPipeline = db
-    .select({
-      formId: inquiries.businessInquiryFormId,
-      submissionCount: sql<number>`count(distinct ${inquiries.id})`.as("sub_count"),
-      sentCount: sql<number>`count(distinct ${quotes.id}) filter (where ${quotes.sentAt} is not null)`.as("sent_count"),
-      acceptedCount: sql<number>`count(distinct ${quotes.id}) filter (where ${quotes.status} = 'accepted')`.as("acc_count"),
-    })
-    .from(inquiries)
-    .leftJoin(
-      quotes,
-      and(
-        eq(quotes.businessId, businessId),
-        eq(quotes.inquiryId, inquiries.id),
-        getNonDeletedQuoteCondition(),
-      ),
-    )
-    .where(and(eq(inquiries.businessId, businessId), gte(inquiries.submittedAt, since)))
-    .groupBy(inquiries.businessInquiryFormId)
-    .as("form_pipeline");
-
-  const formRows = await db
-    .select({
-      formId: businessInquiryForms.id,
-      formName: businessInquiryForms.name,
-      formSlug: businessInquiryForms.slug,
-      isDefault: businessInquiryForms.isDefault,
-      publicInquiryEnabled: businessInquiryForms.publicInquiryEnabled,
-      archivedAt: businessInquiryForms.archivedAt,
-      viewCount: sql<number>`coalesce(${fvStatsSq.viewCount}, 0)`,
-      uvCount: sql<number>`coalesce(${fvStatsSq.uvCount}, 0)`,
-      subCount: sql<number>`coalesce(${formPipeline.submissionCount}, 0)`,
-      sentCount: sql<number>`coalesce(${formPipeline.sentCount}, 0)`,
-      accCount: sql<number>`coalesce(${formPipeline.acceptedCount}, 0)`,
-    })
-    .from(businessInquiryForms)
-    .leftJoin(fvStatsSq, eq(fvStatsSq.formId, businessInquiryForms.id))
-    .leftJoin(formPipeline, eq(formPipeline.formId, businessInquiryForms.id))
-    .where(eq(businessInquiryForms.businessId, businessId))
-    .orderBy(
-      asc(businessInquiryForms.archivedAt),
-      sql`coalesce(${formPipeline.submissionCount}, 0) desc`,
-      desc(businessInquiryForms.isDefault),
-    );
-
-  const formPerformance: FormPerformanceRow[] = formRows.map((r) => {
-    const vc = Number(r.viewCount);
-    const uv = Number(r.uvCount);
-    const sub = Number(r.subCount);
-    const sent = Number(r.sentCount);
-    const acc = Number(r.accCount);
-    return {
-      formId: r.formId,
-      formName: r.formName,
-      formSlug: r.formSlug,
-      isDefault: r.isDefault,
-      publicInquiryEnabled: r.publicInquiryEnabled,
-      archivedAt: r.archivedAt,
-      viewCount: vc,
-      uniqueVisitorCount: uv,
-      submissionCount: sub,
-      sentQuoteCount: sent,
-      acceptedQuoteCount: acc,
-      formConversionRate: uv ? sub / uv : 0,
-      quoteAcceptanceRate: sent ? acc / sent : 0,
-    };
-  });
-
-  return {
-    priorPeriod: {
-      formViews: Number(priorFormRows[0]?.formViews ?? 0),
-      inquirySubmissions: Number(priorInqRows[0]?.count ?? 0),
-      quotesSent: Number(priorQuoteRows[0]?.sent ?? 0),
-      quotesAccepted: Number(priorQuoteRows[0]?.accepted ?? 0),
-    },
-    trend,
-    funnel,
-    formPerformance,
-  };
+  return map;
 }
 
-// ---------------------------------------------------------------------------
-// Business tier query
-// ---------------------------------------------------------------------------
-
-export async function getBusinessAnalytics(
+/**
+ * Today's counters straight from the source tables. Rollups only cover
+ * complete past days, so the current (partial) day is always read live.
+ */
+async function loadLiveDayDaily(
   businessId: string,
-  since?: Date,
-  until?: Date,
-): Promise<BusinessAnalyticsData> {
-  const { since: effectiveSince, until: effectiveUntil } = resolveDateWindow(since, until);
-  const rangeSuffix = detectPresetRange(effectiveSince, effectiveUntil);
+  dayStart: Date,
+): Promise<DailyMetricRow> {
+  const dayStartIso = dayStart.toISOString();
+  const row: DailyMetricRow = emptyDailyRow(toIso(dayStart));
 
-  if (rangeSuffix) {
-    return withCircuitBreaker(
-      `dashboard:analytics-business:${businessId}:${rangeSuffix}`,
-      () => getBusinessAnalyticsCached(businessId, effectiveSince, effectiveUntil, rangeSuffix),
-    );
-  }
+  const [viewRows, inquiryRows, quoteRows, acceptedRows, revenueRows] =
+    await Promise.all([
+      executeRows<{ form_views: string | number; unique_visitors: string | number }>(sql`
+        select
+          count(*)::int as form_views,
+          count(distinct visitor_hash)::int as unique_visitors
+        from (
+          select ${analyticsEvents.visitorHash} as visitor_hash
+          from ${analyticsEvents}
+          where ${analyticsEvents.businessId} = ${businessId}
+            and ${analyticsEvents.eventType} = 'inquiry_form_viewed'
+            and ${analyticsEvents.businessInquiryFormId} is not null
+            and ${analyticsEvents.occurredAt} >= ${dayStartIso}
+          group by
+            ${analyticsEvents.businessInquiryFormId},
+            ${analyticsEvents.visitorHash},
+            date_trunc('second', ${analyticsEvents.occurredAt})
+        ) deduped
+      `),
+      db
+        .select({ value: sql<number>`count(*)` })
+        .from(inquiries)
+        .where(
+          and(
+            eq(inquiries.businessId, businessId),
+            isNull(inquiries.deletedAt),
+            gte(inquiries.submittedAt, dayStart),
+          ),
+        ),
+      db
+        .select({
+          sent: sql<number>`count(*)`,
+          rejected: sql<number>`count(*) filter (where ${quotes.status} = 'rejected')`,
+        })
+        .from(quotes)
+        .where(
+          and(
+            eq(quotes.businessId, businessId),
+            isNull(quotes.deletedAt),
+            isNotNull(quotes.sentAt),
+            gte(quotes.sentAt, dayStart),
+          ),
+        ),
+      db
+        .select({ value: sql<number>`count(*)` })
+        .from(quotes)
+        .where(
+          and(
+            eq(quotes.businessId, businessId),
+            isNull(quotes.deletedAt),
+            gte(quotes.acceptedAt, dayStart),
+          ),
+        ),
+      db
+        .select({ value: sql<number>`coalesce(sum(${quotes.totalInCents}), 0)` })
+        .from(quotes)
+        .where(
+          and(
+            eq(quotes.businessId, businessId),
+            isNull(quotes.deletedAt),
+            gte(quotes.acceptedAt, dayStart),
+          ),
+        ),
+    ]);
 
-  return withCircuitBreaker(
-    `dashboard:analytics-business:${businessId}:custom`,
-    () => getBusinessAnalyticsUncached(businessId, effectiveSince, effectiveUntil),
-  );
+  row.formViews = num(viewRows[0]?.form_views);
+  row.uniqueVisitors = num(viewRows[0]?.unique_visitors);
+  row.inquirySubmissions = num(inquiryRows[0]?.value);
+  row.quotesSent = num(quoteRows[0]?.sent);
+  row.quotesRejected = num(quoteRows[0]?.rejected);
+  row.quotesAccepted = num(acceptedRows[0]?.value);
+  row.revenueCents = num(revenueRows[0]?.value);
+  return row;
 }
 
-async function getBusinessAnalyticsCached(
+function sumDailies(
+  buckets: ReturnType<typeof buildAnalyticsBuckets>,
+  dailies: Map<string, DailyMetricRow>,
+): DailyMetricRow[] {
+  return buckets.map((bucket) => {
+    const startIso = toIso(bucket.start);
+    const endIso = toIso(bucket.end);
+    const sum = emptyDailyRow(bucket.key);
+
+    for (const daily of dailies.values()) {
+      if (daily.date >= startIso && daily.date < endIso) {
+        sum.formViews += daily.formViews;
+        sum.uniqueVisitors += daily.uniqueVisitors;
+        sum.inquirySubmissions += daily.inquirySubmissions;
+        sum.quotesSent += daily.quotesSent;
+        sum.quotesAccepted += daily.quotesAccepted;
+        sum.quotesRejected += daily.quotesRejected;
+        sum.revenueCents += daily.revenueCents;
+      }
+    }
+
+    return sum;
+  });
+}
+
+async function buildSeries(
+  businessId: string,
+  window: AnalyticsWindow,
+): Promise<AnalyticsSeriesPoint[]> {
+  const currentBuckets = buildAnalyticsBuckets(window);
+  const currentDailies = await loadRollupDailies(
+    businessId,
+    toIso(window.since),
+    toIso(window.until),
+  );
+
+  const today = todayStartUtc();
+  const todayIso = toIso(today);
+  if (todayIso >= toIso(window.since) && todayIso < toIso(window.until)) {
+    currentDailies.set(todayIso, await loadLiveDayDaily(businessId, today));
+  }
+
+  const currentSums = sumDailies(currentBuckets, currentDailies);
+
+  let priorSums: DailyMetricRow[] | null = null;
+  if (window.comparison) {
+    const priorWindow = {
+      since: window.comparison.since,
+      until: window.comparison.until,
+      bucket: window.bucket,
+    };
+    const priorBuckets = buildAnalyticsBuckets(priorWindow);
+    const priorDailies = await loadRollupDailies(
+      businessId,
+      toIso(priorWindow.since),
+      toIso(priorWindow.until),
+    );
+    priorSums = sumDailies(priorBuckets, priorDailies);
+  }
+
+  return currentBuckets.map((bucket, index) => {
+    const current = currentSums[index] ?? emptyDailyRow(bucket.key);
+    const prior = priorSums?.[index] ?? null;
+
+    return {
+      key: bucket.key,
+      label: formatBucketLabel(bucket.key, window.bucket, {
+        day: formatDayLabel,
+        month: formatMonthLabel,
+      }),
+      visitors: current.uniqueVisitors,
+      formViews: current.formViews,
+      inquiries: current.inquirySubmissions,
+      quotesSent: current.quotesSent,
+      quotesAccepted: current.quotesAccepted,
+      quotesRejected: current.quotesRejected,
+      revenueInCents: current.revenueCents,
+      priorVisitors: prior ? prior.uniqueVisitors : null,
+      priorInquiries: prior ? prior.inquirySubmissions : null,
+      priorQuotesSent: prior ? prior.quotesSent : null,
+      priorRevenueInCents: prior ? prior.revenueCents : null,
+    };
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Overview
+// ---------------------------------------------------------------------------
+
+export async function getOverviewPeriodRows(
   businessId: string,
   since: Date,
   until: Date,
-  rangeSuffix: string,
-): Promise<BusinessAnalyticsData> {
+): Promise<OverviewPeriod> {
+  const sinceIso = since.toISOString();
+  const untilIso = until.toISOString();
+  const sinceDate = toIso(since);
+  const untilDate = toIso(until);
+
+  const [views, inquiryRows, quoteRows, acceptedRows, collectedRows, invoicedRows] =
+    await Promise.all([
+      executeRows<{ form_views: string | number; visitors: string | number }>(sql`
+        select
+          count(*)::int as form_views,
+          count(distinct visitor_hash)::int as visitors
+        from (
+          select ${analyticsEvents.visitorHash} as visitor_hash
+          from ${analyticsEvents}
+          where ${analyticsEvents.businessId} = ${businessId}
+            and ${analyticsEvents.eventType} = 'inquiry_form_viewed'
+            and ${analyticsEvents.businessInquiryFormId} is not null
+            and ${analyticsEvents.occurredAt} >= ${sinceIso}
+            and ${analyticsEvents.occurredAt} < ${untilIso}
+          group by
+            ${analyticsEvents.businessInquiryFormId},
+            ${analyticsEvents.visitorHash},
+            date_trunc('second', ${analyticsEvents.occurredAt})
+        ) deduped
+      `),
+      executeRows<{ inquiries: string | number; with_quote: string | number }>(sql`
+        select
+          count(*)::int as inquiries,
+          count(*) filter (where exists (
+            select 1 from ${quotes}
+            where ${quotes.inquiryId} = ${inquiries.id}
+              and ${quotes.deletedAt} is null
+              and ${quotes.sentAt} is not null
+          ))::int as with_quote
+        from ${inquiries}
+        where ${inquiries.businessId} = ${businessId}
+          and ${inquiries.deletedAt} is null
+          and ${inquiries.submittedAt} >= ${sinceIso}
+          and ${inquiries.submittedAt} < ${untilIso}
+      `),
+      executeRows<{
+        sent: string | number;
+        viewed: string | number;
+        responded: string | number;
+        accepted: string | number;
+        rejected: string | number;
+        expired: string | number;
+        quoted_value: string | number;
+      }>(sql`
+        select
+          count(*)::int as sent,
+          count(*) filter (where ${quotes.publicViewedAt} is not null)::int as viewed,
+          count(*) filter (where ${quotes.customerRespondedAt} is not null)::int as responded,
+          count(*) filter (where ${quotes.status} = 'accepted')::int as accepted,
+          count(*) filter (where ${quotes.status} = 'rejected')::int as rejected,
+          count(*) filter (where ${quotes.status} = 'expired')::int as expired,
+          coalesce(sum(${quotes.totalInCents}), 0)::bigint as quoted_value
+        from ${quotes}
+        where ${quotes.businessId} = ${businessId}
+          and ${quotes.deletedAt} is null
+          and ${quotes.sentAt} is not null
+          and ${quotes.sentAt} >= ${sinceIso}
+          and ${quotes.sentAt} < ${untilIso}
+      `),
+      executeRows<{ value: string | number }>(sql`
+        select coalesce(sum(${quotes.totalInCents}), 0)::bigint as value
+        from ${quotes}
+        where ${quotes.businessId} = ${businessId}
+          and ${quotes.deletedAt} is null
+          and ${quotes.status} = 'accepted'
+          and ${quotes.acceptedAt} >= ${sinceIso}
+          and ${quotes.acceptedAt} < ${untilIso}
+      `),
+      executeRows<{ collected: string | number }>(sql`
+        select coalesce(sum(${payments.amountInCents}), 0)::bigint as collected
+        from ${payments}
+        where ${payments.businessId} = ${businessId}
+          and ${payments.voidedAt} is null
+          and ${payments.paymentDate} >= ${sinceDate}
+          and ${payments.paymentDate} < ${untilDate}
+      `),
+      executeRows<{ invoiced: string | number }>(sql`
+        select coalesce(sum(${invoices.totalInCents}), 0)::bigint as invoiced
+        from ${invoices}
+        where ${invoices.businessId} = ${businessId}
+          and ${invoices.deletedAt} is null
+          and ${invoices.status} not in ('draft', 'voided')
+          and ${invoices.issueDate} >= ${sinceDate}
+          and ${invoices.issueDate} < ${untilDate}
+      `),
+    ]);
+
+  const sent = num(quoteRows[0]?.sent);
+  const accepted = num(quoteRows[0]?.accepted);
+  const rejected = num(quoteRows[0]?.rejected);
+  const expired = num(quoteRows[0]?.expired);
+
+  return {
+    visitors: num(views[0]?.visitors),
+    formViews: num(views[0]?.form_views),
+    inquiries: num(inquiryRows[0]?.inquiries),
+    inquiriesWithQuote: num(inquiryRows[0]?.with_quote),
+    quotesSent: sent,
+    quotesViewed: num(quoteRows[0]?.viewed),
+    quotesResponded: num(quoteRows[0]?.responded),
+    quotesAccepted: accepted,
+    quotesRejected: rejected,
+    quotesExpired: expired,
+    winRate: rate(accepted, accepted + rejected + expired),
+    acceptanceRate: rate(accepted, sent),
+    revenueWonInCents: num(acceptedRows[0]?.value),
+    quotedValueInCents: num(quoteRows[0]?.quoted_value),
+    collectedInCents: num(collectedRows[0]?.collected),
+    invoicedInCents: num(invoicedRows[0]?.invoiced),
+  };
+}
+
+type ReceivablesSnapshot = OverviewReceivables;
+
+async function getReceivablesSnapshot(
+  businessId: string,
+): Promise<ReceivablesSnapshot> {
+  const today = toIso(todayStartUtc());
+
+  const [row] = await executeRows<{
+    outstanding: string | number;
+    outstanding_count: string | number;
+    overdue: string | number;
+    overdue_count: string | number;
+  }>(sql`
+    with balances as (
+      select
+        ${invoices.id} as id,
+        ${invoices.totalInCents} as total_in_cents,
+        ${invoices.dueDate} as due_date,
+        coalesce((
+          select sum(${payments.amountInCents})
+          from ${payments}
+          where ${payments.invoiceId} = ${invoices.id}
+            and ${payments.businessId} = ${invoices.businessId}
+            and ${payments.voidedAt} is null
+        ), 0) as paid
+      from ${invoices}
+      where ${invoices.businessId} = ${businessId}
+        and ${invoices.deletedAt} is null
+        and ${invoices.status} not in ('draft', 'voided')
+    )
+    select
+      coalesce(sum(total_in_cents - paid), 0)::bigint as outstanding,
+      count(*)::int as outstanding_count,
+      coalesce(sum(total_in_cents - paid) filter (where due_date < ${today}), 0)::bigint as overdue,
+      count(*) filter (where due_date < ${today})::int as overdue_count
+    from balances
+    where paid < total_in_cents
+  `);
+
+  return {
+    outstandingInCents: num(row?.outstanding),
+    outstandingCount: num(row?.outstanding_count),
+    overdueInCents: num(row?.overdue),
+    overdueCount: num(row?.overdue_count),
+  };
+}
+
+async function getOverviewAttention(
+  businessId: string,
+  businessSlug: string,
+): Promise<{ attention: AnalyticsAttentionItem[]; followUpsPending: number; followUpsOverdue: number }> {
+  const today = todayStartUtc();
+  const todayIso = toIso(today);
+  const soonIso = toIso(addUtcDays(today, 7));
+  const staleCutoff = new Date(Date.now() - 48 * 3_600_000);
+  const pendingCutoff = new Date(Date.now() - 7 * 86_400_000);
+
+  const [unviewedRows, staleRows, expiringRows, pendingRows, followUpRows] =
+    await Promise.all([
+      executeRows<{ value: string | number }>(sql`
+        select count(*)::int as value
+        from ${inquiries}
+        where ${inquiries.businessId} = ${businessId}
+          and ${inquiries.deletedAt} is null
+          and ${inquiries.archivedAt} is null
+          and ${inquiries.firstViewedAt} is null
+      `),
+      executeRows<{ value: string | number }>(sql`
+        select count(*)::int as value
+        from ${inquiries}
+        where ${inquiries.businessId} = ${businessId}
+          and ${inquiries.deletedAt} is null
+          and ${inquiries.archivedAt} is null
+          and ${inquiries.status} in ('new', 'waiting')
+          and ${inquiries.firstViewedAt} is not null
+          and ${inquiries.submittedAt} < ${staleCutoff.toISOString()}
+      `),
+      executeRows<{ value: string | number }>(sql`
+        select count(*)::int as value
+        from ${quotes}
+        where ${quotes.businessId} = ${businessId}
+          and ${quotes.deletedAt} is null
+          and ${quotes.status} = 'sent'
+          and ${quotes.customerRespondedAt} is null
+          and ${quotes.validUntil} >= ${todayIso}
+          and ${quotes.validUntil} < ${soonIso}
+      `),
+      executeRows<{ value: string | number }>(sql`
+        select count(*)::int as value
+        from ${quotes}
+        where ${quotes.businessId} = ${businessId}
+          and ${quotes.deletedAt} is null
+          and ${quotes.status} = 'sent'
+          and ${quotes.customerRespondedAt} is null
+          and ${quotes.sentAt} is not null
+          and ${quotes.sentAt} < ${pendingCutoff.toISOString()}
+      `),
+      executeRows<{ pending: string | number; overdue: string | number }>(sql`
+        select
+          count(*) filter (where ${followUps.status} = 'pending')::int as pending,
+          count(*) filter (
+            where ${followUps.status} = 'pending' and ${followUps.dueAt} < now()
+          )::int as overdue
+        from ${followUps}
+        where ${followUps.businessId} = ${businessId}
+          and ${followUps.deletedAt} is null
+      `),
+    ]);
+
+  const followUpsPending = num(followUpRows[0]?.pending);
+  const followUpsOverdue = num(followUpRows[0]?.overdue);
+
+  const attention: AnalyticsAttentionItem[] = [
+    {
+      key: "unviewed-inquiries",
+      label: "Unviewed inquiries",
+      description: "No one has opened these yet.",
+      count: num(unviewedRows[0]?.value),
+      href: getBusinessInquiriesPath(businessSlug),
+      tone: "warning",
+    },
+    {
+      key: "stale-inquiries",
+      label: "Stale inquiries",
+      description: "Viewed but still sitting for more than 2 days.",
+      count: num(staleRows[0]?.value),
+      href: `${getBusinessInquiriesPath(businessSlug)}?status=waiting`,
+      tone: "warning",
+    },
+    {
+      key: "quotes-expiring",
+      label: "Quotes expiring this week",
+      description: "Sent quotes whose validity ends within 7 days.",
+      count: num(expiringRows[0]?.value),
+      href: `${getBusinessQuotesPath(businessSlug)}?status=sent`,
+      tone: "info",
+    },
+    {
+      key: "quotes-awaiting-decision",
+      label: "Quotes awaiting a decision",
+      description: "Sent more than 7 days ago and still unanswered.",
+      count: num(pendingRows[0]?.value),
+      href: `${getBusinessQuotesPath(businessSlug)}?status=sent`,
+      tone: "warning",
+    },
+    {
+      key: "overdue-follow-ups",
+      label: "Overdue follow-ups",
+      description: "Past their due date and still pending.",
+      count: followUpsOverdue,
+      href: `${getBusinessFollowUpsPath(businessSlug)}?due=overdue`,
+      tone: "negative",
+    },
+  ];
+
+  return { attention, followUpsPending, followUpsOverdue };
+}
+
+async function getOverviewUsageMeters(
+  businessId: string,
+  plan: BusinessPlan,
+): Promise<AnalyticsUsageMeter[]> {
+  const [ai, quoteEmails, autoFollowUpActive, autoFollowUpEmails, agentSessions] =
+    await Promise.all([
+      getMonthlyUsageSummary(businessId, plan),
+      getMonthlyRequoQuoteSendCount(businessId),
+      getActiveAutoFollowUpCount(businessId),
+      getMonthlyAutoFollowUpSendCount(businessId),
+      db
+        .select({ value: sql<number>`count(*)` })
+        .from(aiAgentSessions)
+        .where(
+          and(
+            eq(aiAgentSessions.businessId, businessId),
+            gte(
+              aiAgentSessions.createdAt,
+              new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1)),
+            ),
+          ),
+        ),
+    ]);
+
+  const quoteEmailLimit = getUsageLimit(plan, "requoQuoteEmailsPerMonth");
+  const activeLimit = getUsageLimit(plan, "activeAutoFollowUpsPerBusiness");
+  const agentLimit = getUsageLimit(plan, "agentSessionsPerMonth");
+
+  const meters: AnalyticsUsageMeter[] = [
+    {
+      key: "ai-drafts",
+      label: "AI quote drafts",
+      used: ai.used,
+      limit: ai.limit,
+      unit: "credits",
+      hint: "Weighted credits used this month.",
+      href: null,
+      upgradeFeature: null,
+    },
+    {
+      key: "quote-emails",
+      label: "Requo quote emails",
+      used: quoteEmails,
+      limit: quoteEmailLimit,
+      unit: "sends",
+      hint: "Quote emails sent through Requo this month.",
+      href: null,
+      upgradeFeature: null,
+    },
+    {
+      key: "auto-follow-ups",
+      label: "Active auto follow-ups",
+      used: autoFollowUpActive,
+      limit: activeLimit,
+      unit: "sequences",
+      hint:
+        autoFollowUpEmails > 0
+          ? `${autoFollowUpEmails} automatic emails sent this month.`
+          : "Sequences that send follow-up emails for you.",
+      href: null,
+      upgradeFeature: activeLimit === 0 ? "autoFollowUps" : null,
+    },
+  ];
+
+  if (agentLimit !== 0) {
+    meters.push({
+      key: "agent-sessions",
+      label: "AI agent sessions",
+      used: num(agentSessions[0]?.value),
+      limit: agentLimit,
+      unit: "sessions",
+      hint: "Public chat sessions handled by your AI agent this month.",
+      href: null,
+      upgradeFeature: agentLimit === 0 ? "aiAgent" : null,
+    });
+  }
+
+  return meters;
+}
+
+async function computeOverviewData(
+  businessId: string,
+  businessSlug: string,
+  window: AnalyticsWindow,
+): Promise<OverviewData> {
+  const meta = await getAnalyticsBusinessMetaUncached(businessId);
+
+  const [current, prior, series, receivables, attention, usage] = await Promise.all([
+    getOverviewPeriodRows(businessId, window.since, window.until),
+    window.comparison
+      ? getOverviewPeriodRows(businessId, window.comparison.since, window.comparison.until)
+      : Promise.resolve(null),
+    buildSeries(businessId, window),
+    getReceivablesSnapshot(businessId),
+    getOverviewAttention(businessId, businessSlug),
+    getOverviewUsageMeters(businessId, meta.plan),
+  ]);
+
+  const period = prior ?? emptyOverviewPeriod();
+
+  const funnel: AnalyticsFunnelStep[] = [
+    {
+      key: "visitors",
+      label: "Visitors",
+      count: current.visitors,
+      href: null,
+    },
+    {
+      key: "inquiries",
+      label: "Inquiries",
+      count: current.inquiries,
+      href: getBusinessInquiriesPath(businessSlug),
+    },
+    {
+      key: "quotes-sent",
+      label: "Quotes sent",
+      count: current.quotesSent,
+      href: `${getBusinessQuotesPath(businessSlug)}?status=sent`,
+    },
+    {
+      key: "won",
+      label: "Won",
+      count: current.quotesAccepted,
+      href: `${getBusinessQuotesPath(businessSlug)}?status=accepted`,
+    },
+  ];
+
+  const openQuotes = Math.max(
+    current.quotesSent - current.quotesAccepted - current.quotesRejected - current.quotesExpired,
+    0,
+  );
+  const outcomeTotal =
+    current.quotesAccepted + current.quotesRejected + current.quotesExpired + openQuotes;
+  const outcomes: AnalyticsOutcomeSlice[] = [
+    {
+      key: "accepted",
+      label: "Accepted",
+      count: current.quotesAccepted,
+      share: rate(current.quotesAccepted, outcomeTotal),
+    },
+    {
+      key: "open",
+      label: "Awaiting decision",
+      count: openQuotes,
+      share: rate(openQuotes, outcomeTotal),
+    },
+    {
+      key: "rejected",
+      label: "Rejected",
+      count: current.quotesRejected,
+      share: rate(current.quotesRejected, outcomeTotal),
+    },
+    {
+      key: "expired",
+      label: "Expired",
+      count: current.quotesExpired,
+      share: rate(current.quotesExpired, outcomeTotal),
+    },
+  ];
+
+  return {
+    currency: meta.currency,
+    current,
+    prior: window.comparison ? period : null,
+    series,
+    funnel,
+    outcomes,
+    receivables,
+    attention: attention.attention,
+    usage,
+    hasAnyActivity:
+      current.inquiries > 0 ||
+      current.invoicedInCents > 0 ||
+      current.quotesSent > 0 ||
+      current.visitors > 0 ||
+      receivables.outstandingCount > 0 ||
+      attention.followUpsPending > 0,
+  };
+}
+
+export async function getOverviewData({
+  businessId,
+  businessSlug,
+  window,
+}: {
+  businessId: string;
+  businessSlug: string;
+  window: AnalyticsWindow;
+}): Promise<OverviewData> {
+  const suffix = windowCacheSuffix(window);
+
+  if (window.preset === "custom") {
+    return withCircuitBreaker(`analytics:overview:${businessId}:${suffix}`, () =>
+      computeOverviewData(businessId, businessSlug, window),
+    );
+  }
+
+  return withCircuitBreaker(`analytics:overview:${businessId}:${suffix}`, () =>
+    getOverviewDataCached(businessId, businessSlug, window),
+  );
+}
+
+async function getOverviewDataCached(
+  businessId: string,
+  businessSlug: string,
+  window: AnalyticsWindow,
+): Promise<OverviewData> {
   "use cache";
 
   cacheLife(hotBusinessCacheLife);
-  cacheTag(...getBusinessAnalyticsCacheTags(businessId, rangeSuffix));
+  cacheTag(
+    ...getBusinessAnalyticsCacheTags(businessId, `overview:${windowCacheSuffix(window)}`),
+  );
 
-  return getBusinessAnalyticsUncached(businessId, since, until);
+  return computeOverviewData(businessId, businessSlug, window);
 }
 
-async function getBusinessAnalyticsUncached(
+// ---------------------------------------------------------------------------
+// Performance
+// ---------------------------------------------------------------------------
+
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  cash: "Cash",
+  bank_transfer: "Bank transfer",
+  gcash: "GCash",
+  maya: "Maya",
+  check: "Check",
+  other: "Other",
+};
+
+function rankedItem(
+  label: string,
+  count: number,
+  total: number,
+  options: { detail?: string; href?: string | null } = {},
+): AnalyticsRankedItem {
+  return {
+    label,
+    count,
+    detail: options.detail,
+    share: rate(count, total),
+    href: options.href ?? null,
+  };
+}
+
+async function getReferrerSources(
   businessId: string,
   since: Date,
   until: Date,
-): Promise<BusinessAnalyticsData> {
-  const now = until;
-  const staleCutoff = subtractDays(now, 2);
-  const pendingCutoff = subtractDays(now, 7);
-  const firstResponse = buildFirstResponseSq(businessId);
-  const firstQuote = buildFirstQuoteSq(businessId);
+): Promise<AnalyticsRankedItem[]> {
+  const rows = await executeRows<{ label: string; count: string | number }>(sql`
+    select
+      case
+        when ${analyticsEvents.metadata} ->> 'referrer' is null
+          or ${analyticsEvents.metadata} ->> 'referrer' = ''
+          or ${analyticsEvents.metadata} ->> 'referrer' = 'direct'
+        then 'Direct'
+        else ${analyticsEvents.metadata} ->> 'referrer'
+      end as label,
+      count(*)::int as count
+    from ${analyticsEvents}
+    where ${analyticsEvents.businessId} = ${businessId}
+      and ${analyticsEvents.eventType} = 'inquiry_form_viewed'
+      and ${analyticsEvents.occurredAt} >= ${since.toISOString()}
+      and ${analyticsEvents.occurredAt} < ${until.toISOString()}
+    group by 1
+    order by count(*) desc
+    limit 8
+  `);
 
-  // Timing
-  const [timingRows, quoteTimingRows] = await Promise.all([
-    db
-      .select({
-        submissions: sql<number>`count(distinct ${inquiries.id})`,
-        responded: sql<number>`count(distinct ${inquiries.id}) filter (where ${firstResponse.firstResponseAt} is not null)`,
-        avgFirstResponse: sql<number | null>`avg(extract(epoch from (${firstResponse.firstResponseAt} - ${inquiries.submittedAt})) / 3600) filter (where ${firstResponse.firstResponseAt} is not null)`,
-        avgToQuote: sql<number | null>`avg(extract(epoch from (${firstQuote.firstQuoteAt} - ${inquiries.submittedAt})) / 3600) filter (where ${firstQuote.firstQuoteAt} is not null)`,
-      })
-      .from(inquiries)
-      .leftJoin(firstResponse, eq(firstResponse.inquiryId, inquiries.id))
-      .leftJoin(firstQuote, eq(firstQuote.inquiryId, inquiries.id))
-      .where(and(eq(inquiries.businessId, businessId), gte(inquiries.submittedAt, since))),
-    db
-      .select({
-        avgToDecision: sql<number | null>`avg(extract(epoch from (${quotes.customerRespondedAt} - ${quotes.sentAt})) / 3600) filter (where ${quotes.customerRespondedAt} is not null and ${quotes.sentAt} is not null)`,
-      })
-      .from(quotes)
-      .where(
-        and(
-          eq(quotes.businessId, businessId),
-          getNonDeletedQuoteCondition(),
-          isNotNull(quotes.sentAt),
-          gte(quotes.sentAt, since),
-        ),
-      ),
-  ]);
-
-  const tRow = timingRows[0];
-  const submissions = Number(tRow?.submissions ?? 0);
-  const responded = Number(tRow?.responded ?? 0);
-
-  const timing: WorkflowTimingData = {
-    avgFirstResponseHours: roundHours(tRow?.avgFirstResponse),
-    avgTimeToFirstQuoteHours: roundHours(tRow?.avgToQuote),
-    avgTimeSentToDecisionHours: roundHours(quoteTimingRows[0]?.avgToDecision),
-    responseRate: submissions ? responded / submissions : 0,
-  };
-
-  // Alerts
-  const [staleRows, pendingRows] = await Promise.all([
-    db
-      .select({ count: count() })
-      .from(inquiries)
-      .leftJoin(firstResponse, eq(firstResponse.inquiryId, inquiries.id))
-      .where(
-        and(
-          eq(inquiries.businessId, businessId),
-          getOperationalInquiryCondition(),
-          sql`${getEffectiveInquiryStatus} in ('new', 'waiting')`,
-          lt(inquiries.submittedAt, staleCutoff),
-          isNull(firstResponse.firstResponseAt),
-        ),
-      ),
-    db
-      .select({ count: count() })
-      .from(quotes)
-      .where(
-        and(
-          eq(quotes.businessId, businessId),
-          getOperationalQuoteCondition(),
-          eq(quotes.status, "sent"),
-          isNotNull(quotes.sentAt),
-          lte(quotes.sentAt, pendingCutoff),
-          isNull(quotes.customerRespondedAt),
-        ),
-      ),
-  ]);
-
-  const alerts: OperationalAlerts = {
-    staleInquiryCount: Number(staleRows[0]?.count ?? 0),
-    pendingQuotesOverSevenDays: Number(pendingRows[0]?.count ?? 0),
-  };
-
-  // Follow-ups
-  const [fuRows] = await Promise.all([
-    db
-      .select({
-        created: sql<number>`count(*)`,
-        completed: sql<number>`count(*) filter (where ${followUps.status} = 'completed')`,
-        skipped: sql<number>`count(*) filter (where ${followUps.status} = 'skipped')`,
-        overdue: sql<number>`count(*) filter (where ${followUps.status} = 'pending' and ${followUps.dueAt} < now())`,
-        avgDays: sql<number | null>`avg(extract(epoch from (${followUps.completedAt} - ${followUps.createdAt})) / 86400) filter (where ${followUps.completedAt} is not null)`,
-      })
-      .from(followUps)
-      .where(and(eq(followUps.businessId, businessId), gte(followUps.createdAt, since))),
-  ]);
-
-  const fu = fuRows[0];
-  const fuCreated = Number(fu?.created ?? 0);
-  const fuCompleted = Number(fu?.completed ?? 0);
-
-  const followUpSummary: FollowUpSummary = {
-    created: fuCreated,
-    completed: fuCompleted,
-    skipped: Number(fu?.skipped ?? 0),
-    overdue: Number(fu?.overdue ?? 0),
-    completionRate: fuCreated > 0 ? fuCompleted / fuCreated : 0,
-    avgDaysToComplete: fu?.avgDays != null ? Math.round(Number(fu.avgDays) * 10) / 10 : null,
-  };
-
-  // Revenue
-  const [revRows] = await Promise.all([
-    db
-      .select({
-        acceptedValue: sql<number>`coalesce(sum(${quotes.totalInCents}) filter (where ${quotes.status} = 'accepted'), 0)`,
-        avgAccepted: sql<number>`coalesce(avg(${quotes.totalInCents}) filter (where ${quotes.status} = 'accepted'), 0)`,
-        completedValue: sql<number>`coalesce(sum(${quotes.totalInCents}) filter (where ${quotes.status} = 'accepted' and ${quotes.completedAt} is not null), 0)`,
-      })
-      .from(quotes)
-      .where(
-        and(
-          eq(quotes.businessId, businessId),
-          getNonDeletedQuoteCondition(),
-          gte(quotes.acceptedAt, since),
-        ),
-      ),
-  ]);
-
-  const revenue: RevenueSummary = {
-    acceptedValueInCents: Number(revRows[0]?.acceptedValue ?? 0),
-    averageAcceptedValueInCents: Math.round(Number(revRows[0]?.avgAccepted ?? 0)),
-    completedValueInCents: Number(revRows[0]?.completedValue ?? 0),
-  };
-
-  // AI
-  const [aiRows] = await Promise.all([
-    db
-      .select({
-        invocations: sql<number>`count(*)`,
-        tokens: sql<number>`coalesce(sum(${aiTokenLogs.totalTokens}), 0)`,
-        cost: sql<number>`coalesce(sum(${aiTokenLogs.estimatedCostCents}), 0)`,
-      })
-      .from(aiTokenLogs)
-      .where(and(eq(aiTokenLogs.businessId, businessId), gte(aiTokenLogs.createdAt, since))),
-  ]);
-
-  const ai: AiUsageSummary = {
-    totalInvocations: Number(aiRows[0]?.invocations ?? 0),
-    totalTokens: Number(aiRows[0]?.tokens ?? 0),
-    estimatedCostCents: Number(aiRows[0]?.cost ?? 0),
-  };
-
-  return { timing, alerts, followUps: followUpSummary, revenue, ai };
+  const total = rows.reduce((sum, row) => sum + num(row.count), 0);
+  return rows.map((row) => rankedItem(row.label, num(row.count), total));
 }
 
-
-// ---------------------------------------------------------------------------
-// Revenue Forecast
-// ---------------------------------------------------------------------------
-
-/**
- * Computes a revenue forecast based on:
- * - Count of pending (sent, not responded) quotes
- * - Historical acceptance rate over the last 90 days
- * - Average accepted quote value over the last 90 days
- *
- * Returns null forecast when no historical acceptance data exists or
- * there are no pending quotes.
- */
-export async function getRevenueForecast(
+async function getCampaignRows(
   businessId: string,
-): Promise<RevenueForecast> {
-  const now = new Date();
-  const ninetyDaysAgo = subtractDays(now, 90);
+  since: Date,
+  until: Date,
+): Promise<AnalyticsRankedItem[]> {
+  const rows = await executeRows<{
+    source: string;
+    campaign: string;
+    count: string | number;
+  }>(sql`
+    select
+      ${analyticsEvents.metadata} ->> 'utmSource' as source,
+      coalesce(nullif(${analyticsEvents.metadata} ->> 'utmCampaign', ''), '(none)') as campaign,
+      count(*)::int as count
+    from ${analyticsEvents}
+    where ${analyticsEvents.businessId} = ${businessId}
+      and ${analyticsEvents.eventType} = 'inquiry_form_viewed'
+      and ${analyticsEvents.metadata} ->> 'utmSource' is not null
+      and ${analyticsEvents.metadata} ->> 'utmSource' <> ''
+      and ${analyticsEvents.occurredAt} >= ${since.toISOString()}
+      and ${analyticsEvents.occurredAt} < ${until.toISOString()}
+    group by 1, 2
+    order by count(*) desc
+    limit 8
+  `);
 
-  const [pendingRows, historicalRows] = await Promise.all([
-    // Count of currently pending quotes (sent but not responded to)
-    db
-      .select({ count: sql<number>`count(*)` })
-      .from(quotes)
-      .where(
-        and(
-          eq(quotes.businessId, businessId),
-          getNonDeletedQuoteCondition(),
-          eq(quotes.status, "sent"),
-          isNotNull(quotes.sentAt),
-          isNull(quotes.customerRespondedAt),
-        ),
-      ),
-    // Historical acceptance rate and average value over last 90 days
-    db
-      .select({
-        totalSent: sql<number>`count(distinct ${quotes.id}) filter (where ${quotes.sentAt} is not null)`,
-        totalAccepted: sql<number>`count(distinct ${quotes.id}) filter (where ${quotes.status} = 'accepted')`,
-        avgAcceptedValue: sql<number | null>`avg(${quotes.totalInCents}) filter (where ${quotes.status} = 'accepted')`,
-      })
-      .from(quotes)
-      .where(
-        and(
-          eq(quotes.businessId, businessId),
-          getNonDeletedQuoteCondition(),
-          gte(quotes.sentAt, ninetyDaysAgo),
-        ),
-      ),
+  const total = rows.reduce((sum, row) => sum + num(row.count), 0);
+  return rows.map((row) =>
+    rankedItem(`${row.source} · ${row.campaign}`, num(row.count), total),
+  );
+}
+
+async function getServiceRows(
+  businessId: string,
+  businessSlug: string,
+  since: Date,
+  until: Date,
+): Promise<ServicePerformanceRow[]> {
+  const sinceIso = since.toISOString();
+  const untilIso = until.toISOString();
+
+  const rows = await executeRows<{
+    form_slug: string;
+    name: string;
+    views: string | number;
+    visitors: string | number;
+    inquiries: string | number;
+    sent: string | number;
+    accepted: string | number;
+    accepted_value: string | number;
+  }>(sql`
+    with deduped_views as (
+      select
+        ${analyticsEvents.businessInquiryFormId} as form_id,
+        ${analyticsEvents.visitorHash} as visitor_hash
+      from ${analyticsEvents}
+      where ${analyticsEvents.businessId} = ${businessId}
+        and ${analyticsEvents.eventType} = 'inquiry_form_viewed'
+        and ${analyticsEvents.businessInquiryFormId} is not null
+        and ${analyticsEvents.occurredAt} >= ${sinceIso}
+        and ${analyticsEvents.occurredAt} < ${untilIso}
+      group by
+        ${analyticsEvents.businessInquiryFormId},
+        ${analyticsEvents.visitorHash},
+        date_trunc('second', ${analyticsEvents.occurredAt})
+    ),
+    view_stats as (
+      select form_id, count(*)::int as views, count(distinct visitor_hash)::int as visitors
+      from deduped_views
+      group by form_id
+    ),
+    inquiry_stats as (
+      select ${inquiries.businessInquiryFormId} as form_id, count(*)::int as inquiries
+      from ${inquiries}
+      where ${inquiries.businessId} = ${businessId}
+        and ${inquiries.deletedAt} is null
+        and ${inquiries.submittedAt} >= ${sinceIso}
+        and ${inquiries.submittedAt} < ${untilIso}
+      group by ${inquiries.businessInquiryFormId}
+    ),
+    quote_stats as (
+      select
+        ${inquiries.businessInquiryFormId} as form_id,
+        count(*)::int as sent,
+        count(*) filter (where ${quotes.status} = 'accepted')::int as accepted,
+        coalesce(
+          sum(${quotes.totalInCents}) filter (where ${quotes.status} = 'accepted'),
+          0
+        )::bigint as accepted_value
+      from ${quotes}
+      inner join ${inquiries}
+        on ${inquiries.id} = ${quotes.inquiryId}
+        and ${inquiries.businessId} = ${quotes.businessId}
+      where ${quotes.businessId} = ${businessId}
+        and ${quotes.deletedAt} is null
+        and ${quotes.sentAt} is not null
+        and ${quotes.sentAt} >= ${sinceIso}
+        and ${quotes.sentAt} < ${untilIso}
+      group by ${inquiries.businessInquiryFormId}
+    )
+    select
+      ${businessInquiryForms.slug} as form_slug,
+      ${businessInquiryForms.name} as name,
+      coalesce(view_stats.views, 0)::int as views,
+      coalesce(view_stats.visitors, 0)::int as visitors,
+      coalesce(inquiry_stats.inquiries, 0)::int as inquiries,
+      coalesce(quote_stats.sent, 0)::int as sent,
+      coalesce(quote_stats.accepted, 0)::int as accepted,
+      coalesce(quote_stats.accepted_value, 0)::bigint as accepted_value
+    from ${businessInquiryForms}
+    left join view_stats on view_stats.form_id = ${businessInquiryForms.id}
+    left join inquiry_stats on inquiry_stats.form_id = ${businessInquiryForms.id}
+    left join quote_stats on quote_stats.form_id = ${businessInquiryForms.id}
+    where ${businessInquiryForms.businessId} = ${businessId}
+    order by
+      coalesce(inquiry_stats.inquiries, 0) desc,
+      coalesce(view_stats.visitors, 0) desc,
+      ${businessInquiryForms.name} asc
+    limit 12
+  `);
+
+  return rows.map((row) => {
+    const visitors = num(row.visitors);
+    const inquiriesCount = num(row.inquiries);
+    const sent = num(row.sent);
+    const accepted = num(row.accepted);
+    const acceptedValue = num(row.accepted_value);
+
+    return {
+      formSlug: row.form_slug,
+      name: row.name,
+      views: num(row.views),
+      visitors,
+      inquiries: inquiriesCount,
+      conversionRate: rate(inquiriesCount, visitors),
+      quotesSent: sent,
+      accepted,
+      winRate: rate(accepted, sent),
+      acceptedValueInCents: acceptedValue,
+      avgAcceptedValueInCents: accepted > 0 ? Math.round(acceptedValue / accepted) : 0,
+    };
+  });
+}
+
+export type TimingWindow = {
+  avgFirstResponseHours: number | null;
+  avgTimeToQuoteHours: number | null;
+  avgTimeToViewHours: number | null;
+  avgTimeToDecisionHours: number | null;
+};
+
+export async function getTimingForWindow(
+  businessId: string,
+  since: Date,
+  until: Date,
+): Promise<TimingWindow> {
+  const sinceIso = since.toISOString();
+  const untilIso = until.toISOString();
+
+  const [responseRows, quoteRows, decisionRows] = await Promise.all([
+    executeRows<{ hours: string | number | null }>(sql`
+      select avg(extract(epoch from (response.first_response_at - ${inquiries.submittedAt})) / 3600) as hours
+      from ${inquiries}
+      inner join (
+        select ${activityLogs.inquiryId} as inquiry_id, min(${activityLogs.createdAt}) as first_response_at
+        from ${activityLogs}
+        where ${activityLogs.businessId} = ${businessId}
+          and ${activityLogs.actorUserId} is not null
+          and ${activityLogs.inquiryId} is not null
+        group by ${activityLogs.inquiryId}
+      ) response on response.inquiry_id = ${inquiries.id}
+      where ${inquiries.businessId} = ${businessId}
+        and ${inquiries.submittedAt} >= ${sinceIso}
+        and ${inquiries.submittedAt} < ${untilIso}
+    `),
+    executeRows<{ hours: string | number | null }>(sql`
+      select avg(extract(epoch from (quoted.first_quote_at - ${inquiries.submittedAt})) / 3600) as hours
+      from ${inquiries}
+      inner join (
+        select ${quotes.inquiryId} as inquiry_id, min(${quotes.createdAt}) as first_quote_at
+        from ${quotes}
+        where ${quotes.businessId} = ${businessId}
+          and ${quotes.deletedAt} is null
+          and ${quotes.inquiryId} is not null
+        group by ${quotes.inquiryId}
+      ) quoted on quoted.inquiry_id = ${inquiries.id}
+      where ${inquiries.businessId} = ${businessId}
+        and ${inquiries.submittedAt} >= ${sinceIso}
+        and ${inquiries.submittedAt} < ${untilIso}
+    `),
+    executeRows<{ view_hours: string | number | null; decision_hours: string | number | null }>(sql`
+      select
+        avg(extract(epoch from (${quotes.publicViewedAt} - ${quotes.sentAt})) / 3600)
+          filter (where ${quotes.publicViewedAt} is not null) as view_hours,
+        avg(extract(epoch from (${quotes.customerRespondedAt} - ${quotes.sentAt})) / 3600)
+          filter (where ${quotes.customerRespondedAt} is not null) as decision_hours
+      from ${quotes}
+      where ${quotes.businessId} = ${businessId}
+        and ${quotes.deletedAt} is null
+        and ${quotes.sentAt} is not null
+        and ${quotes.sentAt} >= ${sinceIso}
+        and ${quotes.sentAt} < ${untilIso}
+    `),
   ]);
 
-  const pendingQuoteCount = Number(pendingRows[0]?.count ?? 0);
-  const totalSent = Number(historicalRows[0]?.totalSent ?? 0);
-  const totalAccepted = Number(historicalRows[0]?.totalAccepted ?? 0);
-  const avgAcceptedValue = historicalRows[0]?.avgAcceptedValue != null
-    ? Math.round(Number(historicalRows[0].avgAcceptedValue))
-    : 0;
+  return {
+    avgFirstResponseHours: numOrNull(responseRows[0]?.hours),
+    avgTimeToQuoteHours: numOrNull(quoteRows[0]?.hours),
+    avgTimeToViewHours: numOrNull(decisionRows[0]?.view_hours),
+    avgTimeToDecisionHours: numOrNull(decisionRows[0]?.decision_hours),
+  };
+}
 
-  const historicalAcceptanceRate = totalSent > 0 ? totalAccepted / totalSent : 0;
+async function getQuoteAging(
+  businessId: string,
+): Promise<AnalyticsAgingBucket[]> {
+  const bucketOrder = ["0–7 days", "8–14 days", "15–30 days", "31+ days"];
 
-  // Return null forecast when insufficient data
-  if (pendingQuoteCount === 0 || totalAccepted === 0) {
-    return {
-      forecastCents: null,
-      pendingQuoteCount,
-      historicalAcceptanceRate,
-      averageQuoteValueCents: avgAcceptedValue,
-    };
+  const rows = await executeRows<{
+    bucket: string;
+    count: string | number;
+    value: string | number;
+  }>(sql`
+    select bucket, count(*)::int as count, coalesce(sum(total_in_cents), 0)::bigint as value
+    from (
+      select
+        ${quotes.totalInCents} as total_in_cents,
+        case
+          when ${quotes.sentAt} > now() - interval '7 days' then '0–7 days'
+          when ${quotes.sentAt} > now() - interval '14 days' then '8–14 days'
+          when ${quotes.sentAt} > now() - interval '30 days' then '15–30 days'
+          else '31+ days'
+        end as bucket
+      from ${quotes}
+      where ${quotes.businessId} = ${businessId}
+        and ${quotes.deletedAt} is null
+        and ${quotes.status} = 'sent'
+        and ${quotes.customerRespondedAt} is null
+        and ${quotes.sentAt} is not null
+    ) aged
+    group by bucket
+  `);
+
+  const byBucket = new Map(rows.map((row) => [row.bucket, row]));
+  return bucketOrder.map((label) => ({
+    label,
+    count: num(byBucket.get(label)?.count),
+    valueInCents: num(byBucket.get(label)?.value),
+  }));
+}
+
+async function getArAging(businessId: string): Promise<AnalyticsAgingBucket[]> {
+  const today = toIso(todayStartUtc());
+  const bucketOrder = ["Current", "1–30 days", "31–60 days", "61–90 days", "90+ days"];
+
+  const rows = await executeRows<{
+    bucket: string;
+    count: string | number;
+    value: string | number;
+  }>(sql`
+    with balances as (
+      select
+        ${invoices.totalInCents} as total_in_cents,
+        ${invoices.dueDate} as due_date,
+        coalesce((
+          select sum(${payments.amountInCents})
+          from ${payments}
+          where ${payments.invoiceId} = ${invoices.id}
+            and ${payments.businessId} = ${invoices.businessId}
+            and ${payments.voidedAt} is null
+        ), 0) as paid
+      from ${invoices}
+      where ${invoices.businessId} = ${businessId}
+        and ${invoices.deletedAt} is null
+        and ${invoices.status} not in ('draft', 'voided')
+    )
+    select
+      case
+        when due_date >= ${today}::date then 'Current'
+        when due_date >= ${today}::date - 30 then '1–30 days'
+        when due_date >= ${today}::date - 60 then '31–60 days'
+        when due_date >= ${today}::date - 90 then '61–90 days'
+        else '90+ days'
+      end as bucket,
+      count(*)::int as count,
+      coalesce(sum(total_in_cents - paid), 0)::bigint as value
+    from balances
+    where paid < total_in_cents
+    group by 1
+  `);
+
+  const byBucket = new Map(rows.map((row) => [row.bucket, row]));
+  return bucketOrder.map((label) => ({
+    label,
+    count: num(byBucket.get(label)?.count),
+    valueInCents: num(byBucket.get(label)?.value),
+  }));
+}
+
+async function getCollectionsData(
+  businessId: string,
+  since: Date,
+  until: Date,
+): Promise<PerformanceData["collections"]> {
+  const sinceDate = toIso(since);
+  const untilDate = toIso(until);
+
+  const [[paymentRows], [partialRows]] = await Promise.all([
+    executeRows<{
+      average_days: string | number | null;
+      average_days_late: string | number | null;
+      on_time: string | number;
+      late: string | number;
+    }>(sql`
+      select
+        avg((${payments.paymentDate} - ${invoices.sentAt}::date)) as average_days,
+        avg((${payments.paymentDate} - ${invoices.dueDate})) filter (
+          where ${payments.paymentDate} > ${invoices.dueDate}
+        ) as average_days_late,
+        count(*) filter (where ${payments.paymentDate} <= ${invoices.dueDate})::int as on_time,
+        count(*) filter (where ${payments.paymentDate} > ${invoices.dueDate})::int as late
+      from ${payments}
+      inner join ${invoices}
+        on ${invoices.id} = ${payments.invoiceId}
+        and ${invoices.businessId} = ${payments.businessId}
+      where ${payments.businessId} = ${businessId}
+        and ${payments.voidedAt} is null
+        and ${invoices.sentAt} is not null
+        and ${payments.paymentDate} >= ${sinceDate}
+        and ${payments.paymentDate} < ${untilDate}
+    `),
+    executeRows<{ count: string | number }>(sql`
+      with balances as (
+        select
+          ${invoices.totalInCents} as total_in_cents,
+          coalesce((
+            select sum(${payments.amountInCents})
+            from ${payments}
+            where ${payments.invoiceId} = ${invoices.id}
+              and ${payments.businessId} = ${invoices.businessId}
+              and ${payments.voidedAt} is null
+          ), 0) as paid
+        from ${invoices}
+        where ${invoices.businessId} = ${businessId}
+          and ${invoices.deletedAt} is null
+          and ${invoices.status} not in ('draft', 'voided')
+      )
+      select count(*)::int as count
+      from balances
+      where paid > 0 and paid < total_in_cents
+    `),
+  ]);
+
+  return {
+    averageDaysToPay: numOrNull(paymentRows?.average_days),
+    averageDaysLate: numOrNull(paymentRows?.average_days_late),
+    onTimeCount: num(paymentRows?.on_time),
+    lateCount: num(paymentRows?.late),
+    partialCount: num(partialRows?.count),
+  };
+}
+
+async function getPaymentMix(
+  businessId: string,
+  since: Date,
+  until: Date,
+): Promise<AnalyticsRankedItem[]> {
+  const rows = await executeRows<{
+    method: string;
+    count: string | number;
+    value: string | number;
+  }>(sql`
+    select
+      ${payments.method} as method,
+      count(*)::int as count,
+      coalesce(sum(${payments.amountInCents}), 0)::bigint as value
+    from ${payments}
+    where ${payments.businessId} = ${businessId}
+      and ${payments.voidedAt} is null
+      and ${payments.paymentDate} >= ${toIso(since)}
+      and ${payments.paymentDate} < ${toIso(until)}
+    group by ${payments.method}
+    order by count(*) desc
+  `);
+
+  const total = rows.reduce((sum, row) => sum + num(row.count), 0);
+  return rows.map((row) =>
+    rankedItem(
+      PAYMENT_METHOD_LABELS[row.method] ?? row.method,
+      num(row.count),
+      total,
+    ),
+  );
+}
+
+async function getRepeatBusiness(
+  businessId: string,
+  since: Date,
+  until: Date,
+): Promise<PerformanceData["repeat"]> {
+  const sinceIso = since.toISOString();
+  const untilIso = until.toISOString();
+
+  const [inquiryRows, quoteRows, revenueRows] = await Promise.all([
+    executeRows<{ total: string | number; returning_count: string | number }>(sql`
+      select
+        count(*)::int as total,
+        count(*) filter (where is_returning)::int as returning_count
+      from (
+        select
+          ${inquiries.customerEmail} is not null and exists (
+            select 1 from ${inquiries} prior
+            where prior.business_id = ${businessId}
+              and prior.deleted_at is null
+              and lower(prior.customer_email) = lower(${inquiries.customerEmail})
+              and prior.submitted_at < ${sinceIso}
+          ) as is_returning
+        from ${inquiries}
+        where ${inquiries.businessId} = ${businessId}
+          and ${inquiries.deletedAt} is null
+          and ${inquiries.submittedAt} >= ${sinceIso}
+          and ${inquiries.submittedAt} < ${untilIso}
+      ) cohort
+    `),
+    executeRows<{
+      is_returning: boolean;
+      sent: string | number;
+      accepted: string | number;
+      decided: string | number;
+    }>(sql`
+      select
+        is_returning,
+        count(*)::int as sent,
+        count(*) filter (where status = 'accepted')::int as accepted,
+        count(*) filter (where status in ('accepted', 'rejected', 'expired'))::int as decided
+      from (
+        select
+          ${quotes.status} as status,
+          ${inquiries.customerEmail} is not null and exists (
+            select 1 from ${inquiries} prior
+            where prior.business_id = ${businessId}
+              and prior.deleted_at is null
+              and lower(prior.customer_email) = lower(${inquiries.customerEmail})
+              and prior.submitted_at < ${sinceIso}
+          ) as is_returning
+        from ${quotes}
+        inner join ${inquiries}
+          on ${inquiries.id} = ${quotes.inquiryId}
+          and ${inquiries.businessId} = ${quotes.businessId}
+        where ${quotes.businessId} = ${businessId}
+          and ${quotes.deletedAt} is null
+          and ${quotes.sentAt} is not null
+          and ${quotes.sentAt} >= ${sinceIso}
+          and ${quotes.sentAt} < ${untilIso}
+      ) cohort
+      group by is_returning
+    `),
+    executeRows<{
+      returning_value: string | number;
+      total_value: string | number;
+    }>(sql`
+      select
+        coalesce(sum(total_in_cents) filter (where is_returning), 0)::bigint as returning_value,
+        coalesce(sum(total_in_cents), 0)::bigint as total_value
+      from (
+        select
+          ${quotes.totalInCents} as total_in_cents,
+          ${inquiries.customerEmail} is not null and exists (
+            select 1 from ${inquiries} prior
+            where prior.business_id = ${businessId}
+              and prior.deleted_at is null
+              and lower(prior.customer_email) = lower(${inquiries.customerEmail})
+              and prior.submitted_at < ${sinceIso}
+          ) as is_returning
+        from ${quotes}
+        inner join ${inquiries}
+          on ${inquiries.id} = ${quotes.inquiryId}
+          and ${inquiries.businessId} = ${quotes.businessId}
+        where ${quotes.businessId} = ${businessId}
+          and ${quotes.deletedAt} is null
+          and ${quotes.status} = 'accepted'
+          and ${quotes.acceptedAt} >= ${sinceIso}
+          and ${quotes.acceptedAt} < ${untilIso}
+      ) cohort
+    `),
+  ]);
+
+  const returningQuotes = quoteRows.find((row) => row.is_returning);
+  const newQuotes = quoteRows.find((row) => !row.is_returning);
+  const totalInquiries = num(inquiryRows[0]?.total);
+  const returningInquiries = num(inquiryRows[0]?.returning_count);
+
+  return {
+    newInquiries: totalInquiries - returningInquiries,
+    returningInquiries,
+    newWinRate: rate(num(newQuotes?.accepted), num(newQuotes?.decided)),
+    returningWinRate: rate(
+      num(returningQuotes?.accepted),
+      num(returningQuotes?.decided),
+    ),
+    returningRevenueInCents: num(revenueRows[0]?.returning_value),
+    revenueInCents: num(revenueRows[0]?.total_value),
+  };
+}
+
+async function getTopCustomers(
+  businessId: string,
+  businessSlug: string,
+  since: Date,
+  until: Date,
+): Promise<AnalyticsRankedItem[]> {
+  const rows = await executeRows<{
+    name: string;
+    email: string | null;
+    count: string | number;
+    value: string | number;
+  }>(sql`
+    select
+      ${quotes.customerName} as name,
+      ${quotes.customerEmail} as email,
+      count(*)::int as count,
+      coalesce(sum(${quotes.totalInCents}), 0)::bigint as value
+    from ${quotes}
+    where ${quotes.businessId} = ${businessId}
+      and ${quotes.deletedAt} is null
+      and ${quotes.status} = 'accepted'
+      and ${quotes.acceptedAt} >= ${since.toISOString()}
+      and ${quotes.acceptedAt} < ${until.toISOString()}
+    group by ${quotes.customerName}, ${quotes.customerEmail}
+    order by value desc
+    limit 5
+  `);
+
+  const total = rows.reduce((sum, row) => sum + num(row.value), 0);
+  return rows.map((row) =>
+    rankedItem(row.name, num(row.value), total, {
+      detail: row.email ?? undefined,
+      href: `${getBusinessQuotesPath(businessSlug)}?status=accepted`,
+    }),
+  );
+}
+
+async function getBenchmarkRows({
+  industryCategory,
+  sizeTier,
+  own,
+}: {
+  industryCategory: string | null;
+  sizeTier: string | null;
+  own: {
+    formConversionRate: number | null;
+    quoteAcceptanceRate: number | null;
+    avgResponseHours: number | null;
+  };
+}): Promise<AnalyticsBenchmarkRow[]> {
+  if (!industryCategory) return [];
+
+  const rows = await db
+    .select({
+      metricKey: analyticsBenchmarks.metricKey,
+      sizeTier: analyticsBenchmarks.sizeTier,
+      medianValue: analyticsBenchmarks.medianValue,
+      businessCount: analyticsBenchmarks.businessCount,
+    })
+    .from(analyticsBenchmarks)
+    .where(eq(analyticsBenchmarks.industryCategory, industryCategory));
+
+  const definitions: Array<{
+    key: string;
+    label: string;
+    yours: number | null;
+    format: "percent" | "hours";
+    lowerIsBetter: boolean;
+  }> = [
+    {
+      key: "formConversionRate",
+      label: "Quotes sent per inquiry",
+      yours: own.formConversionRate,
+      format: "percent",
+      lowerIsBetter: false,
+    },
+    {
+      key: "quoteAcceptanceRate",
+      label: "Quote acceptance rate",
+      yours: own.quoteAcceptanceRate,
+      format: "percent",
+      lowerIsBetter: false,
+    },
+    {
+      key: "avgResponseHours",
+      label: "Time to quote",
+      yours: own.avgResponseHours,
+      format: "hours",
+      lowerIsBetter: true,
+    },
+  ];
+
+  return definitions.flatMap((definition) => {
+    const matches = rows.filter((row) => row.metricKey === definition.key);
+    if (matches.length === 0) return [];
+
+    const preferred =
+      (sizeTier
+        ? matches.find((row) => row.sizeTier === sizeTier)
+        : undefined) ??
+      matches.reduce((best, row) =>
+        row.businessCount > best.businessCount ? row : best,
+      );
+
+    return [
+      {
+        key: definition.key,
+        label: definition.label,
+        yours: definition.yours,
+        median: preferred.medianValue,
+        businessCount: preferred.businessCount,
+        format: definition.format,
+        lowerIsBetter: definition.lowerIsBetter,
+      },
+    ];
+  });
+}
+
+async function getGoalRows(
+  businessId: string,
+  current: OverviewPeriod,
+  timing: TimingWindow,
+): Promise<AnalyticsGoalRow[]> {
+  const rows = await db
+    .select({
+      metricKey: analyticsGoalThresholds.metricKey,
+      targetValue: analyticsGoalThresholds.targetValue,
+    })
+    .from(analyticsGoalThresholds)
+    .where(eq(analyticsGoalThresholds.businessId, businessId));
+
+  const currents: Record<AnalyticsGoalMetricKey, number> = {
+    inquiries: current.inquiries,
+    quotesSent: current.quotesSent,
+    quotesAccepted: current.quotesAccepted,
+    winRate: current.winRate * 100,
+    revenueWon: current.revenueWonInCents / 100,
+    formConversionRate: rate(current.inquiriesWithQuote, current.inquiries) * 100,
+    quoteAcceptanceRate: current.acceptanceRate * 100,
+    avgResponseHours: timing.avgTimeToQuoteHours ?? 0,
+  };
+
+  const definitions = new Map(
+    ANALYTICS_GOAL_METRICS.map((metric) => [
+      metric.key,
+      {
+        label: metric.label,
+        current: currents[metric.key],
+        format: metric.format,
+        lowerIsBetter: metric.lowerIsBetter,
+      },
+    ]),
+  );
+
+  return rows.flatMap((row) => {
+    const definition = definitions.get(row.metricKey as AnalyticsGoalMetricKey);
+    if (!definition) return [];
+
+    return [
+      {
+        metricKey: row.metricKey,
+        label: definition.label,
+        target: row.targetValue,
+        current: definition.current,
+        format: definition.format,
+        lowerIsBetter: definition.lowerIsBetter,
+      },
+    ];
+  });
+}
+
+async function getScheduledReportRows(
+  businessId: string,
+): Promise<AnalyticsScheduledReport[]> {
+  const rows = await db
+    .select({
+      id: analyticsScheduledReports.id,
+      recipientEmails: analyticsScheduledReports.recipientEmails,
+      schedule: analyticsScheduledReports.schedule,
+      timezone: analyticsScheduledReports.timezone,
+      enabled: analyticsScheduledReports.enabled,
+      lastSentAt: analyticsScheduledReports.lastSentAt,
+    })
+    .from(analyticsScheduledReports)
+    .where(eq(analyticsScheduledReports.businessId, businessId));
+
+  return rows.map((row) => ({
+    id: row.id,
+    recipientEmails: row.recipientEmails,
+    schedule: row.schedule,
+    timezone: row.timezone,
+    enabled: row.enabled,
+    lastSentAt: row.lastSentAt ? row.lastSentAt.toISOString() : null,
+  }));
+}
+
+async function getAnnotationRows(
+  businessId: string,
+  since: Date,
+  until: Date,
+): Promise<AnalyticsAnnotation[]> {
+  const rows = await db
+    .select({
+      id: analyticsAnnotations.id,
+      date: analyticsAnnotations.date,
+      label: analyticsAnnotations.label,
+      color: analyticsAnnotations.color,
+    })
+    .from(analyticsAnnotations)
+    .where(
+      and(
+        eq(analyticsAnnotations.businessId, businessId),
+        gte(analyticsAnnotations.date, toIso(since)),
+        lt(analyticsAnnotations.date, toIso(until)),
+      ),
+    )
+    .orderBy(asc(analyticsAnnotations.date));
+
+  return rows;
+}
+
+async function computePerformanceData({
+  businessId,
+  businessSlug,
+  window,
+  plan,
+}: {
+  businessId: string;
+  businessSlug: string;
+  window: AnalyticsWindow;
+  plan: BusinessPlan;
+}): Promise<PerformanceData> {
+  const meta = await getAnalyticsBusinessMetaUncached(businessId);
+  const comparison = window.comparison;
+
+  const [
+    current,
+    currentTiming,
+    priorTiming,
+    series,
+    sources,
+    campaigns,
+    services,
+    aging,
+    arAging,
+    collections,
+    paymentMix,
+    repeat,
+    topCustomers,
+    expiringRows,
+    discountRows,
+    valueRows,
+    invoiceValueRows,
+    winRateServiceRows,
+    winRateSourceRows,
+    annotations,
+    scheduledReports,
+  ] = await Promise.all([
+    getOverviewPeriodRows(businessId, window.since, window.until),
+    getTimingForWindow(businessId, window.since, window.until),
+    comparison
+      ? getTimingForWindow(businessId, comparison.since, comparison.until)
+      : Promise.resolve(null),
+    buildSeries(businessId, window),
+    getReferrerSources(businessId, window.since, window.until),
+    getCampaignRows(businessId, window.since, window.until),
+    getServiceRows(businessId, businessSlug, window.since, window.until),
+    getQuoteAging(businessId),
+    getArAging(businessId),
+    getCollectionsData(businessId, window.since, window.until),
+    getPaymentMix(businessId, window.since, window.until),
+    getRepeatBusiness(businessId, window.since, window.until),
+    getTopCustomers(businessId, businessSlug, window.since, window.until),
+    executeRows<{ count: string | number; value: string | number }>(sql`
+      select count(*)::int as count, coalesce(sum(${quotes.totalInCents}), 0)::bigint as value
+      from ${quotes}
+      where ${quotes.businessId} = ${businessId}
+        and ${quotes.deletedAt} is null
+        and ${quotes.status} = 'sent'
+        and ${quotes.customerRespondedAt} is null
+        and ${quotes.validUntil} >= ${toIso(todayStartUtc())}
+        and ${quotes.validUntil} < ${toIso(addUtcDays(todayStartUtc(), 7))}
+    `),
+    executeRows<{
+      quoted: string | number;
+      discounted: string | number;
+      discount: string | number;
+      subtotal: string | number;
+    }>(sql`
+      select
+        count(*)::int as quoted,
+        count(*) filter (where ${quotes.discountInCents} > 0)::int as discounted,
+        coalesce(sum(${quotes.discountInCents}), 0)::bigint as discount,
+        coalesce(sum(${quotes.subtotalInCents}), 0)::bigint as subtotal
+      from ${quotes}
+      where ${quotes.businessId} = ${businessId}
+        and ${quotes.deletedAt} is null
+        and ${quotes.sentAt} is not null
+        and ${quotes.sentAt} >= ${window.since.toISOString()}
+        and ${quotes.sentAt} < ${window.until.toISOString()}
+    `),
+    executeRows<{
+      rejected: string | number;
+      expired: string | number;
+      avg_accepted: string | number;
+    }>(sql`
+      select
+        coalesce(sum(${quotes.totalInCents}) filter (where ${quotes.status} = 'rejected'), 0)::bigint as rejected,
+        coalesce(sum(${quotes.totalInCents}) filter (where ${quotes.status} = 'expired'), 0)::bigint as expired,
+        coalesce((
+          select avg(accepted.total_in_cents)
+          from ${quotes} accepted
+          where accepted.business_id = ${businessId}
+            and accepted.deleted_at is null
+            and accepted.status = 'accepted'
+            and accepted.accepted_at >= ${window.since.toISOString()}
+            and accepted.accepted_at < ${window.until.toISOString()}
+        ), 0)::bigint as avg_accepted
+      from ${quotes}
+      where ${quotes.businessId} = ${businessId}
+        and ${quotes.deletedAt} is null
+        and ${quotes.sentAt} is not null
+        and ${quotes.sentAt} >= ${window.since.toISOString()}
+        and ${quotes.sentAt} < ${window.until.toISOString()}
+    `),
+    executeRows<{
+      invoiced: string | number;
+      tax: string | number;
+      average: string | number;
+    }>(sql`
+      select
+        coalesce(sum(${invoices.totalInCents}), 0)::bigint as invoiced,
+        coalesce(sum(${invoices.taxInCents}), 0)::bigint as tax,
+        coalesce(avg(${invoices.totalInCents}), 0)::bigint as average
+      from ${invoices}
+      where ${invoices.businessId} = ${businessId}
+        and ${invoices.deletedAt} is null
+        and ${invoices.status} not in ('draft', 'voided')
+        and ${invoices.issueDate} >= ${toIso(window.since)}
+        and ${invoices.issueDate} < ${toIso(window.until)}
+    `),
+    executeRows<{
+      label: string;
+      sent: string | number;
+      accepted: string | number;
+      decided: string | number;
+    }>(sql`
+      select
+        ${businessInquiryForms.name} as label,
+        count(*)::int as sent,
+        count(*) filter (where ${quotes.status} = 'accepted')::int as accepted,
+        count(*) filter (where ${quotes.status} in ('accepted', 'rejected', 'expired'))::int as decided
+      from ${quotes}
+      inner join ${inquiries}
+        on ${inquiries.id} = ${quotes.inquiryId}
+        and ${inquiries.businessId} = ${quotes.businessId}
+      inner join ${businessInquiryForms}
+        on ${businessInquiryForms.id} = ${inquiries.businessInquiryFormId}
+        and ${businessInquiryForms.businessId} = ${quotes.businessId}
+      where ${quotes.businessId} = ${businessId}
+        and ${quotes.deletedAt} is null
+        and ${quotes.sentAt} is not null
+        and ${quotes.sentAt} >= ${window.since.toISOString()}
+        and ${quotes.sentAt} < ${window.until.toISOString()}
+      group by ${businessInquiryForms.name}
+      having count(*) filter (where ${quotes.status} in ('accepted', 'rejected', 'expired')) > 0
+      order by decided desc
+      limit 6
+    `),
+    executeRows<{
+      label: string;
+      sent: string | number;
+      accepted: string | number;
+      decided: string | number;
+    }>(sql`
+      select
+        coalesce(nullif(${inquiries.source}, ''), 'Unknown') as label,
+        count(*)::int as sent,
+        count(*) filter (where ${quotes.status} = 'accepted')::int as accepted,
+        count(*) filter (where ${quotes.status} in ('accepted', 'rejected', 'expired'))::int as decided
+      from ${quotes}
+      inner join ${inquiries}
+        on ${inquiries.id} = ${quotes.inquiryId}
+        and ${inquiries.businessId} = ${quotes.businessId}
+      where ${quotes.businessId} = ${businessId}
+        and ${quotes.deletedAt} is null
+        and ${quotes.sentAt} is not null
+        and ${quotes.sentAt} >= ${window.since.toISOString()}
+        and ${quotes.sentAt} < ${window.until.toISOString()}
+      group by 1
+      having count(*) filter (where ${quotes.status} in ('accepted', 'rejected', 'expired')) > 0
+      order by decided desc
+      limit 6
+    `),
+    getAnnotationRows(businessId, window.since, window.until),
+    getScheduledReportRows(businessId),
+  ]);
+
+  const timing: AnalyticsTimingMetric[] = [
+    {
+      key: "first-response",
+      label: "First response",
+      description: "Inquiry submitted → first team response.",
+      hours: currentTiming.avgFirstResponseHours,
+      priorHours: priorTiming?.avgFirstResponseHours ?? null,
+    },
+    {
+      key: "time-to-quote",
+      label: "Time to quote",
+      description: "Inquiry submitted → first quote drafted.",
+      hours: currentTiming.avgTimeToQuoteHours,
+      priorHours: priorTiming?.avgTimeToQuoteHours ?? null,
+    },
+    {
+      key: "time-to-view",
+      label: "Time to view",
+      description: "Quote sent → customer opened it.",
+      hours: currentTiming.avgTimeToViewHours,
+      priorHours: priorTiming?.avgTimeToViewHours ?? null,
+    },
+    {
+      key: "time-to-decision",
+      label: "Time to decision",
+      description: "Quote sent → customer accepted or declined.",
+      hours: currentTiming.avgTimeToDecisionHours,
+      priorHours: priorTiming?.avgTimeToDecisionHours ?? null,
+    },
+  ];
+
+  const quoteFunnel: AnalyticsFunnelStep[] = [
+    {
+      key: "sent",
+      label: "Sent",
+      count: current.quotesSent,
+      href: `${getBusinessQuotesPath(businessSlug)}?status=sent`,
+    },
+    {
+      key: "viewed",
+      label: "Viewed",
+      count: current.quotesViewed,
+      href: `${getBusinessQuotesPath(businessSlug)}?status=sent`,
+    },
+    {
+      key: "responded",
+      label: "Responded",
+      count: current.quotesResponded,
+      href: `${getBusinessQuotesPath(businessSlug)}?status=rejected`,
+    },
+    {
+      key: "accepted",
+      label: "Accepted",
+      count: current.quotesAccepted,
+      href: `${getBusinessQuotesPath(businessSlug)}?status=accepted`,
+    },
+  ];
+
+  const winRateItems = (
+    rows: Array<{
+      label: string;
+      sent: string | number;
+      accepted: string | number;
+      decided: string | number;
+    }>,
+  ): AnalyticsRankedItem[] =>
+    rows.map((row) => {
+      const accepted = num(row.accepted);
+      const decided = num(row.decided);
+      const winRate = rate(accepted, decided);
+      return {
+        label: row.label,
+        count: Math.round(winRate * 100),
+        detail: `${accepted} won of ${decided} decided`,
+        share: winRate,
+        href: `${getBusinessQuotesPath(businessSlug)}?status=accepted`,
+      };
+    });
+
+  const discount = discountRows[0];
+  const subtotal = num(discount?.subtotal);
+  const value = valueRows[0];
+  const invoiceValue = invoiceValueRows[0];
+
+  const benchmarks = await getBenchmarkRows({
+    industryCategory: meta.industryCategory,
+    sizeTier: plan === "business" ? await getSizeTierForBusiness(businessId) : null,
+    own: {
+      formConversionRate: rate(current.quotesSent, current.inquiries),
+      quoteAcceptanceRate: current.acceptanceRate,
+      avgResponseHours: currentTiming.avgTimeToQuoteHours,
+    },
+  });
+
+  const goals = await getGoalRows(businessId, current, currentTiming);
+
+  return {
+    currency: meta.currency,
+    series,
+    sources,
+    campaigns,
+    services,
+    timing,
+    quoteFunnel,
+    aging,
+    expiring: {
+      count: num(expiringRows[0]?.count),
+      valueInCents: num(expiringRows[0]?.value),
+    },
+    discounts: {
+      quotedCount: num(discount?.quoted),
+      discountedCount: num(discount?.discounted),
+      totalDiscountInCents: num(discount?.discount),
+      averageDiscountPercent: subtotal > 0 ? rate(num(discount?.discount), subtotal) * 100 : 0,
+    },
+    values: {
+      quotedInCents: current.quotedValueInCents,
+      acceptedInCents: current.revenueWonInCents,
+      rejectedInCents: num(value?.rejected),
+      expiredInCents: num(value?.expired),
+      averageAcceptedInCents: num(value?.avg_accepted),
+      averageInvoiceInCents: num(invoiceValue?.average),
+      taxInCents: num(invoiceValue?.tax),
+    },
+    winRates: {
+      byService: winRateItems(winRateServiceRows),
+      bySource: winRateItems(winRateSourceRows),
+    },
+    arAging,
+    collections,
+    paymentMix,
+    repeat,
+    topCustomers,
+    benchmarks,
+    annotations,
+    goals,
+    scheduledReports,
+    hasData:
+      current.inquiries > 0 ||
+      current.quotesSent > 0 ||
+      current.visitors > 0 ||
+      current.invoicedInCents > 0,
+  };
+}
+
+async function getSizeTierForBusiness(businessId: string): Promise<string> {
+  const monthStart = new Date(Date.now() - 30 * 86_400_000);
+  const [row] = await db
+    .select({ value: sql<number>`count(*)` })
+    .from(inquiries)
+    .where(
+      and(
+        eq(inquiries.businessId, businessId),
+        isNull(inquiries.deletedAt),
+        gte(inquiries.submittedAt, monthStart),
+      ),
+    );
+
+  const monthlyInquiries = num(row?.value);
+  if (monthlyInquiries < 50) return "small";
+  if (monthlyInquiries <= 200) return "medium";
+  return "large";
+}
+
+export async function getPerformanceData({
+  businessId,
+  businessSlug,
+  window,
+  plan,
+}: {
+  businessId: string;
+  businessSlug: string;
+  window: AnalyticsWindow;
+  plan: BusinessPlan;
+}): Promise<PerformanceData> {
+  const suffix = windowCacheSuffix(window);
+
+  if (window.preset === "custom") {
+    return withCircuitBreaker(`analytics:performance:${businessId}:${suffix}`, () =>
+      computePerformanceData({ businessId, businessSlug, window, plan }),
+    );
   }
 
-  const forecastCents = Math.round(
-    pendingQuoteCount * historicalAcceptanceRate * avgAcceptedValue,
+  return withCircuitBreaker(`analytics:performance:${businessId}:${suffix}`, () =>
+    getPerformanceDataCached({ businessId, businessSlug, window, plan }),
+  );
+}
+
+async function getPerformanceDataCached({
+  businessId,
+  businessSlug,
+  window,
+  plan,
+}: {
+  businessId: string;
+  businessSlug: string;
+  window: AnalyticsWindow;
+  plan: BusinessPlan;
+}): Promise<PerformanceData> {
+  "use cache";
+
+  cacheLife(hotBusinessCacheLife);
+  cacheTag(
+    ...getBusinessAnalyticsCacheTags(businessId, `performance:${windowCacheSuffix(window)}`),
+  );
+
+  return computePerformanceData({ businessId, businessSlug, window, plan });
+}
+
+// ---------------------------------------------------------------------------
+// Operations
+// ---------------------------------------------------------------------------
+
+async function getFollowUpHealth(
+  businessId: string,
+  since: Date,
+  until: Date,
+): Promise<FollowUpHealthData> {
+  const sinceIso = since.toISOString();
+  const untilIso = until.toISOString();
+
+  const [row] = await executeRows<{
+    pending: string | number;
+    overdue: string | number;
+    completed: string | number;
+    skipped: string | number;
+    on_time: string | number;
+    avg_hours: string | number | null;
+  }>(sql`
+    select
+      count(*) filter (where ${followUps.status} = 'pending')::int as pending,
+      count(*) filter (
+        where ${followUps.status} = 'pending' and ${followUps.dueAt} < now()
+      )::int as overdue,
+      count(*) filter (
+        where ${followUps.completedAt} >= ${sinceIso}
+          and ${followUps.completedAt} < ${untilIso}
+      )::int as completed,
+      count(*) filter (
+        where ${followUps.skippedAt} >= ${sinceIso}
+          and ${followUps.skippedAt} < ${untilIso}
+      )::int as skipped,
+      count(*) filter (
+        where ${followUps.completedAt} >= ${sinceIso}
+          and ${followUps.completedAt} < ${untilIso}
+          and ${followUps.completedAt} <= ${followUps.dueAt}
+      )::int as on_time,
+      avg(extract(epoch from (${followUps.completedAt} - ${followUps.createdAt})) / 3600)
+        filter (
+          where ${followUps.completedAt} >= ${sinceIso}
+            and ${followUps.completedAt} < ${untilIso}
+        ) as avg_hours
+    from ${followUps}
+    where ${followUps.businessId} = ${businessId}
+      and ${followUps.deletedAt} is null
+  `);
+
+  const completed = num(row?.completed);
+  const skipped = num(row?.skipped);
+
+  return {
+    pending: num(row?.pending),
+    overdue: num(row?.overdue),
+    completed,
+    skipped,
+    completionRate: rate(completed, completed + skipped),
+    onTimeRate: completed > 0 ? rate(num(row?.on_time), completed) : 0,
+    averageCompletionHours: numOrNull(row?.avg_hours),
+  };
+}
+
+async function getFollowUpEffectiveness(
+  businessId: string,
+  since: Date,
+  until: Date,
+): Promise<FollowUpEffectivenessData> {
+  const rows = await executeRows<{
+    has_follow_up: boolean;
+    sent: string | number;
+    responded: string | number;
+    accepted: string | number;
+  }>(sql`
+    select
+      exists (
+        select 1 from ${followUps}
+        where ${followUps.deletedAt} is null
+          and (
+            ${followUps.quoteId} = ${quotes.id}
+            or (
+              ${followUps.inquiryId} is not null
+              and ${followUps.inquiryId} = ${quotes.inquiryId}
+            )
+          )
+      ) as has_follow_up,
+      count(*)::int as sent,
+      count(*) filter (where ${quotes.customerRespondedAt} is not null)::int as responded,
+      count(*) filter (where ${quotes.status} = 'accepted')::int as accepted
+    from ${quotes}
+    where ${quotes.businessId} = ${businessId}
+      and ${quotes.deletedAt} is null
+      and ${quotes.sentAt} >= ${since.toISOString()}
+      and ${quotes.sentAt} < ${until.toISOString()}
+    group by 1
+  `);
+
+  const emptyCohort = (): FollowUpCohort => ({
+    sent: 0,
+    responded: 0,
+    responseRate: 0,
+    accepted: 0,
+    acceptanceRate: 0,
+  });
+  const withFollowUp = emptyCohort();
+  const withoutFollowUp = emptyCohort();
+
+  for (const row of rows) {
+    const target = row.has_follow_up ? withFollowUp : withoutFollowUp;
+    target.sent = num(row.sent);
+    target.responded = num(row.responded);
+    target.accepted = num(row.accepted);
+    target.responseRate = rate(target.responded, target.sent);
+    target.acceptanceRate = rate(target.accepted, target.sent);
+  }
+
+  return { withFollowUp, withoutFollowUp };
+}
+
+const AUTOMATION_ATTEMPT_BUCKETS = ["0", "1", "2", "3+"] as const;
+
+async function getAutomationHealth(
+  businessId: string,
+  plan: BusinessPlan,
+  since: Date,
+  until: Date,
+): Promise<AutomationHealthData> {
+  const sinceIso = since.toISOString();
+  const untilIso = until.toISOString();
+
+  const [activeSequences, attemptRows, stoppedRows, emailRows] = await Promise.all([
+    getActiveAutoFollowUpCount(businessId),
+    executeRows<{ bucket: string; count: string | number }>(sql`
+      select
+        case
+          when ${quotes.autoFollowUpAttempts} <= 0 then '0'
+          when ${quotes.autoFollowUpAttempts} = 1 then '1'
+          when ${quotes.autoFollowUpAttempts} = 2 then '2'
+          else '3+'
+        end as bucket,
+        count(*)::int as count
+      from ${quotes}
+      where ${quotes.businessId} = ${businessId}
+        and ${quotes.deletedAt} is null
+        and ${quotes.autoFollowUpEnabled} = true
+      group by 1
+    `),
+    executeRows<{ label: string; count: string | number }>(sql`
+      select
+        case
+          when ${quotes.publicViewedAt} is not null then 'Quote viewed'
+          when ${quotes.customerRespondedAt} is not null then 'Customer responded'
+          when ${quotes.autoFollowUpAttempts} >= ${quotes.autoFollowUpMaxAttempts}
+            then 'Attempts used'
+          else 'Stopped manually'
+        end as label,
+        count(*)::int as count
+      from ${quotes}
+      where ${quotes.businessId} = ${businessId}
+        and ${quotes.deletedAt} is null
+        and ${quotes.autoFollowUpEnabled} = true
+        and (
+          (
+            ${quotes.autoFollowUpStoppedAt} >= ${sinceIso}
+            and ${quotes.autoFollowUpStoppedAt} < ${untilIso}
+          )
+          or (
+            ${quotes.autoFollowUpStoppedAt} is null
+            and ${quotes.autoFollowUpAttempts} >= ${quotes.autoFollowUpMaxAttempts}
+            and ${quotes.autoFollowUpLastSentAt} >= ${sinceIso}
+          )
+        )
+      group by 1
+      order by count(*) desc
+    `),
+    executeRows<{ count: string | number }>(sql`
+      select count(*)::int as count
+      from ${activityLogs}
+      where ${activityLogs.businessId} = ${businessId}
+        and ${activityLogs.type} = 'quote.auto_follow_up_sent'
+        and ${activityLogs.createdAt} >= ${sinceIso}
+        and ${activityLogs.createdAt} < ${untilIso}
+    `),
+  ]);
+
+  const attemptsByBucket = new Map(
+    attemptRows.map((row) => [row.bucket, num(row.count)]),
+  );
+  const attemptsTotal = AUTOMATION_ATTEMPT_BUCKETS.reduce(
+    (sum, bucket) => sum + (attemptsByBucket.get(bucket) ?? 0),
+    0,
+  );
+  const attempts: AnalyticsRankedItem[] = AUTOMATION_ATTEMPT_BUCKETS.map((bucket) => {
+    const count = attemptsByBucket.get(bucket) ?? 0;
+    return rankedItem(bucket, count, attemptsTotal);
+  });
+
+  const stoppedTotal = stoppedRows.reduce((sum, row) => sum + num(row.count), 0);
+  const stopped: AnalyticsRankedItem[] = stoppedRows.map((row) =>
+    rankedItem(row.label, num(row.count), stoppedTotal),
   );
 
   return {
-    forecastCents,
-    pendingQuoteCount,
-    historicalAcceptanceRate,
-    averageQuoteValueCents: avgAcceptedValue,
+    activeSequences,
+    activeLimit: getUsageLimit(plan, "activeAutoFollowUpsPerBusiness"),
+    emailsSent: num(emailRows[0]?.count),
+    quotesWithAttempts: attemptsTotal - (attemptsByBucket.get("0") ?? 0),
+    attempts,
+    stopped,
   };
 }
 
-// ---------------------------------------------------------------------------
-// Top Sources (Referrer Domains)
-// ---------------------------------------------------------------------------
+type AiImpactResult = {
+  impact: AiImpactData;
+  readinessBlocked: number;
+};
 
-export type { ReferrerSource };
-
-/**
- * Returns the top 5 referrer domains from analytics event metadata within
- * the specified date range. Excludes "direct" traffic from the ranking.
- *
- * Gated behind `analyticsConversion` entitlement (enforced by the parent component).
- */
-export async function getTopSources(
+async function getAiImpact(
   businessId: string,
-  since?: Date,
-  until?: Date,
-): Promise<ReferrerSource[]> {
-  const { since: effectiveSince, until: effectiveUntil } = resolveDateWindow(since, until);
+  since: Date,
+  until: Date,
+): Promise<AiImpactResult> {
+  const sinceIso = since.toISOString();
+  const untilIso = until.toISOString();
 
-  const rows = await executeRows<{ domain: string; visit_count: string }>(sql`
-    SELECT
-      metadata->>'referrer' AS domain,
-      count(*) AS visit_count
-    FROM ${analyticsEvents}
-    WHERE ${analyticsEvents.businessId} = ${businessId}
-      AND ${analyticsEvents.occurredAt} >= ${effectiveSince.toISOString()}::timestamp
-      AND ${analyticsEvents.occurredAt} <= ${effectiveUntil.toISOString()}::timestamp
-      AND metadata->>'referrer' IS NOT NULL
-      AND metadata->>'referrer' != 'direct'
-      AND metadata->>'referrer' != ''
-    GROUP BY metadata->>'referrer'
-    ORDER BY count(*) DESC
-    LIMIT 5
+  const [draftRows, sentRows] = await Promise.all([
+    executeRows<{
+      drafted: string | number;
+      drafted_sent: string | number;
+      missing_info: string | number;
+      acknowledged: string | number;
+      ready: string | number;
+      needs_confirmation: string | number;
+      scope_only: string | number;
+      blocked: string | number;
+    }>(sql`
+      select
+        count(*) filter (where ${quotes.aiGenerationId} is not null)::int as drafted,
+        count(*) filter (
+          where ${quotes.aiGenerationId} is not null
+            and ${quotes.sentAt} is not null
+        )::int as drafted_sent,
+        count(*) filter (
+          where ${quotes.aiGenerationId} is not null
+            and jsonb_array_length(coalesce(${quotes.aiMissingInfo}, '[]'::jsonb)) > 0
+        )::int as missing_info,
+        count(*) filter (
+          where ${quotes.aiAcknowledgedAt} >= ${sinceIso}
+            and ${quotes.aiAcknowledgedAt} < ${untilIso}
+        )::int as acknowledged,
+        count(*) filter (
+          where ${quotes.aiGenerationId} is not null
+            and ${quotes.aiReadiness} = 'ready'
+        )::int as ready,
+        count(*) filter (
+          where ${quotes.aiGenerationId} is not null
+            and ${quotes.aiReadiness} = 'needs_confirmation'
+        )::int as needs_confirmation,
+        count(*) filter (
+          where ${quotes.aiGenerationId} is not null
+            and ${quotes.aiReadiness} = 'scope_only'
+        )::int as scope_only,
+        count(*) filter (
+          where ${quotes.aiGenerationId} is not null
+            and ${quotes.aiReadiness} = 'needs_confirmation'
+            and ${quotes.aiAcknowledgedAt} is null
+            and ${quotes.sentAt} is null
+        )::int as blocked
+      from ${quotes}
+      where ${quotes.businessId} = ${businessId}
+        and ${quotes.deletedAt} is null
+        and ${quotes.createdAt} >= ${sinceIso}
+        and ${quotes.createdAt} < ${untilIso}
+    `),
+    executeRows<{
+      ai_sent: string | number;
+      ai_accepted: string | number;
+      ai_decided: string | number;
+      manual_sent: string | number;
+      manual_accepted: string | number;
+      manual_decided: string | number;
+    }>(sql`
+      select
+        count(*) filter (where ${quotes.aiGenerationId} is not null)::int as ai_sent,
+        count(*) filter (
+          where ${quotes.aiGenerationId} is not null and ${quotes.status} = 'accepted'
+        )::int as ai_accepted,
+        count(*) filter (
+          where ${quotes.aiGenerationId} is not null
+            and ${quotes.status} in ('accepted', 'rejected', 'expired')
+        )::int as ai_decided,
+        count(*) filter (where ${quotes.aiGenerationId} is null)::int as manual_sent,
+        count(*) filter (
+          where ${quotes.aiGenerationId} is null and ${quotes.status} = 'accepted'
+        )::int as manual_accepted,
+        count(*) filter (
+          where ${quotes.aiGenerationId} is null
+            and ${quotes.status} in ('accepted', 'rejected', 'expired')
+        )::int as manual_decided
+      from ${quotes}
+      where ${quotes.businessId} = ${businessId}
+        and ${quotes.deletedAt} is null
+        and ${quotes.sentAt} >= ${sinceIso}
+        and ${quotes.sentAt} < ${untilIso}
+    `),
+  ]);
+
+  const draft = draftRows[0];
+  const sent = sentRows[0];
+
+  const drafted = num(draft?.drafted);
+  const readinessTotal =
+    num(draft?.ready) + num(draft?.needs_confirmation) + num(draft?.scope_only);
+  const readiness: AnalyticsRankedItem[] = [
+    rankedItem("Ready", num(draft?.ready), readinessTotal),
+    rankedItem(
+      "Needs confirmation",
+      num(draft?.needs_confirmation),
+      readinessTotal,
+    ),
+    rankedItem("Scope only", num(draft?.scope_only), readinessTotal),
+  ];
+
+  const aiSent = num(sent?.ai_sent);
+  const manualSent = num(sent?.manual_sent);
+
+  return {
+    impact: {
+      drafted,
+      aiSent,
+      aiAccepted: num(sent?.ai_accepted),
+      aiWinRate: rate(num(sent?.ai_accepted), num(sent?.ai_decided)),
+      manualSent,
+      manualAccepted: num(sent?.manual_accepted),
+      manualWinRate: rate(num(sent?.manual_accepted), num(sent?.manual_decided)),
+      aiShare: rate(aiSent, aiSent + manualSent),
+      draftToSentRate: rate(num(draft?.drafted_sent), drafted),
+      missingInfoDetected: num(draft?.missing_info),
+      acknowledged: num(draft?.acknowledged),
+      readiness,
+    },
+    readinessBlocked: num(draft?.blocked),
+  };
+}
+
+async function getAgentFunnel(
+  businessId: string,
+  since: Date,
+  until: Date,
+): Promise<AgentFunnelData> {
+  const [row] = await executeRows<{
+    sessions: string | number;
+    captured: string | number;
+    handoffs: string | number;
+    abandoned: string | number;
+    active: string | number;
+  }>(sql`
+    select
+      count(*)::int as sessions,
+      count(*) filter (where ${aiAgentSessions.inquiryId} is not null)::int as captured,
+      count(*) filter (where ${aiAgentSessions.status} = 'human_handoff')::int as handoffs,
+      count(*) filter (where ${aiAgentSessions.status} = 'abandoned')::int as abandoned,
+      count(*) filter (where ${aiAgentSessions.status} = 'active')::int as active
+    from ${aiAgentSessions}
+    where ${aiAgentSessions.businessId} = ${businessId}
+      and ${aiAgentSessions.createdAt} >= ${since.toISOString()}
+      and ${aiAgentSessions.createdAt} < ${until.toISOString()}
   `);
 
-  return (rows as unknown as Array<{ domain: string; visit_count: string }>).map((r) => ({
-    domain: r.domain,
-    count: Number(r.visit_count),
-  }));
+  const sessions = num(row?.sessions);
+  return {
+    sessions,
+    captured: num(row?.captured),
+    handoffs: num(row?.handoffs),
+    abandoned: num(row?.abandoned),
+    active: num(row?.active),
+    captureRate: rate(num(row?.captured), sessions),
+  };
+}
+
+type ReadinessSnapshot = {
+  missingInfoDetected: number;
+  readinessBlocked: number;
+  readinessCompleted: number;
+};
+
+async function getKnowledgeData(
+  businessId: string,
+  plan: BusinessPlan,
+  readiness: ReadinessSnapshot,
+): Promise<KnowledgeData> {
+  const [row] = await executeRows<{
+    files: string | number;
+    memories: string | number;
+  }>(sql`
+    select
+      (select count(*) from ${businessKnowledgeFiles}
+        where ${businessKnowledgeFiles.businessId} = ${businessId})::int as files,
+      (select count(*) from ${businessMemories}
+        where ${businessMemories.businessId} = ${businessId})::int as memories
+  `);
+
+  return {
+    sources: num(row?.files) + num(row?.memories),
+    limit: getUsageLimit(plan, "knowledgeSourcesPerBusiness"),
+    missingInfoDetected: readiness.missingInfoDetected,
+    readinessBlocked: readiness.readinessBlocked,
+    readinessCompleted: readiness.readinessCompleted,
+  };
+}
+
+async function getEmailDelivery(
+  businessId: string,
+  since: Date,
+  until: Date,
+): Promise<EmailDeliveryData> {
+  const [row] = await executeRows<{
+    sent: string | number;
+    failed: string | number;
+    pending: string | number;
+  }>(sql`
+    select
+      count(*) filter (where ${emailOutbox.status} = 'sent')::int as sent,
+      count(*) filter (where ${emailOutbox.status} = 'failed')::int as failed,
+      count(*) filter (
+        where ${emailOutbox.status} in ('pending', 'sending', 'unknown')
+      )::int as pending
+    from ${emailOutbox}
+    where ${emailOutbox.businessId} = ${businessId}
+      and ${emailOutbox.createdAt} >= ${since.toISOString()}
+      and ${emailOutbox.createdAt} < ${until.toISOString()}
+  `);
+
+  const sent = num(row?.sent);
+  const failed = num(row?.failed);
+
+  return {
+    sent,
+    failed,
+    pending: num(row?.pending),
+    deliveredRate: rate(sent, sent + failed),
+  };
+}
+
+async function getVerticalWorkflows(
+  businessId: string,
+  since: Date,
+  until: Date,
+  readiness: { blocked: number; completed: number },
+): Promise<VerticalWorkflowData> {
+  const sinceIso = since.toISOString();
+  const untilIso = until.toISOString();
+  const today = toIso(todayStartUtc());
+
+  const [approvalRows, changeOrderRows, scheduleRows, scheduleValueRows, scopeRows] =
+    await Promise.all([
+      executeRows<{
+        requested: string | number;
+        approved: string | number;
+        changes_requested: string | number;
+        expired: string | number;
+        avg_hours: string | number | null;
+      }>(sql`
+        select
+          count(*) filter (
+            where ${approvals.createdAt} >= ${sinceIso}
+              and ${approvals.createdAt} < ${untilIso}
+          )::int as requested,
+          count(*) filter (
+            where ${approvals.state} = 'approved'
+              and ${approvals.decidedAt} >= ${sinceIso}
+              and ${approvals.decidedAt} < ${untilIso}
+          )::int as approved,
+          count(*) filter (
+            where ${approvals.state} = 'changes_requested'
+              and ${approvals.decidedAt} >= ${sinceIso}
+              and ${approvals.decidedAt} < ${untilIso}
+          )::int as changes_requested,
+          count(*) filter (
+            where ${approvals.state} = 'expired'
+              and ${approvals.decidedAt} >= ${sinceIso}
+              and ${approvals.decidedAt} < ${untilIso}
+          )::int as expired,
+          avg(extract(epoch from (${approvals.decidedAt} - ${approvals.createdAt})) / 3600)
+            filter (
+              where ${approvals.decidedAt} >= ${sinceIso}
+                and ${approvals.decidedAt} < ${untilIso}
+            ) as avg_hours
+        from ${approvals}
+        where ${approvals.businessId} = ${businessId}
+      `),
+      executeRows<{
+        created: string | number;
+        approved: string | number;
+        rejected: string | number;
+        withdrawn: string | number;
+        approved_value: string | number;
+      }>(sql`
+        select
+          count(*) filter (
+            where ${changeOrders.createdAt} >= ${sinceIso}
+              and ${changeOrders.createdAt} < ${untilIso}
+          )::int as created,
+          count(*) filter (
+            where ${changeOrders.state} = 'approved'
+              and ${changeOrders.decidedAt} >= ${sinceIso}
+              and ${changeOrders.decidedAt} < ${untilIso}
+          )::int as approved,
+          count(*) filter (
+            where ${changeOrders.state} = 'rejected'
+              and ${changeOrders.decidedAt} >= ${sinceIso}
+              and ${changeOrders.decidedAt} < ${untilIso}
+          )::int as rejected,
+          count(*) filter (
+            where ${changeOrders.state} = 'withdrawn'
+              and ${changeOrders.updatedAt} >= ${sinceIso}
+              and ${changeOrders.updatedAt} < ${untilIso}
+          )::int as withdrawn,
+          coalesce(
+            sum(${changeOrders.priceDeltaCents}) filter (
+              where ${changeOrders.state} = 'approved'
+                and ${changeOrders.decidedAt} >= ${sinceIso}
+                and ${changeOrders.decidedAt} < ${untilIso}
+            ),
+            0
+          )::bigint as approved_value
+        from ${changeOrders}
+        where ${changeOrders.businessId} = ${businessId}
+      `),
+      executeRows<{
+        created: string | number;
+        accepted: string | number;
+      }>(sql`
+        select
+          count(*) filter (
+            where ${commercialSchedules.createdAt} >= ${sinceIso}
+              and ${commercialSchedules.createdAt} < ${untilIso}
+          )::int as created,
+          count(*) filter (
+            where ${commercialSchedules.createdAt} >= ${sinceIso}
+              and ${commercialSchedules.createdAt} < ${untilIso}
+              and ${commercialSchedules.state} = 'accepted'
+          )::int as accepted
+        from ${commercialSchedules}
+        where ${commercialSchedules.businessId} = ${businessId}
+      `),
+      executeRows<{ value: string | number }>(sql`
+        select coalesce(sum(${commercialScheduleItems.computedAmountCents}), 0)::bigint as value
+        from ${commercialScheduleItems}
+        inner join ${commercialSchedules}
+          on ${commercialSchedules.id} = ${commercialScheduleItems.scheduleId}
+        where ${commercialScheduleItems.businessId} = ${businessId}
+          and ${commercialSchedules.state} = 'accepted'
+          and ${commercialScheduleItems.dueDate} >= ${today}
+      `),
+      executeRows<{
+        added: string | number;
+        required_missing: string | number;
+        waivers: string | number;
+      }>(sql`
+        select
+          count(*) filter (
+            where ${quoteScopeBlocks.createdAt} >= ${sinceIso}
+              and ${quoteScopeBlocks.createdAt} < ${untilIso}
+          )::int as added,
+          count(*) filter (
+            where ${quoteScopeBlocks.required} = true
+              and ${quoteScopeBlocks.state} = 'incomplete'
+          )::int as required_missing,
+          count(*) filter (
+            where ${quoteScopeBlocks.state} = 'waived'
+              and ${quoteScopeBlocks.waivedAt} >= ${sinceIso}
+              and ${quoteScopeBlocks.waivedAt} < ${untilIso}
+          )::int as waivers
+        from ${quoteScopeBlocks}
+        where ${quoteScopeBlocks.businessId} = ${businessId}
+      `),
+    ]);
+
+  const approval = approvalRows[0];
+  const approved = num(approval?.approved);
+  const changesRequested = num(approval?.changes_requested);
+  const expired = num(approval?.expired);
+
+  const schedule = scheduleRows[0];
+  const schedulesCreated = num(schedule?.created);
+
+  return {
+    approvals: {
+      requested: num(approval?.requested),
+      approved,
+      changesRequested,
+      expired,
+      approvalRate: rate(approved, approved + changesRequested + expired),
+      averageDecisionHours: numOrNull(approval?.avg_hours),
+    },
+    changeOrders: {
+      created: num(changeOrderRows[0]?.created),
+      approved: num(changeOrderRows[0]?.approved),
+      rejected: num(changeOrderRows[0]?.rejected),
+      withdrawn: num(changeOrderRows[0]?.withdrawn),
+      approvedValueInCents: num(changeOrderRows[0]?.approved_value),
+    },
+    schedules: {
+      created: schedulesCreated,
+      accepted: num(schedule?.accepted),
+      adoptionRate: rate(num(schedule?.accepted), schedulesCreated),
+      upcomingValueInCents: num(scheduleValueRows[0]?.value),
+    },
+    scope: {
+      blocksAdded: num(scopeRows[0]?.added),
+      requiredMissing: num(scopeRows[0]?.required_missing),
+      waivers: num(scopeRows[0]?.waivers),
+      readinessBlocked: readiness.blocked,
+      readinessCompleted: readiness.completed,
+    },
+  };
+}
+
+async function computeOperationsData({
+  businessId,
+  window,
+  plan,
+}: {
+  businessId: string;
+  window: AnalyticsWindow;
+  plan: BusinessPlan;
+}): Promise<OperationsData> {
+  const meta = await getAnalyticsBusinessMetaUncached(businessId);
+  const { since, until } = window;
+
+  const [followUp, effectiveness, automation, aiResult, agent, email] = await Promise.all([
+    getFollowUpHealth(businessId, since, until),
+    getFollowUpEffectiveness(businessId, since, until),
+    getAutomationHealth(businessId, plan, since, until),
+    getAiImpact(businessId, since, until),
+    getAgentFunnel(businessId, since, until),
+    getEmailDelivery(businessId, since, until),
+  ]);
+
+  const ai = aiResult.impact;
+  const readiness: ReadinessSnapshot = {
+    missingInfoDetected: ai.missingInfoDetected,
+    readinessBlocked: aiResult.readinessBlocked,
+    readinessCompleted: ai.acknowledged,
+  };
+
+  const [knowledge, verticals] = await Promise.all([
+    getKnowledgeData(businessId, meta.plan, readiness),
+    getVerticalWorkflows(businessId, since, until, {
+      blocked: readiness.readinessBlocked,
+      completed: readiness.readinessCompleted,
+    }),
+  ]);
+
+  return {
+    currency: meta.currency,
+    followUp,
+    effectiveness,
+    automation,
+    ai,
+    agent,
+    knowledge,
+    email,
+    verticals,
+    hasData:
+      followUp.pending + followUp.completed + followUp.skipped > 0 ||
+      effectiveness.withFollowUp.sent + effectiveness.withoutFollowUp.sent > 0 ||
+      automation.emailsSent > 0 ||
+      ai.drafted > 0 ||
+      agent.sessions > 0 ||
+      email.sent + email.failed + email.pending > 0 ||
+      verticals.approvals.requested > 0 ||
+      verticals.changeOrders.created > 0 ||
+      verticals.schedules.created > 0 ||
+      verticals.scope.blocksAdded > 0,
+  };
+}
+
+export async function getOperationsData({
+  businessId,
+  window,
+  plan,
+}: {
+  businessId: string;
+  window: AnalyticsWindow;
+  plan: BusinessPlan;
+}): Promise<OperationsData> {
+  const suffix = windowCacheSuffix(window);
+
+  if (window.preset === "custom") {
+    return withCircuitBreaker(`analytics:operations:${businessId}:${suffix}`, () =>
+      computeOperationsData({ businessId, window, plan }),
+    );
+  }
+
+  return withCircuitBreaker(`analytics:operations:${businessId}:${suffix}`, () =>
+    getOperationsDataCached({ businessId, window, plan }),
+  );
+}
+
+async function getOperationsDataCached({
+  businessId,
+  window,
+  plan,
+}: {
+  businessId: string;
+  window: AnalyticsWindow;
+  plan: BusinessPlan;
+}): Promise<OperationsData> {
+  "use cache";
+
+  cacheLife(hotBusinessCacheLife);
+  cacheTag(
+    ...getBusinessAnalyticsCacheTags(businessId, `operations:${windowCacheSuffix(window)}`),
+  );
+
+  return computeOperationsData({ businessId, window, plan });
 }
 
 // ---------------------------------------------------------------------------
-// Campaign Performance (UTM)
+// Team
 // ---------------------------------------------------------------------------
 
-export type CampaignPerformanceRow = {
-  source: string;
-  campaign: string;
-  count: number;
-};
+const TEAM_MONTH_COUNT = 6;
 
-/**
- * Returns inquiry counts grouped by utm_source and utm_campaign from the
- * analytics event metadata within the specified date range.
- *
- * Gated behind `analyticsConversion` entitlement (enforced by the parent component).
- */
-export async function getCampaignPerformance(
+type MonthBucket = { key: string; label: string; start: Date };
+
+function recentMonthBuckets(count: number, now = new Date()): MonthBucket[] {
+  const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const buckets: MonthBucket[] = [];
+
+  for (let offset = count - 1; offset >= 0; offset -= 1) {
+    const monthStart = new Date(
+      Date.UTC(start.getUTCFullYear(), start.getUTCMonth() - offset, 1),
+    );
+    buckets.push({
+      key: toIso(monthStart).slice(0, 7),
+      label: formatMonthLabel(monthStart),
+      start: monthStart,
+    });
+  }
+
+  return buckets;
+}
+
+async function getTeamMemberRows(businessId: string): Promise<TeamMemberRow[]> {
+  const rows = await db
+    .select({
+      userId: businessMembers.userId,
+      name: user.name,
+      email: user.email,
+      role: businessMembers.role,
+    })
+    .from(businessMembers)
+    .innerJoin(user, eq(user.id, businessMembers.userId))
+    .where(eq(businessMembers.businessId, businessId));
+
+  return rows
+    .map((row) => ({
+      userId: row.userId,
+      name: row.name || row.email,
+      email: row.email,
+      role: row.role as TeamMemberRole,
+      inquiriesViewed: 0,
+      quotesSent: 0,
+      valueWonInCents: 0,
+      followUpsCompleted: 0,
+      winRate: null,
+      averageResponseHours: null,
+      slaBreaches: 0,
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+async function getTeamInquiryViews(
   businessId: string,
-  since?: Date,
-  until?: Date,
-): Promise<CampaignPerformanceRow[]> {
-  const { since: effectiveSince, until: effectiveUntil } = resolveDateWindow(since, until);
-
-  const rows = await executeRows<{ source: string; campaign: string; inquiry_count: string }>(sql`
-    SELECT
-      metadata->>'utmSource' AS source,
-      metadata->>'utmCampaign' AS campaign,
-      count(*) AS inquiry_count
-    FROM ${analyticsEvents}
-    WHERE ${analyticsEvents.businessId} = ${businessId}
-      AND ${analyticsEvents.occurredAt} >= ${effectiveSince.toISOString()}::timestamp
-      AND ${analyticsEvents.occurredAt} <= ${effectiveUntil.toISOString()}::timestamp
-      AND metadata->>'utmSource' IS NOT NULL
-      AND metadata->>'utmSource' != ''
-    GROUP BY metadata->>'utmSource', metadata->>'utmCampaign'
-    ORDER BY count(*) DESC
+  since: Date,
+  until: Date,
+): Promise<
+  Array<{
+    userId: string;
+    viewed: number;
+    averageHours: number | null;
+    breaches: number;
+  }>
+> {
+  const rows = await executeRows<{
+    user_id: string;
+    viewed: string | number;
+    avg_hours: string | number | null;
+    breaches: string | number;
+  }>(sql`
+    select
+      ${inquiries.firstViewedBy} as user_id,
+      count(*)::int as viewed,
+      avg(extract(epoch from (${inquiries.firstViewedAt} - ${inquiries.submittedAt})) / 3600)
+        as avg_hours,
+      count(*) filter (
+        where ${inquiries.firstViewedAt} > ${inquiries.submittedAt} + interval '24 hours'
+      )::int as breaches
+    from ${inquiries}
+    where ${inquiries.businessId} = ${businessId}
+      and ${inquiries.deletedAt} is null
+      and ${inquiries.firstViewedBy} is not null
+      and ${inquiries.firstViewedAt} >= ${since.toISOString()}
+      and ${inquiries.firstViewedAt} < ${until.toISOString()}
+    group by ${inquiries.firstViewedBy}
   `);
 
-  return (rows as unknown as Array<{ source: string; campaign: string; inquiry_count: string }>).map((r) => ({
-    source: r.source,
-    campaign: r.campaign || "(none)",
-    count: Number(r.inquiry_count),
+  return rows.map((row) => ({
+    userId: row.user_id,
+    viewed: num(row.viewed),
+    averageHours: numOrNull(row.avg_hours),
+    breaches: num(row.breaches),
   }));
+}
+
+async function getTeamQuoteActivity(
+  businessId: string,
+  since: Date,
+  until: Date,
+): Promise<
+  Array<{
+    userId: string;
+    sent: number;
+    accepted: number;
+    decided: number;
+    valueWonInCents: number;
+  }>
+> {
+  const rows = await executeRows<{
+    user_id: string;
+    sent: string | number;
+    accepted: string | number;
+    decided: string | number;
+    value: string | number;
+  }>(sql`
+    with attributed as (
+      select
+        ${activityLogs.quoteId} as quote_id,
+        (array_agg(
+          ${activityLogs.actorUserId}
+          order by ${activityLogs.createdAt} asc, ${activityLogs.id} asc
+        ))[1] as user_id
+      from ${activityLogs}
+      where ${activityLogs.businessId} = ${businessId}
+        and ${activityLogs.type} = 'quote.sent'
+        and ${activityLogs.quoteId} is not null
+        and ${activityLogs.actorUserId} is not null
+      group by ${activityLogs.quoteId}
+    )
+    select
+      attributed.user_id as user_id,
+      count(*) filter (
+        where ${quotes.sentAt} >= ${since.toISOString()}
+          and ${quotes.sentAt} < ${until.toISOString()}
+      )::int as sent,
+      count(*) filter (
+        where ${quotes.sentAt} >= ${since.toISOString()}
+          and ${quotes.sentAt} < ${until.toISOString()}
+          and ${quotes.status} = 'accepted'
+      )::int as accepted,
+      count(*) filter (
+        where ${quotes.sentAt} >= ${since.toISOString()}
+          and ${quotes.sentAt} < ${until.toISOString()}
+          and ${quotes.status} in ('accepted', 'rejected', 'expired')
+      )::int as decided,
+      coalesce(
+        sum(${quotes.totalInCents}) filter (
+          where ${quotes.status} = 'accepted'
+            and ${quotes.acceptedAt} >= ${since.toISOString()}
+            and ${quotes.acceptedAt} < ${until.toISOString()}
+        ),
+        0
+      )::bigint as value
+    from ${quotes}
+    inner join attributed on attributed.quote_id = ${quotes.id}
+    where ${quotes.businessId} = ${businessId}
+      and ${quotes.deletedAt} is null
+    group by attributed.user_id
+  `);
+
+  return rows.map((row) => ({
+    userId: row.user_id,
+    sent: num(row.sent),
+    accepted: num(row.accepted),
+    decided: num(row.decided),
+    valueWonInCents: num(row.value),
+  }));
+}
+
+async function getTeamFollowUpsCompleted(
+  businessId: string,
+  since: Date,
+  until: Date,
+): Promise<Array<{ userId: string; completed: number }>> {
+  const rows = await executeRows<{ user_id: string; completed: string | number }>(sql`
+    select
+      ${activityLogs.actorUserId} as user_id,
+      count(*)::int as completed
+    from ${activityLogs}
+    where ${activityLogs.businessId} = ${businessId}
+      and ${activityLogs.type} = 'follow_up.completed'
+      and ${activityLogs.actorUserId} is not null
+      and ${activityLogs.createdAt} >= ${since.toISOString()}
+      and ${activityLogs.createdAt} < ${until.toISOString()}
+    group by ${activityLogs.actorUserId}
+  `);
+
+  return rows.map((row) => ({ userId: row.user_id, completed: num(row.completed) }));
+}
+
+async function getTeamWorkload(businessId: string): Promise<TeamData["workload"]> {
+  const [inquiryRow] = await executeRows<{
+    open: string | number;
+    unviewed: string | number;
+    oldest_unviewed_hours: string | number | null;
+  }>(sql`
+    select
+      count(*) filter (
+        where ${inquiries.status} not in ('won', 'lost', 'archived')
+      )::int as open,
+      count(*) filter (
+        where ${inquiries.status} not in ('won', 'lost', 'archived')
+          and ${inquiries.firstViewedAt} is null
+      )::int as unviewed,
+      max(extract(epoch from (now() - ${inquiries.submittedAt})) / 3600) filter (
+        where ${inquiries.status} not in ('won', 'lost', 'archived')
+          and ${inquiries.firstViewedAt} is null
+      ) as oldest_unviewed_hours
+    from ${inquiries}
+    where ${inquiries.businessId} = ${businessId}
+      and ${inquiries.deletedAt} is null
+      and ${inquiries.archivedAt} is null
+  `);
+
+  const [followUpRow] = await executeRows<{ pending: string | number }>(sql`
+    select count(*) filter (where ${followUps.status} = 'pending')::int as pending
+    from ${followUps}
+    where ${followUps.businessId} = ${businessId}
+      and ${followUps.deletedAt} is null
+  `);
+
+  const oldest = numOrNull(inquiryRow?.oldest_unviewed_hours);
+  return {
+    openInquiries: num(inquiryRow?.open),
+    unviewedInquiries: num(inquiryRow?.unviewed),
+    oldestUnviewedHours:
+      num(inquiryRow?.unviewed) > 0 && oldest !== null && oldest > 0 ? oldest : null,
+    pendingFollowUps: num(followUpRow?.pending),
+  };
+}
+
+async function getTeamSlaRows(
+  businessId: string,
+  since: Date,
+  until: Date,
+): Promise<{
+  breached: number;
+  submitted: number;
+  byMember: Array<{ userId: string | null; count: number }>;
+}> {
+  const sinceIso = since.toISOString();
+  const untilIso = until.toISOString();
+
+  const [summaryRows, memberRows] = await Promise.all([
+    executeRows<{ submitted: string | number; breached: string | number }>(sql`
+      select
+        count(*)::int as submitted,
+        count(*) filter (
+          where (
+            ${inquiries.firstViewedAt} is null
+            and ${inquiries.submittedAt} <= now() - interval '24 hours'
+          )
+          or ${inquiries.firstViewedAt} > ${inquiries.submittedAt} + interval '24 hours'
+        )::int as breached
+      from ${inquiries}
+      where ${inquiries.businessId} = ${businessId}
+        and ${inquiries.deletedAt} is null
+        and ${inquiries.submittedAt} >= ${sinceIso}
+        and ${inquiries.submittedAt} < ${untilIso}
+    `),
+    executeRows<{ user_id: string | null; count: string | number }>(sql`
+      select
+        ${inquiries.firstViewedBy} as user_id,
+        count(*)::int as count
+      from ${inquiries}
+      where ${inquiries.businessId} = ${businessId}
+        and ${inquiries.deletedAt} is null
+        and ${inquiries.submittedAt} >= ${sinceIso}
+        and ${inquiries.submittedAt} < ${untilIso}
+        and (
+          ${inquiries.firstViewedAt} > ${inquiries.submittedAt} + interval '24 hours'
+          or (
+            ${inquiries.firstViewedAt} is null
+            and ${inquiries.submittedAt} <= now() - interval '24 hours'
+          )
+        )
+      group by ${inquiries.firstViewedBy}
+    `),
+  ]);
+
+  return {
+    submitted: num(summaryRows[0]?.submitted),
+    breached: num(summaryRows[0]?.breached),
+    byMember: memberRows.map((row) => ({
+      userId: row.user_id,
+      count: num(row.count),
+    })),
+  };
+}
+
+async function getTeamCohorts(
+  businessId: string,
+  months: MonthBucket[],
+): Promise<AnalyticsCohortRow[]> {
+  const monthsStart = months[0]?.start ?? new Date();
+  const rows = await executeRows<{
+    month_key: string;
+    size: string | number;
+    quoted: string | number;
+    won: string | number;
+  }>(sql`
+    select
+      to_char(date_trunc('month', ${inquiries.submittedAt}), 'YYYY-MM') as month_key,
+      count(*)::int as size,
+      count(*) filter (where exists (
+        select 1 from ${quotes}
+        where ${quotes.inquiryId} = ${inquiries.id}
+          and ${quotes.deletedAt} is null
+          and ${quotes.sentAt} is not null
+      ))::int as quoted,
+      count(*) filter (where exists (
+        select 1 from ${quotes}
+        where ${quotes.inquiryId} = ${inquiries.id}
+          and ${quotes.deletedAt} is null
+          and ${quotes.status} = 'accepted'
+      ))::int as won
+    from ${inquiries}
+    where ${inquiries.businessId} = ${businessId}
+      and ${inquiries.deletedAt} is null
+      and ${inquiries.submittedAt} >= ${monthsStart.toISOString()}
+    group by 1
+  `);
+
+  const byMonth = new Map(rows.map((row) => [row.month_key, row]));
+
+  return months.map((month) => {
+    const row = byMonth.get(month.key);
+    const size = num(row?.size);
+    const won = num(row?.won);
+
+    return {
+      monthKey: month.key,
+      label: month.label,
+      size,
+      quoted: num(row?.quoted),
+      won,
+      conversionRate: rate(won, size),
+    };
+  });
+}
+
+async function getTeamBenchmarkOwn(
+  businessId: string,
+  since: Date,
+  until: Date,
+): Promise<{
+  formConversionRate: number | null;
+  quoteAcceptanceRate: number | null;
+  avgResponseHours: number | null;
+}> {
+  const sinceIso = since.toISOString();
+  const untilIso = until.toISOString();
+
+  const [row] = await executeRows<{
+    inquiries: string | number;
+    sent: string | number;
+    accepted: string | number;
+    avg_hours: string | number | null;
+  }>(sql`
+    select
+      (select count(*) from ${inquiries}
+        where ${inquiries.businessId} = ${businessId}
+          and ${inquiries.deletedAt} is null
+          and ${inquiries.submittedAt} >= ${sinceIso}
+          and ${inquiries.submittedAt} < ${untilIso})::int as inquiries,
+      (select count(*) from ${quotes}
+        where ${quotes.businessId} = ${businessId}
+          and ${quotes.deletedAt} is null
+          and ${quotes.sentAt} >= ${sinceIso}
+          and ${quotes.sentAt} < ${untilIso})::int as sent,
+      (select count(*) from ${quotes}
+        where ${quotes.businessId} = ${businessId}
+          and ${quotes.deletedAt} is null
+          and ${quotes.sentAt} >= ${sinceIso}
+          and ${quotes.sentAt} < ${untilIso}
+          and ${quotes.status} = 'accepted')::int as accepted,
+      (select avg(extract(epoch from (quoted.first_quote_at - ${inquiries.submittedAt})) / 3600)
+        from ${inquiries}
+        inner join (
+          select ${quotes.inquiryId} as inquiry_id, min(${quotes.createdAt}) as first_quote_at
+          from ${quotes}
+          where ${quotes.businessId} = ${businessId}
+            and ${quotes.deletedAt} is null
+            and ${quotes.inquiryId} is not null
+          group by ${quotes.inquiryId}
+        ) quoted on quoted.inquiry_id = ${inquiries.id}
+        where ${inquiries.businessId} = ${businessId}
+          and ${inquiries.submittedAt} >= ${sinceIso}
+          and ${inquiries.submittedAt} < ${untilIso}) as avg_hours
+  `);
+
+  const inquiriesCount = num(row?.inquiries);
+  const sent = num(row?.sent);
+
+  return {
+    formConversionRate: inquiriesCount > 0 ? rate(sent, inquiriesCount) : null,
+    quoteAcceptanceRate: sent > 0 ? rate(num(row?.accepted), sent) : null,
+    avgResponseHours: numOrNull(row?.avg_hours),
+  };
+}
+
+async function getTeamActivitySeries(
+  businessId: string,
+  months: MonthBucket[],
+  members: TeamMemberRow[],
+): Promise<TeamData["activitySeries"]> {
+  const monthsStart = months[0]?.start ?? new Date();
+
+  const rows = await executeRows<{
+    month_key: string;
+    user_id: string;
+    count: string | number;
+  }>(sql`
+    select
+      to_char(date_trunc('month', ${activityLogs.createdAt}), 'YYYY-MM') as month_key,
+      ${activityLogs.actorUserId} as user_id,
+      count(*)::int as count
+    from ${activityLogs}
+    where ${activityLogs.businessId} = ${businessId}
+      and ${activityLogs.type} in ('quote.sent', 'follow_up.completed')
+      and ${activityLogs.actorUserId} is not null
+      and ${activityLogs.createdAt} >= ${monthsStart.toISOString()}
+    group by 1, 2
+  `);
+
+  const countsByMember = new Map<string, Map<string, number>>();
+  for (const row of rows) {
+    const byMonth = countsByMember.get(row.user_id) ?? new Map<string, number>();
+    byMonth.set(row.month_key, num(row.count));
+    countsByMember.set(row.user_id, byMonth);
+  }
+
+  return {
+    bucketLabels: months.map((month) => month.label),
+    members: members.map((member) => ({
+      userId: member.userId,
+      name: member.name,
+      counts: months.map(
+        (month) => countsByMember.get(member.userId)?.get(month.key) ?? 0,
+      ),
+    })),
+  };
+}
+
+async function computeTeamData({
+  businessId,
+  window,
+  plan,
+}: {
+  businessId: string;
+  window: AnalyticsWindow;
+  plan: BusinessPlan;
+}): Promise<TeamData> {
+  const meta = await getAnalyticsBusinessMetaUncached(businessId);
+  const { since, until } = window;
+  const months = recentMonthBuckets(TEAM_MONTH_COUNT);
+
+  const [members, views, quoteActivity, followUpsCompleted, workload, sla, cohorts, benchmarkOwn] =
+    await Promise.all([
+      getTeamMemberRows(businessId),
+      getTeamInquiryViews(businessId, since, until),
+      getTeamQuoteActivity(businessId, since, until),
+      getTeamFollowUpsCompleted(businessId, since, until),
+      getTeamWorkload(businessId),
+      getTeamSlaRows(businessId, since, until),
+      getTeamCohorts(businessId, months),
+      getTeamBenchmarkOwn(businessId, since, until),
+    ]);
+
+  const viewsByUser = new Map(views.map((row) => [row.userId, row]));
+  const quotesByUser = new Map(quoteActivity.map((row) => [row.userId, row]));
+  const followUpsByUser = new Map(followUpsCompleted.map((row) => [row.userId, row]));
+  const nameByUser = new Map(members.map((member) => [member.userId, member.name]));
+
+  const memberRows: TeamMemberRow[] = members.map((member) => {
+    const view = viewsByUser.get(member.userId);
+    const quotes = quotesByUser.get(member.userId);
+    const followUps = followUpsByUser.get(member.userId);
+
+    return {
+      ...member,
+      inquiriesViewed: view?.viewed ?? 0,
+      quotesSent: quotes?.sent ?? 0,
+      valueWonInCents: quotes?.valueWonInCents ?? 0,
+      followUpsCompleted: followUps?.completed ?? 0,
+      winRate:
+        quotes && quotes.decided > 0 ? rate(quotes.accepted, quotes.decided) : null,
+      averageResponseHours: view?.averageHours ?? null,
+      slaBreaches: view?.breaches ?? 0,
+    };
+  });
+
+  memberRows.sort(
+    (a, b) =>
+      b.valueWonInCents - a.valueWonInCents ||
+      b.quotesSent - a.quotesSent ||
+      a.name.localeCompare(b.name),
+  );
+
+  const slaByMember: AnalyticsRankedItem[] = sla.byMember
+    .map((row) =>
+      rankedItem(
+        row.userId ? (nameByUser.get(row.userId) ?? "Former member") : "Not yet viewed",
+        row.count,
+        sla.breached,
+      ),
+    )
+    .sort((a, b) => b.count - a.count);
+
+  const [activitySeries, benchmarks] = await Promise.all([
+    getTeamActivitySeries(businessId, months, memberRows),
+    getBenchmarkRows({
+      industryCategory: meta.industryCategory,
+      sizeTier: plan === "business" ? await getSizeTierForBusiness(businessId) : null,
+      own: benchmarkOwn,
+    }),
+  ]);
+
+  return {
+    currency: meta.currency,
+    members: memberRows,
+    workload,
+    sla: {
+      targetHours: RESPONSE_SLA_HOURS,
+      breachedInquiries: sla.breached,
+      breachRate: rate(sla.breached, sla.submitted),
+      byMember: slaByMember,
+    },
+    cohorts,
+    benchmarks,
+    activitySeries,
+  };
+}
+
+export async function getTeamData({
+  businessId,
+  window,
+  plan,
+}: {
+  businessId: string;
+  window: AnalyticsWindow;
+  plan: BusinessPlan;
+}): Promise<TeamData> {
+  const suffix = windowCacheSuffix(window);
+
+  if (window.preset === "custom") {
+    return withCircuitBreaker(`analytics:team:${businessId}:${suffix}`, () =>
+      computeTeamData({ businessId, window, plan }),
+    );
+  }
+
+  return withCircuitBreaker(`analytics:team:${businessId}:${suffix}`, () =>
+    getTeamDataCached({ businessId, window, plan }),
+  );
+}
+
+async function getTeamDataCached({
+  businessId,
+  window,
+  plan,
+}: {
+  businessId: string;
+  window: AnalyticsWindow;
+  plan: BusinessPlan;
+}): Promise<TeamData> {
+  "use cache";
+
+  cacheLife(hotBusinessCacheLife);
+  cacheTag(...getBusinessAnalyticsCacheTags(businessId, `team:${windowCacheSuffix(window)}`));
+
+  return computeTeamData({ businessId, window, plan });
 }

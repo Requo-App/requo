@@ -11,8 +11,9 @@
 import type { BusinessPlan } from "@/lib/plans/plans";
 
 export const planFeatures = [
-  "analyticsConversion",
-  "analyticsWorkflow",
+  "analyticsPerformance",
+  "analyticsOperations",
+  "analyticsTeam",
   "multipleForms",
   "inquiryPageCustomization",
   "emailTemplates",
@@ -40,8 +41,8 @@ const planEntitlements: Record<BusinessPlan, ReadonlySet<PlanFeature>> = {
     "exports",
   ]),
   pro: new Set<PlanFeature>([
-    "analyticsConversion",
-    "analyticsWorkflow",
+    "analyticsPerformance",
+    "analyticsOperations",
     "multipleForms",
     "inquiryPageCustomization",
     "emailTemplates",
@@ -56,8 +57,9 @@ const planEntitlements: Record<BusinessPlan, ReadonlySet<PlanFeature>> = {
     "customWorkflowRecipes",
   ]),
   business: new Set<PlanFeature>([
-    "analyticsConversion",
-    "analyticsWorkflow",
+    "analyticsPerformance",
+    "analyticsOperations",
+    "analyticsTeam",
     "multipleForms",
     "inquiryPageCustomization",
     "emailTemplates",
@@ -107,8 +109,9 @@ export function getRequiredPlan(feature: PlanFeature): BusinessPlan | null {
 
 /** Human-readable label for a feature, used in paywall UI. */
 export const planFeatureLabels: Record<PlanFeature, string> = {
-  analyticsConversion: "Performance analytics",
-  analyticsWorkflow: "Operations analytics",
+  analyticsPerformance: "Performance analytics",
+  analyticsOperations: "Operations analytics",
+  analyticsTeam: "Team analytics",
   multipleForms: "Multiple services",
   inquiryPageCustomization: "Service page customization",
   emailTemplates: "Email templates",
@@ -127,10 +130,12 @@ export const planFeatureLabels: Record<PlanFeature, string> = {
 
 /** Short value description for use in paywall locked states. */
 export const planFeatureDescriptions: Record<PlanFeature, string> = {
-  analyticsConversion:
-    "Trend charts, funnel visualization, form-level breakdown, and period comparisons.",
-  analyticsWorkflow:
-    "Workflow timing, operational alerts, revenue tracking, and follow-up analytics.",
+  analyticsPerformance:
+    "Date ranges, trend comparisons, service and source breakdowns, revenue and collections, and industry benchmarks.",
+  analyticsOperations:
+    "Follow-up effectiveness, automation health, AI impact, agent funnels, and vertical workflow metrics.",
+  analyticsTeam:
+    "Per-member performance, workload balance, SLA breaches, cohorts, and team report distribution.",
   multipleForms:
     "Create additional services for different offerings or audiences.",
   inquiryPageCustomization:

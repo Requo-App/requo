@@ -13,7 +13,7 @@ import { FeatureGate } from "@/features/paywall";
 </FeatureGate>
 
 // For content blocks
-<FeatureGate feature="analyticsConversion" plan={plan} variant="block" upgradeAction={props}>
+<FeatureGate feature="analyticsPerformance" plan={plan} variant="block" upgradeAction={props}>
   <AnalyticsChart />
 </FeatureGate>
 
@@ -58,7 +58,7 @@ import { FeatureGate } from "@/features/paywall";
 **Example**:
 ```tsx
 <FeatureGate 
-  feature="analyticsConversion" 
+  feature="analyticsPerformance"
   plan={plan} 
   variant="block"
   upgradeAction={upgradeProps}
@@ -78,7 +78,7 @@ import { FeatureGate } from "@/features/paywall";
 **Example with preview**:
 ```tsx
 <FeatureGate 
-  feature="analyticsConversion" 
+  feature="analyticsPerformance"
   plan={plan} 
   variant="page"
   upgradeAction={upgradeProps}
@@ -150,16 +150,18 @@ See `lib/plans/entitlements.ts` for the complete list (single source of truth):
 - `exports`
 
 **Pro Plan** (requires Pro or Business):
-- `analyticsConversion`
-- `analyticsWorkflow`
+- `analyticsPerformance`
+- `analyticsOperations`
 - `multipleForms`
 - `inquiryPageCustomization`
 - `emailTemplates`
 - `removeWatermark`
 - `autoFollowUps`
 - `aiAgent`
+- `customWorkflowRecipes`
 
 **Business Plan** (requires Business):
+- `analyticsTeam`
 - `members`
 - `auditLogs`
 
@@ -224,7 +226,7 @@ export default async function EmailSettingsPage() {
 ### Analytics Panel
 ```tsx
 <FeatureGate 
-  feature="analyticsConversion" 
+  feature="analyticsPerformance"
   plan={plan} 
   variant="block"
   upgradeAction={upgradeProps}
@@ -258,12 +260,12 @@ export default async function EmailSettingsPage() {
 ### From `PremiumContentBlur`
 ```tsx
 // Before
-<PremiumContentBlur feature="analyticsConversion" plan={plan} upgradeAction={props}>
+<PremiumContentBlur feature="analyticsPerformance" plan={plan} upgradeAction={props}>
   <Chart />
 </PremiumContentBlur>
 
 // After
-<FeatureGate feature="analyticsConversion" plan={plan} variant="block" upgradeAction={props}>
+<FeatureGate feature="analyticsPerformance" plan={plan} variant="block" upgradeAction={props}>
   <Chart />
 </FeatureGate>
 ```

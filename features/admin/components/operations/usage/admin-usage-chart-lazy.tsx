@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import type { ComponentProps } from "react";
 
-import { ChartSkeleton } from "@/components/shared/lazy-recharts";
+import { ChartSkeleton } from "@/components/shared/chart-skeleton";
 import { LazyErrorBoundary } from "@/components/shared/lazy-error-boundary";
 
 // ssr: false — Recharts relies on browser DOM APIs (SVG measurement,

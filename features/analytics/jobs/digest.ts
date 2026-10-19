@@ -144,7 +144,7 @@ export async function sendAnalyticsDigestEmails(): Promise<AnalyticsDigestSummar
     );
 
   const entitled = eligibleBusinesses.filter((business) =>
-    hasFeatureAccess(business.plan as BusinessPlan, "analyticsWorkflow"),
+    hasFeatureAccess(business.plan as BusinessPlan, "analyticsOperations"),
   );
 
   const now = new Date();

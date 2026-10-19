@@ -144,7 +144,7 @@ export async function sendAnalyticsScheduledReports(): Promise<AnalyticsSchedule
     );
 
   const entitled = reports.filter((row) =>
-    hasFeatureAccess(row.business.plan as BusinessPlan, "analyticsWorkflow"),
+    hasFeatureAccess(row.business.plan as BusinessPlan, "analyticsOperations"),
   );
 
   const dueReports = entitled.filter((row) =>
