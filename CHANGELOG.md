@@ -36,6 +36,13 @@ All notable changes to this project are documented here. Format follows [Keep a 
 - Analytics trend charts no longer read as flat zero lines when the daily rollup job has not processed the window yet (a seeded workspace, a range that predates the job, a fresh install). The series builder now falls back to the live source tables for the days the rollup is missing, so the trend shows the activity that actually happened.
 - The Top customers card now shows won value as currency ("$1,750") instead of the raw cent amount ("175,000").
 - Both win-rate definitions now carry their formula in a tooltip: accepted ÷ decided quotes on the KPI tile and the breakdown card, accepted ÷ quotes sent on the service performance table.
+- The demo seed now records each inquiry's form view on the same day as the inquiry and adds visitors who browsed the form without inquiring, so the visitor → inquiry funnel reads as a real rate instead of exceeding 100%.
+- The analytics funnel states the counts ("9 from 7 visitors") when a stage sits above the one before it, instead of a conversion above 100% that reads as a broken number.
+- The dashboard greeting no longer causes a hydration mismatch: the time of day is resolved on the client, so the server's copy and the viewer's copy no longer disagree.
+- The mobile top bar's page title is no longer a second `<h1>` on the page — the page keeps the single document heading.
+- The model-catalog drift check now loads `.env.local`, so provider keys configured there are compared instead of reported as missing; `CATALOG_DRIFT_ALLOW_MISSING` is documented in `.env.example` for local runs without keys.
+- The demo seed no longer fails when it runs over an existing database: a quote that already carries a commercial schedule reuses that schedule instead of orphaning its items.
+- The public inquiry browser tests no longer fill the service-category field, which is owned by the service form and is no longer a customer-facing field.
 - Dashboard notifications now subscribe with a fresh realtime channel topic on every mount, so an in-flight channel removal can no longer trigger the "cannot add `postgres_changes` callbacks after `subscribe()`" runtime error.
 
 ### Cleaned

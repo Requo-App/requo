@@ -153,8 +153,22 @@ describe("Funnel", () => {
 
     expect(screen.getByText("Visitors")).toBeInTheDocument();
     expect(screen.getByText("Quotes sent")).toBeInTheDocument();
-    expect(screen.getAllByText("100% of visitors").length).toBeGreaterThan(0);
+    expect(screen.getByText("100% of visitors")).toBeInTheDocument();
     expect(screen.getByText("57.1% of inquiries")).toBeInTheDocument();
+  });
+
+  it("states the counts instead of a rate above 100%", () => {
+    render(
+      <Funnel
+        steps={[
+          { key: "visitors", label: "Visitors", count: 7, href: null },
+          { key: "inquiries", label: "Inquiries", count: 9, href: null },
+        ]}
+      />,
+    );
+
+    expect(screen.queryByText("128.6% of visitors")).not.toBeInTheDocument();
+    expect(screen.getByText("9 from 7 visitors")).toBeInTheDocument();
   });
 
   it("shows the empty label when nothing happened", () => {

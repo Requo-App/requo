@@ -735,6 +735,12 @@ function addDays(date: Date, days: number) {
   return next;
 }
 
+function addMinutes(date: Date, minutes: number) {
+  const next = new Date(date);
+  next.setUTCMinutes(next.getUTCMinutes() + minutes);
+  return next;
+}
+
 function todayAtUtc(hour = 15, minute = 0) {
   const date = new Date(seedNow);
   date.setUTCHours(hour, minute, 0, 0);
@@ -1583,14 +1589,36 @@ async function _seedGeneratedBusinessData(input: {
       updatedAt: submittedAt,
     });
 
+    // The visitor who sent this inquiry opened the form a few minutes
+    // earlier, on the same day. Keeping the view and the inquiry in the same
+    // day means a funnel window counts both together — a view recorded a day
+    // earlier falls outside the window and makes the conversion read above
+    // 100%.
     analyticsRows.push({
       id: id("analytics"),
       businessId: input.businessId,
       businessInquiryFormId: input.formId,
       eventType: "inquiry_form_viewed",
       visitorHash: hashOpaqueToken(`${input.businessId}:${index}:form`),
-      occurredAt: addDays(submittedAt, -1),
+      occurredAt: addMinutes(submittedAt, -randInt(rng, 2, 25)),
     });
+
+    // Other visitors who looked at the same form that day and left without
+    // inquiring. They make the visitor → inquiry conversion a real rate
+    // instead of a flat 100%.
+    const browsingVisitors = randInt(rng, 0, 3);
+    for (let extra = 0; extra < browsingVisitors; extra += 1) {
+      analyticsRows.push({
+        id: id("analytics"),
+        businessId: input.businessId,
+        businessInquiryFormId: input.formId,
+        eventType: "inquiry_form_viewed",
+        visitorHash: hashOpaqueToken(
+          `${input.businessId}:${index}:browse:${extra}`,
+        ),
+        occurredAt: addMinutes(submittedAt, -randInt(rng, 30, 240)),
+      });
+    }
 
     if (index < 3 && status === "new") {
       notificationRows.push({
@@ -1932,7 +1960,7 @@ async function seedPackWorkflowDemo(input: {
 
     const scheduleId = id("schedule");
 
-    await db
+    const insertedSchedules = await db
       .insert(commercialSchedules)
       .values({
         id: scheduleId,
@@ -1947,7 +1975,29 @@ async function seedPackWorkflowDemo(input: {
         createdAt: seedNow,
         updatedAt: seedNow,
       })
-      .onConflictDoNothing();
+      .onConflictDoNothing()
+      .returning({ id: commercialSchedules.id });
+
+    // A quote may already carry a schedule (a re-seed, or a quote that was
+    // scheduled before). The insert is then skipped by the unique index, and
+    // the items below have to hang off the schedule that is actually there.
+    let effectiveScheduleId = scheduleId;
+
+    if (insertedSchedules.length === 0) {
+      const [existing] = await db
+        .select({ id: commercialSchedules.id })
+        .from(commercialSchedules)
+        .where(
+          and(
+            eq(commercialSchedules.quoteId, quote.id),
+            eq(commercialSchedules.businessId, input.businessId),
+          ),
+        )
+        .limit(1);
+
+      if (!existing) continue;
+      effectiveScheduleId = existing.id;
+    }
 
     let itemPosition = 0;
 
@@ -1957,7 +2007,7 @@ async function seedPackWorkflowDemo(input: {
         .values({
           id: id("scheditem"),
           businessId: input.businessId,
-          scheduleId,
+          scheduleId: effectiveScheduleId,
           position: itemPosition++,
           category: item.category,
           label: item.label,

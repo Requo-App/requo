@@ -51,6 +51,7 @@ export function Funnel({
   const items: BarListItem[] = steps.map((step, index) => {
     const prior = index > 0 ? steps[index - 1]!.count : null;
     const stepShare = prior !== null && prior > 0 ? step.count / prior : null;
+    const priorLabel = index > 0 ? steps[index - 1]!.label.toLowerCase() : null;
 
     return {
       key: step.key,
@@ -60,9 +61,15 @@ export function Funnel({
       href: step.href,
       fillClassName: fillFor(index, steps.length),
       meta:
-        stepShare !== null
-          ? `${formatPercent(stepShare)} of ${steps[index - 1]!.label.toLowerCase()}`
-          : `${formatPercent(first > 0 ? step.count / first : 0)} of ${steps[0]!.label.toLowerCase()}`,
+        stepShare === null || priorLabel === null
+          ? undefined
+          : // A stage can sit above the one before it — a visitor who sends
+            // more than one inquiry, or a form view that lands just outside
+            // the window. State the counts instead of a rate above 100%,
+            // which reads as a broken number.
+            stepShare > 1
+            ? `${formatNumber(step.count)} from ${formatNumber(steps[index - 1]!.count)} ${priorLabel}`
+            : `${formatPercent(stepShare)} of ${priorLabel}`,
     };
   });
 

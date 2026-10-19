@@ -27,6 +27,8 @@
  * green nightly run means the catalog was really compared.
  */
 
+import "./load-env";
+
 import { getModelCatalog } from "../lib/ai/catalog";
 import { diffCatalogAgainstLive } from "../lib/ai/catalog-drift";
 import { EMBEDDING_MODEL } from "../lib/ai/embedding-constants";

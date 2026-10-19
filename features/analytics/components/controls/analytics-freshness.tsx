@@ -1,27 +1,12 @@
 "use client";
 
-import { useSyncExternalStore, useTransition } from "react";
+import { useTransition } from "react";
 import { RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-
-const emptySubscribe = () => () => {};
-
-/**
- * False during SSR and the first paint, true once hydrated. The freshness
- * caption formats in the viewer's timezone, which the server cannot know —
- * rendering `null` on the server keeps hydration mismatch-free without an
- * effect that would cascade a state update.
- */
-function useHydrated() {
-  return useSyncExternalStore(
-    emptySubscribe,
-    () => true,
-    () => false,
-  );
-}
+import { useHydrated } from "@/hooks/use-hydrated";
 
 /**
  * "Updated HH:mm" caption plus a ghost refresh button. The timestamp formats

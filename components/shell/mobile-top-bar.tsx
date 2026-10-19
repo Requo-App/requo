@@ -41,11 +41,12 @@ export function MobileTopBar({
         </div>
       ) : null}
 
-      {/* Page Title */}
+      {/* Page Title — a duplicate of the page's own heading, so it is not a
+          heading: the page keeps the single h1 for the document. */}
       <div className="min-w-0 flex-1">
-        <h1 className="truncate font-heading text-sm font-semibold tracking-tight text-foreground">
+        <p className="truncate font-heading text-sm font-semibold tracking-tight text-foreground">
           {pageTitle}
-        </h1>
+        </p>
       </div>
 
       {/* Trailing actions: page actions first, bell always rightmost */}

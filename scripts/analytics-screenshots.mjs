@@ -75,7 +75,7 @@ for (const tab of TABS) {
     await page.goto(`${BASE}/${SLUG}/analytics?tab=${tab}${QUERY}`, {
       waitUntil: "domcontentloaded",
     });
-    await page.waitForTimeout(7000);
+    await page.waitForTimeout(10000);
     await page.screenshot({
       path: `${OUT}/${tab}-${width}${suffix}.png`,
       fullPage: true,
