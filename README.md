@@ -25,8 +25,6 @@
 
 ![Customer-facing public quote page with accept and sign](public/screenshots/public-quote.png)
 
-Captured in native Windows Chrome at 2x, so the text renders the way a reader's browser draws it. Regenerate with `npm run screenshots` against a running app and seeded demo data (`npm run db:seed-demo`; see [Local setup](docs/setup/local.md)). Machines without Windows Chrome can use `npm run screenshots:fallback`, which captures the same screens at 1x with Playwright's bundled Chromium.
-
 ## Who It's For
 
 - **Business owners and operators** — qualify requests, prepare quotes, and see what needs action in one workspace.
