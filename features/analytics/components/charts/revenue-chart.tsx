@@ -120,14 +120,14 @@ export function RevenueChart({
           <YAxis
             tickLine={false}
             axisLine={false}
-            width={52}
+            width={56}
             tickCount={4}
             domain={[
               0,
               (dataMax: number) => (dataMax > 0 ? Math.ceil(dataMax * 1.1) : 1),
             ]}
             tickFormatter={(value: number) =>
-              formatMoney(Math.round(value * 100), currency)
+              formatMoney(Math.round(value * 100), currency, { compact: true })
             }
           />
           <ChartTooltip

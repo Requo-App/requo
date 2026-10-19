@@ -196,7 +196,7 @@ export function TrendChart({
           <YAxis
             tickLine={false}
             axisLine={false}
-            width={44}
+            width={56}
             allowDecimals={false}
             tickCount={4}
             domain={[

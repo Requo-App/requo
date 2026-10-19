@@ -7,6 +7,7 @@ import {
   ChartTooltip,
   type ChartConfig,
 } from "@/components/ui/chart";
+import { TruncatedTextWithTooltip } from "@/components/shared/truncated-text-with-tooltip";
 import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
 import { cn } from "@/lib/utils";
 
@@ -101,9 +102,10 @@ export function Donut({
               className="size-2 shrink-0 rounded-full"
               style={{ backgroundColor: slice.color }}
             />
-            <span className="min-w-0 truncate text-muted-foreground">
-              {slice.label}
-            </span>
+            <TruncatedTextWithTooltip
+              text={slice.label}
+              className="min-w-0 text-muted-foreground"
+            />
             <span className="ml-auto shrink-0 font-semibold text-foreground tabular-nums">
               {slice.count.toLocaleString()}
             </span>

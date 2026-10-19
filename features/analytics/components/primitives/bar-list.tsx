@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { TruncatedTextWithTooltip } from "@/components/shared/truncated-text-with-tooltip";
 import { cn } from "@/lib/utils";
 
 export type BarListItem = {
@@ -48,9 +49,10 @@ export function BarList({
         const body = (
           <>
             <div className="flex min-w-0 items-baseline justify-between gap-3">
-              <span className="min-w-0 truncate text-sm text-foreground">
-                {item.label}
-              </span>
+              <TruncatedTextWithTooltip
+                text={item.label}
+                className="min-w-0 text-sm text-foreground"
+              />
               <span
                 className={cn(
                   "shrink-0 text-sm font-semibold text-foreground tabular-nums",
@@ -75,7 +77,14 @@ export function BarList({
             </div>
 
             {item.meta ? (
-              <p className="mt-1 text-xs text-muted-foreground">{item.meta}</p>
+              typeof item.meta === "string" ? (
+                <TruncatedTextWithTooltip
+                  text={item.meta}
+                  className="mt-1 text-xs text-muted-foreground"
+                />
+              ) : (
+                <p className="mt-1 text-xs text-muted-foreground">{item.meta}</p>
+              )
             ) : null}
           </>
         );
