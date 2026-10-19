@@ -1,6 +1,5 @@
-import { NextResponse } from "next/server";
-
 import { stopImpersonationAction } from "@/features/admin/mutations";
+import { redirectToPath } from "@/lib/routing/redirects";
 
 /**
  * POST /admin/stop-impersonating
@@ -21,16 +20,12 @@ import { stopImpersonationAction } from "@/features/admin/mutations";
  * may no longer be an admin if the underlying session was already
  * destroyed; `/` is the shared-safe fallback.
  */
-export async function POST(request: Request) {
+export async function POST() {
   const result = await stopImpersonationAction();
 
   if (result.ok) {
-    return NextResponse.redirect(new URL("/admin", request.url), 303);
+    return redirectToPath("/admin", 303);
   }
 
-  const failureUrl = new URL(
-    `/?error=${encodeURIComponent(result.error)}`,
-    request.url,
-  );
-  return NextResponse.redirect(failureUrl, 303);
+  return redirectToPath(`/?error=${encodeURIComponent(result.error)}`, 303);
 }

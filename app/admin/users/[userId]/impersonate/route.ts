@@ -1,6 +1,5 @@
-import { NextResponse } from "next/server";
-
 import { startImpersonationAction } from "@/features/admin/mutations";
+import { redirectToPath } from "@/lib/routing/redirects";
 
 /**
  * POST /admin/users/[userId]/impersonate
@@ -37,12 +36,11 @@ export async function POST(
   });
 
   if (result.ok) {
-    return NextResponse.redirect(new URL("/home", request.url), 303);
+    return redirectToPath("/home", 303);
   }
 
-  const failureUrl = new URL(
-    `/admin/users/${userId}?error=${encodeURIComponent(result.error)}`,
-    request.url,
+  return redirectToPath(
+    `/admin/users/${encodeURIComponent(userId)}?error=${encodeURIComponent(result.error)}`,
+    303,
   );
-  return NextResponse.redirect(failureUrl, 303);
 }
