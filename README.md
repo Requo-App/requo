@@ -61,7 +61,7 @@ No dispatch/job management, general calendar or crew scheduling, mobile app, mar
 
 | Area | Implementation |
 | --- | --- |
-| Runtime | Node.js 22+, Next.js 16.3.5 App Router, React 19, TypeScript (strict) |
+| Runtime | Node.js 22+, Next.js 16.3.8 App Router, React 19, TypeScript (strict) |
 | UI | React Server Components by default, Tailwind CSS v4, shadcn/ui, Radix UI |
 | Data | PostgreSQL, Drizzle ORM, `postgres-js`; committed SQL migrations under `drizzle/` |
 | Identity | Better Auth (Drizzle adapter) — the only identity provider; every business query is `businessId`-scoped |
