@@ -16,6 +16,7 @@ const args = process.argv.slice(2);
 const OUT = args.find((arg) => !arg.startsWith("--")) ?? "/tmp/opencode/analytics";
 const LIGHT = args.includes("--light");
 const EMPTY = args.includes("--empty");
+const LOADING = args.includes("--loading");
 const TABS = EMPTY ? ["overview"] : ["overview", "performance", "operations", "team"];
 const WIDTHS = EMPTY ? [1440] : [1440, 1024, 768, 390];
 const QUERY = EMPTY
@@ -49,6 +50,24 @@ await page.waitForURL((url) => !url.pathname.includes("login"), {
 console.log("signed in ->", page.url());
 
 const suffix = `${LIGHT ? "-light" : ""}${EMPTY ? "-empty" : ""}`;
+
+if (LOADING) {
+  // Delay the analytics document so the route/section skeletons are captured
+  // at their final size.
+  await page.route("**/analytics**", async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 8000));
+    await route.continue();
+  });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto(`${BASE}/${SLUG}/analytics?tab=overview`, {
+    waitUntil: "commit",
+  });
+  await page.waitForTimeout(4000);
+  await page.screenshot({ path: `${OUT}/loading-1440${suffix}.png`, fullPage: true });
+  console.log("captured loading");
+  await browser.close();
+  process.exit(0);
+}
 
 for (const tab of TABS) {
   for (const width of WIDTHS) {
