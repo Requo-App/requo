@@ -25,7 +25,7 @@
 
 ![Customer-facing public quote page with accept and sign](public/screenshots/public-quote.png)
 
-Seeded demo data. Regenerate with `npm run screenshots` (needs the local database from [Local setup](docs/setup/local.md)).
+Captured in native Windows Chrome at 2x, so the text renders the way a reader's browser draws it. Regenerate with `npm run screenshots` against a running app and seeded demo data (`npm run db:seed-demo`; see [Local setup](docs/setup/local.md)). Machines without Windows Chrome can use `npm run screenshots:fallback`, which captures the same screens at 1x with Playwright's bundled Chromium.
 
 ## Who It's For
 
@@ -112,6 +112,7 @@ use those credentials outside a local environment. See
 | `npm run test:integration` | Postgres-backed integration tests (migrates first) |
 | `npm run test:e2e:smoke` | Playwright smoke journeys |
 | `npm run build` | Production build |
+| `npm run screenshots` | Recapture the README screenshots in native Windows Chrome |
 | `npm run db:migrate` | Apply Drizzle migrations |
 | `npm run db:local:setup` | Full-local: migrations + demo seed + realtime setup |
 | `npm run db:seed` | Reset and seed local demo data (refuses non-local databases) |
