@@ -1,4 +1,5 @@
 import type { BusinessType } from "@/features/inquiries/business-types";
+import type { QuoteStatus } from "@/features/quotes/types";
 import type {
   InquiryFormConfig,
   InquirySubmittedFieldSnapshot,
@@ -145,8 +146,9 @@ export type DashboardInquiryActivity = {
 
 export type DashboardInquiryRelatedQuote = {
   id: string;
-  status: string;
-  quoteNumber: string | null;
+  status: QuoteStatus;
+  /** The customer-facing quote number. Never the internal entity id. */
+  quoteNumber: string;
   totalInCents: number;
   createdAt: Date;
 };

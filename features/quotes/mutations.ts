@@ -25,6 +25,7 @@ import {
   validateSignerName,
 } from "@/features/quotes/acceptance";
 import type { QuoteEditorInput } from "@/features/quotes/schemas";
+import { quoteAcceptanceValidationMessages } from "@/features/quotes/schemas";
 import type { AiQuoteMissingInfoItem } from "@/lib/db/schema/quotes";
 import type { QuoteDeliveryMethod, QuoteStatus } from "@/features/quotes/types";
 import {
@@ -98,9 +99,20 @@ function resolveQuoteAiMissingInfo(
   }));
 }
 
-function calculateQuoteTotals(input: QuoteEditorInput) {
+/**
+ * Builds the persisted line items and the quote totals.
+ *
+ * `existingItemIds` carries the ids already stored for the quote. A submitted
+ * line that still exists keeps its id, so the customer's per-item revision
+ * comments keep pointing at the right row; a new line gets a fresh id.
+ */
+function calculateQuoteTotals(
+  input: QuoteEditorInput,
+  existingItemIds?: Set<string>,
+) {
   const items = input.items.map((item, index) => ({
-    id: newEntityId(),
+    id:
+      existingItemIds?.has(item.id) === true ? item.id : newEntityId(),
     description: item.description,
     quantity: item.quantity,
     unitPriceInCents: item.unitPriceInCents,
@@ -277,16 +289,31 @@ async function expireQuoteRows(
 
   const now = new Date();
 
-  await tx
+  // Only the rows this call actually transitions are logged, so two
+  // concurrent sweeps cannot write the same "quote expired" activity twice.
+  const expired = await tx
     .update(quotes)
     .set({
       status: "expired",
       updatedAt: now,
     })
-    .where(inArray(quotes.id, rows.map((row) => row.id)));
+    .where(
+      and(
+        inArray(quotes.id, rows.map((row) => row.id)),
+        eq(quotes.status, "sent"),
+      ),
+    )
+    .returning({ id: quotes.id });
+
+  const expiredIds = new Set(expired.map((row) => row.id));
+  const expiredRows = rows.filter((row) => expiredIds.has(row.id));
+
+  if (expiredRows.length === 0) {
+    return 0;
+  }
 
   await tx.insert(activityLogs).values(
-    rows.map((row) => ({
+    expiredRows.map((row) => ({
       id: newEntityId(),
       businessId: row.businessId,
       inquiryId: row.inquiryId,
@@ -302,7 +329,7 @@ async function expireQuoteRows(
     })),
   );
 
-  return rows.length;
+  return expiredRows.length;
 }
 
 export async function syncExpiredQuotesForBusiness(businessId: string) {
@@ -596,7 +623,6 @@ export async function updateQuoteForBusiness({
   actorUserId,
   quote,
 }: UpdateQuoteForBusinessInput) {
-  const totals = calculateQuoteTotals(quote);
   const now = new Date();
 
   return db.transaction(async (tx) => {
@@ -633,6 +659,17 @@ export async function updateQuoteForBusiness({
         status: existingQuote.status,
       } as const;
     }
+
+    const existingItemRows = await tx
+      .select({ id: quoteItems.id })
+      .from(quoteItems)
+      .where(
+        and(eq(quoteItems.quoteId, quoteId), eq(quoteItems.businessId, businessId)),
+      );
+    const totals = calculateQuoteTotals(
+      quote,
+      new Set(existingItemRows.map((row) => row.id)),
+    );
 
     await tx
       .update(quotes)
@@ -885,6 +922,19 @@ export async function archiveQuoteForBusiness({
       now,
     });
 
+    await writeAuditLog(tx, {
+      businessId,
+      actorUserId,
+      entityType: "quote",
+      entityId: quoteId,
+      action: "quote.archived",
+      metadata: {
+        quoteNumber: existingQuote.quoteNumber,
+        status: effectiveStatus,
+      },
+      createdAt: now,
+    });
+
     return {
       changed: true,
       locked: false,
@@ -957,6 +1007,19 @@ export async function restoreArchivedQuoteForBusiness({
         status: effectiveStatus,
       },
       now,
+    });
+
+    await writeAuditLog(tx, {
+      businessId,
+      actorUserId,
+      entityType: "quote",
+      entityId: quoteId,
+      action: "quote.unarchived",
+      metadata: {
+        quoteNumber: existingQuote.quoteNumber,
+        status: effectiveStatus,
+      },
+      createdAt: now,
     });
 
     return {
@@ -1279,6 +1342,9 @@ export async function markQuoteSentForBusiness({
         publicViewedAt: null,
         customerRespondedAt: null,
         customerResponseMessage: null,
+        // The follow-up delay is measured from this send, not from the
+        // previous version's send.
+        autoFollowUpLastSentAt: null,
         updatedAt: now,
       })
       .where(and(eq(quotes.id, quoteId), eq(quotes.businessId, businessId)));
@@ -1517,7 +1583,7 @@ type RespondToPublicQuoteByTokenInput = {
   message?: string;
   signerName?: string;
   confirmed?: boolean;
-  expectedVersion?: number;
+  expectedVersion: number;
 };
 
 export async function respondToPublicQuoteByToken({
@@ -1531,10 +1597,10 @@ export async function respondToPublicQuoteByToken({
   if (response === "accepted") {
     const validName = validateSignerName(signerName);
     if (!validName) {
-      throw new Error("Enter your name to accept this quote.");
+      throw new Error(quoteAcceptanceValidationMessages.signerName);
     }
     if (confirmed !== true) {
-      throw new Error("Confirm that you agree to the scope, pricing, and terms.");
+      throw new Error(quoteAcceptanceValidationMessages.confirmation);
     }
   }
   const today = getTodayUtcDateString();
@@ -1591,7 +1657,6 @@ export async function respondToPublicQuoteByToken({
 
     if (
       response === "accepted" &&
-      typeof expectedVersion === "number" &&
       expectedVersion !== existingQuote.version
     ) {
       return {
@@ -1695,7 +1760,7 @@ export async function respondToPublicQuoteByToken({
     if (nextStatus === "accepted") {
       const signerNameForAcceptance = validateSignerName(signerName);
       if (!signerNameForAcceptance) {
-        throw new Error("Enter your name to accept this quote.");
+        throw new Error(quoteAcceptanceValidationMessages.signerName);
       }
       validSignerName = signerNameForAcceptance;
 
@@ -2680,6 +2745,10 @@ export async function archiveQuoteVersionAndRevise({
         customerRespondedAt: null,
         customerResponseMessage: null,
         publicViewedAt: null,
+        // The customer has not seen this version yet, so the follow-up
+        // sequence starts fresh when the new version is sent.
+        autoFollowUpStoppedAt: null,
+        autoFollowUpLastSentAt: null,
         updatedAt: now,
       })
       .where(eq(quotes.id, quoteId));
@@ -2836,6 +2905,19 @@ export async function bulkArchiveQuotesForBusiness({
             status: effectiveStatus,
           },
           now,
+        });
+
+        await writeAuditLog(tx, {
+          businessId,
+          actorUserId,
+          entityType: "quote",
+          entityId: row.id,
+          action: "quote.archived",
+          metadata: {
+            quoteNumber: row.quoteNumber,
+            status: effectiveStatus,
+          },
+          createdAt: now,
         });
       }
     }
@@ -3050,6 +3132,19 @@ export async function bulkRestoreQuotesForBusiness({
             status: effectiveStatus,
           },
           now,
+        });
+
+        await writeAuditLog(tx, {
+          businessId,
+          actorUserId,
+          entityType: "quote",
+          entityId: row.id,
+          action: "quote.unarchived",
+          metadata: {
+            quoteNumber: row.quoteNumber,
+            status: effectiveStatus,
+          },
+          createdAt: now,
         });
       }
     }

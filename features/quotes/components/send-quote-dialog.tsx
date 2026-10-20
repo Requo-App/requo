@@ -203,8 +203,6 @@ export function SendQuoteDialog({
   );
   const [showPreview, setShowPreview] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
-  const reqSubmitRef = useRef<HTMLButtonElement>(null);
-  const manSubmitRef = useRef<HTMLButtonElement>(null);
   const { runMutation, isPendingKey } = useOptimisticMutation();
   const { scheduleRefresh } = useDeferredRefresh();
   const [sendSuccessMessage, setSendSuccessMessage] = useState<string | undefined>();
@@ -489,7 +487,7 @@ export function SendQuoteDialog({
 
             <ResponsiveOverlayBody className="flex flex-col gap-5 pt-1">
               {unpricedItemCount > 0 ? (
-                <Alert className="border-amber-500/30 bg-amber-500/10">
+                <Alert className="border-warning/30 bg-warning/10">
                   <AlertTitle>
                     {unpricedItemCount === 1
                       ? "1 line item still needs pricing review"
@@ -504,7 +502,7 @@ export function SendQuoteDialog({
               ) : null}
 
               {confirmationBlocked ? (
-                <Alert className="border-amber-500/30 bg-amber-500/10">
+                <Alert className="border-warning/30 bg-warning/10">
                   <AlertTitle>Confirm suggested pricing</AlertTitle>
                   <AlertDescription>
                     Some line items were priced from suggested matches that
@@ -529,26 +527,8 @@ export function SendQuoteDialog({
                 </p>
               </div>
 
-              {/* Hidden form for submit */}
+              {/* Hidden form: the source of the send form data. */}
               <form ref={formRef} className="hidden">
-                <button
-                  aria-hidden="true"
-                  disabled={disabled || isPending}
-                  name="deliveryMethod"
-                  ref={reqSubmitRef}
-                  tabIndex={-1}
-                  type="submit"
-                  value="requo"
-                />
-                <button
-                  aria-hidden="true"
-                  disabled={disabled || isPending}
-                  name="deliveryMethod"
-                  ref={manSubmitRef}
-                  tabIndex={-1}
-                  type="submit"
-                  value="manual"
-                />
                 {autoFollowUp && showRequoOption && canAutoFollowUp && (
                   <>
                     <input type="hidden" name="autoFollowUp" value="on" />
@@ -577,6 +557,7 @@ export function SendQuoteDialog({
                   </Button>
                 </div>
                 <textarea
+                  aria-label="Message"
                   className="w-full resize-none rounded-lg border border-input bg-muted/30 px-3.5 py-3 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                   onChange={(e) => setEditedMessage(e.target.value)}
                   rows={3}
@@ -661,6 +642,7 @@ export function SendQuoteDialog({
                     <p className="mt-1.5 text-xs text-muted-foreground">
                       Send a reminder email after{" "}
                       <select
+                        aria-label="Auto follow-up delay"
                         className="inline-block rounded border border-input bg-background px-1.5 py-0.5 text-xs"
                         onChange={(e) => setAutoFollowUpDelay(Number(e.target.value))}
                         value={autoFollowUpDelay}
@@ -673,6 +655,7 @@ export function SendQuoteDialog({
                       </select>
                       {" "}with no reply, up to{" "}
                       <select
+                        aria-label="Auto follow-up maximum attempts"
                         className="inline-block rounded border border-input bg-background px-1.5 py-0.5 text-xs"
                         onChange={(e) => setAutoFollowUpMax(Number(e.target.value))}
                         value={autoFollowUpMax}
@@ -946,7 +929,9 @@ function QuoteFollowUpPrompt({
           <input name="channel" type="hidden" value={hiddenFieldValues.channel} />
           <input name="dueDate" type="hidden" value={customDueDate} />
           <div className="min-w-0 flex-1">
-            <p className="meta-label mb-1.5">Due date</p>
+            <label className="meta-label mb-1.5" htmlFor="quote-follow-up-custom-date">
+              Due date
+            </label>
             <DatePicker
               id="quote-follow-up-custom-date"
               name="dueDate"

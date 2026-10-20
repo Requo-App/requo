@@ -1,9 +1,20 @@
 "use client";
 
 import { motion } from "motion/react";
-import { CheckCircle2, XCircle, Edit, CircleSlash, Clock } from "lucide-react";
+import { CheckCircle2, XCircle, Edit, CircleSlash, Clock, Send, FileText } from "lucide-react";
 
-type ResponseType = "accepted" | "rejected" | "revision_requested" | "voided" | "expired";
+/**
+ * Every public quote status. The union matches `QuoteStatus`, so a caller
+ * never has to assert away a status to satisfy the icon.
+ */
+type ResponseType =
+  | "accepted"
+  | "rejected"
+  | "revision_requested"
+  | "voided"
+  | "expired"
+  | "sent"
+  | "draft";
 
 type AnimatedResponseIconProps = {
   type: ResponseType;
@@ -16,14 +27,18 @@ const iconMap = {
   revision_requested: Edit,
   voided: CircleSlash,
   expired: Clock,
+  sent: Send,
+  draft: FileText,
 } as const;
 
 const colorMap = {
-  accepted: "text-emerald-500",
-  rejected: "text-red-400",
-  revision_requested: "text-amber-500",
+  accepted: "text-success",
+  rejected: "text-destructive",
+  revision_requested: "text-warning",
   voided: "text-muted-foreground",
-  expired: "text-amber-500",
+  expired: "text-warning",
+  sent: "text-muted-foreground",
+  draft: "text-muted-foreground",
 } as const;
 
 /**

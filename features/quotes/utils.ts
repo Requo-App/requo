@@ -386,11 +386,13 @@ function normalizeQuoteValidityDays(validityDays?: number) {
 }
 
 export function getDefaultQuoteValidityDate(validityDays = 14) {
-  const date = new Date();
+  // The validity date is a UTC calendar date: adding the days in local time
+  // and then formatting in UTC shifts the result by a day east of UTC.
+  const days = normalizeQuoteValidityDays(validityDays);
 
-  date.setDate(date.getDate() + normalizeQuoteValidityDays(validityDays));
-
-  return date.toISOString().slice(0, 10);
+  return new Date(Date.now() + days * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10);
 }
 
 export function buildQuoteTitleFromInquiry(inquiry: QuoteInquiryPrefill) {
@@ -701,14 +703,15 @@ export function applyTemplateToQuoteForm(
     lineTotalInCents: number;
   }>;
 } {
-  const validUntil = new Date();
-  validUntil.setDate(validUntil.getDate() + template.validityDays);
+  const validUntil = new Date(
+    Date.now() + template.validityDays * 24 * 60 * 60 * 1000,
+  );
 
   return {
     title: template.title,
     notes: template.notes?.trim() || businessDefaults?.defaultQuoteNotes?.trim() || "",
     terms: template.terms?.trim() || businessDefaults?.defaultQuoteTerms?.trim() || "",
-    validUntil: validUntil.toISOString().split("T")[0],
+    validUntil: validUntil.toISOString().slice(0, 10),
     items: template.items.map((item) => ({
       id: item.id,
       description: item.description,

@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 
+import { ApplyTemplateConfirmDialog } from "@/features/quotes/components/apply-template-confirm-dialog";
 import { QuoteEditor } from "@/features/quotes/components/quote-editor";
 import { QuoteTemplatePicker } from "@/features/quotes/components/quote-template-picker";
-import { applyTemplateToQuoteForm } from "@/features/quotes/utils";
+import { applyTemplateToQuoteForm, centsToMoneyInput } from "@/features/quotes/utils";
 import type {
   DashboardQuoteLibraryEntry,
   QuoteEditorValues,
@@ -26,13 +27,15 @@ export function NewQuoteWithTemplatePicker({
   const [initialValues, setInitialValues] =
     useState<QuoteEditorValues>(baseInitialValues);
   const [editorKey, setEditorKey] = useState("manual");
+  const [pendingTemplate, setPendingTemplate] =
+    useState<DashboardQuoteLibraryEntry | null>(null);
 
   const compatibleTemplates = templates.filter(
     (t) => t.currency === editorProps.currency,
   );
   const showPicker = !pickerDismissed && compatibleTemplates.length > 0;
 
-  function handleSelectTemplate(template: DashboardQuoteLibraryEntry) {
+  function applyTemplate(template: DashboardQuoteLibraryEntry) {
     if (!template.title || !template.validityDays) return;
 
     const applied = applyTemplateToQuoteForm(
@@ -61,11 +64,17 @@ export function NewQuoteWithTemplatePicker({
         id: item.id,
         description: item.description,
         quantity: String(item.quantity),
-        unitPrice: String((item.unitPriceInCents / 100).toFixed(2)),
+        unitPrice: centsToMoneyInput(item.unitPriceInCents),
       })),
     });
     setEditorKey(`template-${template.id}`);
     setPickerDismissed(true);
+  }
+
+  function handleSelectTemplate(template: DashboardQuoteLibraryEntry) {
+    // Applying a template replaces the title, notes, terms, validity date and
+    // every line item — confirm before anything already typed is discarded.
+    setPendingTemplate(template);
   }
 
   function handleStartFromScratch() {
@@ -82,6 +91,18 @@ export function NewQuoteWithTemplatePicker({
           onStartFromScratch={handleStartFromScratch}
         />
       ) : null}
+
+      <ApplyTemplateConfirmDialog
+        open={pendingTemplate !== null}
+        templateName={pendingTemplate?.title ?? ""}
+        onConfirm={() => {
+          if (pendingTemplate) {
+            applyTemplate(pendingTemplate);
+          }
+          setPendingTemplate(null);
+        }}
+        onCancel={() => setPendingTemplate(null)}
+      />
 
       <QuoteEditor
         {...editorProps}

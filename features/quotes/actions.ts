@@ -62,6 +62,7 @@ import {
 import { getQuoteSendPayloadForBusiness } from "@/features/quotes/queries";
 import {
   publicQuoteResponseSchema,
+  quoteAcceptanceValidationMessages,
   quoteCancellationSchema,
   quoteEditorSchema,
   } from "@/features/quotes/schemas";
@@ -937,7 +938,14 @@ export async function respondToPublicQuoteAction(
     };
   } catch (error) {
     console.error("Failed to record public quote response.", error);
-    if (error instanceof Error && /Enter your name|Confirm that you agree/i.test(error.message)) {
+
+    // The acceptance validation messages are the only errors the customer can
+    // act on; anything else is an internal failure.
+    if (
+      error instanceof Error &&
+      (error.message === quoteAcceptanceValidationMessages.signerName ||
+        error.message === quoteAcceptanceValidationMessages.confirmation)
+    ) {
       return { error: error.message };
     }
 

@@ -76,7 +76,7 @@ export function PublicQuoteInteractiveColumn({
   const statusInfo = useMemo(() => {
     if (displayStatus === "accepted") {
       return {
-        bgColor: "border-emerald-500/20 bg-emerald-500/5",
+        bgColor: "border-success/30 bg-success/10",
         title: "Quote accepted",
         description: acceptanceSigner
           ? `Accepted by ${acceptanceSigner}. The business has been notified.`
@@ -85,14 +85,14 @@ export function PublicQuoteInteractiveColumn({
     }
     if (displayStatus === "rejected") {
       return {
-        bgColor: "border-red-500/20 bg-red-500/5",
+        bgColor: "border-destructive/30 bg-destructive/10",
         title: "Quote declined",
         description: "You declined this quote. The business has been notified.",
       };
     }
     if (displayStatus === "revision_requested") {
       return {
-        bgColor: "border-amber-500/20 bg-amber-500/5",
+        bgColor: "border-warning/30 bg-warning/10",
         title: "Revision requested",
         description: "You\u2019ve requested changes to this quote. The business will review and send an updated version.",
       };
@@ -107,7 +107,7 @@ export function PublicQuoteInteractiveColumn({
     }
     if (displayStatus === "expired") {
       return {
-        bgColor: "border-amber-500/20 bg-amber-500/5",
+        bgColor: "border-warning/30 bg-warning/10",
         title: "Quote expired",
         description: `This quote expired on ${formatQuoteDate(quote.validUntil)}. Contact the business if you'd still like to proceed.`,
       };
@@ -189,7 +189,7 @@ export function PublicQuoteInteractiveColumn({
             transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
             className={`flex items-start gap-3.5 rounded-xl border p-4 sm:p-5 ${statusInfo.bgColor}`}
           >
-            <AnimatedResponseIcon type={displayStatus as "accepted" | "rejected" | "revision_requested" | "voided" | "expired"} className="mt-0.5 shrink-0" />
+            <AnimatedResponseIcon type={displayStatus} className="mt-0.5 shrink-0" />
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold text-foreground">
                 {statusInfo.title}

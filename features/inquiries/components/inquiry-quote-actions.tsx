@@ -13,7 +13,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { QuoteStatusBadge } from "@/features/quotes/components/quote-status-badge";
-import type { QuoteStatus } from "@/features/quotes/types";
 import { formatQuoteMoney } from "@/features/quotes/utils";
 import {
   getBusinessNewQuotePath,
@@ -87,7 +86,7 @@ export function InquiryQuoteActions({
             >
               <div className="flex flex-col gap-0.5 min-w-0">
                 <span className="text-sm font-medium truncate">
-                  {quote.quoteNumber ?? quote.id}
+                  {quote.quoteNumber}
                 </span>
                 <span className="text-xs text-muted-foreground">
                   {currency
@@ -97,7 +96,7 @@ export function InquiryQuoteActions({
                   {formatInquiryDate(quote.createdAt)}
                 </span>
               </div>
-              <QuoteStatusBadge status={quote.status as QuoteStatus} />
+              <QuoteStatusBadge status={quote.status} />
             </Link>
           </DropdownMenuItem>
         ))}

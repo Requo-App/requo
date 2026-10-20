@@ -54,6 +54,7 @@ export function QuoteBulkActions({
 }: QuoteBulkActionsProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
+  const [showVoidDialog, setShowVoidDialog] = useState(false);
   const ids = serializedIds.split(",").filter(Boolean);
 
   function buildQuoteIdsFormData(targetIds: string[]) {
@@ -111,20 +112,49 @@ export function QuoteBulkActions({
         </ResponsiveOverlayContent>
       </ResponsiveOverlay>
 
-      <Button
-        onClick={() => {
-          onOptimisticRemove?.(ids, async () => {
-            return bulkVoidQuotesAction({}, buildQuoteIdsFormData(ids));
-          });
-          onComplete();
-        }}
-        size="sm"
-        type="button"
-        variant="outline"
+      <ResponsiveOverlay
+        open={showVoidDialog}
+        onOpenChange={setShowVoidDialog}
       >
-        <Ban data-icon="inline-start" />
-        Void
-      </Button>
+        <Button
+          onClick={() => setShowVoidDialog(true)}
+          size="sm"
+          type="button"
+          variant="outline"
+        >
+          <Ban data-icon="inline-start" />
+          Void
+        </Button>
+        <ResponsiveOverlayContent className="sm:max-w-md">
+          <ConfirmationHeader
+            tone="destructive"
+            icon={Ban}
+            title={`Void ${selectedCount} quote${selectedCount !== 1 ? "s" : ""}?`}
+            description="A voided quote can no longer be accepted by the customer online. Only sent quotes are voided; the rest are skipped."
+          />
+          <ResponsiveOverlayFooter>
+            <ResponsiveOverlayClose asChild>
+              <Button type="button" variant="outline">
+                Cancel
+              </Button>
+            </ResponsiveOverlayClose>
+            <Button
+              onClick={() => {
+                onOptimisticRemove?.(ids, async () => {
+                  return bulkVoidQuotesAction({}, buildQuoteIdsFormData(ids));
+                });
+                setShowVoidDialog(false);
+                onComplete();
+              }}
+              type="button"
+              variant="destructive"
+            >
+              <Ban data-icon="inline-start" />
+              Void {selectedCount}
+            </Button>
+          </ResponsiveOverlayFooter>
+        </ResponsiveOverlayContent>
+      </ResponsiveOverlay>
 
       <ResponsiveOverlay
         open={showDeleteDialog}

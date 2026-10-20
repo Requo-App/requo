@@ -386,27 +386,36 @@ export const quoteEditorSchema = z
     }
   })
       .transform((value) => {
+    // The contact method is compared case-sensitively when the quote is
+    // persisted, so a capitalised value would silently null the customer
+    // email. Normalise it once, at the boundary.
+    const normalized: typeof value = {
+      ...value,
+      customerContactMethod: value.customerContactMethod.toLowerCase(),
+    };
+
     const hasIntent =
-      typeof value.discountValue === "string" || typeof value.taxValue === "string";
+      typeof normalized.discountValue === "string" ||
+      typeof normalized.taxValue === "string";
 
     if (!hasIntent) {
-      return value;
+      return normalized;
     }
 
-    const subtotalInCents = value.items.reduce(
+    const subtotalInCents = normalized.items.reduce(
       (sum, item) => sum + item.quantity * item.unitPriceInCents,
       0,
     );
     const resolved = calculateQuoteDiscountAndTax({
       subtotalInCents,
-      discountValue: value.discountValue ?? "",
-      discountType: value.discountType ?? "amount",
-      taxValue: value.taxValue ?? "",
-      taxType: value.taxType ?? "amount",
+      discountValue: normalized.discountValue ?? "",
+      discountType: normalized.discountType ?? "amount",
+      taxValue: normalized.taxValue ?? "",
+      taxType: normalized.taxType ?? "amount",
     });
 
     return {
-      ...value,
+      ...normalized,
       discountInCents: resolved.discountInCents,
       taxInCents: resolved.taxInCents,
     };
@@ -437,6 +446,11 @@ export const quoteCancellationSchema = z.object({
   ),
 });
 
+export const quoteAcceptanceValidationMessages = {
+  signerName: "Enter your name to accept this quote.",
+  confirmation: "Confirm that you agree to the scope, pricing, and terms.",
+} as const;
+
 export const publicQuoteResponseSchema = z
   .object({
     response: z.enum(["accepted", "rejected"], {
@@ -464,10 +478,10 @@ export const publicQuoteResponseSchema = z
     }, z.boolean().optional()),
     expectedVersion: z.preprocess((value) => {
       const first = firstString(value);
-      if (first == null || String(first).trim() === "") return undefined;
+      if (first == null || String(first).trim() === "") return value;
       const parsed = Number(String(first).trim());
       return Number.isFinite(parsed) ? parsed : value;
-    }, z.number().int().min(1).optional()),
+    }, z.number().int().min(1, "Enter a valid quote version.")),
   })
   .superRefine((data, ctx) => {
     if (data.response !== "accepted") return;
@@ -476,14 +490,14 @@ export const publicQuoteResponseSchema = z
       ctx.addIssue({
         code: "custom",
         path: ["signerName"],
-        message: "Enter your name to accept this quote.",
+        message: quoteAcceptanceValidationMessages.signerName,
       });
     }
     if (data.confirmed !== true) {
       ctx.addIssue({
         code: "custom",
         path: ["confirmed"],
-        message: "Confirm that you agree to the scope, pricing, and terms.",
+        message: quoteAcceptanceValidationMessages.confirmation,
       });
     }
   });
