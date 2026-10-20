@@ -13,7 +13,7 @@ import type {
   PublicQuoteResolvedSnapshot,
   PublicQuoteResponseActionState,
 } from "@/features/quotes/types";
-import { QUOTE_ACCEPTANCE_TEXT } from "@/features/quotes/acceptance";
+import { QUOTE_ACCEPTANCE_TEXT } from "@/features/quotes/acceptance-text";
 
 type PublicQuoteResponseFormProps = {
   action: (

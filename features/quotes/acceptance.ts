@@ -1,13 +1,19 @@
+import "server-only";
+
 import { createHash } from "node:crypto";
 
 import type { QuoteAcceptanceSnapshot } from "@/lib/db/schema/quote-acceptances";
+import {
+  QUOTE_ACCEPTANCE_METHOD_TYPED_NAME,
+  QUOTE_ACCEPTANCE_TEXT,
+  QUOTE_ACCEPTANCE_TEXT_VERSION,
+} from "@/features/quotes/acceptance-text";
 
-export const QUOTE_ACCEPTANCE_TEXT_VERSION = 1;
-
-export const QUOTE_ACCEPTANCE_TEXT =
-  "I confirm that I have reviewed this quote and agree to the scope, pricing, and terms shown above.";
-
-export const QUOTE_ACCEPTANCE_METHOD_TYPED_NAME = "typed_name" as const;
+export {
+  QUOTE_ACCEPTANCE_METHOD_TYPED_NAME,
+  QUOTE_ACCEPTANCE_TEXT,
+  QUOTE_ACCEPTANCE_TEXT_VERSION,
+};
 
 export type AcceptanceSnapshotInput = Omit<
   QuoteAcceptanceSnapshot,

@@ -69,6 +69,26 @@ export default async function PublicQuotePage({
   const respondAction = respondToPublicQuoteAction.bind(null, quote.token);
   const revisionAction = requestQuoteRevisionAction.bind(null, quote.token);
 
+  // Only what the interactive column renders crosses the server/client
+  // boundary — the full quote carries internal ids and the business plan.
+  const interactiveQuote = {
+    quoteNumber: quote.quoteNumber,
+    businessName: quote.businessName,
+    businessContactEmail: quote.businessContactEmail,
+    status: quote.status,
+    version: quote.version,
+    validUntil: quote.validUntil,
+    customerRespondedAt: quote.customerRespondedAt,
+    customerResponseMessage: quote.customerResponseMessage,
+    acceptance: quote.acceptance
+      ? {
+          signerName: quote.acceptance.signerName,
+          quoteVersion: quote.acceptance.quoteVersion,
+          acceptedAt: quote.acceptance.acceptedAt,
+        }
+      : null,
+  };
+
   return (
     <PublicQuotePageRenderer
       quote={quote}
@@ -76,7 +96,7 @@ export default async function PublicQuotePage({
       hideHeader
       interactiveColumn={
         <PublicQuoteInteractiveColumn
-          quote={quote}
+          quote={interactiveQuote}
           respondAction={respondAction}
           revisionAction={revisionAction}
         />

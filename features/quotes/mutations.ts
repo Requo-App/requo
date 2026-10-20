@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, eq, inArray, isNotNull, isNull, lt, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull, lt, ne, sql } from "drizzle-orm";
 
 import { writeAuditLog } from "@/features/audit/mutations";
 import { autoCloseFollowUpsForQuote } from "@/features/follow-ups/mutations";
@@ -1091,6 +1091,107 @@ type MarkQuoteSentForBusinessInput = {
   sendMethod?: QuoteDeliveryMethod;
 };
 
+/**
+ * Collects the pack-aware send gates for a quote.
+ *
+ * The gates are the product's own readiness rules: incomplete required scope
+ * blocks, critical intake gaps, and a commercial schedule whose total no
+ * longer matches the draft. Callers MUST run this before emailing a customer
+ * — the customer must never receive a quote the server considers unsendable.
+ *
+ * Read-only, so it is safe to call from inside an open transaction.
+ */
+export async function collectQuoteSendGates({
+  businessId,
+  quoteId,
+  inquiryId,
+  quoteTotalCents,
+  validUntil,
+}: {
+  businessId: string;
+  quoteId: string;
+  inquiryId: string | null;
+  quoteTotalCents: number;
+  validUntil?: string;
+}) {
+  const { evaluateScopeSendGate } = await import("@/features/scope-blocks/queries");
+  const { evaluateIntakeReadiness } = await import("@/features/businesses/intake-bindings");
+  const { getEditableScheduleForQuote } = await import("@/features/schedules/queries");
+
+  const [scopeGate, readiness] = await Promise.all([
+    evaluateScopeSendGate({ businessId, quoteId }),
+    evaluateIntakeReadiness({ businessId, inquiryId }),
+  ]);
+
+  const blockers = [
+    ...scopeGate.blocking.map((blocker) => blocker.reason),
+    ...readiness.blockedReasons,
+  ];
+
+  // A quote whose validity date has already passed would be expired the
+  // moment the customer opens it, so it must not be sent.
+  if (validUntil && validUntil < getTodayUtcDateString()) {
+    blockers.push("Update the validity date before sending this quote.");
+  }
+
+  const editableSchedule = await getEditableScheduleForQuote({ businessId, quoteId });
+
+  if (editableSchedule && editableSchedule.quoteTotalCents !== quoteTotalCents) {
+    blockers.push(
+      "The payment schedule no longer matches the quote total. Re-save it before sending.",
+    );
+  }
+
+  return { blockers };
+}
+
+/**
+ * Evaluates the send gates and records the blocked attempt in the activity
+ * log. Call this before any customer-facing delivery.
+ */
+export async function evaluateQuoteSendGates({
+  businessId,
+  quoteId,
+  actorUserId,
+  inquiryId,
+  quoteNumber,
+  quoteTotalCents,
+  validUntil,
+}: {
+  businessId: string;
+  quoteId: string;
+  actorUserId: string;
+  inquiryId: string | null;
+  quoteNumber: string;
+  quoteTotalCents: number;
+  validUntil?: string;
+}) {
+  const { blockers } = await collectQuoteSendGates({
+    businessId,
+    quoteId,
+    inquiryId,
+    quoteTotalCents,
+    validUntil,
+  });
+
+  if (blockers.length > 0) {
+    await db.transaction(async (tx) => {
+      await insertQuoteActivity(tx, {
+        businessId,
+        inquiryId,
+        quoteId,
+        actorUserId,
+        type: "quote.send_blocked",
+        summary: `Quote ${quoteNumber} send blocked: ${blockers[0]}.`,
+        metadata: { quoteNumber, blockers: blockers.slice(0, 5) },
+        now: new Date(),
+      });
+    });
+  }
+
+  return { blocked: blockers.length > 0, blockers };
+}
+
 export async function markQuoteSentForBusiness({
   businessId,
   quoteId,
@@ -1113,6 +1214,7 @@ export async function markQuoteSentForBusiness({
         title: quotes.title,
         customerName: quotes.customerName,
         totalInCents: quotes.totalInCents,
+        validUntil: quotes.validUntil,
       })
       .from(quotes)
       .innerJoin(businesses, eq(quotes.businessId, businesses.id))
@@ -1137,27 +1239,13 @@ export async function markQuoteSentForBusiness({
     // scope blocks hard-block; critical intake gaps block; a schedule whose
     // totals no longer match the draft blocks re-send until re-saved
     // (stale gate — no silent mutation of reviewed commercial meaning).
-    const { evaluateScopeSendGate } = await import("@/features/scope-blocks/queries");
-    const { evaluateIntakeReadiness } = await import("@/features/businesses/intake-bindings");
-    const { getEditableScheduleForQuote } = await import("@/features/schedules/queries");
-
-    const [scopeGate, readiness] = await Promise.all([
-      evaluateScopeSendGate({ businessId, quoteId }),
-      evaluateIntakeReadiness({ businessId, inquiryId: existingQuote.inquiryId }),
-    ]);
-
-    const blockers = [
-      ...scopeGate.blocking.map((blocker) => blocker.reason),
-      ...readiness.blockedReasons,
-    ];
-
-    const editableSchedule = await getEditableScheduleForQuote({ businessId, quoteId });
-
-    if (editableSchedule && editableSchedule.quoteTotalCents !== existingQuote.totalInCents) {
-      blockers.push(
-        "The payment schedule no longer matches the quote total. Re-save it before sending.",
-      );
-    }
+    const { blockers } = await collectQuoteSendGates({
+      businessId,
+      quoteId,
+      inquiryId: existingQuote.inquiryId,
+      quoteTotalCents: existingQuote.totalInCents,
+      validUntil: existingQuote.validUntil,
+    });
 
     if (blockers.length > 0) {
       await insertQuoteActivity(tx, {
@@ -1407,6 +1495,7 @@ export async function recordQuotePublicViewAt(quoteId: string, businessId?: stri
     .where(
       and(
         eq(quotes.id, quoteId),
+        ...(businessId ? [eq(quotes.businessId, businessId)] : []),
         isNull(quotes.deletedAt),
         inArray(quotes.status, ["sent", "revision_requested", "accepted", "rejected", "expired", "voided"]),
       ),
@@ -1484,8 +1573,17 @@ export async function respondToPublicQuoteByToken({
       })
       .from(quotes)
       .innerJoin(businesses, eq(quotes.businessId, businesses.id))
-      .where(and(getQuotePublicTokenLookupCondition(token), isNull(quotes.deletedAt)))
-      .limit(1);
+      .where(
+        and(
+          getQuotePublicTokenLookupCondition(token),
+          isNull(quotes.deletedAt),
+          isNull(quotes.archivedAt),
+          isNull(businesses.deletedAt),
+          isNull(businesses.archivedAt),
+        ),
+      )
+      .limit(1)
+      .for("update");
 
     if (!existingQuote) {
       return null;
@@ -1517,7 +1615,12 @@ export async function respondToPublicQuoteByToken({
         quoteVersion: quoteAcceptances.quoteVersion,
       })
       .from(quoteAcceptances)
-      .where(eq(quoteAcceptances.quoteId, existingQuote.id))
+      .where(
+        and(
+          eq(quoteAcceptances.quoteId, existingQuote.id),
+          eq(quoteAcceptances.quoteVersion, existingQuote.version),
+        ),
+      )
       .limit(1);
 
     if (existingQuote.status === "sent" && existingQuote.validUntil < today) {
@@ -1590,10 +1693,11 @@ export async function respondToPublicQuoteByToken({
     let validSignerName: string | null = null;
 
     if (nextStatus === "accepted") {
-      validSignerName = validateSignerName(signerName);
-      if (!validSignerName) {
+      const signerNameForAcceptance = validateSignerName(signerName);
+      if (!signerNameForAcceptance) {
         throw new Error("Enter your name to accept this quote.");
       }
+      validSignerName = signerNameForAcceptance;
 
       /* Server-authoritative snapshot: never trust client totals. */
       const sourceItems = await tx
@@ -1626,22 +1730,29 @@ export async function respondToPublicQuoteByToken({
         items: sourceItems,
       });
       snapshotHash = hashAcceptanceSnapshot(snapshot);
-      acceptanceId = newEntityId();
+      const acceptanceRowId = newEntityId();
+      const acceptanceSnapshotHash = snapshotHash;
+      acceptanceId = acceptanceRowId;
 
       try {
-        await tx.insert(quoteAcceptances).values({
-          id: acceptanceId,
-          businessId: existingQuote.businessId,
-          quoteId: existingQuote.id,
-          quoteVersion: existingQuote.version,
-          signerName: validSignerName,
-          signerEmail: existingQuote.customerEmail,
-          acceptanceMethod: QUOTE_ACCEPTANCE_METHOD_TYPED_NAME,
-          acceptanceText: QUOTE_ACCEPTANCE_TEXT,
-          acceptanceTextVersion: QUOTE_ACCEPTANCE_TEXT_VERSION,
-          snapshot,
-          snapshotHash,
-          acceptedAt: now,
+        // A nested transaction issues a SAVEPOINT, so a unique-violation
+        // rolls back only the insert — the outer transaction stays alive and
+        // the loser can read the winner's acceptance row.
+        await tx.transaction(async (nested) => {
+          await nested.insert(quoteAcceptances).values({
+            id: acceptanceRowId,
+            businessId: existingQuote.businessId,
+            quoteId: existingQuote.id,
+            quoteVersion: existingQuote.version,
+            signerName: signerNameForAcceptance,
+            signerEmail: existingQuote.customerEmail,
+            acceptanceMethod: QUOTE_ACCEPTANCE_METHOD_TYPED_NAME,
+            acceptanceText: QUOTE_ACCEPTANCE_TEXT,
+            acceptanceTextVersion: QUOTE_ACCEPTANCE_TEXT_VERSION,
+            snapshot,
+            snapshotHash: acceptanceSnapshotHash,
+            acceptedAt: now,
+          });
         });
       } catch (error) {
         /* Concurrent accept won the race: return the winner idempotently. */
@@ -1675,7 +1786,10 @@ export async function respondToPublicQuoteByToken({
       }
     }
 
-    await tx
+    // Conditional transition: only a quote that is still `sent` may change
+    // state. Without the predicate a concurrent decline could overwrite an
+    // accepted quote, leaving an acceptance record next to a rejected status.
+    const transitioned = await tx
       .update(quotes)
       .set({
         status: nextStatus,
@@ -1686,7 +1800,33 @@ export async function respondToPublicQuoteByToken({
         autoFollowUpStoppedAt: now,
         updatedAt: now,
       })
-      .where(eq(quotes.id, existingQuote.id));
+      .where(
+        and(
+          eq(quotes.id, existingQuote.id),
+          eq(quotes.businessId, existingQuote.businessId),
+          eq(quotes.status, "sent"),
+        ),
+      )
+      .returning({ id: quotes.id });
+
+    if (transitioned.length === 0) {
+      // Lost the race: the quote already moved on. Report its current state.
+      const [current] = await tx
+        .select({ status: quotes.status })
+        .from(quotes)
+        .where(eq(quotes.id, existingQuote.id))
+        .limit(1);
+
+      return {
+        updated: false,
+        businessId: existingQuote.businessId,
+        inquiryId: existingQuote.inquiryId,
+        quoteId: existingQuote.id,
+        businessSlug: existingQuote.businessSlug,
+        quoteNumber: existingQuote.quoteNumber,
+        status: current?.status ?? existingQuote.status,
+      };
+    }
 
     if (nextStatus === "accepted") {
       await maybeMoveInquiryToWon(
@@ -2249,13 +2389,42 @@ export async function requestQuoteRevisionByToken({
         and(
           getQuotePublicTokenLookupCondition(token),
           isNull(quotes.deletedAt),
+          isNull(quotes.archivedAt),
           isNull(businesses.deletedAt),
+          isNull(businesses.archivedAt),
         ),
       )
-      .limit(1);
+      .limit(1)
+      .for("update");
 
     if (!existingQuote) {
       return null;
+    }
+
+    // An expired quote cannot be revived. Mirror the accept path: expire it
+    // first, then refuse.
+    if (existingQuote.status === "sent" && existingQuote.validUntil < getTodayUtcDateString()) {
+      await expireQuoteRows(tx, [
+        {
+          id: existingQuote.id,
+          businessId: existingQuote.businessId,
+          inquiryId: existingQuote.inquiryId,
+          quoteNumber: existingQuote.quoteNumber,
+        },
+      ]);
+
+      return {
+        updated: false,
+        status: "expired" as const,
+        quoteNumber: existingQuote.quoteNumber,
+        businessId: existingQuote.businessId,
+        businessSlug: existingQuote.businessSlug,
+        quoteId: existingQuote.id,
+        inquiryId: existingQuote.inquiryId,
+        customerName: existingQuote.customerName,
+        businessPlan: existingQuote.businessPlan,
+        notifyPushOnQuoteResponse: existingQuote.notifyPushOnQuoteResponse,
+      };
     }
 
     // Only allow revision requests on sent or revision_requested quotes
@@ -2263,6 +2432,35 @@ export async function requestQuoteRevisionByToken({
       return {
         updated: false,
         status: existingQuote.status,
+        quoteNumber: existingQuote.quoteNumber,
+        businessId: existingQuote.businessId,
+        businessSlug: existingQuote.businessSlug,
+        quoteId: existingQuote.id,
+        inquiryId: existingQuote.inquiryId,
+        customerName: existingQuote.customerName,
+        businessPlan: existingQuote.businessPlan,
+        notifyPushOnQuoteResponse: existingQuote.notifyPushOnQuoteResponse,
+      };
+    }
+
+    // Idempotency: a duplicate submit must not create a second pending
+    // request (and a second owner notification) for the same version.
+    const [pendingRevision] = await tx
+      .select({ id: quoteRevisionRequests.id })
+      .from(quoteRevisionRequests)
+      .where(
+        and(
+          eq(quoteRevisionRequests.quoteId, existingQuote.id),
+          eq(quoteRevisionRequests.version, existingQuote.version),
+          eq(quoteRevisionRequests.status, "pending"),
+        ),
+      )
+      .limit(1);
+
+    if (pendingRevision) {
+      return {
+        updated: false,
+        status: "revision_requested" as const,
         quoteNumber: existingQuote.quoteNumber,
         businessId: existingQuote.businessId,
         businessSlug: existingQuote.businessSlug,
@@ -2294,7 +2492,13 @@ export async function requestQuoteRevisionByToken({
         status: "revision_requested",
         updatedAt: now,
       })
-      .where(eq(quotes.id, existingQuote.id));
+      .where(
+        and(
+          eq(quotes.id, existingQuote.id),
+          eq(quotes.businessId, existingQuote.businessId),
+          inArray(quotes.status, ["sent", "revision_requested"]),
+        ),
+      );
 
     // Log activity
     await insertQuoteActivity(tx, {
@@ -2379,6 +2583,8 @@ export async function archiveQuoteVersionAndRevise({
         terms: quotes.terms,
         subtotalInCents: quotes.subtotalInCents,
         discountInCents: quotes.discountInCents,
+        taxInCents: quotes.taxInCents,
+        taxLabel: quotes.taxLabel,
         totalInCents: quotes.totalInCents,
         validUntil: quotes.validUntil,
         archivedAt: quotes.archivedAt,
@@ -2434,6 +2640,8 @@ export async function archiveQuoteVersionAndRevise({
       terms: existingQuote.terms,
       subtotalInCents: existingQuote.subtotalInCents,
       discountInCents: existingQuote.discountInCents,
+      taxInCents: existingQuote.taxInCents,
+      taxLabel: existingQuote.taxLabel,
       totalInCents: existingQuote.totalInCents,
       validUntil: existingQuote.validUntil,
       items: currentItems,
@@ -2533,7 +2741,13 @@ export async function enableAutoFollowUpForQuote({
     .where(eq(quotes.id, quoteId));
 }
 
-export async function stopAutoFollowUpForQuote(quoteId: string) {
+export async function stopAutoFollowUpForQuote({
+  businessId,
+  quoteId,
+}: {
+  businessId: string;
+  quoteId: string;
+}) {
   const now = new Date();
 
   await db
@@ -2542,7 +2756,7 @@ export async function stopAutoFollowUpForQuote(quoteId: string) {
       autoFollowUpStoppedAt: now,
       updatedAt: now,
     })
-    .where(eq(quotes.id, quoteId));
+    .where(and(eq(quotes.id, quoteId), eq(quotes.businessId, businessId)));
 }
 
 // ---------------------------------------------------------------------------
@@ -2589,6 +2803,9 @@ export async function bulkArchiveQuotesForBusiness({
           eq(quotes.businessId, businessId),
           inArray(quotes.id, quoteIds),
           isNull(quotes.deletedAt),
+          // Drafts are deleted, not archived — the single-record path refuses
+          // them, and an archived draft can no longer be deleted either.
+          ne(quotes.status, "draft"),
         ),
       )
       .returning({

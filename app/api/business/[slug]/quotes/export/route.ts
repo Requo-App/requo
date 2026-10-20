@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 
 import {
   getQuoteExportRowsForBusiness,
+  quoteExportRowLimit,
 } from "@/features/quotes/queries";
 import { quoteListFiltersSchema } from "@/features/quotes/schemas";
 import { formatCentsForExport } from "@/lib/csv";
@@ -42,8 +43,16 @@ export async function GET(
       to: exportDateSchema,
     })
     .safeParse(Object.fromEntries(new URL(request.url).searchParams.entries()));
-  const from = dateParams.success ? dateParams.data.from : undefined;
-  const to = dateParams.success ? dateParams.data.to : undefined;
+
+  if (!dateParams.success) {
+    return NextResponse.json(
+      { error: "Enter a valid date range." },
+      { status: 400 },
+    );
+  }
+
+  const from = dateParams.data.from;
+  const to = dateParams.data.to;
   const rows = await getQuoteExportRowsForBusiness({
     businessId: requestContext.businessContext.business.id,
     filters: {
@@ -55,6 +64,18 @@ export async function GET(
     from,
     to,
   });
+
+  if (rows.length > quoteExportRowLimit) {
+    // The export materializes the whole CSV in memory, so the result set is
+    // capped. Say so instead of silently truncating the file.
+    return NextResponse.json(
+      {
+        error:
+          "This export is too large. Narrow the date range or filters and try again.",
+      },
+      { status: 400 },
+    );
+  }
 
   return buildListCsvResponse(
     [

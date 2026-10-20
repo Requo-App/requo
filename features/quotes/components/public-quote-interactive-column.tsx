@@ -18,10 +18,10 @@ import { AnimatedResponseIcon } from "@/components/feedback/animated-response-ic
 import { PublicQuoteResponseForm } from "@/features/quotes/components/public-quote-response-form";
 import { PublicQuoteRevisionForm } from "@/features/quotes/components/public-quote-revision-form";
 import type {
+  PublicQuoteInteractiveQuote,
   PublicQuoteResolvedSnapshot,
   PublicQuoteResponseActionState,
   PublicQuoteRevisionRequestActionState,
-  PublicQuoteView,
 } from "@/features/quotes/types";
 import {
   formatQuoteDate,
@@ -29,7 +29,7 @@ import {
 } from "@/features/quotes/utils";
 
 type PublicQuoteInteractiveColumnProps = {
-  quote: PublicQuoteView;
+  quote: PublicQuoteInteractiveQuote;
   respondAction: (
     state: PublicQuoteResponseActionState,
     formData: FormData,

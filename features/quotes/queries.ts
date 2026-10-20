@@ -317,6 +317,14 @@ type QuoteExportRow = {
   customerRespondedAt: Date | null;
 };
 
+/**
+ * Upper bound for the quote CSV export.
+ *
+ * The export materializes every row in memory, so the result set is capped.
+ * Say so instead of silently truncating the file.
+ */
+export const quoteExportRowLimit = 10_000;
+
 export async function getQuoteExportRowsForBusiness({
   businessId,
   filters,
@@ -362,7 +370,8 @@ export async function getQuoteExportRowsForBusiness({
     })
     .from(quotes)
     .where(and(...conditions))
-    .orderBy(createdAtSort(quotes.createdAt));
+    .orderBy(createdAtSort(quotes.createdAt))
+    .limit(quoteExportRowLimit + 1);
 }
 
 // ---------------------------------------------------------------------------
