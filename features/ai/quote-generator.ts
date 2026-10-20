@@ -88,16 +88,25 @@ function contentHash(text: string): string {
   return createHash("sha256").update(text).digest("hex");
 }
 
-function coerceMatchType(value: unknown): "exact" | "suggested" | "none" {
-  if (typeof value !== "string") return "none";
+/**
+ * Normalizes the model's claimed match type.
+ *
+ * Returns `null` for a missing or unrecognised value so the schema can reject
+ * the response. Defaulting to `"none"` here would silently downgrade a
+ * claimed "exact" match to "no candidate" and strip the price from the draft.
+ */
+function coerceMatchType(value: unknown): "exact" | "suggested" | "none" | null {
+  if (typeof value !== "string") return null;
 
   switch (value.trim().toLowerCase()) {
     case "exact":
       return "exact";
     case "suggested":
       return "suggested";
-    default:
+    case "none":
       return "none";
+    default:
+      return null;
   }
 }
 
@@ -139,10 +148,12 @@ const groundedDraftResponseSchema = z.object({
           .transform((value) => (typeof value === "string" ? value.trim() : null))
           .optional()
           .default(null),
-        matchType: z
-          .preprocess((value) => coerceMatchType(value), z.enum(["exact", "suggested", "none"]))
-          .optional()
-          .default("none"),
+        // Required on every item: a missing match type must fail the response
+        // loudly rather than silently degrade a priced line to "unpriced".
+        matchType: z.preprocess(
+          (value) => coerceMatchType(value),
+          z.enum(["exact", "suggested", "none"]),
+        ),
         knowledgeCitationIds: z
           .array(z.string().trim().min(1).max(120))
           .max(6)
@@ -1486,13 +1497,16 @@ export async function generateQuoteDraftForBusiness(
     const response = await generateWithFallback(completionRequest);
 
     // --- AI Output Filtering ---
+    // The fragments must be instruction text the model would only echo when
+    // it leaked the system prompt. Schema field names ("matchType",
+    // "unitPriceInCents") are part of the requested JSON shape and must never
+    // be listed here — redacting them would corrupt the structured output.
     const outputFilterResult = filterAiOutput(
       response.text,
       [
-        "quote draft",
-        "pricing candidates",
-        "matchType",
-        "unitPriceInCents",
+        "MONETARY RULES (CRITICAL",
+        "You NEVER set prices",
+        "PACKAGE RULES:",
       ],
       { canaryToken: getAiCanaryToken() },
     );
@@ -1820,10 +1834,9 @@ export async function generateQuoteImprovementForBusiness(
     const outputFilterResult = filterAiOutput(
       response.text,
       [
-        "quote improvement",
-        "pricing candidates",
-        "matchType",
-        "unitPriceInCents",
+        "MONETARY RULES (CRITICAL",
+        "You NEVER set prices",
+        "PACKAGE RULES:",
       ],
       { canaryToken: getAiCanaryToken() },
     );
