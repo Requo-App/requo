@@ -472,6 +472,11 @@ export async function addMessage({
 
 /**
  * Update session state (e.g., lastMentioned entities).
+ *
+ * The pending confirmations live in the same JSON column as the caller's
+ * state, so the update merges instead of replacing: a confirmation staged
+ * for approval must survive any later state write. The row is locked for the
+ * read-merge-write so two concurrent updates cannot drop each other's work.
  */
 export async function updateSessionState({
   sessionId,
@@ -480,10 +485,27 @@ export async function updateSessionState({
   sessionId: string;
   state: Record<string, unknown>;
 }): Promise<void> {
-  await db
-    .update(ownerAssistantSessions)
-    .set({ state, updatedAt: new Date() })
-    .where(eq(ownerAssistantSessions.id, sessionId));
+  await db.transaction(async (tx) => {
+    const [row] = await tx
+      .select({ state: ownerAssistantSessions.state })
+      .from(ownerAssistantSessions)
+      .where(eq(ownerAssistantSessions.id, sessionId))
+      .limit(1)
+      .for("update");
+
+    const current = ((row?.state as AssistantSessionState | null) ??
+      {}) as AssistantSessionState;
+    const nextState: AssistantSessionState = { ...current, ...state };
+
+    if (current.pendingConfirmations && !state.pendingConfirmations) {
+      nextState.pendingConfirmations = current.pendingConfirmations;
+    }
+
+    await tx
+      .update(ownerAssistantSessions)
+      .set({ state: nextState, updatedAt: new Date() })
+      .where(eq(ownerAssistantSessions.id, sessionId));
+  });
 }
 
 /**
@@ -522,25 +544,6 @@ type AssistantSessionState = {
   [key: string]: unknown;
 };
 
-async function readSessionState(
-  sessionId: string,
-  scope?: { businessId: string; userId: string },
-): Promise<AssistantSessionState> {
-  const where = scope
-    ? and(
-        eq(ownerAssistantSessions.id, sessionId),
-        eq(ownerAssistantSessions.businessId, scope.businessId),
-        eq(ownerAssistantSessions.userId, scope.userId),
-      )
-    : eq(ownerAssistantSessions.id, sessionId);
-  const [row] = await db
-    .select({ state: ownerAssistantSessions.state })
-    .from(ownerAssistantSessions)
-    .where(where)
-    .limit(1);
-  return ((row?.state as AssistantSessionState | null) ?? {}) as AssistantSessionState;
-}
-
 /**
  * Stage a high-risk operation for explicit confirmation. The Tool itself must
  * not execute until `consumeToolConfirmation` returns the pending operation
@@ -558,22 +561,35 @@ export async function requestToolConfirmation({
   confirmationPrompt: string;
 }): Promise<string> {
   const confirmationId = `confirm_${nanoid(16)}`;
-  const state = await readSessionState(sessionId);
-  const pendingConfirmations = {
-    ...(state.pendingConfirmations ?? {}),
-    [confirmationId]: {
-      confirmationId,
-      operation,
-      parameters,
-      confirmationPrompt,
-      createdAt: new Date().toISOString(),
-    },
-  };
 
-  await db
-    .update(ownerAssistantSessions)
-    .set({ state: { ...state, pendingConfirmations }, updatedAt: new Date() })
-    .where(eq(ownerAssistantSessions.id, sessionId));
+  await db.transaction(async (tx) => {
+    // Lock the session while reading and staging, so a concurrent state
+    // update cannot drop the confirmation.
+    const [row] = await tx
+      .select({ state: ownerAssistantSessions.state })
+      .from(ownerAssistantSessions)
+      .where(eq(ownerAssistantSessions.id, sessionId))
+      .limit(1)
+      .for("update");
+
+    const state = ((row?.state as AssistantSessionState | null) ??
+      {}) as AssistantSessionState;
+    const pendingConfirmations = {
+      ...(state.pendingConfirmations ?? {}),
+      [confirmationId]: {
+        confirmationId,
+        operation,
+        parameters,
+        confirmationPrompt,
+        createdAt: new Date().toISOString(),
+      },
+    };
+
+    await tx
+      .update(ownerAssistantSessions)
+      .set({ state: { ...state, pendingConfirmations }, updatedAt: new Date() })
+      .where(eq(ownerAssistantSessions.id, sessionId));
+  });
 
   return confirmationId;
 }

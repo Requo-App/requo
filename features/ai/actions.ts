@@ -105,7 +105,7 @@ export async function generateQuoteDraftAction(
 
   if (!hasFeatureAccess(plan, "aiQuoteDrafting")) {
     return {
-      error: "Upgrade to Pro to use the AI quote generator.",
+      error: "AI quote drafting isn't included in your plan.",
     };
   }
 
