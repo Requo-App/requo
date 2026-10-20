@@ -61,6 +61,8 @@ export function formatAuditEventDetails(item: BusinessAuditLogItem) {
     case "quote.created":
     case "quote.sent":
     case "quote.voided":
+    case "quote.archived":
+    case "quote.unarchived":
     case "quote.draft_deleted":
     case "quote.canceled_after_acceptance":
     case "quote.work_completed": {

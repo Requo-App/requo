@@ -3,6 +3,7 @@ import "server-only";
 import { and, eq, isNull, notExists, sql } from "drizzle-orm";
 
 import { createFollowUpForBusiness } from "@/features/follow-ups/mutations";
+import { getLocalDateString } from "@/features/follow-ups/utils";
 import { db } from "@/lib/db/client";
 import { businesses, followUps, quotes } from "@/lib/db/schema";
 
@@ -41,7 +42,8 @@ export async function processQuoteViewedFollowUps(): Promise<QuoteViewedFollowUp
       and(
         eq(quotes.status, "sent"),
         eq(businesses.autoFollowUpOnQuoteViewed, true),
-        sql`${quotes.validUntil} >= ${getTodayUtcDateString()}`,
+        // Wide UTC range; the business-local comparison happens per row below.
+        sql`${quotes.validUntil} >= ${getEarliestTodayUtcDateString()}`,
         sql`${quotes.publicViewedAt} is not null`,
         isNull(quotes.customerRespondedAt),
         isNull(quotes.deletedAt),
@@ -68,9 +70,14 @@ export async function processQuoteViewedFollowUps(): Promise<QuoteViewedFollowUp
       continue;
     }
 
-    const dueDate = getFutureUtcDateString(row.followUpDelayDays, row.publicViewedAt);
+    // The delay window is evaluated in the business's own timezone.
+    const today = getLocalDateString(new Date(), row.timezone);
+    const dueDate = getLocalDateString(
+      new Date(row.publicViewedAt.getTime() + row.followUpDelayDays * 24 * 60 * 60 * 1000),
+      row.timezone,
+    );
 
-    if (dueDate > getTodayUtcDateString()) {
+    if (row.validUntil < today || dueDate > today) {
       skipped++;
       continue;
     }
@@ -102,12 +109,12 @@ export async function processQuoteViewedFollowUps(): Promise<QuoteViewedFollowUp
   return { processed, created, skipped };
 }
 
-function getTodayUtcDateString() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function getFutureUtcDateString(daysAhead: number, from: Date) {
-  return new Date(from.getTime() + daysAhead * 24 * 60 * 60 * 1000)
+/**
+ * The earliest "today" across every business timezone, so the SQL range
+ * never excludes a quote whose business is ahead of UTC.
+ */
+function getEarliestTodayUtcDateString() {
+  return new Date(Date.now() - 1 * 24 * 60 * 60 * 1000)
     .toISOString()
     .slice(0, 10);
 }

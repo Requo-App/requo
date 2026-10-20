@@ -13,6 +13,7 @@ import {
 } from "@/features/admin/components/product/admin-product-format";
 import { getAdminQuoteDetailPath } from "@/features/admin/navigation";
 import type { AdminQuoteRow } from "@/features/admin/types";
+import { QuoteRecordStateBadge } from "@/features/quotes/components/quote-record-state-badge";
 import { QuoteStatusBadge } from "@/features/quotes/components/quote-status-badge";
 
 const adminQuoteColumns: AdminDataTableColumn<AdminQuoteRow>[] = [
@@ -59,7 +60,12 @@ const adminQuoteColumns: AdminDataTableColumn<AdminQuoteRow>[] = [
     header: "Status",
     width: "w-[12rem]",
     align: "center",
-    cell: (row) => <QuoteStatusBadge status={row.status} />,
+    cell: (row) =>
+      row.recordState === "archived" ? (
+        <QuoteRecordStateBadge state="archived" />
+      ) : (
+        <QuoteStatusBadge status={row.status} />
+      ),
   },
   {
     id: "total",
@@ -139,7 +145,12 @@ export function AdminQuotesTable({
       mobileCard={(row) => ({
         title: `${row.quoteNumber} · ${row.customerName}`,
         subtitle: row.businessName,
-        statusBadge: <QuoteStatusBadge status={row.status} />,
+        statusBadge:
+          row.recordState === "archived" ? (
+            <QuoteRecordStateBadge state="archived" />
+          ) : (
+            <QuoteStatusBadge status={row.status} />
+          ),
         metadata: (
           <span>
             {formatAdminMoney(row.totalInCents, row.currency)} · Created{" "}

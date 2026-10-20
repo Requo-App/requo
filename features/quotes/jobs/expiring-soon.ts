@@ -3,6 +3,7 @@ import "server-only";
 import { and, eq, gte, isNull, lte, notExists } from "drizzle-orm";
 
 import { insertBusinessNotification } from "@/features/notifications/mutations";
+import { getLocalDateString } from "@/features/follow-ups/utils";
 import { db } from "@/lib/db/client";
 import { businessNotifications, businesses, quotes } from "@/lib/db/schema";
 
@@ -18,10 +19,13 @@ export type QuoteExpiringSoonSummary = {
  */
 export async function processQuoteExpiringSoon(): Promise<QuoteExpiringSoonSummary> {
   const now = new Date();
-  const today = now.toISOString().slice(0, 10);
-  const expiryHorizon = new Date(
-    now.getTime() + 2 * 24 * 60 * 60 * 1000,
-  )
+  // The window is evaluated per business in the business's own timezone: a
+  // quote expiring "today" in UTC+13 is still valid for hours after UTC has
+  // already rolled over.
+  const widestHorizon = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10);
+  const earliestToday = new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000)
     .toISOString()
     .slice(0, 10);
 
@@ -35,6 +39,7 @@ export async function processQuoteExpiringSoon(): Promise<QuoteExpiringSoonSumma
       quoteNumber: quotes.quoteNumber,
       customerName: quotes.customerName,
       validUntil: quotes.validUntil,
+      timezone: businesses.timezone,
       notifyInApp: businesses.notifyInAppOnQuoteExpiring,
     })
     .from(quotes)
@@ -43,8 +48,8 @@ export async function processQuoteExpiringSoon(): Promise<QuoteExpiringSoonSumma
       and(
         eq(quotes.status, "sent"),
         eq(businesses.notifyInAppOnQuoteExpiring, true),
-        gte(quotes.validUntil, today),
-        lte(quotes.validUntil, expiryHorizon),
+        gte(quotes.validUntil, earliestToday),
+        lte(quotes.validUntil, widestHorizon),
         isNull(quotes.customerRespondedAt),
         isNull(quotes.deletedAt),
         notExists(
@@ -63,6 +68,17 @@ export async function processQuoteExpiringSoon(): Promise<QuoteExpiringSoonSumma
     .limit(50);
 
   for (const row of expiringQuotes) {
+    const today = getLocalDateString(now, row.timezone);
+    const expiryHorizon = getLocalDateString(
+      new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000),
+      row.timezone,
+    );
+
+    if (row.validUntil < today || row.validUntil > expiryHorizon) {
+      // Outside the window in this business's own timezone.
+      continue;
+    }
+
     processed++;
 
     if (!row.notifyInApp) {
