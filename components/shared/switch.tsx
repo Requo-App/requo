@@ -16,9 +16,6 @@ import { cn } from "@/lib/utils";
 //           on  → primary bg + an inset top highlight that scales with size.
 //   thumb   theme-stable white gradient + contact shadow,
 //           slides by (w − thumb − 2·pad) between states.
-//   chip    small embossed inset in the thumb centre:
-//           on  → primary tint with a primary/60 border;
-//           off → muted with a subtle border.
 //
 // The track visual lives in `SwitchTrack` so `Switch` and `SwitchCard` share it
 // (mirrors how Checkbox / CheckboxCard share `CheckboxGlyph`). Built on
@@ -37,8 +34,6 @@ export const switchSizes = {
     thumbRadius: { pill: "rounded-full", rectangle: "rounded-[1px]" },
     offset: "left-0.5 top-0.5",
     travel: "translate-x-3",
-    chip: "size-[5px] border-[0.25px] shadow-[0_2px_2px_0_rgb(0_0_0/0.03)]",
-    chipRadius: { pill: "rounded-full", rectangle: "rounded-[0.5px]" },
   },
   md: {
     track: "h-6 w-[42px]",
@@ -48,8 +43,6 @@ export const switchSizes = {
     thumbRadius: { pill: "rounded-full", rectangle: "rounded-[1.5px]" },
     offset: "left-[3px] top-[3px]",
     travel: "translate-x-[18px]",
-    chip: "size-[7.5px] border-[0.375px] shadow-[0_3px_3px_0_rgb(0_0_0/0.03)]",
-    chipRadius: { pill: "rounded-full", rectangle: "rounded-[0.75px]" },
   },
   lg: {
     track: "h-8 w-14",
@@ -59,8 +52,6 @@ export const switchSizes = {
     thumbRadius: { pill: "rounded-full", rectangle: "rounded-xs" },
     offset: "left-1 top-1",
     travel: "translate-x-6",
-    chip: "size-[10px] border-[0.5px] shadow-[0_4px_4px_0_rgb(0_0_0/0.03)]",
-    chipRadius: { pill: "rounded-full", rectangle: "rounded-[1px]" },
   },
 };
 
@@ -71,8 +62,8 @@ export interface SwitchVisualState {
 }
 
 /**
- * The track + thumb + chip visual. Pure presentation — the react-aria Switch
- * (in `Switch` or `SwitchCard`) owns the input and passes its render state in.
+ * The track + thumb visual. Pure presentation — the react-aria Switch (in
+ * `Switch` or `SwitchCard`) owns the input and passes its render state in.
  */
 export function SwitchTrack({
   state,
@@ -105,7 +96,7 @@ export function SwitchTrack({
       {/* Thumb */}
       <span
         className={[
-          "absolute flex items-center justify-center",
+          "absolute",
           "bg-white",
           "shadow-[0_3px_3px_0_rgb(0_0_0/0.03),0_0.75px_0_0_rgb(0_0_0/0.05)]",
           "transition-transform duration-200 ease",
@@ -116,24 +107,7 @@ export function SwitchTrack({
         ]
           .filter(Boolean)
           .join(" ")}
-      >
-        {/* Embossed inner chip. Gradient runs bottom→top (`to-t`) — equivalent
-            to the design layer's vertical flip — but WITHOUT a transform, so the
-            chip stays pixel-snapped/centred (no blurry 1px shift at sub-pixel
-            sizes) and its drop shadow points down instead of up. */}
-        <span
-          className={[
-            "border-solid bg-linear-to-t from-[43.837%]",
-            s.chip,
-            s.chipRadius[shape],
-            state.isSelected
-              ? "border-primary/60 bg-primary/15"
-              : "border-border bg-muted",
-          ]
-            .filter(Boolean)
-            .join(" ")}
-        />
-      </span>
+      />
     </span>
   );
 }

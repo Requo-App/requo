@@ -1,4 +1,3 @@
-import { DashboardToolbar } from "@/components/shared/dashboard-layout";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
@@ -185,11 +184,11 @@ export function AnalyticsBarsSkeleton({
 export function AnalyticsToolbarSkeleton() {
   return (
     <>
-      <DashboardToolbar className="hidden items-center gap-2 sm:flex">
+      <div className="hidden items-center gap-2 sm:flex">
         <Skeleton className="h-8 w-32 rounded-md" />
         <Skeleton className="h-8 w-24 rounded-md" />
         <Skeleton className="h-8 w-24 rounded-md" />
-      </DashboardToolbar>
+      </div>
       <div className="flex w-full items-center gap-2 sm:hidden">
         <Skeleton className="h-8 w-full rounded-md" />
       </div>

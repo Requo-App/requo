@@ -65,6 +65,9 @@ export type AnalyticsRankedItem = {
   href: string | null;
 };
 
+/** The domain an attention row belongs to; picks the row's icon. */
+export type AnalyticsAttentionIcon = "inquiry" | "quote" | "follow-up";
+
 export type AnalyticsAttentionItem = {
   key: string;
   label: string;
@@ -72,6 +75,8 @@ export type AnalyticsAttentionItem = {
   count: number;
   href: string;
   tone: AnalyticsTone;
+  /** The kind of work the row points at, so the list can icon it. */
+  icon: AnalyticsAttentionIcon;
 };
 
 export type AnalyticsUsageMeter = {

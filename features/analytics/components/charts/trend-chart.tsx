@@ -24,6 +24,7 @@ import {
 import { cn } from "@/lib/utils";
 
 import { EmptyState } from "../primitives/empty-state";
+import { ANALYTICS_PLOT_HEIGHT } from "../primitives/plot-frame";
 import { AnalyticsTooltip, type AnalyticsTooltipSeries } from "./analytics-tooltip";
 import { ChartSeriesToggles } from "./chart-series-legend";
 
@@ -73,7 +74,7 @@ export function TrendChart({
   series,
   showCompare = false,
   ariaLabel,
-  height = 260,
+  height = ANALYTICS_PLOT_HEIGHT,
   emptyLabel = "No activity in this period.",
   currency = "USD",
   className,
@@ -162,11 +163,11 @@ export function TrendChart({
   }
 
   return (
-    <div className={cn("flex min-w-0 flex-col gap-3", className)}>
+    <div className={cn("flex min-w-0 flex-1 flex-col gap-3", className)}>
       <ChartContainer
         config={config}
-        className="aspect-auto w-full"
-        style={{ height }}
+        className="aspect-auto w-full flex-1"
+        style={{ minHeight: height }}
         role="img"
         aria-label={ariaLabel}
         tabIndex={0}

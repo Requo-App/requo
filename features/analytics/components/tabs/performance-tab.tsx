@@ -34,8 +34,8 @@ import {
  * component never awaits the promise — the shared query starts on the first
  * section render and every later boundary resolves from the same request.
  *
- * Three sections: Performance (the period), Audience (who is converting),
- * and Live (the snapshot). Every row is a symmetric split.
+ * Three blocks: Performance (the period), Audience (who is converting), and
+ * the live snapshot. Every row is a symmetric split.
  */
 export function PerformanceTab({
   businessId,
@@ -110,8 +110,6 @@ export function PerformanceTab({
         }
       >
         <AnalyticsSectionGate
-          title="Live"
-          live
           waitFor={dataPromise}
           when={hasData}
         >

@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { MobileRecordRow } from "@/components/shared/mobile-record-row";
@@ -245,7 +244,6 @@ export async function PerformanceServicesRow(props: PerformanceSectionProps) {
                   className="inline-flex items-center gap-1 rounded-sm outline-none transition-colors hover:text-primary focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   {row.name}
-                  <ArrowRight className="size-3.5 text-muted-foreground/70" aria-hidden />
                 </Link>
               ),
               visitors: formatNumber(row.visitors),

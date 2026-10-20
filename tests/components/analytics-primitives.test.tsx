@@ -100,6 +100,23 @@ describe("Stat", () => {
       0,
     );
   });
+
+  it("can follow its card container instead of the viewport", () => {
+    const { container } = render(
+      <StatGrid columns={4} layout="container">
+        <Stat label="One" value="1" />
+        <Stat label="Two" value="2" />
+        <Stat label="Three" value="3" />
+        <Stat label="Four" value="4" />
+      </StatGrid>,
+    );
+
+    const grid = container.firstElementChild;
+    expect(grid?.getAttribute("class")).toContain("@[44rem]:grid-cols-4");
+    expect(
+      container.querySelectorAll("[class*='@[44rem]:border-l']").length,
+    ).toBeGreaterThan(0);
+  });
 });
 
 describe("BarList", () => {
@@ -231,6 +248,7 @@ describe("AttentionList", () => {
             count: 18,
             href: "/acme/inquiries?status=new",
             tone: "warning",
+            icon: "inquiry",
           },
           {
             key: "stale",
@@ -239,6 +257,7 @@ describe("AttentionList", () => {
             count: 0,
             href: "/acme/inquiries?status=stale",
             tone: "neutral",
+            icon: "inquiry",
           },
         ]}
       />,
@@ -250,6 +269,49 @@ describe("AttentionList", () => {
       "href",
       "/acme/inquiries?status=new",
     );
+  });
+
+  it("icons each row by the kind of work it points at", () => {
+    const { container } = render(
+      <AttentionList
+        items={[
+          {
+            key: "unviewed",
+            label: "Unviewed inquiries",
+            description: "No one has opened these yet.",
+            count: 1,
+            href: "/acme/inquiries?status=new",
+            tone: "warning",
+            icon: "inquiry",
+          },
+          {
+            key: "expiring",
+            label: "Quotes expiring this week",
+            description: "Sent quotes whose validity ends within 7 days.",
+            count: 2,
+            href: "/acme/quotes?status=sent",
+            tone: "info",
+            icon: "quote",
+          },
+          {
+            key: "overdue",
+            label: "Overdue follow-ups",
+            description: "Past their due date and still pending.",
+            count: 3,
+            href: "/acme/follow-ups?due=overdue",
+            tone: "negative",
+            icon: "follow-up",
+          },
+        ]}
+      />,
+    );
+
+    // One icon per row, and a different one for each kind of work.
+    const icons = container.querySelectorAll("svg");
+    expect(icons).toHaveLength(3);
+    expect(icons[0]?.getAttribute("class")).toContain("lucide-inbox");
+    expect(icons[1]?.getAttribute("class")).toContain("lucide-file-text");
+    expect(icons[2]?.getAttribute("class")).toContain("lucide-bell-ring");
   });
 
   it("says so when nothing needs attention", () => {

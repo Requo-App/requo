@@ -53,7 +53,7 @@ export function Donut({
   return (
     <div
       className={cn(
-        "flex min-w-0 flex-col items-center gap-5 @[22rem]:flex-row @[22rem]:items-center",
+        "flex min-w-0 flex-1 flex-col items-center justify-center gap-5 @[22rem]:flex-row @[22rem]:items-center",
         className,
       )}
     >

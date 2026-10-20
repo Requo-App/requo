@@ -34,8 +34,9 @@ import {
  * component never awaits the promise — that is what keeps the boundaries
  * alive and lets the first card paint as soon as the shared query resolves.
  *
- * Two sections: Overview (the period) and Live (the snapshot). Every row is a
- * symmetric split, so no card is stretched to match a neighbour.
+ * Two blocks: the period (Overview) and the live snapshot. Every row is a
+ * symmetric split, and the cards in a row share one height so the band reads
+ * as a single line.
  */
 export function OverviewTab({
   businessId,
@@ -88,7 +89,7 @@ export function OverviewTab({
         </AnalyticsSectionGate>
       </Suspense>
 
-      <AnalyticsSection title="Live" live>
+      <AnalyticsSection>
         <Suspense
           fallback={
             <AnalyticsRow>

@@ -5,6 +5,7 @@ import { useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 import { AnalyticsCard } from "./analytics-card";
+import { PlotFrame, TableFrame } from "./plot-frame";
 
 /**
  * The card anatomy for anything with a plot: the same header, description,
@@ -73,7 +74,11 @@ export function AnalyticsChartCard({
         </>
       }
     >
-      {view === "table" && table ? table : chart}
+      {view === "table" && table ? (
+        <TableFrame>{table}</TableFrame>
+      ) : (
+        <PlotFrame>{chart}</PlotFrame>
+      )}
     </AnalyticsCard>
   );
 }

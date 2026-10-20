@@ -13,6 +13,7 @@ import { formatMoney } from "@/features/analytics/lib/format";
 import { cn } from "@/lib/utils";
 
 import { EmptyState } from "../primitives/empty-state";
+import { ANALYTICS_PLOT_HEIGHT } from "../primitives/plot-frame";
 import { AnalyticsTooltip, type AnalyticsTooltipSeries } from "./analytics-tooltip";
 
 export type RevenuePoint = {
@@ -32,7 +33,7 @@ export function RevenueChart({
   points,
   currency,
   ariaLabel,
-  height = 260,
+  height = ANALYTICS_PLOT_HEIGHT,
   emptyLabel = "No won revenue in this period.",
   className,
 }: {
@@ -93,11 +94,11 @@ export function RevenueChart({
         });
 
   return (
-    <div className={cn("flex min-w-0 flex-col gap-3", className)}>
+    <div className={cn("flex min-w-0 flex-1 flex-col gap-3", className)}>
       <ChartContainer
         config={config}
-        className="aspect-auto w-full"
-        style={{ height }}
+        className="aspect-auto w-full flex-1"
+        style={{ minHeight: height }}
         role="img"
         aria-label={ariaLabel}
         tabIndex={0}

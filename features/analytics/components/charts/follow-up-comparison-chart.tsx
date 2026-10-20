@@ -11,6 +11,7 @@ import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
 import { formatPercent } from "@/features/analytics/lib/format";
 import type { FollowUpEffectivenessData } from "@/features/analytics/types";
 
+import { ANALYTICS_PLOT_HEIGHT } from "../primitives/plot-frame";
 import { AnalyticsTooltip, type AnalyticsTooltipSeries } from "./analytics-tooltip";
 
 /**
@@ -66,7 +67,8 @@ export function FollowUpComparisonChart({
   return (
     <ChartContainer
       config={config}
-      className="aspect-auto h-52 w-full sm:h-[260px]"
+      className="aspect-auto w-full flex-1"
+      style={{ minHeight: ANALYTICS_PLOT_HEIGHT }}
       role="img"
       aria-label={ariaLabel}
       tabIndex={0}

@@ -60,7 +60,7 @@ export function AnalyticsCard({
 
       <div
         className={cn(
-          "@container flex min-w-0 flex-1 flex-col gap-4",
+          "@container flex min-w-0 min-h-0 flex-1 flex-col gap-4",
           bodyClassName,
         )}
       >

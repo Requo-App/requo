@@ -64,7 +64,7 @@ tokens below are the palette they configure.
 | `--chart-series-3` | Third series — lighter neutral | 60% muted-foreground | 60% muted-foreground |
 | `--chart-neutral-1…5` | Neutral ramp for stacked series | muted-foreground steps | muted-foreground steps |
 | `--chart-grid` | Horizontal gridline hairline | `rgb(23 43 36 / 0.08)` | `rgb(255 255 255 / 0.06)` |
-| `--chart-track` | Unfilled bar and meter track | `var(--muted)` | `var(--muted)` |
+| `--chart-track` | Unfilled bar and meter track | `color-mix(in srgb, var(--foreground) 14%, transparent)` | `rgb(255 255 255 / 0.16)` |
 | `--chart-tooltip-surface` | Chart tooltip background | `var(--popover)` | `var(--popover)` |
 | `--chart-tooltip-border` | Chart tooltip border | `var(--border)` | `var(--border)` |
 | `--analytics-sparkline-height` | Inline KPI sparkline height | `2.5rem` | `2.5rem` |
@@ -86,6 +86,8 @@ Chart rules:
   to 0.
 - `.analytics-card` is the analytics card surface: a 1px low-contrast border
   with no elevation, so a page of cards reads as one plane.
+- Cards in one row share a height. The plot fills its card, and the table
+  view scrolls inside the card, so switching between them never resizes it.
 
 ### Typography Scale
 

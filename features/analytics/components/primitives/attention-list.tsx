@@ -1,14 +1,18 @@
 import Link from "next/link";
 import {
+  BellRing,
   CircleAlert,
   CircleCheck,
   Clock,
+  FileText,
   FileWarning,
+  Inbox,
   Info,
   type LucideIcon,
 } from "lucide-react";
 
 import type {
+  AnalyticsAttentionIcon,
   AnalyticsAttentionItem,
   AnalyticsTone,
 } from "@/features/analytics/types";
@@ -20,6 +24,17 @@ const TONE_ICONS: Record<AnalyticsTone, LucideIcon> = {
   info: Info,
   positive: CircleCheck,
   neutral: Info,
+};
+
+/**
+ * The icon a row carries, chosen by the kind of work it points at — an
+ * inquiry, a quote, or a follow-up — so the list reads as a mix of work
+ * rather than a column of alarms.
+ */
+const DOMAIN_ICONS: Record<AnalyticsAttentionIcon, LucideIcon> = {
+  inquiry: Inbox,
+  quote: FileText,
+  "follow-up": BellRing,
 };
 
 /**
@@ -56,7 +71,7 @@ export function AttentionList({
   return (
     <ul className={cn("flex min-w-0 flex-col", className)}>
       {items.map((item) => {
-        const Icon = TONE_ICONS[item.tone] ?? Info;
+        const Icon = DOMAIN_ICONS[item.icon] ?? TONE_ICONS[item.tone] ?? Info;
         const isZero = item.count === 0;
 
         return (

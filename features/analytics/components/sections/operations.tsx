@@ -141,7 +141,7 @@ export async function OperationsFollowUpRow(props: OperationsSectionProps) {
           title="Follow-up effectiveness"
           description="Quotes sent in this period, split by whether the quote or its inquiry had at least one follow-up."
           chart={
-            <div className="flex flex-col gap-4">
+            <div className="flex min-h-0 flex-1 flex-col gap-4">
               <p className="text-sm text-foreground">
                 {effectivenessHeadline(data.effectiveness)}
               </p>
@@ -322,7 +322,7 @@ export async function OperationsAutomationRow(props: OperationsSectionProps) {
           title="AI impact"
           description="Drafted here means the quote started from an AI draft. Win rate is accepted ÷ decided among quotes sent in this period."
         >
-          <StatGrid columns={2}>
+          <StatGrid columns={4} layout="container">
             <Stat
               label="AI drafts started"
               value={formatNumber(ai.drafted)}
@@ -348,7 +348,7 @@ export async function OperationsAutomationRow(props: OperationsSectionProps) {
             />
           </StatGrid>
 
-          <div className="flex min-w-0 flex-col gap-5">
+          <div className="grid min-w-0 gap-5 @[36rem]:grid-cols-2">
             <div className="flex min-w-0 flex-col gap-2">
               <span className="meta-label">Win rate: AI vs manual</span>
               <BarList items={aiComparison} />

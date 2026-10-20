@@ -6,6 +6,7 @@ import { Tab, TabList, TabPanel, Tabs } from "@/components/shared/tabs";
 import { cn } from "@/lib/utils";
 
 import { AnalyticsCard } from "./analytics-card";
+import { PlotFrame, TableFrame } from "./plot-frame";
 
 export type AnalyticsTabItem = {
   id: string;
@@ -71,7 +72,7 @@ export function AnalyticsTabbedCard({
       }
     >
       <Tabs
-        className="gap-3"
+        className="min-h-0 flex-1 gap-3"
         selectedKey={selected}
         onSelectionChange={(key) => setSelected(String(key))}
       >
@@ -87,8 +88,16 @@ export function AnalyticsTabbedCard({
         </TabList>
 
         {tabs.map((tab) => (
-          <TabPanel key={tab.id} id={tab.id} className="min-w-0">
-            {view === "table" && tab.table ? tab.table : tab.chart}
+          <TabPanel
+            key={tab.id}
+            id={tab.id}
+            className="flex min-h-0 min-w-0 flex-1 flex-col"
+          >
+            {view === "table" && tab.table ? (
+              <TableFrame>{tab.table}</TableFrame>
+            ) : (
+              <PlotFrame>{tab.chart}</PlotFrame>
+            )}
           </TabPanel>
         ))}
       </Tabs>

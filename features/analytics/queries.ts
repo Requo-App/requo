@@ -897,6 +897,7 @@ async function getOverviewAttention(
       count: num(unviewedRows[0]?.value),
       href: getBusinessInquiriesPath(businessSlug),
       tone: "warning",
+      icon: "inquiry",
     },
     {
       key: "stale-inquiries",
@@ -905,6 +906,7 @@ async function getOverviewAttention(
       count: num(staleRows[0]?.value),
       href: `${getBusinessInquiriesPath(businessSlug)}?status=waiting`,
       tone: "warning",
+      icon: "inquiry",
     },
     {
       key: "quotes-expiring",
@@ -913,6 +915,7 @@ async function getOverviewAttention(
       count: num(expiringRows[0]?.value),
       href: `${getBusinessQuotesPath(businessSlug)}?status=sent`,
       tone: "info",
+      icon: "quote",
     },
     {
       key: "quotes-awaiting-decision",
@@ -921,6 +924,7 @@ async function getOverviewAttention(
       count: num(pendingRows[0]?.value),
       href: `${getBusinessQuotesPath(businessSlug)}?status=sent`,
       tone: "warning",
+      icon: "quote",
     },
     {
       key: "overdue-follow-ups",
@@ -929,6 +933,7 @@ async function getOverviewAttention(
       count: followUpsOverdue,
       href: `${getBusinessFollowUpsPath(businessSlug)}?due=overdue`,
       tone: "negative",
+      icon: "follow-up",
     },
   ];
 

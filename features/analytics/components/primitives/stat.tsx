@@ -87,15 +87,24 @@ export function Stat({
 /**
  * A grid of stats separated by 1px dividers. The divider pattern follows the
  * column count, so the first cell of every row is flush and nothing is boxed.
+ *
+ * Cells touch: row spacing comes from cell padding, not a grid gap, so the
+ * vertical rules run continuously through every row instead of breaking at
+ * each horizontal rule. Use `layout="container"` when the grid lives in a
+ * card that can be half-width, so columns follow the card rather than the
+ * viewport.
  */
 export function StatGrid({
   children,
   columns = 2,
+  layout = "viewport",
   className,
 }: {
   children: ReactNode;
-  /** Columns at the `sm` breakpoint and up; one column below it. */
-  columns?: 2 | 3;
+  /** Columns at the widest breakpoint; narrower breakpoints use fewer. */
+  columns?: 2 | 3 | 4;
+  /** Respond to the viewport (default) or the surrounding container. */
+  layout?: "viewport" | "container";
   className?: string;
 }) {
   const items = Children.toArray(children);
@@ -103,15 +112,29 @@ export function StatGrid({
   return (
     <div
       className={cn(
-        "grid grid-cols-1 gap-y-4 sm:grid-cols-2",
-        columns === 3 && "lg:grid-cols-3",
+        "grid grid-cols-1 content-start",
+        layout === "container"
+          ? cn(
+              "@[24rem]:grid-cols-2",
+              columns === 3 && "@[38rem]:grid-cols-3",
+              columns === 4 && "@[44rem]:grid-cols-4",
+            )
+          : cn(
+              "sm:grid-cols-2",
+              columns === 3 && "lg:grid-cols-3",
+              columns === 4 && "lg:grid-cols-4",
+            ),
         className,
       )}
     >
       {items.map((child, index) => (
         <div
           key={index}
-          className={cn("min-w-0 px-0 sm:px-4", dividerClasses(index, columns))}
+          className={cn(
+            "min-w-0 px-0",
+            layout === "container" ? "@[24rem]:px-4" : "sm:px-4",
+            dividerClasses(index, items.length, columns, layout),
+          )}
         >
           {child}
         </div>
@@ -120,18 +143,120 @@ export function StatGrid({
   );
 }
 
+// Full class strings per breakpoint so Tailwind can see them at build time.
+const STAT_GRID_BREAKPOINTS = {
+  base: {
+    rowRule: "border-t",
+    noRowRule: "border-t-0",
+    rowPadding: "pt-2",
+    noRowPadding: "pt-0",
+    columnRule: "border-l",
+    noColumnRule: "border-l-0",
+    rowSpace: "pb-4",
+    noRowSpace: "pb-0",
+  },
+  sm: {
+    rowRule: "sm:border-t",
+    noRowRule: "sm:border-t-0",
+    rowPadding: "sm:pt-2",
+    noRowPadding: "sm:pt-0",
+    columnRule: "sm:border-l",
+    noColumnRule: "sm:border-l-0",
+    rowSpace: "sm:pb-4",
+    noRowSpace: "sm:pb-0",
+  },
+  lg: {
+    rowRule: "lg:border-t",
+    noRowRule: "lg:border-t-0",
+    rowPadding: "lg:pt-2",
+    noRowPadding: "lg:pt-0",
+    columnRule: "lg:border-l",
+    noColumnRule: "lg:border-l-0",
+    rowSpace: "lg:pb-4",
+    noRowSpace: "lg:pb-0",
+  },
+  smContainer: {
+    rowRule: "@[24rem]:border-t",
+    noRowRule: "@[24rem]:border-t-0",
+    rowPadding: "@[24rem]:pt-2",
+    noRowPadding: "@[24rem]:pt-0",
+    columnRule: "@[24rem]:border-l",
+    noColumnRule: "@[24rem]:border-l-0",
+    rowSpace: "@[24rem]:pb-4",
+    noRowSpace: "@[24rem]:pb-0",
+  },
+  mdContainer: {
+    rowRule: "@[38rem]:border-t",
+    noRowRule: "@[38rem]:border-t-0",
+    rowPadding: "@[38rem]:pt-2",
+    noRowPadding: "@[38rem]:pt-0",
+    columnRule: "@[38rem]:border-l",
+    noColumnRule: "@[38rem]:border-l-0",
+    rowSpace: "@[38rem]:pb-4",
+    noRowSpace: "@[38rem]:pb-0",
+  },
+  lgContainer: {
+    rowRule: "@[44rem]:border-t",
+    noRowRule: "@[44rem]:border-t-0",
+    rowPadding: "@[44rem]:pt-2",
+    noRowPadding: "@[44rem]:pt-0",
+    columnRule: "@[44rem]:border-l",
+    noColumnRule: "@[44rem]:border-l-0",
+    rowSpace: "@[44rem]:pb-4",
+    noRowSpace: "@[44rem]:pb-0",
+  },
+} as const;
+
+type StatGridBreakpoint =
+  (typeof STAT_GRID_BREAKPOINTS)[keyof typeof STAT_GRID_BREAKPOINTS];
+
 /**
- * Divider classes for a stat cell. On phones the grid is a single column, so
- * every cell but the first carries a top rule; from `sm` up the rule follows
- * the column count.
+ * Divider classes for a stat cell.
+ *
+ * A cell that is not in the first visual row carries the row's top rule and
+ * padding, and a cell that is not last in its row carries bottom padding so
+ * the next rule has breathing room. A cell that is not first in its row
+ * carries the vertical rule. Because the grid gap is zero, every vertical
+ * rule meets its neighbour in the next row.
  */
-function dividerClasses(index: number, columns: number): string {
-  if (index === 0) return "";
-  const inRow = index % columns;
-  const row = Math.floor(index / columns);
-  const classes = ["max-sm:border-t", "max-sm:border-l-0"];
-  if (row > 0) classes.push("border-t");
-  if (inRow > 0) classes.push("border-l");
+function dividerClasses(
+  index: number,
+  count: number,
+  columns: number,
+  layout: "viewport" | "container",
+): string {
+  const classes: string[] = [];
+
+  const addLayout = (
+    breakpoint: StatGridBreakpoint,
+    columnCount: number,
+  ) => {
+    const rows = Math.ceil(count / columnCount);
+    const row = Math.floor(index / columnCount);
+    const firstInRow = index % columnCount === 0;
+    const firstRow = row === 0;
+    const lastRow = row >= rows - 1;
+
+    classes.push(
+      firstRow ? breakpoint.noRowRule : breakpoint.rowRule,
+      firstRow ? breakpoint.noRowPadding : breakpoint.rowPadding,
+      firstInRow ? breakpoint.noColumnRule : breakpoint.columnRule,
+      lastRow ? breakpoint.noRowSpace : breakpoint.rowSpace,
+    );
+  };
+
+  // Phones: one column.
+  addLayout(STAT_GRID_BREAKPOINTS.base, 1);
+
+  if (layout === "container") {
+    addLayout(STAT_GRID_BREAKPOINTS.smContainer, 2);
+    if (columns === 3) addLayout(STAT_GRID_BREAKPOINTS.mdContainer, 3);
+    if (columns === 4) addLayout(STAT_GRID_BREAKPOINTS.lgContainer, 4);
+  } else {
+    addLayout(STAT_GRID_BREAKPOINTS.sm, 2);
+    if (columns > 2) addLayout(STAT_GRID_BREAKPOINTS.lg, columns);
+  }
+
   return classes.join(" ");
 }
 

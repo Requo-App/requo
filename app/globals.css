@@ -209,7 +209,7 @@
      `--chart-tooltip-surface` / `--chart-tooltip-border` the shared chart
      tooltip shell. */
   --chart-grid: rgb(23 43 36 / 0.08);
-  --chart-track: var(--muted);
+  --chart-track: color-mix(in srgb, var(--foreground) 14%, transparent);
   --chart-tooltip-surface: var(--popover);
   --chart-tooltip-border: var(--border);
   /* Categorical series: the brand accent first, then two neutral steps. A
@@ -436,7 +436,7 @@ html[data-reload-loading="fade-out"] #app-root-content {
   --chart-4: #f2ca6b;
   --chart-5: #83d8c3;
   --chart-grid: rgb(255 255 255 / 0.06);
-  --chart-track: var(--muted);
+  --chart-track: rgb(255 255 255 / 0.16);
   --chart-tooltip-surface: var(--popover);
   --chart-tooltip-border: var(--border);
   --sidebar: #161616;

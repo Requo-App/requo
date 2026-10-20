@@ -3,33 +3,29 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * Section label for the analytics page: a small uppercase muted heading, a
- * hairline that fills the remaining width, and an optional "Live" pill for
- * sections that ignore the selected date range.
+ * Section label for the analytics page: a small uppercase muted heading and a
+ * hairline that fills the remaining width.
+ *
+ * A section without a title renders its children only — used where a group of
+ * cards speaks for itself and a label would only add chrome.
  */
 export function AnalyticsSection({
   title,
-  live = false,
   children,
   className,
 }: {
-  title: string;
-  /** Marks a section whose numbers are a live snapshot, not the selected range. */
-  live?: boolean;
+  title?: string;
   children: ReactNode;
   className?: string;
 }) {
   return (
     <section className={cn("flex min-w-0 flex-col gap-4", className)}>
-      <div className="flex items-center gap-3">
-        <h2 className="meta-label shrink-0">{title}</h2>
-        <span aria-hidden className="h-px flex-1 bg-border/60" />
-        {live ? (
-          <span className="meta-label shrink-0 rounded-full border border-border/60 px-2 py-0.5">
-            Live
-          </span>
-        ) : null}
-      </div>
+      {title ? (
+        <div className="flex items-center gap-3">
+          <h2 className="meta-label shrink-0">{title}</h2>
+          <span aria-hidden className="h-px flex-1 bg-border/60" />
+        </div>
+      ) : null}
       {children}
     </section>
   );
@@ -44,13 +40,11 @@ export function AnalyticsSection({
  */
 export async function AnalyticsSectionGate<T>({
   title,
-  live = false,
   waitFor,
   when,
   children,
 }: {
-  title: string;
-  live?: boolean;
+  title?: string;
   /** The tab's shared query promise. */
   waitFor: Promise<T>;
   /** Decides whether the section has anything to show. */
@@ -60,11 +54,7 @@ export async function AnalyticsSectionGate<T>({
   const data = await waitFor;
   if (!when(data)) return null;
 
-  return (
-    <AnalyticsSection title={title} live={live}>
-      {children}
-    </AnalyticsSection>
-  );
+  return <AnalyticsSection title={title}>{children}</AnalyticsSection>;
 }
 
 /**
@@ -73,6 +63,9 @@ export async function AnalyticsSectionGate<T>({
  * The row is a 12-column grid from `md` up and a single column on phones, so
  * a 6/6 pair sits side by side from 768px while 4/4/4 and 3/3/3/3 rows stack
  * to one column until the full layout kicks in at 1200px.
+ *
+ * Cards stretch to the height of the tallest card in the row, so a row of
+ * cards reads as one band instead of a ragged edge.
  */
 export function AnalyticsRow({
   children,
@@ -84,7 +77,7 @@ export function AnalyticsRow({
   return (
     <div
       className={cn(
-        "grid grid-cols-1 items-start gap-4 md:grid-cols-12",
+        "grid grid-cols-1 gap-4 md:grid-cols-12",
         className,
       )}
     >
