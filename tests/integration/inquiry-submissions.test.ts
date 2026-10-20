@@ -1,6 +1,11 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { and, eq } from "drizzle-orm";
 
+const storage = vi.hoisted(() => ({ info: vi.fn(), download: vi.fn() }));
+vi.mock("@/lib/supabase/admin", () => ({
+  createSupabaseAdminClient: () => ({ storage: { from: () => storage } }),
+}));
+
 vi.mock("@/lib/db/client", async () => {
   const { testDb: mockedDb } = await import("../support/db");
 
@@ -10,6 +15,7 @@ vi.mock("@/lib/db/client", async () => {
 vi.mock("next/cache", () => ({
   cacheLife: vi.fn(),
   cacheTag: vi.fn(),
+  revalidateTag: vi.fn(),
 }));
 
 import {
@@ -23,6 +29,7 @@ import {
   activityLogs,
   businessNotifications,
   inquiries,
+  inquiryAttachments,
   inquiryNotes,
 } from "@/lib/db/schema";
 
@@ -63,6 +70,7 @@ function inquiryFormData(email = "new-customer@example.com") {
 
 describe("features/inquiries public and manual submissions", () => {
   beforeEach(async () => {
+    vi.resetAllMocks();
     ids = await createWorkflowFixture(prefix);
   }, 30_000);
 
@@ -188,6 +196,40 @@ describe("features/inquiries public and manual submissions", () => {
       .where(eq(businessNotifications.inquiryId, created.inquiryId));
 
     expect(notifications).toHaveLength(0);
+  });
+
+  it("persists the MIME detected from bytes despite untrusted storage metadata", async () => {
+    const business = await getPublicInquiryBusinessBySlug(ids.businessSlug);
+    if (!business) throw new Error("Expected seeded business.");
+    const bytes = Buffer.from("%PDF-1.7\nSample PDF\n%%EOF");
+    storage.info.mockResolvedValue({ data: { size: bytes.length, contentType: "image/png" }, error: null });
+    storage.download.mockResolvedValue({ data: new Blob([bytes]), error: null });
+    const submission = expectValidSubmission(validatePublicInquirySubmission(business.inquiryFormConfig, inquiryFormData()));
+    const created = await createPublicInquirySubmission({
+      business,
+      submission: { ...submission, maxAttachmentBytes: 5 * 1024 * 1024, attachmentUpload: {
+        storagePath: "uploads/test/roof-plan.pdf", fileName: "Roof Plan.PDF", fileSize: bytes.length, contentType: "application/pdf",
+      } },
+    });
+    const [attachment] = await testDb.select().from(inquiryAttachments).where(eq(inquiryAttachments.inquiryId, created.inquiryId));
+    expect(attachment).toMatchObject({ contentType: "application/pdf", fileSize: bytes.length, fileName: "Roof Plan.PDF" });
+  });
+
+  it.each(["mismatched-bytes", "unavailable-object", "oversized-object"])("rejects %s before persisting an inquiry", async (failure) => {
+    const business = await getPublicInquiryBusinessBySlug(ids.businessSlug);
+    if (!business) throw new Error("Expected seeded business.");
+    const bytes = Buffer.from("This text is not a PDF, despite the extension and metadata.");
+    storage.info.mockResolvedValue({ data: { size: failure === "oversized-object" ? 6 * 1024 * 1024 : bytes.length, contentType: "application/pdf" }, error: null });
+    storage.download.mockResolvedValue(failure === "unavailable-object" ? { data: null, error: new Error("missing") } : { data: new Blob([bytes]), error: null });
+    const before = await testDb.select({ id: inquiries.id }).from(inquiries).where(eq(inquiries.businessId, ids.businessId));
+    const submission = expectValidSubmission(validatePublicInquirySubmission(business.inquiryFormConfig, inquiryFormData()));
+    await expect(createPublicInquirySubmission({ business, submission: {
+      ...submission, maxAttachmentBytes: 5 * 1024 * 1024, attachmentUpload: {
+        storagePath: "uploads/test/plan.pdf", fileName: "plan.pdf", fileSize: bytes.length, contentType: "application/pdf",
+      },
+    } })).rejects.toThrow();
+    const after = await testDb.select({ id: inquiries.id }).from(inquiries).where(eq(inquiries.businessId, ids.businessId));
+    expect(after).toEqual(before);
   });
 
   it("does not expose archived businesses for public inquiry intake", async () => {

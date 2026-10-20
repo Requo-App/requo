@@ -55,6 +55,7 @@ export function ManualInquiryEditor({
   const [attachment, setAttachment] =
     useState<PublicInquiryAttachmentToken | null>(null);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
+  const [isAttachmentUploading, setIsAttachmentUploading] = useState(false);
   const [fileInputResetKey, setFileInputResetKey] = useState(0);
   const deferredCustomerName = useDeferredValue(customerName);
   const deferredCustomerEmail = useDeferredValue(customerEmail);
@@ -143,6 +144,9 @@ export function ManualInquiryEditor({
     <form
       action={formAction}
       className="dashboard-detail-layout items-start xl:grid-cols-[minmax(0,1.08fr)_0.92fr]"
+      onSubmit={(event) => {
+        if (isAttachmentUploading || attachmentError) event.preventDefault();
+      }}
     >
       <input name="formSlug" type="hidden" value={selectedForm.slug} />
 
@@ -158,7 +162,7 @@ export function ManualInquiryEditor({
             <FieldContent>
               <Combobox
                 aria-invalid={Boolean(getFieldMessage("formSlug"))}
-                disabled={isPending}
+                disabled={isPending || isAttachmentUploading}
                 id="manual-inquiry-form"
                 onValueChange={(value) => handleFormChange(value)}
                 options={formOptions}
@@ -372,7 +376,11 @@ export function ManualInquiryEditor({
                   helpText={uploadHelpText}
                   id="manual-inquiry-attachment"
                   onChange={setAttachment}
-                  onError={setAttachmentError}
+                  onError={(message) => {
+                    setAttachmentError(message);
+                    if (message) toast.error(message);
+                  }}
+                  onUploadingChange={setIsAttachmentUploading}
                   resetKey={`${selectedForm.slug}:${fileInputResetKey}`}
                   value={attachment}
                 />
@@ -394,7 +402,7 @@ export function ManualInquiryEditor({
           contentClassName="flex flex-col gap-4"
           footer={
             <Button
-              disabled={isPending || Boolean(attachmentError)}
+              disabled={isPending || isAttachmentUploading || Boolean(attachmentError)}
               size="lg"
               type="submit"
             >

@@ -18,6 +18,7 @@ import {
 } from "@/lib/db/schema";
 import { insertBusinessNotification } from "@/features/notifications/mutations";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { resolveInquiryAttachmentContentType } from "@/features/inquiries/attachment-content";
 import {
   publicInquiryAttachmentBucket,
   type PublicInquirySubmissionInput,
@@ -119,12 +120,29 @@ export async function createInquirySubmission({
       throw new Error("The uploaded inquiry attachment failed validation.");
     }
 
+    const { data: object, error: downloadError } = await storageClient.storage
+      .from(publicInquiryAttachmentBucket)
+      .download(attachmentUpload.storagePath);
+
+    if (downloadError || !object || object.size !== observedSize) {
+      throw new Error("Failed to confirm the uploaded inquiry attachment.");
+    }
+
+    const contentType = await resolveInquiryAttachmentContentType(
+      new Uint8Array(await object.arrayBuffer()),
+      attachmentUpload.fileName,
+    );
+
+    if (contentType !== attachmentUpload.contentType) {
+      throw new Error("The uploaded inquiry attachment failed validation.");
+    }
+
     preparedAttachment = {
       id: newEntityId(),
-      // The file name comes from the storage path, so it always matches the
-      // object that was actually uploaded.
+      // This filename comes from the signed token payload; it is distinct
+      // from the sanitized filename in the storage path.
       fileName: attachmentUpload.fileName.slice(0, 255),
-      contentType: attachmentUpload.contentType,
+      contentType,
       fileSize: observedSize,
       storagePath: attachmentUpload.storagePath,
     };

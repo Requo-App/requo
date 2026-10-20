@@ -317,12 +317,11 @@ export async function createManualInquiryAction(
     );
   }
 
+  const plan = await getEffectivePlanForBusiness(businessContext.business.id);
   const attachmentResolution = resolveSubmittedAttachment({
     businessId: businessContext.business.id,
     submission: validationResult.data,
-    maxBytes: getPublicInquiryAttachmentMaxBytes(
-      businessContext.business.plan,
-    ),
+    maxBytes: getPublicInquiryAttachmentMaxBytes(plan),
   });
 
   if (!attachmentResolution.ok) {

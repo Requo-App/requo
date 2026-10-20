@@ -10,6 +10,7 @@ import {
 } from "react";
 
 import { FormActions, FormSection } from "@/components/shared/form-layout";
+import { toast } from "@/components/shared/notify";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Spinner } from "@/components/ui/spinner";
@@ -145,6 +146,7 @@ export function PublicInquiryForm({
   const [attachment, setAttachment] =
     useState<PublicInquiryAttachmentToken | null>(null);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
+  const [isAttachmentUploading, setIsAttachmentUploading] = useState(false);
   const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
   const [canSubmit, setCanSubmit] = useState(false);
   const [contactMethod, setContactMethod] = useState<InquiryContactMethod>("email");
@@ -221,6 +223,11 @@ export function PublicInquiryForm({
         onChangeCapture={syncCanSubmit}
         onInputCapture={syncCanSubmit}
         onSubmit={(event) => {
+          if (isAttachmentUploading || attachmentError) {
+            event.preventDefault();
+            return;
+          }
+
           if (!previewMode) {
             return;
           }
@@ -404,7 +411,11 @@ export function PublicInquiryForm({
                     helpText={attachmentHelpText}
                     id="inquiry-attachment"
                     onChange={setAttachment}
-                    onError={setAttachmentError}
+                    onError={(message) => {
+                      setAttachmentError(message);
+                      if (message) toast.error(message);
+                    }}
+                    onUploadingChange={setIsAttachmentUploading}
                     value={attachment}
                   />
                   <FieldError
@@ -454,7 +465,7 @@ export function PublicInquiryForm({
               className="w-full sm:w-auto"
               disabled={
                 !previewMode &&
-                (isPending || !canSubmit || Boolean(attachmentError))
+                (isPending || isAttachmentUploading || !canSubmit || Boolean(attachmentError))
               }
               onClick={
                 previewMode ? () => setIsPreviewDialogOpen(true) : undefined

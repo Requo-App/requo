@@ -26,6 +26,7 @@ const orphanCutoffMs = 24 * 60 * 60 * 1000;
 
 /** Upper bound on the folders examined in one run, so the sweep stays quick. */
 const maxFoldersPerRun = 50;
+const folderPageSize = 25;
 
 export type InquiryAttachmentCleanupSummary = {
   scanned: number;
@@ -47,41 +48,50 @@ export async function cleanupOrphanedInquiryAttachments(): Promise<InquiryAttach
       publicInquiryAttachmentBucket,
     );
 
-    const { data: folders, error: listError } = await storage.list(
-      publicInquiryAttachmentUploadRoot,
-    );
-
-    if (listError) {
-      throw new Error(listError.message);
-    }
-
     const cutoff = Date.now() - orphanCutoffMs;
     const candidatePaths: string[] = [];
+    let scannedFolders = 0;
+    let offset = 0;
 
-    for (const folder of folders ?? []) {
-      if (candidatePaths.length >= maxFoldersPerRun) {
-        break;
+    while (scannedFolders < maxFoldersPerRun) {
+      const limit = Math.min(folderPageSize, maxFoldersPerRun - scannedFolders);
+      const { data: folders, error: listError } = await storage.list(
+        publicInquiryAttachmentUploadRoot,
+        { limit, offset, sortBy: { column: "name", order: "asc" } },
+      );
+
+      if (listError) {
+        throw new Error(listError.message);
       }
 
-      const folderPath = `${publicInquiryAttachmentUploadRoot}/${folder.name}`;
-      const { data: files, error: filesError } = await storage.list(folderPath);
+      if (!folders?.length) break;
 
-      if (filesError) {
-        errors.push(`${folderPath}: ${filesError.message}`);
-        continue;
-      }
+      offset += folders.length;
 
-      for (const file of files ?? []) {
-        const createdAt = file.created_at
-          ? new Date(file.created_at).getTime()
-          : Number.POSITIVE_INFINITY;
+      for (const folder of folders) {
+        scannedFolders += 1;
+        const folderPath = `${publicInquiryAttachmentUploadRoot}/${folder.name}`;
+        const { data: files, error: filesError } = await storage.list(folderPath);
 
-        if (createdAt > cutoff) {
+        if (filesError) {
+          errors.push(`${folderPath}: ${filesError.message}`);
           continue;
         }
 
-        candidatePaths.push(`${folderPath}/${file.name}`);
+        for (const file of files ?? []) {
+          const createdAt = file.created_at
+            ? new Date(file.created_at).getTime()
+            : Number.POSITIVE_INFINITY;
+
+          if (createdAt > cutoff) {
+            continue;
+          }
+
+          candidatePaths.push(`${folderPath}/${file.name}`);
+        }
       }
+
+      if (folders.length < limit) break;
     }
 
     if (!candidatePaths.length) {

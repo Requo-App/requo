@@ -26,6 +26,7 @@ type InquiryAttachmentUploaderProps = {
   value: PublicInquiryAttachmentToken | null;
   onChange: (upload: PublicInquiryAttachmentToken | null) => void;
   onError: (message: string | null) => void;
+  onUploadingChange: (isUploading: boolean) => void;
   /** Change this to force the file input back to empty. */
   resetKey?: string | number;
 };
@@ -55,15 +56,18 @@ export function InquiryAttachmentUploader({
   value,
   onChange,
   onError,
+  onUploadingChange,
   resetKey,
 }: InquiryAttachmentUploaderProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [hasError, setHasError] = useState(false);
   const [selectedFileName, setSelectedFileName] = useState<string | null>(
     value?.fileName ?? null,
   );
 
   async function handleFileChange(file: File | null) {
+    setHasError(false);
     onError(null);
 
     if (!file) {
@@ -74,6 +78,7 @@ export function InquiryAttachmentUploader({
 
     setSelectedFileName(file.name);
     setIsUploading(true);
+    onUploadingChange(true);
 
     try {
       const requestResponse = await fetch("/api/public/inquiry-upload", {
@@ -98,6 +103,7 @@ export function InquiryAttachmentUploader({
             ? payload.error
             : publicInquiryAttachmentTypeError;
 
+        setHasError(true);
         onError(message);
         setSelectedFileName(null);
         onChange(null);
@@ -115,6 +121,7 @@ export function InquiryAttachmentUploader({
       });
 
       if (!uploadResponse.ok) {
+        setHasError(true);
         onError("That file could not be uploaded. Try again.");
         setSelectedFileName(null);
         onChange(null);
@@ -128,12 +135,14 @@ export function InquiryAttachmentUploader({
         fileSize: payload.size,
       });
     } catch {
+      setHasError(true);
       onError("That file could not be uploaded. Try again.");
       setSelectedFileName(null);
       onChange(null);
       resetInput();
     } finally {
       setIsUploading(false);
+      onUploadingChange(false);
     }
   }
 
@@ -144,6 +153,7 @@ export function InquiryAttachmentUploader({
   }
 
   function handleRemove() {
+    setHasError(false);
     onError(null);
     setSelectedFileName(null);
     onChange(null);
@@ -169,9 +179,9 @@ export function InquiryAttachmentUploader({
           <Spinner />
           Uploading…
         </p>
-      ) : selectedFileName ? (
+      ) : selectedFileName || hasError ? (
         <p className="flex items-center gap-2 text-sm text-muted-foreground">
-          Selected: {selectedFileName}
+          {selectedFileName ? `Selected: ${selectedFileName}` : "Upload failed"}
           <button
             className="rounded-sm px-1 py-0.5 text-sm font-medium text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground"
             onClick={handleRemove}
