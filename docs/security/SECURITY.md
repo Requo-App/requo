@@ -64,7 +64,8 @@ root [`SECURITY.md`](../../SECURITY.md).
   upload token, which is what binds the upload to one business; the server
   re-checks the plan limit and confirms the object exists before it
   attaches. Treat the token as a capability: never accept a storage path
-  from the client.
+  from the client. Server Actions have a separate 4 MB body limit, below
+  the hosting request cap and sufficient for existing 2 MB logo uploads.
 
 ## AI boundaries
 

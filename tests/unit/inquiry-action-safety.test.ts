@@ -24,6 +24,19 @@ describe("post-action redirect targets", () => {
     expect(getSafeInternalRedirectPath(null)).toBeUndefined();
     expect(getSafeInternalRedirectPath(undefined)).toBeUndefined();
   });
+
+  it.each([
+    "/\\evil.example",
+    "/\t/evil.example",
+    "/\n/evil.example",
+    "/\r/evil.example",
+    "\n/acme/inquiries",
+    "/acme/inquiries\t",
+    "/acme/\u0000inquiries",
+    "/acme/\u007finquiries",
+  ])("rejects parser-normalized redirect targets: %j", (target) => {
+    expect(getSafeInternalRedirectPath(target)).toBeUndefined();
+  });
 });
 
 describe("contact handle links", () => {

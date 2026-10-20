@@ -294,7 +294,14 @@ export async function assertPublicActionRateLimit(
 
     // Fallback to existing DB-based rate limiter (fail-closed)
     try {
-      return await dbAssertPublicActionRateLimit({ action, scope, limit, windowMs });
+      return await dbAssertPublicActionRateLimit({
+        action,
+        scope,
+        limit,
+        windowMs,
+        scopeLimit,
+        ipLimit,
+      });
     } catch {
       // DB fallback also failed — fail-closed for public actions
       return false;

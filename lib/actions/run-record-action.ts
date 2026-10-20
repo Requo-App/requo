@@ -71,7 +71,8 @@ export function getSafeInternalRedirectPath(
 
   // URL parsers strip control characters, which can turn a target that
   // looks local into one that is not.
-  if (/[\u0000-\u001f\u007f]/.test(trimmedValue)) {
+  // Check the original input so trimming cannot hide leading/trailing controls.
+  if (/[\u0000-\u001f\u007f]/.test(value)) {
     return undefined;
   }
 

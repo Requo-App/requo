@@ -109,15 +109,10 @@ const nextConfig: NextConfig = {
   },
   experimental: {
     serverActions: {
-      // The limit on a Server Action request body. A Vercel Function
-      // rejects any body above 4.5 MB with `413 FUNCTION_PAYLOAD_TOO_LARGE`
-      // before Next.js sees it, so this setting only bounds what the
-      // framework accepts — it cannot make a large upload work.
-      //
-      // Public inquiry attachments therefore upload straight to storage
-      // through a signed URL (`features/inquiries/attachments.ts`), not
-      // through the inquiry action.
-      bodySizeLimit: "7mb",
+      // Stay below Vercel's 4.5 MB request cap while allowing existing
+      // 2 MB logo uploads plus form overhead. Inquiry attachments use
+      // signed direct-storage uploads via /api/public/inquiry-upload.
+      bodySizeLimit: "4mb",
     },
     // Lets `forbidden()` render `app/forbidden.tsx` instead of throwing a plain
     // error. Required by `features/admin/access.ts` — see below.
