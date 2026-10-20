@@ -14,6 +14,8 @@ export type QuoteDocumentData = {
   terms: string | null;
   subtotalInCents: number;
   discountInCents: number;
+  taxInCents: number;
+  taxLabel: string | null;
   totalInCents: number;
   items: DashboardQuoteDetail["items"];
 };
@@ -39,6 +41,8 @@ export function getQuoteDocumentData({
     terms: quote.terms,
     subtotalInCents: quote.subtotalInCents,
     discountInCents: quote.discountInCents,
+    taxInCents: quote.taxInCents,
+    taxLabel: quote.taxLabel,
     totalInCents: quote.totalInCents,
     items: quote.items,
   };

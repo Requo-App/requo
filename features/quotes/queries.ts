@@ -44,6 +44,7 @@ import {
   hotBusinessCacheLife,
 } from "@/lib/cache/business-tags";
 import { withCircuitBreaker } from "@/lib/db/circuit-breaker";
+import { likePattern } from "@/lib/sql-patterns";
 import type {
   DashboardQuoteActivity,
   DashboardQuoteDetail,
@@ -132,7 +133,7 @@ function getQuoteListConditions({
   }
 
   if (filters.q) {
-    const pattern = `%${filters.q}%`;
+    const pattern = likePattern(filters.q);
 
     conditions.push(
       or(
@@ -317,6 +318,14 @@ type QuoteExportRow = {
   customerRespondedAt: Date | null;
 };
 
+/**
+ * Upper bound for the quote CSV export.
+ *
+ * The export materializes every row in memory, so the result set is capped.
+ * Say so instead of silently truncating the file.
+ */
+export const quoteExportRowLimit = 10_000;
+
 export async function getQuoteExportRowsForBusiness({
   businessId,
   filters,
@@ -362,7 +371,8 @@ export async function getQuoteExportRowsForBusiness({
     })
     .from(quotes)
     .where(and(...conditions))
-    .orderBy(createdAtSort(quotes.createdAt));
+    .orderBy(createdAtSort(quotes.createdAt))
+    .limit(quoteExportRowLimit + 1);
 }
 
 // ---------------------------------------------------------------------------
@@ -1005,43 +1015,8 @@ export async function getInquiryQuotePrefillForBusiness({
 // Quote Versions & Revision Requests
 // ---------------------------------------------------------------------------
 
-import { quoteVersions, quoteRevisionRequests } from "@/lib/db/schema/quotes";
-import type { QuoteRevisionRequest, QuoteVersionSnapshot } from "@/features/quotes/types";
-
-export async function getQuoteVersionsForBusiness(
-  businessId: string,
-  quoteId: string,
-): Promise<QuoteVersionSnapshot[]> {
-  const versions = await db
-    .select({
-      id: quoteVersions.id,
-      version: quoteVersions.version,
-      title: quoteVersions.title,
-      customerName: quoteVersions.customerName,
-      currency: quoteVersions.currency,
-      notes: quoteVersions.notes,
-      terms: quoteVersions.terms,
-      subtotalInCents: quoteVersions.subtotalInCents,
-      discountInCents: quoteVersions.discountInCents,
-      taxInCents: quoteVersions.taxInCents,
-      taxLabel: quoteVersions.taxLabel,
-      totalInCents: quoteVersions.totalInCents,
-      validUntil: quoteVersions.validUntil,
-      items: quoteVersions.items,
-      createdAt: quoteVersions.createdAt,
-      archivedAt: quoteVersions.archivedAt,
-    })
-    .from(quoteVersions)
-    .where(
-      and(
-        eq(quoteVersions.quoteId, quoteId),
-        eq(quoteVersions.businessId, businessId),
-      ),
-    )
-    .orderBy(desc(quoteVersions.version));
-
-  return versions;
-}
+import { quoteRevisionRequests } from "@/lib/db/schema/quotes";
+import type { QuoteRevisionRequest } from "@/features/quotes/types";
 
 export async function getRevisionRequestsForQuote(
   businessId: string,
@@ -1068,50 +1043,6 @@ export async function getRevisionRequestsForQuote(
     .orderBy(desc(quoteRevisionRequests.createdAt));
 
   return requests as QuoteRevisionRequest[];
-}
-
-export async function getPublicQuoteVersionsByToken(
-  token: string,
-): Promise<QuoteVersionSnapshot[]> {
-  const [quote] = await db
-    .select({ id: quotes.id })
-    .from(quotes)
-    .where(
-      and(
-        getQuotePublicTokenLookupCondition(token),
-        isNull(quotes.deletedAt),
-      ),
-    )
-    .limit(1);
-
-  if (!quote) {
-    return [];
-  }
-
-  const versions = await db
-    .select({
-      id: quoteVersions.id,
-      version: quoteVersions.version,
-      title: quoteVersions.title,
-      customerName: quoteVersions.customerName,
-      currency: quoteVersions.currency,
-      notes: quoteVersions.notes,
-      terms: quoteVersions.terms,
-      subtotalInCents: quoteVersions.subtotalInCents,
-      discountInCents: quoteVersions.discountInCents,
-      taxInCents: quoteVersions.taxInCents,
-      taxLabel: quoteVersions.taxLabel,
-      totalInCents: quoteVersions.totalInCents,
-      validUntil: quoteVersions.validUntil,
-      items: quoteVersions.items,
-      createdAt: quoteVersions.createdAt,
-      archivedAt: quoteVersions.archivedAt,
-    })
-    .from(quoteVersions)
-    .where(eq(quoteVersions.quoteId, quote.id))
-    .orderBy(desc(quoteVersions.version));
-
-  return versions;
 }
 
 export async function getAcceptanceForBusiness({

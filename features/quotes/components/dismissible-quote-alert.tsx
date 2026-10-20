@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
+import { useHydrated } from "@/hooks/use-hydrated";
 import { cn } from "@/lib/utils";
 
 type DismissibleQuoteAlertProps = {
@@ -15,15 +16,18 @@ export function DismissibleQuoteAlert({
   title,
   description,
 }: DismissibleQuoteAlertProps) {
-  const [dismissed, setDismissed] = useState<boolean | null>(null);
+  const [dismissed, setDismissed] = useState(false);
+  const hydrated = useHydrated();
   const storageKey = `requo_dismissed_alert_${id}`;
 
   useEffect(() => {
     setDismissed(localStorage.getItem(storageKey) === "true");
   }, [storageKey]);
 
-  // Not yet hydrated — render nothing to avoid mismatch
-  if (dismissed === null || dismissed) {
+  // The alert is rendered on the server so the page does not shift when the
+  // client resolves the dismissal state. A previously dismissed alert hides
+  // itself once the client has hydrated.
+  if (hydrated && dismissed) {
     return null;
   }
 

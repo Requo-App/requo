@@ -9,6 +9,11 @@ export function getDatabaseConnectionOptions(databaseUrl: string) {
     connect_timeout: dbConnectTimeoutSeconds,
     prepare: false,
     max: isSupabasePooler ? 5 : 10,
+    // Pin the session timezone to UTC so `current_date` in SQL agrees with
+    // the application's `getTodayUtcDateString()`. Without it the two clocks
+    // can disagree by a day around midnight, and the derived quote status
+    // would not match the stored one.
+    connection: { TimeZone: "UTC" },
     ...(isSupabasePooler ? { idle_timeout: 20 } : {}),
   };
 }

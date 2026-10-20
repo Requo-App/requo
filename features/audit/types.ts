@@ -25,6 +25,8 @@ export const auditActionLabels = {
   "quote.sent": "Quote sent",
   "quote.accepted": "Quote accepted",
   "quote.voided": "Quote voided",
+  "quote.archived": "Quote archived",
+  "quote.unarchived": "Quote restored to active",
   "quote.draft_deleted": "Draft quote deleted",
   "quote.canceled_after_acceptance": "Quote canceled after acceptance",
   "quote.work_completed": "Work completed",

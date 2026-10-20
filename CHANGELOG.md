@@ -12,6 +12,12 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ### Changed
 
+- Quote money is now derived on the server. The editor sends the owner's raw discount and tax intent (value plus amount/percentage) and the server computes the amounts from the submitted line items, instead of the browser shipping cents it calculated itself.
+- The Owner Assistant's `create_quote` tool no longer accepts a price. It creates the line items unpriced and the owner prices them from the saved library or by hand; sending a quote with unpriced lines is still refused. The `send_quote` confirmation now shows the amount and is bound to the quote it approved, so a quote edited after you approve it is not sent silently.
+- Quote cache invalidation now pairs `updateTag` with `revalidateTag` on every write, so a quote that the customer just accepted stops showing as "sent" on the dashboard.
+- The quote CSV export is capped like the inquiry export and rejects an invalid date range instead of silently widening it.
+- The quote feature's semantic surfaces use the `--warning` / `--success` / `--destructive` tokens instead of raw amber/emerald/red utilities.
+
 - Tidied the analytics card layout: every card in a row shares one height, a plot fills its card, and the table view scrolls inside the card so switching between Chart and Table never blows the card up. The desktop toolbar is a bare control row instead of a boxed panel, switches use a plain thumb without the inset chip, the "Live" section headers are gone, the attention list is iconed by the kind of work it points at (inquiry, quote, follow-up, with the sidebar's inbox for inquiries), stat dividers connect through every row, the empty bar track is a visible grey instead of near-black, the service name lost its arrow, and the AI impact card now sets its four stats above the win-rate and readiness bars.
 - The analytics aging list colours a bucket by its age rather than by its position among the buckets that have something in them, so a 90-day bucket stays danger-red even when every younger bucket is empty. The funnel's first stage now carries a caption, so every row in the funnel is the same height.
 - Redesigned the whole analytics page around one calm, symmetrical layout: a centred 1280px container, a 12-column grid with 16px gaps, 32px between sections, and rows that only ever split 12, 6/6, 4/4/4, or 3/3/3/3 (the KPI strip is six 2-column tiles). Every card now shares one anatomy — title with an optional definition tooltip on the left, a Chart | Table toggle or "View all" on the right, one-line description, body, optional summary footer — and stats inside a card are separated by 1px dividers instead of nested bordered tiles.
@@ -34,6 +40,21 @@ All notable changes to this project are documented here. Format follows [Keep a 
 - Removed the analytics AI narrative summary card; the rebuilt tabs present the same period data directly.
 
 ### Fixed
+
+- Editing a saved quote no longer re-prices it. The editor read the quote's absolute tax back as a percentage, so re-opening and saving a draft multiplied the tax by the subtotal — an $80 tax on a $1,000 quote became $800 and the total went from $1,080 to $1,800.
+- A zero-priced line item can be saved again. A blank price became `NaN` and was rejected, so the AI "needs pricing" workflow could not be saved at all. A quote with unpriced lines is still refused when sending.
+- The customer email now goes out only after the send gates pass. A quote the server considered unsendable could still be emailed, leaving the customer with a link to a draft that 404s.
+- Re-sending a revised quote delivers the email again. The email idempotency key did not pin the quote version, so the second send was silently swallowed by the outbox.
+- The AI quote generator produces priced line items again. The output filter was redacting the model's `matchType` and `unitPriceInCents` JSON keys, so every draft came back unpriced.
+- A quote can no longer end up declined while holding a signed acceptance record: the public response is a conditional transition on a locked row.
+- An archived quote is no longer publicly readable or acceptable, and an expired quote can no longer be revived by a revision request.
+- The quote auto-follow-up stop is scoped to the business. Any member of any workspace could stop another business's customer follow-up sequence by posting its quote id.
+- The public quote page no longer ships the business plan tier, internal entity ids, or the acceptance record's audit fields to the browser, and the public quote bundle no longer carries a Node crypto polyfill.
+- The public quote rate limits gained the per-IP and per-scope ceilings the inquiry intake already had, and the rate-limit ledger no longer stores the raw bearer token.
+- The quote jobs now evaluate their day windows in the business's own timezone, and the auto follow-up no longer chases a quote the customer can no longer accept.
+- The admin quote console filters and badges on the effective status, so the "Expired" filter returns the right set and archived quotes are visible.
+- The quote PDF, print document, and public quote page now show the tax line and its label.
+- Quote archive and restore now write an audit record, and saving a quote keeps the line-item ids so the customer's per-item revision comments still resolve.
 
 - The live fallback for un-rolled analytics days no longer drops most of a day's numbers. The per-day metrics used to be joined with a chain of `full outer join`s that all anchored on the form-view date, so a day without a form view was split across several rows and only one of them survived — quotes sent, quotes accepted, and revenue won read as zero. Every metric now joins onto one date spine, so a day always lands on a single row with all of its numbers.
 - The live fallback now reads only the days the rollup has not processed, instead of re-reading the whole window on every uncached load and discarding what the rollup already had.

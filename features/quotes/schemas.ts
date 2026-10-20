@@ -5,6 +5,11 @@ import {
   quoteStatusFilterValues,
 } from "@/features/quotes/types";
 import {
+  calculateQuoteDiscountAndTax,
+  parseQuoteMoneyAmountToCents,
+  parseQuoteMoneyPercentage,
+} from "@/features/quotes/utils";
+import {
   coercePositiveInteger,
   emptyToUndefined,
   firstString,
@@ -28,7 +33,10 @@ function currencyStringToCents(value: unknown) {
   const normalized = value.trim().replace(/,/g, "");
 
   if (!normalized) {
-    return Number.NaN;
+    // A blank price is a zero price. The editor renders a $0 line item as an
+    // empty input, and the AI draft flow produces deliberately unpriced items,
+    // so rejecting the blank here would make those quotes unsaveable.
+    return 0;
   }
 
   if (!/^\d+(\.\d{1,2})?$/.test(normalized)) {
@@ -109,8 +117,8 @@ const quoteFormLineItemSchema = z.object({
   unitPriceInCents: z.preprocess(
     currencyStringToCents,
     z
-      .number()
-      .int()
+      .number({ error: "Enter a valid unit price." })
+      .int("Unit price must be a whole number of cents.")
       .min(0, "Unit price cannot be negative.")
       .max(100_000_000, "Unit price is too large."),
   ),
@@ -222,14 +230,45 @@ export const quoteEditorSchema = z
       .nullable()
       .optional()
       .or(z.literal("")),
-    customerContactMethod: z.string().trim().min(1, "Select a preferred contact method."),
-    customerContactHandle: z.string().trim().min(1, "Enter the contact handle."),
+    customerContactMethod: z
+      .string()
+      .trim()
+      .min(1, "Select a preferred contact method.")
+      .max(40, "Contact method must be 40 characters or fewer."),
+    customerContactHandle: z
+      .string()
+      .trim()
+      .min(1, "Enter the contact handle.")
+      .max(200, "Contact handle must be 200 characters or fewer."),
     notes: optionalText(4000, "Text must be 4000 characters or fewer."),
     terms: optionalText(4000, "Text must be 4000 characters or fewer."),
     validUntil: z
       .string()
       .trim()
       .refine(isValidDateInput, "Enter a valid validity date."),
+    /**
+     * The owner's raw discount/tax intent. When present the server derives
+     * `discountInCents`/`taxInCents` from the submitted line items, so the
+     * browser never dictates the persisted amounts.
+     */
+    discountValue: z.preprocess(
+      emptyToUndefined,
+      z
+        .string()
+        .trim()
+        .max(40, "Discount is too large.")
+        .optional(),
+    ),
+    discountType: z.enum(["amount", "percentage"]).optional(),
+    taxValue: z.preprocess(
+      emptyToUndefined,
+      z
+        .string()
+        .trim()
+        .max(40, "Tax is too large.")
+        .optional(),
+    ),
+    taxType: z.enum(["amount", "percentage"]).optional(),
     discountInCents: z.preprocess(
       (value) => {
         const normalized = emptyToUndefined(value);
@@ -241,8 +280,8 @@ export const quoteEditorSchema = z
         return currencyStringToCents(normalized);
       },
       z
-        .number()
-        .int()
+        .number({ error: "Enter a valid discount amount." })
+        .int("Discount must be a whole number of cents.")
         .min(0, "Discount cannot be negative.")
         .max(100_000_000, "Discount is too large."),
     ),
@@ -257,8 +296,8 @@ export const quoteEditorSchema = z
         return currencyStringToCents(normalized);
       },
       z
-        .number()
-        .int()
+        .number({ error: "Enter a valid tax amount." })
+        .int("Tax must be a whole number of cents.")
         .min(0, "Tax cannot be negative.")
         .max(100_000_000, "Tax is too large."),
     ),
@@ -277,10 +316,60 @@ export const quoteEditorSchema = z
       0,
     );
 
-    if (value.discountInCents > subtotalInCents) {
+    const hasDiscountIntent = typeof value.discountValue === "string";
+
+    if (typeof value.discountValue === "string") {
+      const discountType = value.discountType ?? "amount";
+      const parsed =
+        discountType === "percentage"
+          ? parseQuoteMoneyPercentage(value.discountValue)
+          : parseQuoteMoneyAmountToCents(value.discountValue);
+
+      if (parsed === null) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["discountValue"],
+          message:
+            discountType === "percentage"
+              ? "Enter a discount percentage between 0 and 100."
+              : "Enter a valid discount amount.",
+        });
+      }
+    }
+
+    if (typeof value.taxValue === "string") {
+      const taxType = value.taxType ?? "amount";
+      const parsed =
+        taxType === "percentage"
+          ? parseQuoteMoneyPercentage(value.taxValue)
+          : parseQuoteMoneyAmountToCents(value.taxValue);
+
+      if (parsed === null) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["taxValue"],
+          message:
+            taxType === "percentage"
+              ? "Enter a tax percentage between 0 and 100."
+              : "Enter a valid tax amount.",
+        });
+      }
+    }
+
+    const discountInCents = hasDiscountIntent
+      ? calculateQuoteDiscountAndTax({
+          subtotalInCents,
+          discountValue: value.discountValue ?? "",
+          discountType: value.discountType ?? "amount",
+          taxValue: value.taxValue ?? "",
+          taxType: value.taxType ?? "amount",
+        }).discountInCents
+      : value.discountInCents;
+
+    if (discountInCents > subtotalInCents) {
       ctx.addIssue({
         code: "custom",
-        path: ["discountInCents"],
+        path: [hasDiscountIntent ? "discountValue" : "discountInCents"],
         message: "Discount cannot be larger than the subtotal.",
       });
     }
@@ -295,6 +384,41 @@ export const quoteEditorSchema = z
         });
       }
     }
+  })
+      .transform((value) => {
+    // The contact method is compared case-sensitively when the quote is
+    // persisted, so a capitalised value would silently null the customer
+    // email. Normalise it once, at the boundary.
+    const normalized: typeof value = {
+      ...value,
+      customerContactMethod: value.customerContactMethod.toLowerCase(),
+    };
+
+    const hasIntent =
+      typeof normalized.discountValue === "string" ||
+      typeof normalized.taxValue === "string";
+
+    if (!hasIntent) {
+      return normalized;
+    }
+
+    const subtotalInCents = normalized.items.reduce(
+      (sum, item) => sum + item.quantity * item.unitPriceInCents,
+      0,
+    );
+    const resolved = calculateQuoteDiscountAndTax({
+      subtotalInCents,
+      discountValue: normalized.discountValue ?? "",
+      discountType: normalized.discountType ?? "amount",
+      taxValue: normalized.taxValue ?? "",
+      taxType: normalized.taxType ?? "amount",
+    });
+
+    return {
+      ...normalized,
+      discountInCents: resolved.discountInCents,
+      taxInCents: resolved.taxInCents,
+    };
   });
 
 export const quoteCancellationReasons = [
@@ -321,6 +445,11 @@ export const quoteCancellationSchema = z.object({
       .optional(),
   ),
 });
+
+export const quoteAcceptanceValidationMessages = {
+  signerName: "Enter your name to accept this quote.",
+  confirmation: "Confirm that you agree to the scope, pricing, and terms.",
+} as const;
 
 export const publicQuoteResponseSchema = z
   .object({
@@ -349,10 +478,10 @@ export const publicQuoteResponseSchema = z
     }, z.boolean().optional()),
     expectedVersion: z.preprocess((value) => {
       const first = firstString(value);
-      if (first == null || String(first).trim() === "") return undefined;
+      if (first == null || String(first).trim() === "") return value;
       const parsed = Number(String(first).trim());
       return Number.isFinite(parsed) ? parsed : value;
-    }, z.number().int().min(1).optional()),
+    }, z.number().int().min(1, "Enter a valid quote version.")),
   })
   .superRefine((data, ctx) => {
     if (data.response !== "accepted") return;
@@ -361,14 +490,14 @@ export const publicQuoteResponseSchema = z
       ctx.addIssue({
         code: "custom",
         path: ["signerName"],
-        message: "Enter your name to accept this quote.",
+        message: quoteAcceptanceValidationMessages.signerName,
       });
     }
     if (data.confirmed !== true) {
       ctx.addIssue({
         code: "custom",
         path: ["confirmed"],
-        message: "Confirm that you agree to the scope, pricing, and terms.",
+        message: quoteAcceptanceValidationMessages.confirmation,
       });
     }
   });

@@ -16,13 +16,13 @@ export function AiPricingReviewPanel({
   return (
     <div
       aria-live="polite"
-      className="alert-surface relative flex flex-col gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3.5 text-sm text-foreground"
+      className="alert-surface relative flex flex-col gap-3 rounded-xl border border-warning/30 bg-warning/10 px-4 py-3.5 text-sm text-foreground"
       role="alert"
     >
       <div className="flex items-start gap-3">
         <AlertTriangle
           aria-hidden="true"
-          className="mt-0.5 size-4 shrink-0 text-amber-700 dark:text-amber-300"
+          className="mt-0.5 size-4 shrink-0 text-warning"
         />
         <div className="min-w-0">
           <p className="text-sm font-medium text-foreground">
@@ -49,7 +49,7 @@ export function AiPricingReviewPanel({
 
           return (
             <li
-              className="rounded-lg border border-amber-500/20 bg-background/70 px-3 py-2.5"
+              className="rounded-lg border border-warning/20 bg-background/70 px-3 py-2.5"
               key={item.id}
             >
               <p className="text-sm font-medium text-foreground">{label}</p>

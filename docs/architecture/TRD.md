@@ -90,6 +90,18 @@ manually recorded and voided rather than edited/deleted; non-void entries
 determine invoice balances. See [`features/`](../../features/), the schema
 modules, and integration tests for exact lifecycle transitions.
 
+The server owns quote money. The editor submits the owner's raw discount and
+tax intent (value plus amount/percentage) and the server derives the amounts
+from the submitted line items; the persisted absolute amounts are re-read as
+amounts, never as percentages. The send gates — required scope blocks, intake
+readiness, a schedule that no longer matches the total, and a validity date
+that has passed — are evaluated before any customer-facing delivery, and a
+quote with a zero-priced line item is refused when sending. A public response
+is a conditional transition on a locked row, so an acceptance record and the
+quote status can never disagree. Public tokens are bearer capabilities: they
+are validated for scope, expiry, business, and record state on every use, and
+the rate-limit ledger stores a hash of the token rather than the token.
+
 Business analytics aggregations live in
 [`features/analytics/queries.ts`](../../features/analytics/queries.ts). Each
 tab has one cached aggregator (`getOverviewData`, `getPerformanceData`,

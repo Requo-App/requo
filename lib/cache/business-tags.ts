@@ -1,4 +1,4 @@
-import { updateTag } from "next/cache";
+import { revalidateTag, updateTag } from "next/cache";
 
 export const hotBusinessCacheLife = {
   stale: 20,
@@ -36,6 +36,32 @@ export function uniqueCacheTags(
 export function updateCacheTags(tags: string[]): void {
   for (const tag of uniqueCacheTags(tags)) {
     updateTag(tag);
+  }
+}
+
+/**
+ * Invalidates a set of tags completely.
+ *
+ * Both primitives are needed and neither is sufficient alone:
+ *
+ * - `updateTag` purges "use cache" reads (list, detail, activity) so the next
+ *   request reads fresh data.
+ * - `revalidateTag(tag, "max")` converges the route/fetch cache. It serves the
+ *   stale value while it refreshes in the background, so on its own a reader
+ *   can still see pre-write data.
+ *
+ * Using only one leaves stale reads behind — for example a quote that still
+ * shows "sent" after the customer accepted it.
+ */
+export function invalidateCacheTags(tags: string[]): void {
+  const uniqueTags = uniqueCacheTags(tags);
+
+  for (const tag of uniqueTags) {
+    updateTag(tag);
+  }
+
+  for (const tag of uniqueTags) {
+    revalidateTag(tag, "max");
   }
 }
 

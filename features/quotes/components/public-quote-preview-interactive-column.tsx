@@ -119,8 +119,8 @@ function getStatusInfo(status: QuoteStatus, validUntil: string) {
   if (status === "accepted") {
     return {
       icon: CheckCircle2,
-      iconColor: "text-emerald-500",
-      bgColor: "border-emerald-500/20 bg-emerald-500/5",
+      iconColor: "text-success",
+      bgColor: "border-success/30 bg-success/10",
       title: "Quote accepted",
       description: "The customer accepted this quote.",
     };
@@ -128,8 +128,8 @@ function getStatusInfo(status: QuoteStatus, validUntil: string) {
   if (status === "rejected") {
     return {
       icon: XCircle,
-      iconColor: "text-red-400",
-      bgColor: "border-red-500/20 bg-red-500/5",
+      iconColor: "text-destructive",
+      bgColor: "border-destructive/30 bg-destructive/10",
       title: "Quote declined",
       description: "The customer declined this quote.",
     };
@@ -137,8 +137,8 @@ function getStatusInfo(status: QuoteStatus, validUntil: string) {
   if (status === "revision_requested") {
     return {
       icon: Edit,
-      iconColor: "text-amber-500",
-      bgColor: "border-amber-500/20 bg-amber-500/5",
+      iconColor: "text-warning",
+      bgColor: "border-warning/30 bg-warning/10",
       title: "Revision requested",
       description: "The customer requested changes to this quote.",
     };
@@ -155,8 +155,8 @@ function getStatusInfo(status: QuoteStatus, validUntil: string) {
   if (status === "expired") {
     return {
       icon: Clock,
-      iconColor: "text-amber-500",
-      bgColor: "border-amber-500/20 bg-amber-500/5",
+      iconColor: "text-warning",
+      bgColor: "border-warning/30 bg-warning/10",
       title: "Quote expired",
       description: `This quote expired on ${formatQuoteDate(validUntil)}. Contact the business if you'd still like to proceed.`,
     };

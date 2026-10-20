@@ -2,11 +2,16 @@ import { describe, it, expect } from 'vitest';
 import {
   parseCurrencyInputToCents,
   calculateQuoteEditorTotals,
+  calculateQuoteDiscountAndTax,
   isQuotePastValidityDate,
   getQuoteReminderKinds,
   centsToMoneyInput,
   isQuoteEditorLineItemBlank,
   applyTemplateToQuoteForm,
+  getQuoteEditorInitialValuesFromDetail,
+  getDefaultQuoteValidityDate,
+  parseQuoteMoneyAmountToCents,
+  parseQuoteMoneyPercentage,
 } from '@/features/quotes/utils';
 import type { QuoteTemplateData } from '@/features/quotes/utils';
 import { QuoteEditorLineItemValue } from '@/features/quotes/types';
@@ -86,6 +91,175 @@ describe('features/quotes/utils', () => {
         taxInCents: 0,
         totalInCents: 0
       });
+    });
+
+    it('reads a percentage tax against the taxable base', () => {
+      const items: QuoteEditorLineItemValue[] = [
+        { id: '1', description: 'Item 1', quantity: '1', unitPrice: '1000.00' }
+      ];
+
+      const result = calculateQuoteEditorTotals(items, '', 'amount', '10', 'percentage');
+      expect(result).toEqual({
+        subtotalInCents: 100000,
+        discountInCents: 0,
+        taxInCents: 10000,
+        totalInCents: 110000
+      });
+    });
+
+    it('reads a percentage tax against the subtotal minus the discount', () => {
+      const items: QuoteEditorLineItemValue[] = [
+        { id: '1', description: 'Item 1', quantity: '1', unitPrice: '1000.00' }
+      ];
+
+      const result = calculateQuoteEditorTotals(items, '200.00', 'amount', '10', 'percentage');
+      expect(result.discountInCents).toBe(20000);
+      expect(result.taxInCents).toBe(8000);
+      expect(result.totalInCents).toBe(88000);
+    });
+
+    it('ignores a partially numeric quantity instead of reading it as a number', () => {
+      const items: QuoteEditorLineItemValue[] = [
+        { id: '1', description: 'Item 1', quantity: '2abc', unitPrice: '10.00' }
+      ];
+
+      // The server rejects a non-numeric quantity, so the live total must not
+      // overstate what will actually be saved.
+      expect(calculateQuoteEditorTotals(items, '').subtotalInCents).toBe(0);
+    });
+  });
+
+  describe('calculateQuoteDiscountAndTax', () => {
+    it('keeps total = subtotal - discount + tax', () => {
+      const result = calculateQuoteDiscountAndTax({
+        subtotalInCents: 100000,
+        discountValue: '10',
+        discountType: 'percentage',
+        taxValue: '20',
+        taxType: 'percentage',
+      });
+
+      expect(result.discountInCents).toBe(10000);
+      expect(result.taxInCents).toBe(18000);
+      expect(result.totalInCents).toBe(
+        result.discountInCents === 0
+          ? 100000
+          : 100000 - result.discountInCents + result.taxInCents,
+      );
+    });
+
+    it('treats an empty amount as zero', () => {
+      const result = calculateQuoteDiscountAndTax({
+        subtotalInCents: 5000,
+        discountValue: '',
+        discountType: 'amount',
+        taxValue: '',
+        taxType: 'amount',
+      });
+
+      expect(result.discountInCents).toBe(0);
+      expect(result.taxInCents).toBe(0);
+      expect(result.totalInCents).toBe(5000);
+    });
+  });
+
+  describe('parseQuoteMoneyAmountToCents', () => {
+    it('parses valid amounts', () => {
+      expect(parseQuoteMoneyAmountToCents('10')).toBe(1000);
+      expect(parseQuoteMoneyAmountToCents('10.50')).toBe(1050);
+      expect(parseQuoteMoneyAmountToCents('')).toBe(0);
+    });
+
+    it('rejects malformed amounts', () => {
+      expect(parseQuoteMoneyAmountToCents('abc')).toBeNull();
+      expect(parseQuoteMoneyAmountToCents('10.555')).toBeNull();
+      expect(parseQuoteMoneyAmountToCents('-5')).toBeNull();
+    });
+  });
+
+  describe('parseQuoteMoneyPercentage', () => {
+    it('parses percentages in range', () => {
+      expect(parseQuoteMoneyPercentage('10')).toBe(10);
+      expect(parseQuoteMoneyPercentage('0')).toBe(0);
+      expect(parseQuoteMoneyPercentage('100')).toBe(100);
+      expect(parseQuoteMoneyPercentage('')).toBe(0);
+    });
+
+    it('rejects percentages out of range', () => {
+      expect(parseQuoteMoneyPercentage('101')).toBeNull();
+      expect(parseQuoteMoneyPercentage('-1')).toBeNull();
+      expect(parseQuoteMoneyPercentage('abc')).toBeNull();
+    });
+  });
+
+  describe('getQuoteEditorInitialValuesFromDetail', () => {
+    const detail = {
+      title: 'Storefront sign package',
+      customerName: 'Alicia Cruz',
+      customerEmail: 'alicia@example.com',
+      customerContactMethod: 'email',
+      customerContactHandle: 'alicia@example.com',
+      notes: null,
+      terms: null,
+      validUntil: '2026-05-31',
+      discountInCents: 0,
+      taxInCents: 8000,
+      taxLabel: 'VAT',
+      subtotalInCents: 100000,
+      totalInCents: 108000,
+      currency: 'USD',
+      status: 'draft' as const,
+      version: 1,
+      sentAt: null,
+      acceptedAt: null,
+      publicViewedAt: null,
+      customerRespondedAt: null,
+      customerResponseMessage: null,
+      aiReadiness: null,
+      aiAcknowledgedAt: null,
+      aiMissingInfo: null,
+      items: [
+        {
+          id: 'line-1',
+          description: 'Design',
+          quantity: 1,
+          unitPriceInCents: 100000,
+          lineTotalInCents: 100000,
+          position: 0,
+        },
+      ],
+    } as unknown as Parameters<typeof getQuoteEditorInitialValuesFromDetail>[0];
+
+    it('seeds the persisted tax as an amount, not a percentage', () => {
+      const values = getQuoteEditorInitialValuesFromDetail(detail);
+
+      expect(values.taxType).toBe('amount');
+      expect(values.tax).toBe('80.00');
+    });
+
+    it('round-trips the persisted totals without re-pricing the tax', () => {
+      const values = getQuoteEditorInitialValuesFromDetail(detail);
+      const totals = calculateQuoteEditorTotals(
+        values.items,
+        values.discount,
+        values.discountType,
+        values.tax,
+        values.taxType,
+      );
+
+      expect(totals.subtotalInCents).toBe(100000);
+      expect(totals.taxInCents).toBe(8000);
+      expect(totals.totalInCents).toBe(108000);
+    });
+  });
+
+  describe('getDefaultQuoteValidityDate', () => {
+    it('returns a UTC calendar date the given number of days ahead', () => {
+      const expected = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .slice(0, 10);
+
+      expect(getDefaultQuoteValidityDate(14)).toBe(expected);
     });
   });
 

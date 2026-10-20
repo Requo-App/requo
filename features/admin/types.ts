@@ -13,7 +13,7 @@ import type {
   AdminTargetType,
 } from "@/features/admin/constants";
 import type { InquiryRecordState, InquiryStatus } from "@/features/inquiries/types";
-import type { QuoteStatus } from "@/features/quotes/types";
+import type { QuoteRecordView, QuoteStatus } from "@/features/quotes/types";
 import type {
   InvoiceStatus,
   PaymentMethod,
@@ -442,7 +442,10 @@ export type AdminQuoteRow = {
   title: string;
   customerName: string;
   customerEmail: string | null;
+  /** Effective status (validity date applied), not the stored row. */
   status: QuoteStatus;
+  /** Archived or active — archiving writes `archivedAt`, never the status. */
+  recordState: QuoteRecordView;
   totalInCents: number;
   currency: string;
   sentAt: Date | null;
@@ -509,6 +512,7 @@ export type AdminQuoteDetail = {
   customerContactMethod: string;
   customerContactHandle: string;
   status: QuoteStatus;
+  recordState: QuoteRecordView;
   currency: string;
   notes: string | null;
   terms: string | null;

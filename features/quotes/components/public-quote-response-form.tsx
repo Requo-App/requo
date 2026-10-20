@@ -13,7 +13,7 @@ import type {
   PublicQuoteResolvedSnapshot,
   PublicQuoteResponseActionState,
 } from "@/features/quotes/types";
-import { QUOTE_ACCEPTANCE_TEXT } from "@/features/quotes/acceptance";
+import { QUOTE_ACCEPTANCE_TEXT } from "@/features/quotes/acceptance-text";
 
 type PublicQuoteResponseFormProps = {
   action: (
@@ -81,11 +81,14 @@ export function PublicQuoteResponseForm({
           value={signerName}
           onChange={(event) => setSignerName(event.target.value)}
           aria-invalid={Boolean(signerError) || undefined}
+          aria-describedby={signerError ? "public-quote-signer-error" : undefined}
           disabled={isPending}
           className="text-sm"
         />
         {signerError ? (
-          <p className="text-xs text-destructive">{signerError}</p>
+          <p className="text-xs text-destructive" id="public-quote-signer-error">
+            {signerError}
+          </p>
         ) : null}
       </div>
 
@@ -95,13 +98,16 @@ export function PublicQuoteResponseForm({
           onCheckedChange={(value) => setConfirmed(value === true)}
           disabled={isPending}
           aria-invalid={Boolean(confirmedError) || undefined}
+          aria-describedby={confirmedError ? "public-quote-confirmed-error" : undefined}
           className="mt-0.5"
         />
         <input type="hidden" name="confirmed" value={confirmed ? "true" : ""} />
         <span>{QUOTE_ACCEPTANCE_TEXT}</span>
       </label>
       {confirmedError ? (
-        <p className="-mt-2 text-xs text-destructive">{confirmedError}</p>
+        <p className="-mt-2 text-xs text-destructive" id="public-quote-confirmed-error">
+          {confirmedError}
+        </p>
       ) : null}
 
       {/* Action buttons */}

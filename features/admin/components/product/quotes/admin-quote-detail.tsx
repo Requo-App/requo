@@ -4,7 +4,6 @@ import {
   DashboardDetailFeed,
   DashboardDetailFeedItem,
   DashboardDetailHeader,
-  DashboardDetailLayout,
   DashboardSection,
   DashboardSidebarStack,
   DashboardTableContainer,
@@ -30,7 +29,6 @@ import {
   getAdminInquiryDetailPath,
 } from "@/features/admin/navigation";
 import type {
-  AdminQuoteDetail,
   AdminQuoteDetailCore,
   AdminQuoteEmail,
   AdminQuoteItem,
@@ -97,36 +95,9 @@ function DetailRow({ label, value }: { label: string; value: string }) {
  * clusters use flat `dl` rows and rosters use `DashboardDetailFeed` —
  * the same composition as the business detail view.
  *
- * Thin composer over the section components below (kept so the detail
- * renders identically when the full payload is already in hand, e.g.
- * tests). Route pages stream each section behind its own Suspense
- * boundary instead.
+ * The route pages stream each section behind its own Suspense boundary
+ * instead of rendering one composed panel.
  */
-export function AdminQuoteDetail({ detail }: { detail: AdminQuoteDetail }) {
-  return (
-    <div className="flex min-w-0 flex-col gap-6">
-      <AdminQuoteHeaderSection detail={detail} />
-
-      <DashboardDetailLayout className="xl:grid-cols-[minmax(0,1.1fr)_0.9fr]">
-        <div className="flex min-w-0 flex-col gap-6">
-          <AdminQuoteDeliverySection detail={detail} emails={detail.emails} />
-          <AdminQuoteAmountsSection detail={detail} />
-          <AdminQuoteItemsSection
-            currency={detail.currency}
-            items={detail.items}
-          />
-          <AdminQuoteVersionsSection versions={detail.versions} />
-          <AdminQuoteRevisionRequestsSection
-            revisionRequests={detail.revisionRequests}
-          />
-        </div>
-
-        <AdminQuoteMetaSidebar detail={detail} />
-      </DashboardDetailLayout>
-    </div>
-  );
-}
-
 export function AdminQuoteHeaderSection({
   detail,
 }: {

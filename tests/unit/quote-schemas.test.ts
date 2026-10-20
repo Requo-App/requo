@@ -130,6 +130,7 @@ describe("quote validation schemas", () => {
         message: "a".repeat(1200),
         signerName: "Maria Santos",
         confirmed: true,
+        expectedVersion: 1,
       }).success,
     ).toBe(true);
     expect(
@@ -138,12 +139,14 @@ describe("quote validation schemas", () => {
         message: "a".repeat(1201),
         signerName: "Maria Santos",
         confirmed: true,
+        expectedVersion: 1,
       }).success,
     ).toBe(false);
     expect(
       publicQuoteResponseSchema.safeParse({
         response: "accepted",
         message: "ok",
+        expectedVersion: 1,
       }).success,
     ).toBe(false);
     expect(
@@ -151,12 +154,14 @@ describe("quote validation schemas", () => {
         response: "accepted",
         message: "ok",
         signerName: "Maria Santos",
+        expectedVersion: 1,
       }).success,
     ).toBe(false);
     expect(
       publicQuoteResponseSchema.safeParse({
         response: "rejected",
         message: "no thanks",
+        expectedVersion: 1,
       }).success,
     ).toBe(true);
     expect(quotePublicTokenSchema.safeParse("abc").success).toBe(false);
@@ -165,6 +170,103 @@ describe("quote validation schemas", () => {
     ).toBe(true);
     expect(quotePublicTokenSchema.safeParse("bad token value").success).toBe(
       false,
+    );
+  });
+
+  it("requires the quote version so a customer accepts the version they saw", () => {
+    expect(
+      publicQuoteResponseSchema.safeParse({
+        response: "accepted",
+        signerName: "Maria Santos",
+        confirmed: true,
+      }).success,
+    ).toBe(false);
+  });
+
+  it("derives the discount and tax from the owner's raw intent", () => {
+    const parsed = quoteEditorSchema.safeParse(
+      quoteInput({
+        discountValue: "10",
+        discountType: "percentage",
+        taxValue: "10",
+        taxType: "percentage",
+        discountInCents: undefined,
+        taxInCents: undefined,
+      }),
+    );
+
+    expect(parsed.success).toBe(true);
+    // Subtotal is 2 * 15025 + 30000 = 60050.
+    expect(parsed.data?.discountInCents).toBe(6005);
+    expect(parsed.data?.taxInCents).toBe(5405);
+  });
+
+  it("treats a blank unit price as a zero price so unpriced items can be saved", () => {
+    const parsed = quoteEditorSchema.safeParse(
+      quoteInput({
+        discountInCents: "0",
+        items: JSON.stringify([
+          {
+            id: "line-unpriced",
+            description: "Needs pricing",
+            quantity: "1",
+            unitPriceInCents: "",
+          },
+        ]),
+      }),
+    );
+
+    expect(parsed.success).toBe(true);
+    expect(parsed.data?.items[0]?.unitPriceInCents).toBe(0);
+  });
+
+  it("normalizes the customer contact method to lower case", () => {
+    const parsed = quoteEditorSchema.safeParse(
+      quoteInput({
+        customerContactMethod: "Email",
+        customerContactHandle: "alicia@example.com",
+      }),
+    );
+
+    expect(parsed.success).toBe(true);
+    expect(parsed.data?.customerContactMethod).toBe("email");
+  });
+
+  it("rejects a malformed discount or tax amount", () => {
+    const parsed = quoteEditorSchema.safeParse(
+      quoteInput({
+        discountValue: "abc",
+        discountType: "amount",
+      }),
+    );
+
+    expect(parsed.success).toBe(false);
+    expect(parsed.error?.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          path: ["discountValue"],
+          message: "Enter a valid discount amount.",
+        }),
+      ]),
+    );
+  });
+
+  it("rejects a discount percentage outside 0-100", () => {
+    const parsed = quoteEditorSchema.safeParse(
+      quoteInput({
+        discountValue: "150",
+        discountType: "percentage",
+      }),
+    );
+
+    expect(parsed.success).toBe(false);
+    expect(parsed.error?.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          path: ["discountValue"],
+          message: "Enter a discount percentage between 0 and 100.",
+        }),
+      ]),
     );
   });
 });

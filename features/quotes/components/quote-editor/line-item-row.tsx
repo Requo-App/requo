@@ -183,7 +183,6 @@ export function LineItemCard({
             type="number"
             max="1000000"
             min="0"
-            required
             step="0.01"
             value={item.unitPrice}
             onChange={(event) =>

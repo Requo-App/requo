@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { quotePublicTokenSchema } from "@/features/quotes/schemas";
 import { createPageMetadata } from "@/lib/seo/site";
 
 export type PublicQuoteMetadataInput = {
@@ -33,13 +34,16 @@ export function getPublicQuotePageMetadata(
 }
 
 export function getMissingPublicQuoteMetadata(token?: string): Metadata {
+  // Only a token that matches the public token shape may be reflected into the
+  // canonical URL — an arbitrary path segment must never reach the metadata.
   const trimmedToken = token?.trim();
+  const parsed = quotePublicTokenSchema.safeParse(trimmedToken);
 
   return createPageMetadata({
     absoluteTitle: "Customer quote",
     brandTitle: false,
     description: "Review and respond to a customer quote securely.",
     noIndex: true,
-    ...(trimmedToken ? { pathname: `/quote/${trimmedToken}` } : {}),
+    ...(parsed.success ? { pathname: `/quote/${parsed.data}` } : {}),
   });
 }

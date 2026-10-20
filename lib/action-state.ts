@@ -30,12 +30,23 @@ export function getFieldError<TFieldErrors extends ActionFieldErrors>(
   return fieldErrors?.[field]?.[0];
 }
 
+/**
+ * Masks an error message that is safe to show to the user.
+ *
+ * Internal failures ("Failed to connect to …") and raw validation internals
+ * ("Invalid input: expected number, received NaN") never reach the UI — the
+ * owner sees the fallback copy instead.
+ */
 export function getUserSafeErrorMessage(error: unknown, fallback: string) {
   if (!(error instanceof Error)) {
     return fallback;
   }
 
   if (/^Failed to /i.test(error.message)) {
+    return fallback;
+  }
+
+  if (/^Invalid (input|option|type|value|enum|union|literal)/i.test(error.message)) {
     return fallback;
   }
 

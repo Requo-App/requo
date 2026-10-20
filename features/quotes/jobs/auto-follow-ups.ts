@@ -3,6 +3,7 @@ import "server-only";
 import { and, eq, isNull, sql } from "drizzle-orm";
 
 import { getPublicQuoteUrl } from "@/features/quotes/utils";
+import { getLocalDateString } from "@/features/follow-ups/utils";
 import { db } from "@/lib/db/client";
 import { activityLogs, businesses, quotes } from "@/lib/db/schema";
 import { env, isQuoteAutoFollowUpEmailEnabled } from "@/lib/env";
@@ -100,12 +101,16 @@ export async function processQuoteAutoFollowUps(): Promise<AutoFollowUpsSummary>
       autoFollowUpMaxAttempts: quotes.autoFollowUpMaxAttempts,
       autoFollowUpAttempts: quotes.autoFollowUpAttempts,
       autoFollowUpLastSentAt: quotes.autoFollowUpLastSentAt,
+      validUntil: quotes.validUntil,
+      timezone: businesses.timezone,
     })
     .from(quotes)
     .innerJoin(businesses, eq(quotes.businessId, businesses.id))
     .where(
       and(
         eq(quotes.status, "sent"),
+        // Exclude expired quotes before they can consume the candidate limit.
+        sql`${quotes.validUntil} >= (${now.toISOString()}::timestamptz AT TIME ZONE ${businesses.timezone})::date`,
         eq(quotes.autoFollowUpEnabled, true),
         isNull(quotes.autoFollowUpStoppedAt),
         isNull(quotes.publicViewedAt),
@@ -120,6 +125,11 @@ export async function processQuoteAutoFollowUps(): Promise<AutoFollowUpsSummary>
     const referenceDate = row.autoFollowUpLastSentAt ?? row.sentAt;
 
     if (!referenceDate) {
+      continue;
+    }
+
+    // Never chase a quote the customer can no longer accept.
+    if (row.validUntil < getLocalDateString(now, row.timezone)) {
       continue;
     }
 

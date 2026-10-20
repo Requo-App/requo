@@ -287,6 +287,30 @@ export type PublicQuoteView = {
   acceptance?: QuoteAcceptanceView | null;
 };
 
+/**
+ * The slice of the public quote the interactive column needs.
+ *
+ * The full `PublicQuoteView` carries internal entity ids, the business plan
+ * tier and the acceptance record's audit fields. Passing it to a client
+ * component serialises all of it into the page payload, so the client
+ * receives only what it renders.
+ */
+export type PublicQuoteInteractiveQuote = {
+  quoteNumber: string;
+  businessName: string;
+  businessContactEmail: string | null;
+  status: QuoteStatus;
+  version: number;
+  validUntil: string;
+  customerRespondedAt: Date | null;
+  customerResponseMessage: string | null;
+  acceptance: {
+    signerName: string | null;
+    quoteVersion: number;
+    acceptedAt: Date | null;
+  } | null;
+};
+
 export type QuoteEditorLineItemValue = {
   id: string;
   description: string;

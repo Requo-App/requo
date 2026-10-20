@@ -126,13 +126,23 @@ export const quoteLibraryEntrySchema = z
         .max(200, "Title must be 200 characters or fewer.")
         .optional(),
     ),
+    // The quote editor caps both at 4,000 characters — a template longer
+    // than that would make every quote created from it fail validation.
     notes: z.preprocess(
       emptyToUndefined,
-      z.string().trim().optional(),
+      z
+        .string()
+        .trim()
+        .max(4000, "Notes must be 4,000 characters or fewer.")
+        .optional(),
     ),
     terms: z.preprocess(
       emptyToUndefined,
-      z.string().trim().optional(),
+      z
+        .string()
+        .trim()
+        .max(4000, "Terms must be 4,000 characters or fewer.")
+        .optional(),
     ),
     validityDays: z.preprocess(
       (value) => {

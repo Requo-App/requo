@@ -6,7 +6,6 @@
  * record via that service.
  */
 
-import { updateTag } from "next/cache";
 import { tool } from "ai";
 import type { ToolExecutionOptions } from "ai";
 import { z } from "zod";
@@ -14,7 +13,10 @@ import { db } from "@/lib/db/client";
 import { businesses, quotes } from "@/lib/db/schema";
 import { and, eq } from "drizzle-orm";
 import { sendQuoteSchema } from "../schemas";
-import { markQuoteSentForBusiness } from "@/features/quotes/mutations";
+import {
+  evaluateQuoteSendGates,
+  markQuoteSentForBusiness,
+} from "@/features/quotes/mutations";
 import { getQuoteSendPayloadForBusiness } from "@/features/quotes/queries";
 import { getPublicQuoteUrl } from "@/features/quotes/utils";
 import {
@@ -25,7 +27,7 @@ import {
   getBusinessInquiryDetailCacheTags,
   getBusinessQuoteDetailCacheTags,
   getBusinessQuoteListCacheTags,
-  uniqueCacheTags,
+  invalidateCacheTags,
 } from "@/lib/cache/business-tags";
 import { hasFeatureAccess } from "@/lib/plans";
 import { checkUsageAllowance } from "@/lib/plans/usage";
@@ -77,6 +79,9 @@ export const sendQuoteTool = tool<SendQuoteInput, SendQuoteOutput>({
           quoteNumber: quotes.quoteNumber,
           status: quotes.status,
           customerName: quotes.customerName,
+          updatedAt: quotes.updatedAt,
+          totalInCents: quotes.totalInCents,
+          currency: quotes.currency,
         })
         .from(quotes)
         .where(
@@ -108,11 +113,24 @@ export const sendQuoteTool = tool<SendQuoteInput, SendQuoteOutput>({
       }
 
       const channel = params.deliveryMethod === "email" ? "email" : "link";
+      // Bind the confirmation to the quote the owner is approving. Without
+      // this, an edit between staging and approval would be emailed under the
+      // old approval — and the prompt showed no amount at all.
+      const confirmationParameters: SendQuoteInput = {
+        ...params,
+        expectedUpdatedAt: quote.updatedAt.toISOString(),
+        expectedTotalInCents: quote.totalInCents,
+      };
+      const totalLabel = new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: quote.currency || "USD",
+      }).format(quote.totalInCents / 100);
+      const confirmationPrompt = `Send quote ${quote.quoteNumber} to ${quote.customerName} via ${channel} for ${totalLabel}? This will notify the customer.`;
       const confirmationId = await requestToolConfirmation({
         sessionId: context.session.sessionId,
         operation: "send_quote",
-        parameters: { ...params },
-        confirmationPrompt: `Send quote ${quote.quoteNumber} to ${quote.customerName} via ${channel}? This will notify the customer.`,
+        parameters: confirmationParameters,
+        confirmationPrompt,
       });
 
       // This is a high-risk operation, return confirmation request
@@ -120,8 +138,8 @@ export const sendQuoteTool = tool<SendQuoteInput, SendQuoteOutput>({
         type: "confirmation_required",
         confirmationId,
         operation: "send_quote",
-        parameters: { ...params },
-        confirmationPrompt: `Send quote ${quote.quoteNumber} to ${quote.customerName} via ${channel}? This will notify the customer.`,
+        parameters: confirmationParameters,
+        confirmationPrompt,
         riskLevel: "high",
         summary: "Confirmation required to send quote",
         metadata: {
@@ -197,6 +215,27 @@ export async function executeSendQuote(
         "Quote link unavailable",
       );
 
+    // The quote must still be the one the owner approved.
+    if (
+      params.expectedUpdatedAt &&
+      params.expectedUpdatedAt !== quote.updatedAt.toISOString()
+    ) {
+      return fail(
+        "This quote changed since you approved it. Review the updated quote and confirm again.",
+        "Quote changed before sending",
+      );
+    }
+
+    if (
+      typeof params.expectedTotalInCents === "number" &&
+      params.expectedTotalInCents !== quote.totalInCents
+    ) {
+      return fail(
+        "This quote's total changed since you approved it. Review the updated quote and confirm again.",
+        "Quote total changed before sending",
+      );
+    }
+
     const unpricedItems = quote.items.filter(
       (item) => item.unitPriceInCents <= 0,
     );
@@ -211,6 +250,25 @@ export async function executeSendQuote(
         "Some line items use suggested prices that need your confirmation first.",
         "Quote pricing needs confirmation",
       );
+
+    // The send gates run BEFORE the customer email: a quote the server
+    // considers unsendable must never reach the customer's inbox.
+    const sendGates = await evaluateQuoteSendGates({
+      businessId: context.businessId,
+      quoteId: quote.id,
+      actorUserId: context.userId,
+      inquiryId: quote.inquiryId,
+      quoteNumber: quote.quoteNumber,
+      quoteTotalCents: quote.totalInCents,
+      validUntil: quote.validUntil,
+    });
+
+    if (sendGates.blocked) {
+      return fail(
+        sendGates.blockers[0] ?? "This quote is not ready to send yet.",
+        "Quote send blocked",
+      );
+    }
 
     if (deliveryMethod === "requo") {
       const [dailyAllowance, monthlyAllowance] = await Promise.all([
@@ -293,15 +351,13 @@ export async function executeSendQuote(
     if (!result.changed)
       return fail("Only active draft quotes can be sent.", `Quote ${result.quoteNumber} is ${result.status}`);
 
-    for (const tag of uniqueCacheTags([
+    invalidateCacheTags([
       ...getBusinessQuoteListCacheTags(business.id),
       ...getBusinessQuoteDetailCacheTags(business.id, quote.id),
       ...(result.inquiryId
         ? getBusinessInquiryDetailCacheTags(business.id, result.inquiryId)
         : []),
-    ])) {
-      updateTag(tag);
-    }
+    ]);
 
     // markQuoteSentForBusiness already writes the audit record.
     return {

@@ -133,7 +133,11 @@ import {
   getInquiryRecordState,
 } from "@/features/inquiries/status-sql";
 import type { InquiryRecordState } from "@/features/inquiries/types";
-import { quoteStatuses, type QuoteStatus } from "@/features/quotes/types";
+import { quoteStatuses, type QuoteRecordView, type QuoteStatus } from "@/features/quotes/types";
+import {
+  getEffectiveQuoteStatus,
+  getQuoteRecordState,
+} from "@/features/quotes/queries";
 import { calculateInvoicePaymentState } from "@/features/invoices/utils";
 import { getEffectiveInvoiceStatusSql, paidAmountSql } from "@/features/invoices/queries";
 import { getTodayUtcDateString } from "@/features/quotes/utils";
@@ -1534,7 +1538,9 @@ async function listAdminQuotesInner(
   }
 
   if (status) {
-    conditions.push(eq(quotes.status, status));
+    // `expired` is a derived status, not a stored one — match the effective
+    // status the way the inquiry and invoice admin lists do.
+    conditions.push(sql`${getEffectiveQuoteStatus} = ${status}::quote_status`);
   }
 
   const where = and(...conditions);
@@ -1547,7 +1553,8 @@ async function listAdminQuotesInner(
         title: quotes.title,
         customerName: quotes.customerName,
         customerEmail: quotes.customerEmail,
-        status: quotes.status,
+        status: getEffectiveQuoteStatus,
+        recordState: getQuoteRecordState,
         totalInCents: quotes.totalInCents,
         currency: quotes.currency,
         sentAt: quotes.sentAt,
@@ -1573,6 +1580,7 @@ async function listAdminQuotesInner(
         customerName: row.customerName,
         customerEmail: row.customerEmail,
         status: row.status as QuoteStatus,
+        recordState: row.recordState as QuoteRecordView,
         totalInCents: row.totalInCents,
         currency: row.currency,
         sentAt: row.sentAt,
@@ -1617,7 +1625,8 @@ async function getAdminQuoteDetailCoreInner(
       customerEmail: quotes.customerEmail,
       customerContactMethod: quotes.customerContactMethod,
       customerContactHandle: quotes.customerContactHandle,
-      status: quotes.status,
+      status: getEffectiveQuoteStatus,
+      recordState: getQuoteRecordState,
       currency: quotes.currency,
       notes: quotes.notes,
       terms: quotes.terms,
@@ -1668,6 +1677,7 @@ async function getAdminQuoteDetailCoreInner(
     customerContactMethod: row.customerContactMethod,
     customerContactHandle: row.customerContactHandle,
     status: row.status as QuoteStatus,
+    recordState: row.recordState as QuoteRecordView,
     currency: row.currency,
     notes: row.notes,
     terms: row.terms,

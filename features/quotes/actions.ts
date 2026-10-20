@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
@@ -12,8 +11,8 @@ import {
   getBusinessInquiryDetailCacheTags,
   getBusinessQuoteDetailCacheTags,
   getBusinessQuoteListCacheTags,
+  invalidateCacheTags,
   uniqueCacheTags,
-  updateCacheTags,
 } from "@/lib/cache/business-tags";
 import {
   getWorkspaceBusinessActionContext,
@@ -32,6 +31,11 @@ import {
 import { hasFeatureAccess } from "@/lib/plans";
 import { checkUsageAllowance } from "@/lib/plans/usage";
 import { assertPublicActionRateLimit } from "@/lib/rate-limit/redis-rate-limiter";
+import { hashOpaqueToken } from "@/lib/security/tokens";
+import {
+  publicQuoteRespondRateLimit,
+  publicQuoteRevisionRateLimit,
+} from "@/features/quotes/rate-limits";
 import {
   getResendSendFailureMessage,
   sendQuoteEmail,
@@ -47,6 +51,7 @@ import {
   completeAcceptedQuoteForBusiness,
   createQuoteForBusiness,
   deleteDraftQuoteForBusiness,
+  evaluateQuoteSendGates,
   logQuoteSendEvent,
   markQuoteSentForBusiness,
   respondToPublicQuoteByToken,
@@ -57,6 +62,7 @@ import {
 import { getQuoteSendPayloadForBusiness } from "@/features/quotes/queries";
 import {
   publicQuoteResponseSchema,
+  quoteAcceptanceValidationMessages,
   quoteCancellationSchema,
   quoteEditorSchema,
   } from "@/features/quotes/schemas";
@@ -80,12 +86,6 @@ import {
 const initialEditorState: QuoteEditorActionState = {};
 const initialSendState: QuoteSendActionState = {};
 const initialPublicQuoteResponseState: PublicQuoteResponseActionState = {};
-
-function revalidateCacheTags(tags: string[]) {
-  for (const tag of uniqueCacheTags(tags)) {
-    revalidateTag(tag, "max");
-  }
-}
 
 function getQuoteMutationCacheTags(
   businessId: string,
@@ -174,7 +174,7 @@ export async function createQuoteAction(
       };
     }
 
-    updateCacheTags(
+    invalidateCacheTags(
       getQuoteMutationCacheTags(
         businessContext.business.id,
         createdQuote.id,
@@ -262,7 +262,7 @@ export async function updateQuoteAction(
       };
     }
 
-    updateCacheTags(
+    invalidateCacheTags(
       getQuoteMutationCacheTags(businessContext.business.id, quoteId),
     );
 
@@ -328,7 +328,7 @@ async function runQuoteRecordAction(
         : null,
     isSuccessful: (result) => (result.changed || result.deleted) ?? false,
     invalidate: (result, businessId) =>
-      updateCacheTags(
+      invalidateCacheTags(
         getQuoteMutationCacheTags(businessId, quoteId, result.inquiryId),
       ),
     messages: {
@@ -499,6 +499,26 @@ export async function sendQuoteAction(
       };
     }
 
+    // The send gates run BEFORE the customer email: a quote the server
+    // considers unsendable must never reach the customer's inbox, and the
+    // public link of a still-draft quote would 404 for them.
+    const sendGates = await evaluateQuoteSendGates({
+      businessId: businessContext.business.id,
+      quoteId: quote.id,
+      actorUserId: user.id,
+      inquiryId: quote.inquiryId,
+      quoteNumber: quote.quoteNumber,
+      quoteTotalCents: quote.totalInCents,
+      validUntil: quote.validUntil,
+    });
+
+    if (sendGates.blocked) {
+      return {
+        error:
+          sendGates.blockers[0] ?? "This quote is not ready to send yet.",
+      };
+    }
+
     const { settings: businessSettings, ownerEmails } = messagingContext;
     const publicQuoteUrl = new URL(
       getPublicQuoteUrl(quote.publicToken),
@@ -616,7 +636,7 @@ export async function sendQuoteAction(
       });
     }
 
-    updateCacheTags(
+    invalidateCacheTags(
       getQuoteMutationCacheTags(
         businessContext.business.id,
         quoteId,
@@ -690,7 +710,7 @@ export async function acknowledgeQuoteUncertaintyAction(
       };
     }
 
-    updateCacheTags(
+    invalidateCacheTags(
       getQuoteMutationCacheTags(businessContext.business.id, quoteId),
     );
 
@@ -729,7 +749,7 @@ export async function logQuoteSendEventAction(
       channel,
     });
 
-    updateCacheTags(
+    invalidateCacheTags(
       getQuoteMutationCacheTags(businessContext.business.id, quoteId),
     );
 
@@ -756,9 +776,12 @@ export async function stopAutoFollowUpAction(
     const { stopAutoFollowUpForQuote } = await import(
       "@/features/quotes/mutations"
     );
-    await stopAutoFollowUpForQuote(quoteId);
+    await stopAutoFollowUpForQuote({
+      businessId: businessContext.business.id,
+      quoteId,
+    });
 
-    updateCacheTags(
+    invalidateCacheTags(
       getQuoteMutationCacheTags(businessContext.business.id, quoteId),
     );
 
@@ -791,9 +814,10 @@ export async function respondToPublicQuoteAction(
 
   const allowed = await assertPublicActionRateLimit({
     action: "public-quote-respond",
-    scope: token,
-    limit: 6,
-    windowMs: 15 * 60 * 1000,
+    // The scope is hashed: the rate-limit ledger must never persist the raw
+    // bearer token.
+    scope: `quote:${hashOpaqueToken(token)}`,
+    ...publicQuoteRespondRateLimit,
   });
 
   if (!allowed) {
@@ -818,7 +842,7 @@ export async function respondToPublicQuoteAction(
       };
     }
 
-    revalidateCacheTags(
+    invalidateCacheTags(
       getQuoteMutationCacheTags(
         result.businessId,
         result.quoteId,
@@ -914,7 +938,14 @@ export async function respondToPublicQuoteAction(
     };
   } catch (error) {
     console.error("Failed to record public quote response.", error);
-    if (error instanceof Error && /Enter your name|Confirm that you agree/i.test(error.message)) {
+
+    // The acceptance validation messages are the only errors the customer can
+    // act on; anything else is an internal failure.
+    if (
+      error instanceof Error &&
+      (error.message === quoteAcceptanceValidationMessages.signerName ||
+        error.message === quoteAcceptanceValidationMessages.confirmation)
+    ) {
       return { error: error.message };
     }
 
@@ -967,7 +998,7 @@ export async function cancelAcceptedQuoteAction(
       };
     }
 
-    updateCacheTags(
+    invalidateCacheTags(
       getQuoteMutationCacheTags(
         businessContext.business.id,
         quoteId,
@@ -1030,7 +1061,7 @@ export async function completeAcceptedQuoteAction(
       };
     }
 
-    updateCacheTags(
+    invalidateCacheTags(
       getQuoteMutationCacheTags(
         businessContext.business.id,
         quoteId,
@@ -1095,9 +1126,10 @@ export async function requestQuoteRevisionAction(
 
   const allowed = await assertPublicActionRateLimit({
     action: "public-quote-revision",
-    scope: token,
-    limit: 4,
-    windowMs: 15 * 60 * 1000,
+    // The scope is hashed: the rate-limit ledger must never persist the raw
+    // bearer token.
+    scope: `quote:${hashOpaqueToken(token)}`,
+    ...publicQuoteRevisionRateLimit,
   });
 
   if (!allowed) {
@@ -1125,7 +1157,7 @@ export async function requestQuoteRevisionAction(
       };
     }
 
-    revalidateCacheTags(
+    invalidateCacheTags(
       getQuoteMutationCacheTags(
         result.businessId,
         result.quoteId,
@@ -1199,7 +1231,7 @@ export async function reviseQuoteAction(
       };
     }
 
-    updateCacheTags(
+    invalidateCacheTags(
       getQuoteMutationCacheTags(
         businessContext.business.id,
         quoteId,
@@ -1254,7 +1286,7 @@ export async function bulkArchiveQuotesAction(
       actorUserId: user.id,
     });
 
-    updateCacheTags(getBusinessQuoteListCacheTags(businessContext.business.id));
+    invalidateCacheTags(getBusinessQuoteListCacheTags(businessContext.business.id));
 
     return {
       success: `${result.affected} quote${result.affected !== 1 ? "s" : ""} archived.`,
@@ -1291,7 +1323,7 @@ export async function bulkVoidQuotesAction(
       actorUserId: user.id,
     });
 
-    updateCacheTags(getBusinessQuoteListCacheTags(businessContext.business.id));
+    invalidateCacheTags(getBusinessQuoteListCacheTags(businessContext.business.id));
 
     return {
       success: `${result.affected} quote${result.affected !== 1 ? "s" : ""} voided.`,
@@ -1334,7 +1366,7 @@ export async function bulkDeleteQuotesAction(
       actorUserId: user.id,
     });
 
-    revalidateCacheTags(getBusinessQuoteListCacheTags(businessContext.business.id));
+    invalidateCacheTags(getBusinessQuoteListCacheTags(businessContext.business.id));
 
     if (result.affected === 0) {
       return {
@@ -1385,7 +1417,7 @@ export async function bulkRestoreQuotesAction(
       actorUserId: user.id,
     });
 
-    updateCacheTags(getBusinessQuoteListCacheTags(businessContext.business.id));
+    invalidateCacheTags(getBusinessQuoteListCacheTags(businessContext.business.id));
 
     if (result.affected === 0) {
       return {
