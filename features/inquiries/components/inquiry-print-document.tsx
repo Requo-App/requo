@@ -15,6 +15,7 @@ import {
   getContactMethodLabel,
   getCustomerContactEmail,
   getInquirySourceLabel,
+  getInquiryStatusLabel,
 } from "@/features/inquiries/utils";
 import { formatQuoteMoney } from "@/features/quotes/utils";
 
@@ -111,6 +112,10 @@ export function InquiryPrintDocument({
               <InfoTile
                 label={systemFieldDefaultLabels.requestedDeadline}
                 value={inquiry.requestedDeadline ?? "Not provided"}
+              />
+              <InfoTile
+                label="Status"
+                value={getInquiryStatusLabel(inquiry.status)}
               />
               {inquiry.subject &&
               inquiry.subject !== (inquiry.inquiryFormName ?? "") ? (

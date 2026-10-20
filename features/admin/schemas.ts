@@ -290,6 +290,11 @@ const searchQueryShape = {
  *
  * Runs as a `z.preprocess` step so `q` never appears on a parsed filter
  * object: callers only ever read `search`.
+ *
+ * `q` wins over the legacy `search` alias. The filter UI writes only `q`
+ * and preserves every other param, so a bookmarked URL carrying
+ * `?search=acme` would otherwise shadow the query the user just typed and
+ * the list would never change.
  */
 function normalizeSearchAlias(input: unknown): unknown {
   if (!input || typeof input !== "object" || Array.isArray(input)) {
@@ -298,7 +303,7 @@ function normalizeSearchAlias(input: unknown): unknown {
 
   const record = input as Record<string, unknown>;
 
-  if (record.search == null && record.q != null) {
+  if (record.q != null) {
     return { ...record, search: record.q };
   }
 

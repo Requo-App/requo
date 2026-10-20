@@ -14,6 +14,14 @@ type BulkActionBarProps = {
   allOnPageSelected: boolean;
   onSelectAllOnPage: () => void;
   onSelectAllMatchingFilters?: () => void;
+  /**
+   * Label for the "select everything matching the filters" affordance.
+   * Defaults to "Select all (up to N)". Override it when the handler can
+   * only reach the rows that are already loaded — the label must not
+   * promise a set the handler cannot deliver.
+   */
+  selectAllMatchingFiltersLabel?: string;
+  selectAllMatchingFiltersPending?: boolean;
   onDeselectAll: () => void;
   children: React.ReactNode;
 };
@@ -26,6 +34,8 @@ export function BulkActionBar({
   allOnPageSelected,
   onSelectAllOnPage,
   onSelectAllMatchingFilters,
+  selectAllMatchingFiltersLabel,
+  selectAllMatchingFiltersPending = false,
   onDeselectAll,
   children,
 }: BulkActionBarProps) {
@@ -123,12 +133,15 @@ export function BulkActionBar({
                   </span>
                   <button
                     className="shrink-0 truncate rounded-sm px-1 py-0.5 text-sm font-medium text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
-                    disabled={selectedCount >= maxSelection}
+                    disabled={
+                      selectedCount >= maxSelection ||
+                      selectAllMatchingFiltersPending
+                    }
                     onClick={onSelectAllMatchingFilters}
                     type="button"
                   >
-                    Select all
-                    {totalMatchingFilters > maxSelection ? ` (max ${maxSelection})` : ""}
+                    {selectAllMatchingFiltersLabel ??
+                      `Select all (up to ${maxSelection})`}
                   </button>
                 </>
               )}

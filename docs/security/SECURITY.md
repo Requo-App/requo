@@ -47,7 +47,14 @@ root [`SECURITY.md`](../../SECURITY.md).
   responses. Validate file metadata and use the existing safe path/name
   helpers.
 - Public inquiry submissions use server validation, rate limits, and abuse
-  checks. Preserve those controls when changing intake paths.
+  checks. Preserve those controls when changing intake paths. The public
+  limiter has two ceilings: a per-fingerprint bucket (IP + User-Agent) and a
+  scope-wide bucket that no client-supplied value can influence — the
+  fingerprint limit alone is bypassable by rotating the User-Agent.
+- Public intake output is untrusted. Escape visitor-supplied text before it
+  reaches an email body or a spreadsheet cell: the inquiry acknowledgment
+  template escapes it, and `lib/csv.ts` neutralizes leading formula
+  characters in every export.
 
 ## AI boundaries
 

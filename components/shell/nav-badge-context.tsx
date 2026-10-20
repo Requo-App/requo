@@ -5,13 +5,19 @@ import {
   useContext,
   useEffect,
   useState,
+  type Dispatch,
   type ReactNode,
+  type SetStateAction,
 } from "react";
 
 type NavBadgeState = {
   /** Shared per-business unread inquiry count. Null while still streaming in. */
   inquiryUnreadCount: number | null;
-  setInquiryUnreadCount: (value: number) => void;
+  /**
+   * Setter form, so a caller can decrement against the current value
+   * instead of a value captured before the update.
+   */
+  setInquiryUnreadCount: Dispatch<SetStateAction<number | null>>;
 };
 
 const NavBadgeContext = createContext<NavBadgeState>({

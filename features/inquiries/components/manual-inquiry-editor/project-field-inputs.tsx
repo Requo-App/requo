@@ -20,6 +20,7 @@ export function renderProjectInput({
   stringValue,
   multiValue,
   hasError,
+  labelId,
 }: {
   field: InquiryFormFieldDefinition;
   inputId: string;
@@ -30,6 +31,7 @@ export function renderProjectInput({
   stringValue: string;
   multiValue: string[];
   hasError: boolean;
+  labelId: string;
 }) {
   if (field.kind === "system") {
     if (field.key === "requestedDeadline") {
@@ -126,7 +128,12 @@ export function renderProjectInput({
       );
     case "multi_select":
       return (
-        <div className="grid gap-2 sm:grid-cols-2">
+        <div
+          aria-labelledby={labelId}
+          className="grid gap-2 sm:grid-cols-2"
+          id={inputId}
+          role="group"
+        >
           {(field.options ?? []).map((option) => {
             const optionId = `${inputId}-${option.id}`;
             const isChecked = multiValue.includes(option.value);
@@ -146,6 +153,12 @@ export function renderProjectInput({
                     onMultiValueChange(option.value, state === true)
                   }
                 />
+                {/* Mirrors the public form: the checkbox itself carries no
+                    form name, so the selected values need a hidden input
+                    each to reach the server. */}
+                {isChecked ? (
+                  <input name={inputName} type="hidden" value={option.value} />
+                ) : null}
                 <span className="text-sm text-foreground">{option.label}</span>
               </label>
             );

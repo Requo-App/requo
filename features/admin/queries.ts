@@ -128,6 +128,11 @@ import type {
   AdminUserRow,
 } from "@/features/admin/types";
 import { inquiryStatuses, type InquiryStatus } from "@/features/inquiries/types";
+import {
+  getEffectiveInquiryStatus,
+  getInquiryRecordState,
+} from "@/features/inquiries/status-sql";
+import type { InquiryRecordState } from "@/features/inquiries/types";
 import { quoteStatuses, type QuoteStatus } from "@/features/quotes/types";
 import { calculateInvoicePaymentState } from "@/features/invoices/utils";
 import { getEffectiveInvoiceStatusSql, paidAmountSql } from "@/features/invoices/queries";
@@ -1192,8 +1197,16 @@ async function listAdminInquiriesInner(
     }
   }
 
-  if (status) {
-    conditions.push(eq(inquiries.status, status));
+  if (status === "archived") {
+    // Archiving writes `archivedAt`, never the status column.
+    conditions.push(isNotNull(inquiries.archivedAt));
+  } else if (status) {
+    // Match the status the product actually shows: a stored `new` reads as
+    // `waiting` after 48 hours and as `overdue` once the deadline passes.
+    conditions.push(sql`${getEffectiveInquiryStatus} = ${status}`);
+  } else {
+    // The default list shows live records, like the business dashboard.
+    conditions.push(isNull(inquiries.archivedAt));
   }
 
   const where = and(...conditions);
@@ -1205,7 +1218,8 @@ async function listAdminInquiriesInner(
         subject: inquiries.subject,
         customerName: inquiries.customerName,
         customerEmail: inquiries.customerEmail,
-        status: inquiries.status,
+        status: getEffectiveInquiryStatus,
+        recordState: getInquiryRecordState,
         submittedAt: inquiries.submittedAt,
         businessId: inquiries.businessId,
         businessName: businesses.name,
@@ -1227,6 +1241,7 @@ async function listAdminInquiriesInner(
         customerName: row.customerName,
         customerEmail: row.customerEmail,
         status: row.status as InquiryStatus,
+        recordState: row.recordState as InquiryRecordState,
         submittedAt: row.submittedAt,
         businessId: row.businessId,
         businessName: row.businessName,

@@ -12,6 +12,7 @@ type AssertPublicActionRateLimitInput = {
   action:
     | "ai-file-import"
     | "demo-request"
+    | "inquiry-attachment-download"
     | "public-inquiry-submit"
     | "public-quote-respond"
     | "public-quote-revision"
@@ -20,6 +21,14 @@ type AssertPublicActionRateLimitInput = {
   scope: string;
   limit: number;
   windowMs: number;
+  /**
+   * Ceiling for the whole scope, independent of any client-supplied
+   * fingerprint. Rotating the User-Agent mints a new fingerprint bucket,
+   * so the fingerprint limit alone does not bound a motivated caller.
+   * When omitted, no scope-wide counter is kept and the fingerprint limit
+   * is the only bound.
+   */
+  scopeLimit?: number;
 };
 
 type HeaderStore = Pick<Headers, "get">;
@@ -70,6 +79,15 @@ async function getPublicActionFingerprint(scope: string) {
   return createHash("sha256")
     .update(`${scope}:${ipAddress}:${userAgent}`)
     .digest("hex");
+}
+
+/**
+ * Key for the scope-wide counter. It deliberately contains nothing the
+ * client controls, so it bounds a caller that rotates its User-Agent (or
+ * any other fingerprint input) to change buckets.
+ */
+function getPublicActionScopeKey(scope: string) {
+  return `scope:${scope}`;
 }
 
 /**
@@ -139,8 +157,10 @@ export async function assertPublicActionRateLimit({
   scope,
   limit,
   windowMs,
+  scopeLimit,
 }: AssertPublicActionRateLimitInput) {
-  const key = await getPublicActionFingerprint(scope);
+  const fingerprint = await getPublicActionFingerprint(scope);
+  const scopeKey = getPublicActionScopeKey(scope);
   const now = new Date();
   const windowStart = new Date(now.getTime() - windowMs);
 
@@ -153,7 +173,7 @@ export async function assertPublicActionRateLimit({
       .where(
         and(
           eq(publicActionEvents.action, action),
-          eq(publicActionEvents.key, key),
+          eq(publicActionEvents.key, fingerprint),
           gte(publicActionEvents.createdAt, windowStart),
         ),
       );
@@ -162,12 +182,44 @@ export async function assertPublicActionRateLimit({
       return false;
     }
 
-    await db.insert(publicActionEvents).values({
-      id: newEntityId(),
-      action,
-      key,
-      createdAt: now,
-    });
+    const events: (typeof publicActionEvents.$inferInsert)[] = [
+      {
+        id: newEntityId(),
+        action,
+        key: fingerprint,
+        createdAt: now,
+      },
+    ];
+
+    if (scopeLimit !== undefined) {
+      // The scope-wide ceiling is not influenced by any client-supplied
+      // value, so rotating the User-Agent cannot buy more attempts.
+      const [scopeCountRow] = await db
+        .select({
+          count: count(),
+        })
+        .from(publicActionEvents)
+        .where(
+          and(
+            eq(publicActionEvents.action, action),
+            eq(publicActionEvents.key, scopeKey),
+            gte(publicActionEvents.createdAt, windowStart),
+          ),
+        );
+
+      if (Number(scopeCountRow?.count ?? 0) >= scopeLimit) {
+        return false;
+      }
+
+      events.push({
+        id: newEntityId(),
+        action,
+        key: scopeKey,
+        createdAt: now,
+      });
+    }
+
+    await db.insert(publicActionEvents).values(events);
 
     return true;
   } catch (error) {

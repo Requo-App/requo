@@ -34,11 +34,13 @@ import {
 } from "@/features/inquiries/mutations";
 import {
   getInquiryEditorFormForBusiness,
+  getInquiryIdsMatchingFiltersForBusiness,
   getPublicInquiryBusinessByFormSlug,
   getPublicInquiryBusinessBySlug,
 } from "@/features/inquiries/queries";
 import {
   inquiryFormSelectionSchema,
+  inquiryListFiltersSchema,
   inquiryNoteSchema,
   inquiryStatusChangeSchema,
   validateManualQuickInquirySubmission,
@@ -53,7 +55,10 @@ import type {
   ManualInquiryActionState,
   PublicInquiryFormState,
 } from "@/features/inquiries/types";
-import { getInquiryStatusLabel } from "@/features/inquiries/utils";
+import {
+  getInquiryStatusLabel,
+  inquiryBulkSelectionLimit,
+} from "@/features/inquiries/utils";
 import {
   getPublicInquiryAttachmentMaxBytes,
   resolveInquiryFormConfigForPlan,
@@ -76,6 +81,10 @@ function getInquiryMutationCacheTags(businessId: string, inquiryId: string) {
 
 const publicInquirySubmitRateLimit = {
   limit: 4,
+  // Ceiling for the whole business+form scope. The per-fingerprint limit
+  // above can be bypassed by rotating the User-Agent, so this bounds the
+  // business regardless of what the client claims about itself.
+  scopeLimit: 12,
   windowMs: 10 * 60 * 1000,
 } as const;
 
@@ -97,7 +106,7 @@ export async function submitPublicInquiryAction(
   _prevState: PublicInquiryFormState,
   formData: FormData,
 ): Promise<PublicInquiryFormState> {
-  const honeypotValue = getTextValue(formData, "website")?.trim();
+  const honeypotValue = getTextValue(formData, "company_fax_number")?.trim();
 
   const business = formSlug
     ? await getPublicInquiryBusinessByFormSlug({
@@ -382,12 +391,16 @@ export async function changeInquiryStatusAction(
 
     if (!result.changed) {
       return {
-        success: `Inquiry is already ${getInquiryStatusLabel(result.nextStatus)}.`,
+        success: `Inquiry is already ${getInquiryStatusLabel(
+          result.effectiveStatus ?? result.nextStatus,
+        )}.`,
       };
     }
 
     return {
-      success: `Inquiry moved to ${getInquiryStatusLabel(result.nextStatus)}.`,
+      success: `Inquiry moved to ${getInquiryStatusLabel(
+        result.effectiveStatus ?? result.nextStatus,
+      )}.`,
     };
   } catch (error) {
     console.error("Failed to change inquiry status.", error);
@@ -483,7 +496,9 @@ export async function deleteInquiryAction(
   _prevState?: InquiryRecordActionState,
   formData?: FormData,
 ): Promise<InquiryRecordActionState> {
-  const redirectHref = formData ? formData.get("redirectHref") as string | null : null;
+  // The redirect target arrives from a hidden input. `runRecordAction`
+  // narrows it to a same-origin relative path before redirecting.
+  const redirectHref = formData ? getTextValue(formData, "redirectHref") : null;
 
   return runInquiryRecordAction(inquiryId, deleteInquiryForBusiness, {
     success: "Inquiry deleted.",
@@ -500,8 +515,46 @@ const inquiryBulkActionSchema = z.object({
   inquiryIds: z
     .array(z.string().min(1))
     .min(1, "Select at least one inquiry.")
-    .max(50, "Cannot bulk-update more than 50 inquiries at once."),
+    .max(
+      inquiryBulkSelectionLimit,
+      `Cannot bulk-update more than ${inquiryBulkSelectionLimit} inquiries at once.`,
+    ),
 });
+
+/**
+ * Resolves the ids of every inquiry matching the given URL filters, capped
+ * at the bulk-selection limit.
+ *
+ * The list route only warms a window of pages around the current one, so
+ * the client cannot derive the full matching set on its own. Without this
+ * the "Select all" affordance would silently select fewer rows than the
+ * user was told, and a bulk archive/delete would affect a different set
+ * than the one on screen.
+ */
+export async function getInquiryIdsForBulkSelectionAction(
+  searchParams: Record<string, string | string[] | undefined>,
+): Promise<string[]> {
+  const ownerAccess = await getWorkspaceBusinessActionContext();
+
+  if (!ownerAccess.ok) {
+    return [];
+  }
+
+  const parsedFilters = inquiryListFiltersSchema.safeParse(searchParams);
+
+  if (!parsedFilters.success) {
+    return [];
+  }
+
+  const { page: _page, ...filters } = parsedFilters.data;
+
+  return getInquiryIdsMatchingFiltersForBusiness({
+    businessId: ownerAccess.businessContext.business.id,
+    // The list page always renders with the unread filter off.
+    filters: { ...filters, unread: false },
+    limit: inquiryBulkSelectionLimit,
+  });
+}
 
 const inquiryBulkStatusTargets = [
   "new",
@@ -525,7 +578,7 @@ export async function bulkArchiveInquiriesAction(
   if (!ownerAccess.ok) return { error: ownerAccess.error };
 
   const { user, businessContext } = ownerAccess;
-  const rawIds = formData.get("inquiryIds") as string;
+  const rawIds = getTextValue(formData, "inquiryIds");
   const parsed = inquiryBulkActionSchema.safeParse({
     inquiryIds: rawIds ? rawIds.split(",").filter(Boolean) : [],
   });
@@ -570,7 +623,7 @@ export async function bulkDeleteInquiriesAction(
   if (!ownerAccess.ok) return { error: ownerAccess.error };
 
   const { user, businessContext } = ownerAccess;
-  const rawIds = formData.get("inquiryIds") as string;
+  const rawIds = getTextValue(formData, "inquiryIds");
   const parsed = inquiryBulkActionSchema.safeParse({
     inquiryIds: rawIds ? rawIds.split(",").filter(Boolean) : [],
   });
@@ -621,8 +674,8 @@ export async function bulkChangeInquiryStatusAction(
   if (!ownerAccess.ok) return { error: ownerAccess.error };
 
   const { user, businessContext } = ownerAccess;
-  const rawIds = formData.get("inquiryIds") as string;
-  const rawStatus = formData.get("targetStatus") as string;
+  const rawIds = getTextValue(formData, "inquiryIds");
+  const rawStatus = getTextValue(formData, "targetStatus");
   const parsed = inquiryBulkStatusChangeSchema.safeParse({
     inquiryIds: rawIds ? rawIds.split(",").filter(Boolean) : [],
     targetStatus: rawStatus,
@@ -661,7 +714,7 @@ export async function bulkUnarchiveInquiriesAction(
   if (!ownerAccess.ok) return { error: ownerAccess.error };
 
   const { user, businessContext } = ownerAccess;
-  const rawIds = formData.get("inquiryIds") as string;
+  const rawIds = getTextValue(formData, "inquiryIds");
   const parsed = inquiryBulkActionSchema.safeParse({
     inquiryIds: rawIds ? rawIds.split(",").filter(Boolean) : [],
   });

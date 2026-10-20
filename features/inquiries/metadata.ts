@@ -84,9 +84,11 @@ export function getPublicInquiryPageMetadata(
 
   business: PublicInquiryBusiness,
 
+  options?: { submitted?: boolean },
+
 ): Metadata {
 
-  return createPageMetadata({
+  const metadata = createPageMetadata({
 
     absoluteTitle: getPublicInquiryPageTitle(business),
 
@@ -97,6 +99,36 @@ export function getPublicInquiryPageMetadata(
     pathname: getPublicInquiryPagePath(business),
 
   });
+
+
+
+  if (!options?.submitted) {
+
+    return metadata;
+
+  }
+
+
+
+  // The thank-you state is reached through `?submitted=1`. It is not a
+
+  // distinct page worth indexing, and it must not compete with the form
+
+  // URL in search results.
+
+  return {
+
+    ...metadata,
+
+    robots: {
+
+      index: false,
+
+      follow: false,
+
+    },
+
+  };
 
 }
 

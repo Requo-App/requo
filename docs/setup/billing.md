@@ -18,6 +18,12 @@ Billing tables:
 - `refunds`: read-only after the canonical-Polar refactor; refunds are issued in the customer portal and reflected via `subscription.canceled` / `subscription.revoked` events
 
 `businesses.plan` is a denormalized cache synchronized by `lib/billing/subscription-service.ts`.
+It holds the *effective* plan, not the requested one: every subscription status
+change rewrites it in the same transaction as the subscription row, so a revoked,
+expired, or still-pending business cannot keep a paid plan in the cache.
+Entitlement-sensitive reads should resolve the plan from `business_subscriptions`
+(the workspace shell and the inquiry surfaces both do) rather than trusting the
+column.
 
 ## Pricing
 

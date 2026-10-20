@@ -39,6 +39,11 @@ type InquiryExportCsvDropdownProps = {
     label: string;
     value: string;
   }>;
+  /**
+   * Total number of inquiries the business holds, across every list filter.
+   * The export carries its own filters, so the list's filtered count is not
+   * a valid proxy for whether an export can return rows.
+   */
   resultCount: number;
 };
 
@@ -244,12 +249,7 @@ export function InquiryExportCsvDropdown({
         </div>
 
         <div className="flex justify-end border-t border-border/70 px-3 py-2.5">
-          <Button
-            asChild
-            className="w-full sm:w-auto"
-            disabled={resultCount === 0}
-            size="sm"
-          >
+          <Button asChild className="w-full sm:w-auto" size="sm">
             <a href={exportHref}>Download CSV</a>
           </Button>
         </div>

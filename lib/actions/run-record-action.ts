@@ -43,6 +43,29 @@ export type RecordActionOptions<TResult> = {
   };
 };
 
+/**
+ * Narrows a caller-supplied redirect target to a same-origin relative path.
+ *
+ * The value arrives from a hidden form input, so it is untrusted. Next
+ * treats an absolute `redirect()` target as an external navigation, which
+ * would turn a destructive action into an open redirect.
+ */
+export function getSafeInternalRedirectPath(
+  value: string | null | undefined,
+): string | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const trimmedValue = value.trim();
+
+  if (!trimmedValue.startsWith("/") || trimmedValue.startsWith("//")) {
+    return undefined;
+  }
+
+  return trimmedValue;
+}
+
 export async function runRecordAction<
   TState extends RecordActionState,
   TResult,
@@ -91,7 +114,7 @@ export async function runRecordAction<
     }
 
     if (messages.redirectHref && isSuccessful(result)) {
-      redirectTarget = messages.redirectHref;
+      redirectTarget = getSafeInternalRedirectPath(messages.redirectHref) ?? null;
     } else {
       return {
         success: isSuccessful(result) ? messages.success : messages.unchanged,

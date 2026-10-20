@@ -113,6 +113,7 @@ export function QuoteListResultsClient({
         allOnPageSelected={allOnPageSelected}
         onSelectAllOnPage={handleSelectAllOnPage}
         onSelectAllMatchingFilters={handleSelectAllMatchingFilters}
+        selectAllMatchingFiltersLabel="Select all on loaded pages"
         onDeselectAll={deselectAll}
       >
         <QuoteBulkActions

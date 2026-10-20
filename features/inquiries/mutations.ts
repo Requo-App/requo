@@ -4,6 +4,11 @@ import { db } from "@/lib/db/client";
 import { writeAuditLog } from "@/features/audit/mutations";
 import { newEntityId } from "@/lib/ids";
 import {
+  getBusinessInquiryDetailCacheTags,
+  getBusinessInquiryListCacheTags,
+  uniqueCacheTags,
+} from "@/lib/cache/business-tags";
+import {
   resolveSafeContentType,
   sanitizeStorageFileName,
 } from "@/lib/files";
@@ -28,9 +33,11 @@ import type {
   InquirySourceValue,
 } from "@/features/inquiries/types";
 import { inquirySources } from "@/features/inquiries/types";
+import { getEffectiveInquiryStatus } from "@/features/inquiries/status-sql";
 import { getInquiryStatusLabel } from "@/features/inquiries/utils";
 import type { PublicInquiryBusiness } from "@/features/inquiries/types";
 import { and, eq, inArray, isNotNull, isNull } from "drizzle-orm";
+import { revalidateTag } from "next/cache";
 import { qualifyInquiry } from "./qualification/qualify-inquiry";
 import {
   enqueueAiDraftQuoteOnQualify,
@@ -119,7 +126,9 @@ export async function createInquirySubmission({
     uploadedStoragePath = storagePath;
     preparedAttachment = {
       id: newEntityId(),
-      fileName: attachment.name,
+      // The file name is client-supplied and the Zod attachment schema
+      // checks size and type but not length, so cap it here.
+      fileName: attachment.name.slice(0, 255),
       contentType: safeContentType,
       fileSize: attachment.size,
       storagePath,
@@ -228,6 +237,20 @@ export async function createInquirySubmission({
     }
 
     throw error;
+  }
+
+  // Invalidate the cached inquiry list and detail so a lead created here is
+  // visible without waiting for the cache window to lapse. This lives in
+  // the mutation (not only in the callers) because the Agent and Assistant
+  // write paths would otherwise leave the dashboard showing a stale list.
+  //
+  // `revalidateTag` (not `updateTag`): this mutation also runs from a route
+  // handler, where `updateTag` is unsupported.
+  for (const tag of uniqueCacheTags([
+    ...getBusinessInquiryListCacheTags(business.id),
+    ...getBusinessInquiryDetailCacheTags(business.id, inquiryId),
+  ])) {
+    revalidateTag(tag, "max");
   }
 
   // Notify the customer via email (in-app owner notification is handled above).
@@ -357,7 +380,12 @@ export async function createAgentInquirySubmission({
       const [current] = await db
         .select()
         .from(aiAgentSessions)
-        .where(eq(aiAgentSessions.id, sessionId))
+        .where(
+          and(
+            eq(aiAgentSessions.id, sessionId),
+            eq(aiAgentSessions.businessId, business.id),
+          ),
+        )
         .limit(1);
       const existingMetadata =
         (current?.metadata as Record<string, unknown> | null) ?? {};
@@ -380,7 +408,12 @@ export async function createAgentInquirySubmission({
           },
           updatedAt: new Date(),
         })
-        .where(eq(aiAgentSessions.id, sessionId));
+        .where(
+          and(
+            eq(aiAgentSessions.id, sessionId),
+            eq(aiAgentSessions.businessId, business.id),
+          ),
+        );
     } catch (error) {
       console.error("[inquiries] Failed to link agent session.", error);
     }
@@ -426,7 +459,12 @@ export async function createAgentHandoffSubmission({
           inquiryId: result.inquiryId,
           updatedAt: new Date(),
         })
-        .where(eq(aiAgentSessions.id, sessionId));
+        .where(
+          and(
+            eq(aiAgentSessions.id, sessionId),
+            eq(aiAgentSessions.businessId, business.id),
+          ),
+        );
     } catch (error) {
       console.error("[inquiries] Failed to link handoff session.", error);
     }
@@ -454,9 +492,12 @@ export async function createAssistantInquirySubmission({
     business,
     submission,
     actorUserId,
-    source: inquirySources.manual,
+    // The Assistant is an AI surface, so the record is attributed to the
+    // AI Assistant source — not to "manual", which the dashboard and the
+    // CSV export both read.
+    source: inquirySources.aiAssistant,
     activity: {
-      type: "inquiry.created_manual",
+      type: "inquiry.submitted_ai_agent",
       summary: "Inquiry created by the business Assistant.",
     },
     notifyInAppOnNewInquiry: false,
@@ -543,13 +584,22 @@ export async function changeInquiryStatusForBusiness({
       .select({
         id: inquiries.id,
         status: inquiries.status,
+        effectiveStatus: getEffectiveInquiryStatus,
         archivedAt: inquiries.archivedAt,
         businessId: businesses.id,
         customerName: inquiries.customerName,
       })
       .from(inquiries)
       .innerJoin(businesses, eq(inquiries.businessId, businesses.id))
-      .where(and(eq(inquiries.id, inquiryId), eq(inquiries.businessId, businessId)))
+      .where(
+        and(
+          eq(inquiries.id, inquiryId),
+          eq(inquiries.businessId, businessId),
+          // A soft-deleted inquiry is out of the list; mutating it would
+          // only add a misleading activity row.
+          isNull(inquiries.deletedAt),
+        ),
+      )
       .limit(1);
 
     if (!existingInquiry) {
@@ -563,15 +613,20 @@ export async function changeInquiryStatusForBusiness({
         lockedReason: "archived" as const,
         previousStatus: existingInquiry.status,
         nextStatus: existingInquiry.status,
+        effectiveStatus: existingInquiry.effectiveStatus,
       };
     }
 
     if (existingInquiry.status === nextStatus) {
+      // Nothing to write. The visible status may still be derived (an open
+      // inquiry with a past deadline reads as "overdue"), so the caller is
+      // told the status the owner actually sees.
       return {
         changed: false,
         locked: false,
         previousStatus: existingInquiry.status,
         nextStatus,
+        effectiveStatus: existingInquiry.effectiveStatus,
       };
     }
 
@@ -582,6 +637,14 @@ export async function changeInquiryStatusForBusiness({
         updatedAt: now,
       })
       .where(and(eq(inquiries.id, inquiryId), eq(inquiries.businessId, businessId)));
+
+    // Read the effective status back so the confirmation matches the badge
+    // the owner is about to see.
+    const [updatedInquiry] = await tx
+      .select({ effectiveStatus: getEffectiveInquiryStatus })
+      .from(inquiries)
+      .where(and(eq(inquiries.id, inquiryId), eq(inquiries.businessId, businessId)))
+      .limit(1);
 
     await tx.insert(activityLogs).values({
       id: activityId,
@@ -605,6 +668,7 @@ export async function changeInquiryStatusForBusiness({
       locked: false,
       previousStatus: existingInquiry.status,
       nextStatus,
+      effectiveStatus: updatedInquiry?.effectiveStatus ?? nextStatus,
     };
   });
 }
@@ -653,7 +717,15 @@ export async function updateInquiryFieldsForBusiness({
       })
       .from(inquiries)
       .innerJoin(businesses, eq(inquiries.businessId, businesses.id))
-      .where(and(eq(inquiries.id, inquiryId), eq(inquiries.businessId, businessId)))
+      .where(
+        and(
+          eq(inquiries.id, inquiryId),
+          eq(inquiries.businessId, businessId),
+          // A soft-deleted inquiry is out of the list; mutating it would
+          // only add a misleading activity row.
+          isNull(inquiries.deletedAt),
+        ),
+      )
       .limit(1);
 
     if (!existingInquiry) {
@@ -771,7 +843,15 @@ export async function archiveInquiryForBusiness({
       })
       .from(inquiries)
       .innerJoin(businesses, eq(inquiries.businessId, businesses.id))
-      .where(and(eq(inquiries.id, inquiryId), eq(inquiries.businessId, businessId)))
+      .where(
+        and(
+          eq(inquiries.id, inquiryId),
+          eq(inquiries.businessId, businessId),
+          // A soft-deleted inquiry is out of the list; mutating it would
+          // only add a misleading activity row.
+          isNull(inquiries.deletedAt),
+        ),
+      )
       .limit(1);
 
     if (!existingInquiry) {
@@ -847,7 +927,15 @@ export async function unarchiveInquiryForBusiness({
       })
       .from(inquiries)
       .innerJoin(businesses, eq(inquiries.businessId, businesses.id))
-      .where(and(eq(inquiries.id, inquiryId), eq(inquiries.businessId, businessId)))
+      .where(
+        and(
+          eq(inquiries.id, inquiryId),
+          eq(inquiries.businessId, businessId),
+          // A soft-deleted inquiry is out of the list; mutating it would
+          // only add a misleading activity row.
+          isNull(inquiries.deletedAt),
+        ),
+      )
       .limit(1);
 
     if (!existingInquiry) {

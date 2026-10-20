@@ -104,10 +104,17 @@ export async function searchInquiriesQuery(
     .limit(params.limit)
     .offset(params.offset);
 
-  // Get total count for pagination
+  // Get total count for pagination.
+  // The conditions may reference the joined `business_inquiry_forms` table
+  // (the serviceSlug filter), so the count query needs the same join —
+  // otherwise Postgres rejects the reference with 42P01.
   const [{ count }] = await db
     .select({ count: sql<number>`count(*)` })
     .from(inquiries)
+    .leftJoin(
+      businessInquiryForms,
+      eq(inquiries.businessInquiryFormId, businessInquiryForms.id),
+    )
     .where(and(...conditions));
 
   return {

@@ -2,6 +2,7 @@
 
 import {
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -193,8 +194,20 @@ export function PublicInquiryForm({
     value: string,
   ) {
     setContactHandle(normalizeInquiryContactHandleEditableValue(method, value));
-    queueMicrotask(syncCanSubmit);
   }
+
+  // Re-check validity whenever the contact method or handle changes.
+  // Switching to a non-email method reveals a newly required contact-handle
+  // field, and the handle is normalized on the way in — both change the
+  // form's validity without a user-typed change event. A microtask ran
+  // before React committed the new markup, so the check read the previous
+  // DOM and left the submit button enabled.
+  useEffect(() => {
+    // Reads the rendered form's validity, which only changes after React
+    // commits the new markup.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    syncCanSubmit();
+  }, [contactHandle, contactMethod, syncCanSubmit]);
 
   return (
     <>
@@ -281,7 +294,6 @@ export function PublicInquiryForm({
                       const nextMethod = value as InquiryContactMethod;
                       setContactMethod(nextMethod);
                       setContactHandle("");
-                      queueMicrotask(syncCanSubmit);
                     }}
                     aria-invalid={Boolean(getFieldMessage("customerContactMethod"))}
                   />
@@ -383,14 +395,24 @@ export function PublicInquiryForm({
           </FormSection>
         ) : null}
 
-        <div className="absolute left-[-10000px] top-auto h-px w-px overflow-hidden">
-          <label htmlFor="website">Leave this field empty</label>
+        {/*
+          Honeypot. Kept out of the accessibility tree and out of the
+          browser's autofill heuristics: a field that a screen reader can
+          reach, or that Chrome fills with a saved site URL, silently
+          discards a real customer's inquiry. The name deliberately
+          matches no autofill target.
+        */}
+        <div
+          aria-hidden="true"
+          className="absolute left-[-10000px] top-auto h-px w-px overflow-hidden"
+        >
+          <label htmlFor="company-fax-number">Leave this field empty</label>
           <input
-            id="website"
-            name="website"
+            id="company-fax-number"
+            name="company_fax_number"
             type="text"
             tabIndex={-1}
-            autoComplete="off"
+            autoComplete="new-password"
           />
         </div>
 
@@ -527,6 +549,9 @@ function ProjectField({
 }) {
   const inputName = getInquiryFormFieldInputName(field);
   const inputId = `inquiry-${inputName}`;
+  const labelId = `${inputId}-label`;
+  const isMultiSelect =
+    field.kind === "custom" && field.fieldType === "multi_select";
   const isWide =
     (field.kind === "system" && field.key === "details") ||
     (field.kind === "custom" &&
@@ -537,9 +562,17 @@ function ProjectField({
       className={cn(isWide && "sm:col-span-2")}
       data-invalid={Boolean(error) || undefined}
     >
-      <FieldLabel htmlFor={inputId}>
-        <FieldLabelText label={field.label} required={field.required} />
-      </FieldLabel>
+      {isMultiSelect ? (
+        // A multi-select is a group of checkboxes, not a single input, so
+        // the label references the group instead of a control.
+        <FieldLabel id={labelId}>
+          <FieldLabelText label={field.label} required={field.required} />
+        </FieldLabel>
+      ) : (
+        <FieldLabel htmlFor={inputId}>
+          <FieldLabelText label={field.label} required={field.required} />
+        </FieldLabel>
+      )}
       <FieldContent>
         {renderProjectInput({
           hasError: Boolean(error),
@@ -547,6 +580,7 @@ function ProjectField({
           inputId,
           inputName,
           isPending,
+          labelId,
         })}
         <FieldError errors={error ? [{ message: error }] : undefined} />
       </FieldContent>
@@ -560,12 +594,14 @@ function renderProjectInput({
   inputId,
   inputName,
   isPending,
+  labelId,
 }: {
   hasError: boolean;
   field: InquiryFormFieldDefinition;
   inputId: string;
   inputName: string;
   isPending: boolean;
+  labelId: string;
 }) {
   if (field.kind === "system") {
     if (field.key === "requestedDeadline") {
@@ -653,6 +689,7 @@ function renderProjectInput({
           disabled={isPending}
           inputId={inputId}
           inputName={inputName}
+          labelId={labelId}
           options={field.options ?? []}
         />
       );
@@ -863,16 +900,23 @@ function MultiSelectField({
   inputId,
   inputName,
   options,
+  labelId,
 }: {
   disabled: boolean;
   inputId: string;
   inputName: string;
+  labelId: string;
   options: Array<{ id: string; label: string; value: string }>;
 }) {
   const [checked, setChecked] = useState<Set<string>>(new Set());
 
   return (
-    <div className="grid gap-2 sm:grid-cols-2">
+    <div
+      aria-labelledby={labelId}
+      className="grid gap-2 sm:grid-cols-2"
+      id={inputId}
+      role="group"
+    >
       {options.map((option) => {
         const optionId = `${inputId}-${option.id}`;
         const isChecked = checked.has(option.value);

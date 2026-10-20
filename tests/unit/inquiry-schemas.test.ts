@@ -208,6 +208,9 @@ describe("inquiry validation schemas", () => {
       "details",
       "requestedDeadline",
       "budgetText",
+      // The quick-add editor renders an attachment section and submits a
+      // file with the form, so the field must survive the quick config.
+      "attachment",
     ]);
 
     const result = validateManualQuickInquirySubmission(
@@ -216,9 +219,11 @@ describe("inquiry validation schemas", () => {
     );
     const data = expectValidSubmission(result);
 
+    // The quick-add form shows an attachment section, so the snapshot
+    // records it. Nothing was attached here, so the value is empty.
     expect(data.submittedFieldSnapshot.fields).toEqual(
-      expect.not.arrayContaining([
-        expect.objectContaining({ id: "attachment" }),
+      expect.arrayContaining([
+        expect.objectContaining({ id: "attachment", value: null }),
       ]),
     );
   });

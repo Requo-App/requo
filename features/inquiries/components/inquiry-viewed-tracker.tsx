@@ -36,16 +36,8 @@ export function InquiryViewedTracker({
   inquiryId,
   isUnreadInitially,
 }: InquiryViewedTrackerProps) {
-  const { inquiryUnreadCount, setInquiryUnreadCount } = useNavBadges();
+  const { setInquiryUnreadCount } = useNavBadges();
   const firedForRef = useRef<string | null>(null);
-  // Latest badge value for the async action callback — the view effect
-  // below fires once per inquiry and must not re-run when the badge
-  // streams in, so the count is mirrored here instead of read in deps.
-  const unreadCountRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    unreadCountRef.current = inquiryUnreadCount;
-  }, [inquiryUnreadCount]);
 
   useEffect(() => {
     if (!isUnreadInitially || firedForRef.current === inquiryId) {
@@ -62,11 +54,12 @@ export function InquiryViewedTracker({
           return;
         }
 
-        const current = unreadCountRef.current;
-
-        if (typeof current === "number" && current > 0) {
-          setInquiryUnreadCount(current - 1);
-        }
+        // Use the updater form: two read receipts resolving in the same
+        // React batch would otherwise both read the same stale count and
+        // the badge would end up one too high.
+        setInquiryUnreadCount((current) =>
+          typeof current === "number" && current > 0 ? current - 1 : current,
+        );
       })
       .catch(() => {
         // Best-effort read receipt — the detail itself already rendered.

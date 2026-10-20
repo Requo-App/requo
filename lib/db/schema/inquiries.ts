@@ -142,6 +142,12 @@ export const inquiries = pgTable(
       table.escalated,
       table.createdAt,
     ),
+    // The admin console lists inquiries across every business, so none of
+    // the business-scoped indexes above can serve its filter or its
+    // `submitted_at DESC, id DESC` ordering.
+    index("inquiries_active_submitted_at_idx")
+      .on(table.submittedAt, table.id)
+      .where(sql`${table.deletedAt} is null`),
   ],
 );
 

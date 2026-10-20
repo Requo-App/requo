@@ -12,7 +12,7 @@ import type {
   AdminAiProviderId,
   AdminTargetType,
 } from "@/features/admin/constants";
-import type { InquiryStatus } from "@/features/inquiries/types";
+import type { InquiryRecordState, InquiryStatus } from "@/features/inquiries/types";
 import type { QuoteStatus } from "@/features/quotes/types";
 import type {
   InvoiceStatus,
@@ -336,6 +336,8 @@ export type AdminInquiryRow = {
   customerName: string;
   customerEmail: string | null;
   status: InquiryStatus;
+  /** Active or archived. Archiving writes `archivedAt`, not the status. */
+  recordState: InquiryRecordState;
   submittedAt: Date;
   businessId: string;
   businessName: string;

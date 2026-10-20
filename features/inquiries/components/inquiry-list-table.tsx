@@ -114,7 +114,8 @@ export function InquiryListTable({
                       {inquiry.hasDuplicateFlag ? (
                         <Copy
                           aria-label="Potential duplicate"
-                          className="size-3.5 shrink-0 text-amber-500"
+                          className="size-3.5 shrink-0 text-warning"
+                          role="img"
                         />
                       ) : null}
                     </div>

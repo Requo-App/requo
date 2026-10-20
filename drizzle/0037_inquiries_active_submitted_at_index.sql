@@ -1,0 +1,1 @@
+CREATE INDEX "inquiries_active_submitted_at_idx" ON "inquiries" USING btree ("submitted_at","id") WHERE "inquiries"."deleted_at" is null;

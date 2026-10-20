@@ -18,6 +18,7 @@ import { env } from "@/lib/env";
 
 export type PublicActionType =
   | "ai-file-import"
+  | "inquiry-attachment-download"
   | "public-inquiry-submit"
   | "public-quote-respond"
   | "public-quote-revision";

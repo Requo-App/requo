@@ -6,7 +6,12 @@
  */
 
 // ponytail: prefix denylist, tighten to an opt-in public flag if UGC volume grows
-const EXCLUDED_SLUG_PATTERN = /^(test|demo|sample|example|staging|dev|requo)|-test$/;
+//
+// `requo` is matched as a whole segment, not as a bare prefix: a business
+// slug like `requo-plumbing` is a real business and must stay in the
+// sitemap.
+const EXCLUDED_SLUG_PATTERN =
+  /^(test|demo|sample|example|staging|dev|requo)$|-test$/;
 
 export function isInquirySitemapSlugExcluded(slug: string): boolean {
   return EXCLUDED_SLUG_PATTERN.test(slug.toLowerCase());

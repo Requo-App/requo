@@ -13,8 +13,7 @@ import {
   type InquiryContactMethod,
   type InquirySubmittedFieldSnapshot,
   type InquirySubmittedFieldSnapshotField,
-} from "@/features/inquiries/form-config";
-import { isAcceptedFileType } from "@/lib/files";
+} from "@/features/inquiries/form-config";import { isAcceptedFileType } from "@/lib/files";
 import {
   coercePositiveInteger,
   emptyToUndefined,
@@ -398,12 +397,26 @@ function createPublicInquirySubmissionSchema(
   }
 
   if (config.contactFields.email?.enabled) {
-    shape.customerEmail = z.string().trim().min(1, "Enter your email address.").email("Enter a valid email address.");
+    shape.customerEmail = z
+      .string()
+      .trim()
+      .min(1, "Enter your email address.")
+      .email("Enter a valid email address.")
+      .max(320, "Email must be 320 characters or fewer.");
   }
 
   if (config.contactFields.preferredContact.enabled) {
-    shape.customerContactMethod = z.string().trim().min(1, "Choose a preferred contact method.");
-    shape.customerContactHandle = z.string().trim().optional().default("");
+    // The client offers a fixed set of contact methods, but the action is
+    // public — the value has to be re-checked against that set here.
+    shape.customerContactMethod = z.enum(inquiryContactMethods, {
+      error: () => "Choose a preferred contact method.",
+    });
+    shape.customerContactHandle = z
+      .string()
+      .trim()
+      .max(320, "Contact details must be 320 characters or fewer.")
+      .optional()
+      .default("");
   }
 
   for (const field of config.projectFields) {
@@ -632,6 +645,10 @@ const manualQuickInquiryFieldKeys = new Set([
   "requestedDeadline",
   "budgetText",
   "details",
+  // The quick-add editor renders an attachment section and submits a file
+  // with the form. Stripping the field here made that section unreachable
+  // and silently dropped the uploaded file.
+  "attachment",
 ]);
 
 export function createManualQuickInquiryFormConfig(

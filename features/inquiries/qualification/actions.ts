@@ -14,25 +14,27 @@ import { and, eq } from "drizzle-orm";
 
 /**
  * Dismiss a duplicate warning for an inquiry.
- * Validates business access before allowing dismissal.
- * Persists the dismissal so the warning does not reappear.
+ *
+ * Validates business access before allowing dismissal. Returns a failure
+ * result instead of throwing, so the caller can surface a message rather
+ * than an unhandled rejection.
  */
 export async function dismissDuplicateWarningAction(
   duplicateId: string,
   businessId: string,
   inquiryId: string,
-): Promise<void> {
+): Promise<{ error?: string }> {
   const ownerAccess = await getWorkspaceBusinessActionContext();
 
   if (!ownerAccess.ok) {
-    throw new Error(ownerAccess.error);
+    return { error: ownerAccess.error };
   }
 
   const { user, businessContext } = ownerAccess;
 
   // Ensure the user's active business matches the requested businessId
   if (businessContext.business.id !== businessId) {
-    throw new Error("You do not have access to that business action.");
+    return { error: "You do not have access to that business action." };
   }
 
   await db
@@ -45,6 +47,10 @@ export async function dismissDuplicateWarningAction(
       and(
         eq(inquiryDuplicates.id, duplicateId),
         eq(inquiryDuplicates.businessId, businessId),
+        // Bind the duplicate to the inquiry it is being dismissed for, so a
+        // caller cannot dismiss one record while invalidating another
+        // inquiry's cache.
+        eq(inquiryDuplicates.inquiryId, inquiryId),
       ),
     );
 
@@ -55,4 +61,6 @@ export async function dismissDuplicateWarningAction(
   for (const tag of tags) {
     updateTag(tag);
   }
+
+  return {};
 }

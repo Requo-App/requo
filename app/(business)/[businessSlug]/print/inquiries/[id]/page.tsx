@@ -49,7 +49,7 @@ export default async function InquiryPrintPage({
     <PrintPageShell
       backHref={getBusinessInquiryPath(resolvedParams.businessSlug, inquiry.id)}
       backLabel="Back to inquiry"
-      description="Submitted inquiry content only. Internal notes, activity, AI, and status controls are intentionally omitted."
+      description="Submitted inquiry content only. Internal notes, activity, AI content, and the status controls are intentionally omitted."
       title={`Inquiry ${inquiry.id}`}
     >
       <InquiryPrintDocument
