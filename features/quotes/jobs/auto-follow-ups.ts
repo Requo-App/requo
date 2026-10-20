@@ -109,6 +109,8 @@ export async function processQuoteAutoFollowUps(): Promise<AutoFollowUpsSummary>
     .where(
       and(
         eq(quotes.status, "sent"),
+        // Exclude expired quotes before they can consume the candidate limit.
+        sql`${quotes.validUntil} >= (${now.toISOString()}::timestamptz AT TIME ZONE ${businesses.timezone})::date`,
         eq(quotes.autoFollowUpEnabled, true),
         isNull(quotes.autoFollowUpStoppedAt),
         isNull(quotes.publicViewedAt),

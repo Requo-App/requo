@@ -60,12 +60,14 @@ const adminQuoteColumns: AdminDataTableColumn<AdminQuoteRow>[] = [
     header: "Status",
     width: "w-[12rem]",
     align: "center",
-    cell: (row) =>
-      row.recordState === "archived" ? (
-        <QuoteRecordStateBadge state="archived" />
-      ) : (
+    cell: (row) => (
+      <div className="flex flex-wrap items-center justify-center gap-2">
         <QuoteStatusBadge status={row.status} />
-      ),
+        {row.recordState === "archived" && (
+          <QuoteRecordStateBadge state="archived" />
+        )}
+      </div>
+    ),
   },
   {
     id: "total",
@@ -145,12 +147,14 @@ export function AdminQuotesTable({
       mobileCard={(row) => ({
         title: `${row.quoteNumber} · ${row.customerName}`,
         subtitle: row.businessName,
-        statusBadge:
-          row.recordState === "archived" ? (
-            <QuoteRecordStateBadge state="archived" />
-          ) : (
+        statusBadge: (
+          <div className="flex flex-wrap items-center gap-2">
             <QuoteStatusBadge status={row.status} />
-          ),
+            {row.recordState === "archived" && (
+              <QuoteRecordStateBadge state="archived" />
+            )}
+          </div>
+        ),
         metadata: (
           <span>
             {formatAdminMoney(row.totalInCents, row.currency)} · Created{" "}

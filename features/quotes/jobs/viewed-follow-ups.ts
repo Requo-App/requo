@@ -3,7 +3,7 @@ import "server-only";
 import { and, eq, isNull, notExists, sql } from "drizzle-orm";
 
 import { createFollowUpForBusiness } from "@/features/follow-ups/mutations";
-import { getLocalDateString } from "@/features/follow-ups/utils";
+import { addCalendarDays, getLocalDateString } from "@/features/follow-ups/utils";
 import { db } from "@/lib/db/client";
 import { businesses, followUps, quotes } from "@/lib/db/schema";
 
@@ -72,9 +72,9 @@ export async function processQuoteViewedFollowUps(): Promise<QuoteViewedFollowUp
 
     // The delay window is evaluated in the business's own timezone.
     const today = getLocalDateString(new Date(), row.timezone);
-    const dueDate = getLocalDateString(
-      new Date(row.publicViewedAt.getTime() + row.followUpDelayDays * 24 * 60 * 60 * 1000),
-      row.timezone,
+    const dueDate = addCalendarDays(
+      getLocalDateString(row.publicViewedAt, row.timezone),
+      row.followUpDelayDays,
     );
 
     if (row.validUntil < today || dueDate > today) {

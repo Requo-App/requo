@@ -3,7 +3,7 @@ import "server-only";
 import { and, eq, gte, isNull, lte, notExists } from "drizzle-orm";
 
 import { insertBusinessNotification } from "@/features/notifications/mutations";
-import { getLocalDateString } from "@/features/follow-ups/utils";
+import { addCalendarDays, getLocalDateString } from "@/features/follow-ups/utils";
 import { db } from "@/lib/db/client";
 import { businessNotifications, businesses, quotes } from "@/lib/db/schema";
 
@@ -22,12 +22,10 @@ export async function processQuoteExpiringSoon(): Promise<QuoteExpiringSoonSumma
   // The window is evaluated per business in the business's own timezone: a
   // quote expiring "today" in UTC+13 is still valid for hours after UTC has
   // already rolled over.
-  const widestHorizon = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000)
-    .toISOString()
-    .slice(0, 10);
-  const earliestToday = new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000)
-    .toISOString()
-    .slice(0, 10);
+  const utcToday = getLocalDateString(now, "UTC");
+  // Business-local today can be a day ahead of UTC; include its two-day horizon.
+  const widestHorizon = addCalendarDays(utcToday, 3);
+  const earliestToday = addCalendarDays(utcToday, -1);
 
   let processed = 0;
   let notified = 0;
@@ -69,10 +67,7 @@ export async function processQuoteExpiringSoon(): Promise<QuoteExpiringSoonSumma
 
   for (const row of expiringQuotes) {
     const today = getLocalDateString(now, row.timezone);
-    const expiryHorizon = getLocalDateString(
-      new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000),
-      row.timezone,
-    );
+    const expiryHorizon = addCalendarDays(today, 2);
 
     if (row.validUntil < today || row.validUntil > expiryHorizon) {
       // Outside the window in this business's own timezone.

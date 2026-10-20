@@ -228,7 +228,7 @@ describe("quote acceptance record", () => {
       actorUserId: ids.ownerUserId,
       currency: "USD",
       inquiryId: ids.inquiryId,
-      quote: quoteInput({ title: "Expired quote", validUntil: "2000-01-01" }),
+      quote: quoteInput({ title: "Expired quote" }),
     });
     const sent = await markQuoteSentForBusiness({
       businessId: ids.businessId,
@@ -236,6 +236,13 @@ describe("quote acceptance record", () => {
       actorUserId: ids.ownerUserId,
       sendMethod: "manual",
     });
+
+    expect(sent?.changed).toBe(true);
+
+    await testDb
+      .update(quotes)
+      .set({ validUntil: "2000-01-01" })
+      .where(eq(quotes.id, created!.id));
 
     const accepted = await respondToPublicQuoteByToken({
       token: sent!.publicToken!,

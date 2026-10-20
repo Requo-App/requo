@@ -172,6 +172,13 @@ export function getTodayDateStringInTimezone(timezone: string, now = new Date())
   }
 }
 
+/** Add calendar days to a YYYY-MM-DD date, independent of timezone and DST. */
+export function addCalendarDays(date: string, days: number): string {
+  const result = new Date(`${date}T00:00:00.000Z`);
+  result.setUTCDate(result.getUTCDate() + days);
+  return result.toISOString().slice(0, 10);
+}
+
 export function getFutureUtcDateString(daysAhead: number, now = new Date()) {
   return new Date(now.getTime() + daysAhead * 24 * 60 * 60 * 1000)
     .toISOString()

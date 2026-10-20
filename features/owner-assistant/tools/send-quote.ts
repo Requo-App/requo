@@ -6,7 +6,6 @@
  * record via that service.
  */
 
-import { updateTag } from "next/cache";
 import { tool } from "ai";
 import type { ToolExecutionOptions } from "ai";
 import { z } from "zod";
@@ -28,7 +27,7 @@ import {
   getBusinessInquiryDetailCacheTags,
   getBusinessQuoteDetailCacheTags,
   getBusinessQuoteListCacheTags,
-  uniqueCacheTags,
+  invalidateCacheTags,
 } from "@/lib/cache/business-tags";
 import { hasFeatureAccess } from "@/lib/plans";
 import { checkUsageAllowance } from "@/lib/plans/usage";
@@ -352,15 +351,13 @@ export async function executeSendQuote(
     if (!result.changed)
       return fail("Only active draft quotes can be sent.", `Quote ${result.quoteNumber} is ${result.status}`);
 
-    for (const tag of uniqueCacheTags([
+    invalidateCacheTags([
       ...getBusinessQuoteListCacheTags(business.id),
       ...getBusinessQuoteDetailCacheTags(business.id, quote.id),
       ...(result.inquiryId
         ? getBusinessInquiryDetailCacheTags(business.id, result.inquiryId)
         : []),
-    ])) {
-      updateTag(tag);
-    }
+    ]);
 
     // markQuoteSentForBusiness already writes the audit record.
     return {

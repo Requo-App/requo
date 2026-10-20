@@ -1649,7 +1649,7 @@ export async function respondToPublicQuoteByToken({
         ),
       )
       .limit(1)
-      .for("update");
+      .for("update", { of: quotes });
 
     if (!existingQuote) {
       return null;
@@ -2460,7 +2460,7 @@ export async function requestQuoteRevisionByToken({
         ),
       )
       .limit(1)
-      .for("update");
+      .for("update", { of: quotes });
 
     if (!existingQuote) {
       return null;
