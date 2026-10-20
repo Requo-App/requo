@@ -88,6 +88,9 @@ Chart rules:
   with no elevation, so a page of cards reads as one plane.
 - Cards in one row share a height. The plot fills its card, and the table
   view scrolls inside the card, so switching between them never resizes it.
+- A stat grid follows the card it lives in, not the viewport: a half-width
+  card splits its stats into two columns at the card's width, so a narrow card
+  never squeezes two numbers into one column.
 
 ### Typography Scale
 

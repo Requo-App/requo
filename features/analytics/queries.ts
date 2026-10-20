@@ -80,6 +80,7 @@ import type {
   FollowUpEffectivenessData,
   FollowUpCohort,
   FollowUpHealthData,
+  FirstResponseMetric,
   KnowledgeData,
   OperationsData,
   OverviewData,
@@ -159,6 +160,7 @@ function emptyOverviewPeriod(): OverviewPeriod {
     winRate: 0,
     acceptanceRate: 0,
     revenueWonInCents: 0,
+    quotesWon: 0,
     quotedValueInCents: 0,
     collectedInCents: 0,
     invoicedInCents: 0,
@@ -377,7 +379,7 @@ async function loadLiveDayDaily(
 }
 
 /**
- * Live per-day metrics for a window.
+ * Live per-day metrics for the days the rollup has not covered.
  *
  * `analytics_daily_rollups` only covers the days the nightly rollup job has
  * processed. Anything the job has not reached yet — a workspace seeded with
@@ -385,14 +387,26 @@ async function loadLiveDayDaily(
  * flat zero series. This query mirrors the rollup's definitions and is used
  * to fill the days the rollup is missing, so the trend chart always shows the
  * activity that actually happened.
+ *
+ * Every metric joins onto one date spine, so a day always lands on exactly
+ * one row with all of its numbers. Chaining `full outer join`s instead split
+ * a day without a form view across several rows, and the reader kept only
+ * the last of them.
+ *
+ * `dates` is the ascending list of `YYYY-MM-DD` days to read.
  */
 async function loadLiveDailies(
   businessId: string,
-  since: Date,
-  until: Date,
+  dates: string[],
 ): Promise<Map<string, DailyMetricRow>> {
-  const sinceIso = since.toISOString();
-  const untilIso = until.toISOString();
+  if (dates.length === 0) return new Map();
+
+  // One comma-joined parameter, split back into the day list in Postgres.
+  const dateList = dates.join(",");
+  // The scan is bounded to the requested span; the spine keeps the exact
+  // days so a sparse list does not pull in the days between them.
+  const rangeStart = `${dates[0]!}T00:00:00.000Z`;
+  const rangeEnd = `${toIso(addUtcDays(new Date(`${dates[dates.length - 1]!}T00:00:00Z`), 1))}T00:00:00.000Z`;
 
   const rows = await executeRows<{
     date: string;
@@ -404,7 +418,10 @@ async function loadLiveDailies(
     quotes_rejected: string | number;
     revenue_cents: string | number;
   }>(sql`
-    with view_days as (
+    with dates as (
+      select unnest(string_to_array(${dateList}, ',')) as date
+    ),
+    view_days as (
       select
         to_char(deduped.occurred_at::date, 'YYYY-MM-DD') as date,
         count(*)::int as form_views,
@@ -417,8 +434,8 @@ async function loadLiveDailies(
         where ${analyticsEvents.businessId} = ${businessId}
           and ${analyticsEvents.eventType} = 'inquiry_form_viewed'
           and ${analyticsEvents.businessInquiryFormId} is not null
-          and ${analyticsEvents.occurredAt} >= ${sinceIso}
-          and ${analyticsEvents.occurredAt} < ${untilIso}
+          and ${analyticsEvents.occurredAt} >= ${rangeStart}
+          and ${analyticsEvents.occurredAt} < ${rangeEnd}
         group by 1, 2
       ) deduped
       group by 1
@@ -430,8 +447,8 @@ async function loadLiveDailies(
       from ${inquiries}
       where ${inquiries.businessId} = ${businessId}
         and ${inquiries.deletedAt} is null
-        and ${inquiries.submittedAt} >= ${sinceIso}
-        and ${inquiries.submittedAt} < ${untilIso}
+        and ${inquiries.submittedAt} >= ${rangeStart}
+        and ${inquiries.submittedAt} < ${rangeEnd}
       group by 1
     ),
     sent_days as (
@@ -442,8 +459,8 @@ async function loadLiveDailies(
       where ${quotes.businessId} = ${businessId}
         and ${quotes.deletedAt} is null
         and ${quotes.sentAt} is not null
-        and ${quotes.sentAt} >= ${sinceIso}
-        and ${quotes.sentAt} < ${untilIso}
+        and ${quotes.sentAt} >= ${rangeStart}
+        and ${quotes.sentAt} < ${rangeEnd}
       group by 1
     ),
     accepted_days as (
@@ -455,8 +472,8 @@ async function loadLiveDailies(
       where ${quotes.businessId} = ${businessId}
         and ${quotes.deletedAt} is null
         and ${quotes.status} = 'accepted'
-        and ${quotes.acceptedAt} >= ${sinceIso}
-        and ${quotes.acceptedAt} < ${untilIso}
+        and ${quotes.acceptedAt} >= ${rangeStart}
+        and ${quotes.acceptedAt} < ${rangeEnd}
       group by 1
     ),
     rejected_days as (
@@ -468,24 +485,26 @@ async function loadLiveDailies(
         and ${quotes.deletedAt} is null
         and ${quotes.status} = 'rejected'
         and ${quotes.customerRespondedAt} is not null
-        and ${quotes.customerRespondedAt} >= ${sinceIso}
-        and ${quotes.customerRespondedAt} < ${untilIso}
+        and ${quotes.customerRespondedAt} >= ${rangeStart}
+        and ${quotes.customerRespondedAt} < ${rangeEnd}
       group by 1
     )
     select
-      coalesce(view_days.date, inquiry_days.date, sent_days.date, accepted_days.date, rejected_days.date) as date,
-      coalesce(view_days.form_views, 0)::int as form_views,
-      coalesce(view_days.unique_visitors, 0)::int as unique_visitors,
-      coalesce(inquiry_days.inquiry_submissions, 0)::int as inquiry_submissions,
-      coalesce(sent_days.quotes_sent, 0)::int as quotes_sent,
-      coalesce(accepted_days.quotes_accepted, 0)::int as quotes_accepted,
-      coalesce(rejected_days.quotes_rejected, 0)::int as quotes_rejected,
-      coalesce(accepted_days.revenue_cents, 0)::bigint as revenue_cents
-    from view_days
-    full outer join inquiry_days on inquiry_days.date = view_days.date
-    full outer join sent_days on sent_days.date = view_days.date
-    full outer join accepted_days on accepted_days.date = view_days.date
-    full outer join rejected_days on rejected_days.date = view_days.date
+      d.date,
+      coalesce(v.form_views, 0)::int as form_views,
+      coalesce(v.unique_visitors, 0)::int as unique_visitors,
+      coalesce(i.inquiry_submissions, 0)::int as inquiry_submissions,
+      coalesce(s.quotes_sent, 0)::int as quotes_sent,
+      coalesce(a.quotes_accepted, 0)::int as quotes_accepted,
+      coalesce(r.quotes_rejected, 0)::int as quotes_rejected,
+      coalesce(a.revenue_cents, 0)::bigint as revenue_cents
+    from dates d
+    left join view_days v on v.date = d.date
+    left join inquiry_days i on i.date = d.date
+    left join sent_days s on s.date = d.date
+    left join accepted_days a on a.date = d.date
+    left join rejected_days r on r.date = d.date
+    order by d.date
   `);
 
   const map = new Map<string, DailyMetricRow>();
@@ -509,7 +528,8 @@ async function loadLiveDailies(
  * Fills the days the rollup has not processed with live source-table numbers.
  *
  * The rollup stays the fast path; this only runs when the window contains
- * days the job never covered.
+ * days the job never covered. Only those days are read — the rollup's own
+ * numbers are left alone.
  */
 async function fillMissingRollupDays(
   businessId: string,
@@ -525,19 +545,20 @@ async function fillMissingRollupDays(
   // read live.
   const lastCompleted = todayIso < untilIso ? todayIso : untilIso;
 
-  let expected = 0;
-  for (let cursor = sinceIso; cursor < lastCompleted; cursor = toIso(addUtcDays(new Date(`${cursor}T00:00:00Z`), 1))) {
-    expected += 1;
+  // The rollup writes a row for every business on every day it has processed,
+  // so a missing row means the job never reached that day.
+  const missing: string[] = [];
+  for (
+    let cursor = sinceIso;
+    cursor < lastCompleted;
+    cursor = toIso(addUtcDays(new Date(`${cursor}T00:00:00Z`), 1))
+  ) {
+    if (!dailies.has(cursor)) missing.push(cursor);
   }
 
-  let covered = 0;
-  for (const date of dailies.keys()) {
-    if (date >= sinceIso && date < lastCompleted) covered += 1;
-  }
+  if (missing.length === 0) return;
 
-  if (expected === 0 || covered >= expected) return;
-
-  const live = await loadLiveDailies(businessId, since, until);
+  const live = await loadLiveDailies(businessId, missing);
   for (const [date, row] of live) {
     if (!dailies.has(date)) {
       dailies.set(date, row);
@@ -721,8 +742,10 @@ export async function getOverviewPeriodRows(
           and ${quotes.sentAt} >= ${sinceIso}
           and ${quotes.sentAt} < ${untilIso}
       `),
-      executeRows<{ value: string | number }>(sql`
-        select coalesce(sum(${quotes.totalInCents}), 0)::bigint as value
+      executeRows<{ accepted: string | number; value: string | number }>(sql`
+        select
+          count(*)::int as accepted,
+          coalesce(sum(${quotes.totalInCents}), 0)::bigint as value
         from ${quotes}
         where ${quotes.businessId} = ${businessId}
           and ${quotes.deletedAt} is null
@@ -768,6 +791,8 @@ export async function getOverviewPeriodRows(
     winRate: rate(accepted, accepted + rejected + expired),
     acceptanceRate: rate(accepted, sent),
     revenueWonInCents: num(acceptedRows[0]?.value),
+    /** Quotes accepted in the period — the same population as the revenue. */
+    quotesWon: num(acceptedRows[0]?.accepted),
     quotedValueInCents: num(quoteRows[0]?.quoted_value),
     collectedInCents: num(collectedRows[0]?.collected),
     invoicedInCents: num(invoicedRows[0]?.invoiced),
@@ -1035,8 +1060,8 @@ async function computeOverviewData(
     arAging,
     attention,
     usage,
-    firstResponseHours,
-    priorFirstResponseHours,
+    firstResponse,
+    priorFirstResponse,
   ] = await Promise.all([
     getOverviewPeriodRows(businessId, window.since, window.until),
     window.comparison
@@ -1047,9 +1072,13 @@ async function computeOverviewData(
     getArAging(businessId),
     getOverviewAttention(businessId, businessSlug),
     getOverviewUsageMeters(businessId, meta.plan),
-    getFirstResponseHours(businessId, window.since, window.until),
+    getFirstResponseMetric(businessId, window.since, window.until),
     window.comparison
-      ? getFirstResponseHours(businessId, window.comparison.since, window.comparison.until)
+      ? getFirstResponseMetric(
+          businessId,
+          window.comparison.since,
+          window.comparison.until,
+        )
       : Promise.resolve(null),
   ]);
 
@@ -1122,8 +1151,8 @@ async function computeOverviewData(
     currency: meta.currency,
     current,
     prior: window.comparison ? period : null,
-    firstResponseHours,
-    priorFirstResponseHours,
+    firstResponse,
+    priorFirstResponse,
     series,
     funnel,
     outcomes,
@@ -1387,33 +1416,72 @@ export type TimingWindow = {
 };
 
 /**
- * Average hours from an inquiry being submitted to the first team response.
+ * The activity types that count as a reply to the customer.
+ *
+ * A response is the team getting back to the customer: a note, a status
+ * change, a quote drafted or sent, or work marked complete. Bookkeeping
+ * entries (archiving, deleting) are not replies.
+ */
+const FIRST_RESPONSE_ACTIVITY_TYPES = [
+  "inquiry.note_added",
+  "inquiry.status_changed",
+  "inquiry.updated",
+  "quote.created",
+  "quote.sent",
+  "quote.revised",
+  "quote.work_completed",
+];
+
+/**
+ * Time from an inquiry being submitted to the first team response, plus the
+ * number of inquiries the measure is based on.
+ *
+ * Unanswered inquiries are counted, not dropped: averaging over the answered
+ * ones alone makes the number look better as the service gets worse, so the
+ * response rate is part of the measure.
  *
  * One query, so the Overview KPI strip can show first-response time without
  * paying for the full turnaround set.
  */
-export async function getFirstResponseHours(
+export async function getFirstResponseMetric(
   businessId: string,
   since: Date,
   until: Date,
-): Promise<number | null> {
-  const rows = await executeRows<{ hours: string | number | null }>(sql`
-    select avg(extract(epoch from (response.first_response_at - ${inquiries.submittedAt})) / 3600) as hours
+): Promise<FirstResponseMetric> {
+  const sinceIso = since.toISOString();
+  const untilIso = until.toISOString();
+
+  const rows = await executeRows<{
+    hours: string | number | null;
+    answered: string | number;
+    total: string | number;
+  }>(sql`
+    select
+      avg(extract(epoch from (response.first_response_at - ${inquiries.submittedAt})) / 3600) as hours,
+      count(response.inquiry_id)::int as answered,
+      count(*)::int as total
     from ${inquiries}
-    inner join (
+    left join (
       select ${activityLogs.inquiryId} as inquiry_id, min(${activityLogs.createdAt}) as first_response_at
       from ${activityLogs}
       where ${activityLogs.businessId} = ${businessId}
         and ${activityLogs.actorUserId} is not null
         and ${activityLogs.inquiryId} is not null
-        group by ${activityLogs.inquiryId}
+        and ${activityLogs.type} in ${FIRST_RESPONSE_ACTIVITY_TYPES.map((type) => sql`${type}`)}
+        and ${activityLogs.createdAt} >= ${sinceIso}
+      group by ${activityLogs.inquiryId}
     ) response on response.inquiry_id = ${inquiries.id}
     where ${inquiries.businessId} = ${businessId}
-      and ${inquiries.submittedAt} >= ${since.toISOString()}
-      and ${inquiries.submittedAt} < ${until.toISOString()}
+      and ${inquiries.deletedAt} is null
+      and ${inquiries.submittedAt} >= ${sinceIso}
+      and ${inquiries.submittedAt} < ${untilIso}
   `);
 
-  return numOrNull(rows[0]?.hours);
+  return {
+    hours: numOrNull(rows[0]?.hours),
+    answered: num(rows[0]?.answered),
+    total: num(rows[0]?.total),
+  };
 }
 
 export async function getTimingForWindow(
@@ -1434,9 +1502,12 @@ export async function getTimingForWindow(
         where ${activityLogs.businessId} = ${businessId}
           and ${activityLogs.actorUserId} is not null
           and ${activityLogs.inquiryId} is not null
+          and ${activityLogs.type} in ${FIRST_RESPONSE_ACTIVITY_TYPES.map((type) => sql`${type}`)}
+          and ${activityLogs.createdAt} >= ${sinceIso}
         group by ${activityLogs.inquiryId}
       ) response on response.inquiry_id = ${inquiries.id}
       where ${inquiries.businessId} = ${businessId}
+        and ${inquiries.deletedAt} is null
         and ${inquiries.submittedAt} >= ${sinceIso}
         and ${inquiries.submittedAt} < ${untilIso}
     `),
@@ -1449,6 +1520,7 @@ export async function getTimingForWindow(
         where ${quotes.businessId} = ${businessId}
           and ${quotes.deletedAt} is null
           and ${quotes.inquiryId} is not null
+          and ${quotes.createdAt} >= ${sinceIso}
         group by ${quotes.inquiryId}
       ) quoted on quoted.inquiry_id = ${inquiries.id}
       where ${inquiries.businessId} = ${businessId}

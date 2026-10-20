@@ -101,7 +101,7 @@ export function RevenueChart({
         style={{ minHeight: height }}
         role="img"
         aria-label={ariaLabel}
-        tabIndex={0}
+        tabIndex={-1}
       >
         <ComposedChart data={data} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
           <CartesianGrid

@@ -90,20 +90,23 @@ export function Stat({
  *
  * Cells touch: row spacing comes from cell padding, not a grid gap, so the
  * vertical rules run continuously through every row instead of breaking at
- * each horizontal rule. Use `layout="container"` when the grid lives in a
- * card that can be half-width, so columns follow the card rather than the
- * viewport.
+ * each horizontal rule.
+ *
+ * The grid follows the card it lives in (`layout="container"`), so a stat
+ * grid in a half-width card splits into two columns at the card's width
+ * rather than the viewport's. Pass `layout="viewport"` only for a grid that
+ * is not inside a container.
  */
 export function StatGrid({
   children,
   columns = 2,
-  layout = "viewport",
+  layout = "container",
   className,
 }: {
   children: ReactNode;
   /** Columns at the widest breakpoint; narrower breakpoints use fewer. */
   columns?: 2 | 3 | 4;
-  /** Respond to the viewport (default) or the surrounding container. */
+  /** Respond to the surrounding card (default) or the viewport. */
   layout?: "viewport" | "container";
   className?: string;
 }) {

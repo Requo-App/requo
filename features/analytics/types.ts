@@ -173,6 +173,8 @@ export type OverviewPeriod = {
   /** accepted ÷ quotes sent. */
   acceptanceRate: number;
   revenueWonInCents: number;
+  /** Quotes accepted in the period — the same population as the revenue. */
+  quotesWon: number;
   quotedValueInCents: number;
   collectedInCents: number;
   invoicedInCents: number;
@@ -192,15 +194,30 @@ export type OverviewReceivables = {
   overdueCount: number;
 };
 
+/**
+ * Time from an inquiry being submitted to the first team response.
+ *
+ * The unanswered inquiries are part of the measure, so a reader can see how
+ * much of the window the average is based on.
+ */
+export type FirstResponseMetric = {
+  /** Average hours to the first team response; null when nothing was answered. */
+  hours: number | null;
+  /** Inquiries in the window that got at least one team response. */
+  answered: number;
+  /** Inquiries in the window. */
+  total: number;
+};
+
 export type OverviewData = {
   currency: string;
   current: OverviewPeriod;
   /** null for Free and all-time (no comparable prior window). */
   prior: OverviewPeriod | null;
-  /** Average hours from inquiry to the first team response; null when unknown. */
-  firstResponseHours: number | null;
+  /** Time to the first team response, with the number of inquiries behind it. */
+  firstResponse: FirstResponseMetric;
   /** The same measure for the comparison window. */
-  priorFirstResponseHours: number | null;
+  priorFirstResponse: FirstResponseMetric | null;
   series: AnalyticsSeriesPoint[];
   funnel: AnalyticsFunnelStep[];
   outcomes: AnalyticsOutcomeSlice[];

@@ -87,6 +87,9 @@ export function AnalyticsTooltip({
   if (rows.length === 0) return null;
 
   return (
+    // `pointer-events-none` keeps the tooltip from stealing the pointer from
+    // the chart, so it cannot follow the cursor while the cursor is on it.
+    // The numbers are copyable from the chart's Table view.
     <div className="pointer-events-none min-w-40 rounded-lg border border-border/60 bg-popover px-2.5 py-2 text-xs shadow-sm motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-150 motion-safe:ease-[var(--motion-ease-standard)]">
       <p className="mb-1.5 font-medium text-foreground">
         {labelFormatter ? labelFormatter(label) : label}

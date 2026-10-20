@@ -16,6 +16,7 @@ import {
   getDeltaSentiment,
 } from "@/features/analytics/lib/format";
 import { getInvoicesListHref } from "@/features/analytics/lib/links";
+import { averageWonInCents } from "@/features/analytics/lib/kpi";
 import type { AnalyticsWindow } from "@/features/analytics/lib/window";
 import type { OverviewData } from "@/features/analytics/types";
 import type { BusinessPlan } from "@/lib/plans";
@@ -73,21 +74,13 @@ export async function OverviewEmptyGuard(props: OverviewSectionProps) {
   return null;
 }
 
-/** Average value of the won quotes in a period, in cents. */
-function averageWonInCents(
-  revenueInCents: number,
-  quotesAccepted: number,
-): number {
-  if (quotesAccepted <= 0) return 0;
-  return Math.round(revenueInCents / quotesAccepted);
-}
-
+/** The KPI tiles for the overview strip. */
 function buildKpiStats(
   data: OverviewData,
   window: AnalyticsWindow,
   businessSlug: string,
 ): AnalyticsKpiStat[] {
-  const { current, prior, series, currency, firstResponseHours } = data;
+  const { current, prior, series, currency, firstResponse } = data;
   const compare = prior !== null;
   const caption = compare ? "vs previous period" : window.label;
 
@@ -112,12 +105,14 @@ function buildKpiStats(
       )
     : null;
 
+  // Won value and the quote count behind it come from the same population:
+  // quotes accepted inside the selected period.
   const avgWon = averageWonInCents(
     current.revenueWonInCents,
-    current.quotesAccepted,
+    current.quotesWon,
   );
   const priorAvgWon = prior
-    ? averageWonInCents(prior.revenueWonInCents, prior.quotesAccepted)
+    ? averageWonInCents(prior.revenueWonInCents, prior.quotesWon)
     : 0;
   const avgWonDelta = compare
     ? formatRelativeDelta(avgWon, priorAvgWon, (value) =>
@@ -126,8 +121,14 @@ function buildKpiStats(
     : null;
 
   const responseDelta = compare
-    ? formatSpeedDelta(firstResponseHours, data.priorFirstResponseHours)
+    ? formatSpeedDelta(firstResponse.hours, data.priorFirstResponse?.hours ?? null)
     : null;
+
+  // The average only covers the inquiries that got a reply — say so.
+  const responseCaption =
+    firstResponse.total > 0
+      ? `${formatNumber(firstResponse.answered)} of ${formatNumber(firstResponse.total)} answered`
+      : caption;
 
   return [
     {
@@ -178,7 +179,7 @@ function buildKpiStats(
       value: formatMoney(current.revenueWonInCents, currency),
       href: `/${businessSlug}/quotes?status=accepted`,
       caption,
-      hint: "Total value of quotes accepted in the selected period.",
+      hint: "Total value of quotes accepted in the selected period, including quotes sent before it.",
       delta: revenueDelta?.label,
       deltaDirection: revenueDelta?.direction,
       deltaSentiment: revenueDelta
@@ -192,7 +193,7 @@ function buildKpiStats(
       label: "Avg won deal",
       value: formatMoney(avgWon, currency),
       caption,
-      hint: "Won value ÷ accepted quotes in the selected period.",
+      hint: "Won value ÷ quotes accepted in the selected period.",
       delta: avgWonDelta?.label,
       deltaDirection: avgWonDelta?.direction,
       deltaSentiment: avgWonDelta
@@ -202,9 +203,9 @@ function buildKpiStats(
     {
       key: "first-response",
       label: "First response",
-      value: formatDuration(firstResponseHours),
-      caption,
-      hint: "Average time from an inquiry being submitted to the first team response. Lower is better.",
+      value: formatDuration(firstResponse.hours),
+      caption: compare ? `${responseCaption} · ${caption}` : responseCaption,
+      hint: "Average time from an inquiry being submitted to the first team response. Lower is better. Counts only the inquiries that got a reply.",
       delta: responseDelta?.label,
       deltaDirection: responseDelta?.direction,
       deltaSentiment: responseDelta
@@ -463,7 +464,7 @@ export async function OverviewOutcomesCard(props: OverviewSectionProps) {
       className={analyticsCol(6)}
       title="Quote outcomes"
       description="How customers responded to the quotes sent in this period."
-      info="Every quote sent in the period, split by the response it received. Values are the money behind each outcome."
+      info="Every quote sent in the period, split by the response it received. The value is the money behind each outcome — a quote sent earlier and accepted now lands under Revenue won instead."
       footer={
         <>
           <span>
@@ -554,7 +555,7 @@ export async function OverviewLiveCards(props: OverviewSectionProps) {
           </>
         }
       >
-        <StatGrid>
+        <StatGrid columns={2}>
           <Stat
             label="Outstanding"
             value={formatMoney(receivables.outstandingInCents, currency)}
@@ -590,7 +591,6 @@ export async function OverviewUsageCard(props: OverviewSectionProps) {
 
   return (
     <AnalyticsCard
-      className={analyticsCol(12)}
       title="Plan usage this month"
       description="Allowances reset at the start of each calendar month."
     >

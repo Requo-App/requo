@@ -95,7 +95,7 @@ export function TeamActivityChart({
         className="aspect-auto h-52 w-full sm:h-[260px]"
         role="img"
         aria-label={ariaLabel}
-        tabIndex={0}
+        tabIndex={-1}
       >
         <BarChart data={data} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
           <CartesianGrid

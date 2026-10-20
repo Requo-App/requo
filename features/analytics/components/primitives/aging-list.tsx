@@ -7,6 +7,10 @@ import { BarList, type BarListItem } from "./bar-list";
  * Aging buckets shift from the accent for the newest bucket to warning and
  * then danger as records age, so the list carries its own severity signal.
  * The colour never stands alone — the bucket label states the age.
+ *
+ * The colour follows the bucket's age, not its position among the buckets
+ * that have something in them: a 90-day bucket stays danger-red even when
+ * every younger bucket is empty.
  */
 const AGE_LADDER = ["bg-primary", "bg-warning", "bg-destructive"];
 
@@ -36,21 +40,27 @@ export function AgingList({
   emptyLabel?: string;
   className?: string;
 }) {
-  const filled = buckets.filter(
-    (bucket) => bucket.count > 0 || bucket.valueInCents > 0,
+  const filled = buckets
+    .map((bucket, index) => ({ bucket, index }))
+    .filter(
+      ({ bucket }) => bucket.count > 0 || bucket.valueInCents > 0,
+    );
+  const total = filled.reduce(
+    (sum, { bucket }) => sum + bucket.valueInCents,
+    0,
   );
-  const total = filled.reduce((sum, bucket) => sum + bucket.valueInCents, 0);
 
   if (filled.length === 0 || total === 0) {
     return <p className="text-sm text-muted-foreground">{emptyLabel}</p>;
   }
 
-  const items: BarListItem[] = filled.map((bucket, index) => ({
+  const items: BarListItem[] = filled.map(({ bucket, index }) => ({
     key: bucket.label,
     label: bucket.label,
     value: formatMoney(bucket.valueInCents, currency),
     share: total > 0 ? bucket.valueInCents / total : 0,
-    fillClassName: fillFor(index, filled.length),
+    // The ladder spans every bucket, so the colour tracks the age.
+    fillClassName: fillFor(index, buckets.length),
     meta: `${formatNumber(bucket.count)} ${
       bucket.count === 1 ? "record" : "records"
     }`,

@@ -41,6 +41,35 @@ vi.mock("next/link", () => ({
  * covered by the query tests and route checks instead.
  */
 
+/** The stat grid's cells, in order. */
+function statCells(container: HTMLElement): Element[] {
+  const grid = container.firstElementChild;
+  if (!grid) throw new Error("Expected a stat grid.");
+  return Array.from(grid.children);
+}
+
+/**
+ * Whether a cell draws a rule at one breakpoint.
+ *
+ * `variant` is the breakpoint variant without its colon (`""` for the base
+ * one, `"@[24rem]"` for a container query). A cell declares either the rule
+ * or its absence at each breakpoint, so the last matching class is the
+ * effective one.
+ */
+function hasRule(
+  cell: Element,
+  variant: string,
+  side: "border-t" | "border-l",
+): boolean {
+  const prefix = variant ? `${variant}:` : "";
+  const classes = Array.from(cell.classList);
+  const matches = classes.filter(
+    (name) => name === `${prefix}${side}` || name === `${prefix}${side}-0`,
+  );
+  if (matches.length === 0) return false;
+  return matches[matches.length - 1] === `${prefix}${side}`;
+}
+
 describe("DeltaBadge", () => {
   it("renders nothing without a delta", () => {
     const { container } = render(<DeltaBadge delta={null} />);
@@ -96,14 +125,58 @@ describe("Stat", () => {
         <Stat label="Two" value="2" />
       </StatGrid>,
     );
-    expect(container.querySelectorAll("[class*='border-l']").length).toBeGreaterThan(
-      0,
-    );
+
+    const cells = statCells(container);
+    // The second cell starts a row of its own on a phone, so it carries the
+    // horizontal rule; the first cell is flush with the top.
+    expect(hasRule(cells[1]!, "", "border-t")).toBe(true);
+    expect(hasRule(cells[0]!, "", "border-t")).toBe(false);
+    // Nothing sits beside the first cell, so no vertical rule.
+    expect(hasRule(cells[1]!, "", "border-l")).toBe(false);
   });
 
-  it("can follow its card container instead of the viewport", () => {
+  it("draws the vertical rule between the columns of a row", () => {
     const { container } = render(
-      <StatGrid columns={4} layout="container">
+      <StatGrid columns={2}>
+        <Stat label="One" value="1" />
+        <Stat label="Two" value="2" />
+        <Stat label="Three" value="3" />
+        <Stat label="Four" value="4" />
+      </StatGrid>,
+    );
+
+    const cells = statCells(container);
+    // Two columns once the card is wide enough.
+    expect(hasRule(cells[1]!, "@[24rem]", "border-l")).toBe(true);
+    expect(hasRule(cells[0]!, "@[24rem]", "border-l")).toBe(false);
+    // The second row starts below the first, so it carries the top rule.
+    expect(hasRule(cells[2]!, "@[24rem]", "border-t")).toBe(true);
+    expect(hasRule(cells[0]!, "@[24rem]", "border-t")).toBe(false);
+    // The cell that starts a row has no vertical rule.
+    expect(hasRule(cells[2]!, "@[24rem]", "border-l")).toBe(false);
+    expect(hasRule(cells[3]!, "@[24rem]", "border-l")).toBe(true);
+  });
+
+  it("keeps the vertical rules running through every row", () => {
+    const { container } = render(
+      <StatGrid columns={2}>
+        <Stat label="One" value="1" />
+        <Stat label="Two" value="2" />
+        <Stat label="Three" value="3" />
+        <Stat label="Four" value="4" />
+      </StatGrid>,
+    );
+
+    const cells = statCells(container);
+    // Cells touch: the rule of the cell above meets the rule of the cell
+    // below it, so the last cell of a row keeps its vertical rule.
+    expect(hasRule(cells[1]!, "@[24rem]", "border-l")).toBe(true);
+    expect(hasRule(cells[3]!, "@[24rem]", "border-l")).toBe(true);
+  });
+
+  it("follows the card container instead of the viewport", () => {
+    const { container } = render(
+      <StatGrid columns={4}>
         <Stat label="One" value="1" />
         <Stat label="Two" value="2" />
         <Stat label="Three" value="3" />
@@ -113,9 +186,16 @@ describe("Stat", () => {
 
     const grid = container.firstElementChild;
     expect(grid?.getAttribute("class")).toContain("@[44rem]:grid-cols-4");
-    expect(
-      container.querySelectorAll("[class*='@[44rem]:border-l']").length,
-    ).toBeGreaterThan(0);
+
+    const cells = statCells(container);
+    // Four columns at the widest size: every cell but the first of a row
+    // carries the vertical rule.
+    expect(hasRule(cells[1]!, "@[44rem]", "border-l")).toBe(true);
+    expect(hasRule(cells[2]!, "@[44rem]", "border-l")).toBe(true);
+    expect(hasRule(cells[3]!, "@[44rem]", "border-l")).toBe(true);
+    // The grid has no three-column step, so the rules never describe a
+    // layout the grid does not use.
+    expect(hasRule(cells[1]!, "@[38rem]", "border-l")).toBe(false);
   });
 });
 

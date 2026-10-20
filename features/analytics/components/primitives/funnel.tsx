@@ -61,15 +61,20 @@ export function Funnel({
       href: step.href,
       fillClassName: fillFor(index, steps.length),
       meta:
-        stepShare === null || priorLabel === null
-          ? undefined
-          : // A stage can sit above the one before it — a visitor who sends
-            // more than one inquiry, or a form view that lands just outside
-            // the window. State the counts instead of a rate above 100%,
-            // which reads as a broken number.
-            stepShare > 1
-            ? `${formatNumber(step.count)} from ${formatNumber(steps[index - 1]!.count)} ${priorLabel}`
-            : `${formatPercent(stepShare)} of ${priorLabel}`,
+        index === 0
+          ? // The first stage has no stage before it, so it states what it
+            // is instead of a conversion — and the row keeps the same shape
+            // as the rest of the funnel.
+            "starting point"
+          : stepShare === null || priorLabel === null
+            ? undefined
+            : // A stage can sit above the one before it — a visitor who sends
+              // more than one inquiry, or a form view that lands just outside
+              // the window. State the counts instead of a rate above 100%,
+              // which reads as a broken number.
+              stepShare > 1
+              ? `${formatNumber(step.count)} from ${formatNumber(steps[index - 1]!.count)} ${priorLabel}`
+              : `${formatPercent(stepShare)} of ${priorLabel}`,
     };
   });
 

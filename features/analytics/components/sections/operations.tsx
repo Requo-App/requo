@@ -322,7 +322,7 @@ export async function OperationsAutomationRow(props: OperationsSectionProps) {
           title="AI impact"
           description="Drafted here means the quote started from an AI draft. Win rate is accepted ÷ decided among quotes sent in this period."
         >
-          <StatGrid columns={4} layout="container">
+          <StatGrid columns={4}>
             <Stat
               label="AI drafts started"
               value={formatNumber(ai.drafted)}

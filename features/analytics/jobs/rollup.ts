@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, eq, gte, inArray, isNull, lt, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, isNotNull, isNull, lt, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
 import { newEntityId } from "@/lib/ids";
@@ -24,6 +24,15 @@ export type BatchConfig = {
   batchSize: number; // default: 10, min: 5, max: 25
 };
 
+export type RollupConfig = BatchConfig & {
+  /**
+   * The UTC day to compute, `YYYY-MM-DD`. Defaults to yesterday, the day the
+   * nightly job runs for. A past date recomputes that day in place, which is
+   * how a definition change is applied to the days already rolled up.
+   */
+  targetDate?: string;
+};
+
 const DEFAULT_BATCH_SIZE = 10;
 const MIN_BATCH_SIZE = 5;
 const MAX_BATCH_SIZE = 25;
@@ -35,20 +44,45 @@ export function normalizeBatchSize(size: number): number {
   return Math.max(MIN_BATCH_SIZE, Math.min(MAX_BATCH_SIZE, Math.round(size)));
 }
 
+function addUtcDays(date: Date, days: number): Date {
+  const next = new Date(date);
+  next.setUTCDate(next.getUTCDate() + days);
+  return next;
+}
+
+/**
+ * Resolves the UTC day to roll up. Accepts `YYYY-MM-DD`; anything else is
+ * rejected so a typo cannot silently roll up the wrong day.
+ */
+export function resolveTargetDate(targetDate?: string): string {
+  if (!targetDate) {
+    const now = new Date();
+    const yesterday = new Date(
+      Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth(),
+        now.getUTCDate() - 1,
+      ),
+    );
+    return yesterday.toISOString().split("T")[0]!;
+  }
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(targetDate)) {
+    throw new Error(
+      `Invalid rollup target date "${targetDate}". Expected YYYY-MM-DD.`,
+    );
+  }
+  return targetDate;
+}
+
 export async function computeDailyRollups(
-  config?: Partial<BatchConfig>,
+  config?: Partial<RollupConfig>,
 ): Promise<AnalyticsRollupSummary> {
   const batchSize = normalizeBatchSize(config?.batchSize ?? DEFAULT_BATCH_SIZE);
+  const targetDate = resolveTargetDate(config?.targetDate);
 
-  const now = new Date();
-  const yesterday = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 1),
-  );
-  const dayAfter = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
-  );
-
-  const targetDate = yesterday.toISOString().split("T")[0]!;
+  const dayStart = new Date(`${targetDate}T00:00:00.000Z`);
+  const dayAfter = addUtcDays(dayStart, 1);
 
   const allBusinesses = await db
     .select({ id: businesses.id })
@@ -73,12 +107,12 @@ export async function computeDailyRollups(
       batchQuotesAccepted,
       batchQuotesRejected,
     ] = await Promise.all([
-      fetchBatchFormViews(batchIds, yesterday, dayAfter),
-      fetchBatchUniqueVisitors(batchIds, yesterday, dayAfter),
-      fetchBatchInquiries(batchIds, yesterday, dayAfter),
-      fetchBatchQuotesSent(batchIds, yesterday, dayAfter),
-      fetchBatchQuotesAccepted(batchIds, yesterday, dayAfter),
-      fetchBatchQuotesRejected(batchIds, yesterday, dayAfter),
+      fetchBatchFormViews(batchIds, dayStart, dayAfter),
+      fetchBatchUniqueVisitors(batchIds, dayStart, dayAfter),
+      fetchBatchInquiries(batchIds, dayStart, dayAfter),
+      fetchBatchQuotesSent(batchIds, dayStart, dayAfter),
+      fetchBatchQuotesAccepted(batchIds, dayStart, dayAfter),
+      fetchBatchQuotesRejected(batchIds, dayStart, dayAfter),
     ]);
 
     // Process each business in the batch using Promise.allSettled for error isolation
@@ -154,6 +188,7 @@ async function fetchBatchFormViews(
           and(
             inArray(analyticsEvents.businessId, businessIds),
             eq(analyticsEvents.eventType, "inquiry_form_viewed"),
+            isNotNull(analyticsEvents.businessInquiryFormId),
             gte(analyticsEvents.occurredAt, dayStart),
             lt(analyticsEvents.occurredAt, dayEnd),
           ),
@@ -178,6 +213,9 @@ async function fetchBatchUniqueVisitors(
 ): Promise<Map<string, number>> {
   if (businessIds.length === 0) return new Map();
 
+  // The same population the live read path counts: visitors who opened a
+  // service form. Counting every event type here would make a rollup day
+  // disagree with a live day on the same chart.
   const rows = await db
     .select({
       businessId: analyticsEvents.businessId,
@@ -188,6 +226,8 @@ async function fetchBatchUniqueVisitors(
     .where(
       and(
         inArray(analyticsEvents.businessId, businessIds),
+        eq(analyticsEvents.eventType, "inquiry_form_viewed"),
+        isNotNull(analyticsEvents.businessInquiryFormId),
         gte(analyticsEvents.occurredAt, dayStart),
         lt(analyticsEvents.occurredAt, dayEnd),
       ),
@@ -213,6 +253,7 @@ async function fetchBatchInquiries(
     .where(
       and(
         inArray(inquiries.businessId, businessIds),
+        isNull(inquiries.deletedAt),
         gte(inquiries.submittedAt, dayStart),
         lt(inquiries.submittedAt, dayEnd),
       ),
@@ -238,6 +279,7 @@ async function fetchBatchQuotesSent(
     .where(
       and(
         inArray(quotes.businessId, businessIds),
+        isNull(quotes.deletedAt),
         gte(quotes.sentAt, dayStart),
         lt(quotes.sentAt, dayEnd),
       ),
@@ -266,6 +308,7 @@ async function fetchBatchQuotesAccepted(
     .where(
       and(
         inArray(quotes.businessId, businessIds),
+        isNull(quotes.deletedAt),
         eq(quotes.status, "accepted"),
         gte(quotes.acceptedAt, dayStart),
         lt(quotes.acceptedAt, dayEnd),
@@ -297,6 +340,7 @@ async function fetchBatchQuotesRejected(
     .where(
       and(
         inArray(quotes.businessId, businessIds),
+        isNull(quotes.deletedAt),
         eq(quotes.status, "rejected"),
         gte(quotes.customerRespondedAt, dayStart),
         lt(quotes.customerRespondedAt, dayEnd),
