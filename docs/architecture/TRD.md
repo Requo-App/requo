@@ -75,6 +75,11 @@ related activity/attachment rows; follow-on qualification, notifications,
 email, audit, push, and event work use the relevant feature/integration
 boundaries.
 
+Inquiry attachments upload directly to private storage using a signed token.
+Before creating the inquiry, the server verifies the stored size against the
+plan limit and detects the MIME type from downloaded bytes, requiring a match
+with the signed filename's allowed type. Storage MIME metadata is untrusted.
+
 Quotes are business-scoped records with line items and version snapshots. The
 schema is maintained under [`lib/db/schema/`](../../lib/db/schema/) and
 feature behavior under [`features/quotes/`](../../features/quotes/).

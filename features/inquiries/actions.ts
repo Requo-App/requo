@@ -33,14 +33,21 @@ import {
   unarchiveInquiryForBusiness,
 } from "@/features/inquiries/mutations";
 import {
+  validatePublicInquiryAttachmentUpload,
+} from "@/features/inquiries/attachments";
+import { verifyInquiryAttachmentUploadToken } from "@/features/inquiries/attachment-tokens";
+import {
   getInquiryEditorFormForBusiness,
+  getInquiryIdsMatchingFiltersForBusiness,
   getPublicInquiryBusinessByFormSlug,
   getPublicInquiryBusinessBySlug,
 } from "@/features/inquiries/queries";
 import {
   inquiryFormSelectionSchema,
+  inquiryListFiltersSchema,
   inquiryNoteSchema,
   inquiryStatusChangeSchema,
+  type PublicInquirySubmissionInput,
   validateManualQuickInquirySubmission,
   validatePublicInquirySubmission,
 } from "@/features/inquiries/schemas";
@@ -53,11 +60,15 @@ import type {
   ManualInquiryActionState,
   PublicInquiryFormState,
 } from "@/features/inquiries/types";
-import { getInquiryStatusLabel } from "@/features/inquiries/utils";
+import {
+  getInquiryStatusLabel,
+  inquiryBulkSelectionLimit,
+} from "@/features/inquiries/utils";
 import {
   getPublicInquiryAttachmentMaxBytes,
   resolveInquiryFormConfigForPlan,
 } from "@/features/inquiries/plan-rules";
+import { publicInquiryRateLimit } from "@/features/inquiries/rate-limits";
 import { getBusinessPublicInquiryUrl } from "@/features/settings/utils";
 import { sendPushInquiryReceivedEvent } from "@/lib/inngest/send";
 
@@ -67,6 +78,72 @@ function getTextValue(formData: FormData, key: string) {
   return typeof value === "string" ? value : null;
 }
 
+/**
+ * Resolves the uploaded attachment for an intake action.
+ *
+ * The file was uploaded straight to storage before the form was submitted,
+ * so the action validates the storage path against the business and the
+ * plan before the mutation confirms the object really exists.
+ */
+function resolveSubmittedAttachment({
+  businessId,
+  submission,
+  maxBytes,
+}: {
+  businessId: string;
+  submission: PublicInquirySubmissionInput;
+  maxBytes: number;
+}):
+  | {
+      ok: true;
+      submission: PublicInquirySubmissionInput;
+    }
+  | { ok: false; error: string } {
+  if (!submission.attachment) {
+    return { ok: true, submission };
+  }
+
+  // The token is what binds the upload to this business. A token for
+  // another business, a tampered token, or an expired one is refused.
+  const payload = verifyInquiryAttachmentUploadToken(submission.attachment);
+
+  if (!payload) {
+    return {
+      ok: false,
+      error: "That file could not be used. Upload it again.",
+    };
+  }
+
+  if (payload.businessId !== businessId) {
+    return {
+      ok: false,
+      error: "That file could not be used. Upload it again.",
+    };
+  }
+
+  const resolution = validatePublicInquiryAttachmentUpload({
+    fileName: payload.fileName,
+    fileSize: payload.size,
+    maxBytes,
+  });
+
+  if (!resolution.ok) {
+    return { ok: false, error: resolution.error };
+  }
+
+  return {
+    ok: true,
+    submission: {
+      ...submission,
+      attachmentUpload: {
+        ...resolution.attachment,
+        storagePath: payload.storagePath,
+      },
+      maxAttachmentBytes: maxBytes,
+    },
+  };
+}
+
 function getInquiryMutationCacheTags(businessId: string, inquiryId: string) {
   return uniqueCacheTags([
     ...getBusinessInquiryListCacheTags(businessId),
@@ -74,10 +151,7 @@ function getInquiryMutationCacheTags(businessId: string, inquiryId: string) {
   ]);
 }
 
-const publicInquirySubmitRateLimit = {
-  limit: 4,
-  windowMs: 10 * 60 * 1000,
-} as const;
+const publicInquirySubmitRateLimit = publicInquiryRateLimit;
 
 function getSubmittedPublicInquiryUrl(business: {
   slug: string;
@@ -97,7 +171,7 @@ export async function submitPublicInquiryAction(
   _prevState: PublicInquiryFormState,
   formData: FormData,
 ): Promise<PublicInquiryFormState> {
-  const honeypotValue = getTextValue(formData, "website")?.trim();
+  const honeypotValue = getTextValue(formData, "company_fax_number")?.trim();
 
   const business = formSlug
     ? await getPublicInquiryBusinessByFormSlug({
@@ -137,20 +211,31 @@ export async function submitPublicInquiryAction(
   const validationResult = validatePublicInquirySubmission(
     effectiveFormConfig,
     formData,
-    {
-      maxAttachmentSizeBytes:
-        getPublicInquiryAttachmentMaxBytes(plan),
-    },
   );
 
   if (!validationResult.success) {
     return getValidationActionState(validationResult.error, "Check the highlighted fields and try again.");
   }
 
+  const attachmentResolution = resolveSubmittedAttachment({
+    businessId: business.id,
+    submission: validationResult.data,
+    maxBytes: getPublicInquiryAttachmentMaxBytes(plan),
+  });
+
+  if (!attachmentResolution.ok) {
+    return {
+      error: attachmentResolution.error,
+      fieldErrors: {
+        attachment: [attachmentResolution.error],
+      },
+    };
+  }
+
   try {
     const createdInquiry = await createPublicInquirySubmission({
       business,
-      submission: validationResult.data,
+      submission: attachmentResolution.submission,
     });
 
     updateCacheTags([
@@ -223,11 +308,6 @@ export async function createManualInquiryAction(
   const validationResult = validateManualQuickInquirySubmission(
     effectiveFormConfig,
     formData,
-    {
-      maxAttachmentSizeBytes: getPublicInquiryAttachmentMaxBytes(
-        businessContext.business.plan,
-      ),
-    },
   );
 
   if (!validationResult.success) {
@@ -235,6 +315,22 @@ export async function createManualInquiryAction(
       validationResult.error,
       "Check the highlighted fields and try again.",
     );
+  }
+
+  const plan = await getEffectivePlanForBusiness(businessContext.business.id);
+  const attachmentResolution = resolveSubmittedAttachment({
+    businessId: businessContext.business.id,
+    submission: validationResult.data,
+    maxBytes: getPublicInquiryAttachmentMaxBytes(plan),
+  });
+
+  if (!attachmentResolution.ok) {
+    return {
+      error: attachmentResolution.error,
+      fieldErrors: {
+        attachment: [attachmentResolution.error],
+      },
+    };
   }
 
   let inquiryPath: string | null = null;
@@ -254,7 +350,7 @@ export async function createManualInquiryAction(
           publicInquiryEnabled: selectedForm.publicInquiryEnabled,
         },
       },
-      submission: validationResult.data,
+      submission: attachmentResolution.submission,
       actorUserId: user.id,
     });
 
@@ -382,12 +478,16 @@ export async function changeInquiryStatusAction(
 
     if (!result.changed) {
       return {
-        success: `Inquiry is already ${getInquiryStatusLabel(result.nextStatus)}.`,
+        success: `Inquiry is already ${getInquiryStatusLabel(
+          result.effectiveStatus ?? result.nextStatus,
+        )}.`,
       };
     }
 
     return {
-      success: `Inquiry moved to ${getInquiryStatusLabel(result.nextStatus)}.`,
+      success: `Inquiry moved to ${getInquiryStatusLabel(
+        result.effectiveStatus ?? result.nextStatus,
+      )}.`,
     };
   } catch (error) {
     console.error("Failed to change inquiry status.", error);
@@ -483,7 +583,9 @@ export async function deleteInquiryAction(
   _prevState?: InquiryRecordActionState,
   formData?: FormData,
 ): Promise<InquiryRecordActionState> {
-  const redirectHref = formData ? formData.get("redirectHref") as string | null : null;
+  // The redirect target arrives from a hidden input. `runRecordAction`
+  // narrows it to a same-origin relative path before redirecting.
+  const redirectHref = formData ? getTextValue(formData, "redirectHref") : null;
 
   return runInquiryRecordAction(inquiryId, deleteInquiryForBusiness, {
     success: "Inquiry deleted.",
@@ -500,8 +602,46 @@ const inquiryBulkActionSchema = z.object({
   inquiryIds: z
     .array(z.string().min(1))
     .min(1, "Select at least one inquiry.")
-    .max(50, "Cannot bulk-update more than 50 inquiries at once."),
+    .max(
+      inquiryBulkSelectionLimit,
+      `Cannot bulk-update more than ${inquiryBulkSelectionLimit} inquiries at once.`,
+    ),
 });
+
+/**
+ * Resolves the ids of every inquiry matching the given URL filters, capped
+ * at the bulk-selection limit.
+ *
+ * The list route only warms a window of pages around the current one, so
+ * the client cannot derive the full matching set on its own. Without this
+ * the "Select all" affordance would silently select fewer rows than the
+ * user was told, and a bulk archive/delete would affect a different set
+ * than the one on screen.
+ */
+export async function getInquiryIdsForBulkSelectionAction(
+  searchParams: Record<string, string | string[] | undefined>,
+): Promise<string[]> {
+  const ownerAccess = await getWorkspaceBusinessActionContext();
+
+  if (!ownerAccess.ok) {
+    throw new Error(ownerAccess.error);
+  }
+
+  const parsedFilters = inquiryListFiltersSchema.safeParse(searchParams);
+
+  if (!parsedFilters.success) {
+    throw new Error("We couldn't read the current inquiry filters.");
+  }
+
+  const { page: _page, ...filters } = parsedFilters.data;
+
+  return getInquiryIdsMatchingFiltersForBusiness({
+    businessId: ownerAccess.businessContext.business.id,
+    // The list page always renders with the unread filter off.
+    filters: { ...filters, unread: false },
+    limit: inquiryBulkSelectionLimit,
+  });
+}
 
 const inquiryBulkStatusTargets = [
   "new",
@@ -525,7 +665,7 @@ export async function bulkArchiveInquiriesAction(
   if (!ownerAccess.ok) return { error: ownerAccess.error };
 
   const { user, businessContext } = ownerAccess;
-  const rawIds = formData.get("inquiryIds") as string;
+  const rawIds = getTextValue(formData, "inquiryIds");
   const parsed = inquiryBulkActionSchema.safeParse({
     inquiryIds: rawIds ? rawIds.split(",").filter(Boolean) : [],
   });
@@ -570,7 +710,7 @@ export async function bulkDeleteInquiriesAction(
   if (!ownerAccess.ok) return { error: ownerAccess.error };
 
   const { user, businessContext } = ownerAccess;
-  const rawIds = formData.get("inquiryIds") as string;
+  const rawIds = getTextValue(formData, "inquiryIds");
   const parsed = inquiryBulkActionSchema.safeParse({
     inquiryIds: rawIds ? rawIds.split(",").filter(Boolean) : [],
   });
@@ -621,8 +761,8 @@ export async function bulkChangeInquiryStatusAction(
   if (!ownerAccess.ok) return { error: ownerAccess.error };
 
   const { user, businessContext } = ownerAccess;
-  const rawIds = formData.get("inquiryIds") as string;
-  const rawStatus = formData.get("targetStatus") as string;
+  const rawIds = getTextValue(formData, "inquiryIds");
+  const rawStatus = getTextValue(formData, "targetStatus");
   const parsed = inquiryBulkStatusChangeSchema.safeParse({
     inquiryIds: rawIds ? rawIds.split(",").filter(Boolean) : [],
     targetStatus: rawStatus,
@@ -661,7 +801,7 @@ export async function bulkUnarchiveInquiriesAction(
   if (!ownerAccess.ok) return { error: ownerAccess.error };
 
   const { user, businessContext } = ownerAccess;
-  const rawIds = formData.get("inquiryIds") as string;
+  const rawIds = getTextValue(formData, "inquiryIds");
   const parsed = inquiryBulkActionSchema.safeParse({
     inquiryIds: rawIds ? rawIds.split(",").filter(Boolean) : [],
   });

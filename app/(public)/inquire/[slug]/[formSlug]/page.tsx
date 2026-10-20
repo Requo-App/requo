@@ -18,17 +18,24 @@ import { timed } from "@/lib/dev/server-timing";
 
 export async function generateMetadata({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string; formSlug: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }): Promise<Metadata> {
-  const { formSlug, slug } = await params;
+  const [{ formSlug, slug }, resolvedSearchParams] = await Promise.all([
+    params,
+    searchParams,
+  ]);
   const business = await getPublicInquiryBusinessByFormSlug({
     businessSlug: slug,
     formSlug,
   });
 
   return business
-    ? getPublicInquiryPageMetadata(business)
+    ? getPublicInquiryPageMetadata(business, {
+        submitted: parseSubmittedParam(resolvedSearchParams.submitted),
+      })
     : getMissingPublicInquiryMetadata();
 }
 

@@ -52,6 +52,21 @@ All notable changes to this project are documented here. Format follows [Keep a 
 - The demo seed no longer fails when it runs over an existing database: a quote that already carries a commercial schedule reuses that schedule instead of orphaning its items.
 - The public inquiry browser tests no longer fill the service-category field, which is owned by the service form and is no longer a customer-facing field.
 - Dashboard notifications now subscribe with a fresh realtime channel topic on every mount, so an in-flight channel removal can no longer trigger the "cannot add `postgres_changes` callbacks after `subscribe()`" runtime error.
+- The inquiry surface resolves the business plan from the subscription instead of the denormalized `businesses.plan` cache, and every subscription status change now rewrites that cache in the same transaction as the subscription row. A business whose subscription lapsed no longer keeps paid inquiry features, and the public form no longer silently discards the answers a visitor gave to fields the plan no longer allows.
+- The inquiry acknowledgment email escapes visitor-supplied text. It was the only email template that did not, so a visitor could inject arbitrary HTML into a message sent from the platform's sending domain to an address they chose.
+- CSV exports neutralize leading formula characters, so a customer-submitted `=HYPERLINK(...)` in any exported field is treated as text instead of evaluating when the owner opens the file.
+- "Select all" on the inquiry list now selects the inquiries that match the current filters, up to the 50-item cap, instead of the handful that happened to be cached. The quotes and invoices bulk bars say "Select all on loaded pages", which is what they actually do.
+- The 25 MB and 50 MB plan attachment limits are now reachable. The file used to travel inside the inquiry server action, and a Vercel Function rejects any request body above 4.5 MB with `413 FUNCTION_PAYLOAD_TOO_LARGE` before Next.js ever sees it — so a paid plan's attachment could never be sent at all. Attachments now upload straight to storage through a signed URL, and the inquiry carries a signed upload token that binds the file to the business. The server still checks the plan limit, the file type, and that the uploaded object really exists.
+- A visitor who uploaded a file and then abandoned the form left the object in storage forever. A daily sweep now removes uploads that were never attached to an inquiry.
+- A deleted inquiry's attachments are no longer downloadable, and the attachment download route is rate limited per business.
+- Duplicate detection matches a customer's email address case-insensitively, so the same person submitting `Jane@Example.com` and `jane@example.com` is flagged rather than silently missed.
+- The admin inquiry console shows the same status the business sees — `waiting` after 48 hours, `overdue` once the deadline passes — and separates archived inquiries instead of listing them with a stale pipeline status.
+- The inquiry status confirmation now reports the status on the badge, so choosing "New" on an inquiry that reads as "Overdue" no longer answers "already New".
+- The manual quick-add editor can attach a file, and its multi-select fields now submit the selected options.
+- The inquiry CSV export rejects an invalid date range with a clear error instead of a server error, and refuses an export larger than 10,000 rows rather than silently truncating the file.
+- The public inquiry honeypot is no longer reachable by a screen reader or filled by browser autofill, so a real customer's inquiry is no longer discarded without a word.
+- The public inquiry rate limit can no longer be side-stepped by rotating the User-Agent, and its scope-wide backstop no longer lets one sender lock a form for every other customer.
+- An inquiry's social contact handle is no longer prefixed with its platform twice, so the profile link in the quote editor points at the right place.
 
 ### Cleaned
 

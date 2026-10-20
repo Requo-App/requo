@@ -193,6 +193,62 @@ export function normalizeInquiryContactHandleSubmissionValue(
   return `https://${socialMeta.canonicalHost}/${editableValue}`;
 }
 
+/**
+ * Canonical profile URL for a stored contact handle, or null.
+ *
+ * Social handles are persisted as canonical URLs (see
+ * `normalizeInquiryContactHandleSubmissionValue`), so they must not be
+ * prefixed a second time — that produced links like
+ * `https://facebook.com/https://facebook.com/…`.
+ */
+export function getInquiryContactHandleUrl(
+  method: InquiryContactMethod,
+  handle: string,
+): string | null {
+  const trimmedHandle = handle.trim();
+
+  if (!trimmedHandle) {
+    return null;
+  }
+
+  const socialMeta =
+    inquirySocialContactMeta[method as keyof typeof inquirySocialContactMeta];
+
+  if (socialMeta) {
+    if (/^https?:\/\//i.test(trimmedHandle)) {
+      try {
+        const url = new URL(trimmedHandle);
+        const host = url.hostname.toLowerCase();
+        const allowedDomains: readonly string[] = socialMeta.domains;
+
+        return allowedDomains.includes(host) ? url.toString() : null;
+      } catch {
+        return null;
+      }
+    }
+
+    // The bare branch can still carry a host or a handle marker
+    // ("facebook.com/acme", "@acme"), so normalize it before adding the
+    // canonical host — otherwise the host would be prefixed twice.
+    const editableValue = normalizeInquiryContactHandleEditableValue(
+      method,
+      trimmedHandle,
+    );
+
+    return editableValue
+      ? `https://${socialMeta.canonicalHost}/${editableValue}`
+      : null;
+  }
+
+  if (method === "whatsapp") {
+    const phoneDigits = trimmedHandle.replace(/[^0-9+]/g, "");
+
+    return phoneDigits ? `https://wa.me/${phoneDigits}` : null;
+  }
+
+  return null;
+}
+
 export const inquiryProjectSystemFieldKeys = [
   "requestedDeadline",
   "budgetText",

@@ -26,10 +26,9 @@ import {
   type InquiryContactMethod,
   type InquiryFormSystemFieldDefinition,
 } from "@/features/inquiries/form-config";
-import {
-  createManualQuickInquiryFormConfig,
-  publicInquiryAttachmentAccept,
-} from "@/features/inquiries/schemas";
+import { createManualQuickInquiryFormConfig } from "@/features/inquiries/schemas";
+import { InquiryAttachmentUploader } from "@/features/inquiries/components/inquiry-attachment-uploader";
+import type { PublicInquiryAttachmentToken } from "@/features/inquiries/components/inquiry-attachment-uploader";
 import type { ManualInquiryActionState } from "@/features/inquiries/types";
 import { ContactHandleInput } from "./contact-handle-input";
 import { contactMethodOptions, initialState } from "./constants";
@@ -41,6 +40,7 @@ import type { ManualInquiryEditorProps, ProjectValues } from "./types";
 export function ManualInquiryEditor({
   action,
   businessName,
+  businessSlug,
   forms,
   initialFormSlug,
   uploadHelpText,
@@ -52,14 +52,16 @@ export function ManualInquiryEditor({
     useState<InquiryContactMethod>("email");
   const [customerContactHandle, setCustomerContactHandle] = useState("");
   const [projectValues, setProjectValues] = useState<ProjectValues>({});
-  const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
+  const [attachment, setAttachment] =
+    useState<PublicInquiryAttachmentToken | null>(null);
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
+  const [isAttachmentUploading, setIsAttachmentUploading] = useState(false);
   const [fileInputResetKey, setFileInputResetKey] = useState(0);
   const deferredCustomerName = useDeferredValue(customerName);
   const deferredCustomerEmail = useDeferredValue(customerEmail);
   const deferredCustomerContactMethod = useDeferredValue(customerContactMethod);
   const deferredCustomerContactHandle = useDeferredValue(customerContactHandle);
   const deferredProjectValues = useDeferredValue(projectValues);
-  const deferredSelectedFileName = useDeferredValue(selectedFileName);
 
   const [state, formAction, isPending] = useActionState(
     async (prevState: ManualInquiryActionState, formData: FormData) => {
@@ -133,7 +135,8 @@ export function ManualInquiryEditor({
 
   function handleFormChange(nextFormSlug: string) {
     setSelectedFormSlug(nextFormSlug);
-    setSelectedFileName(null);
+    setAttachment(null);
+    setAttachmentError(null);
     setFileInputResetKey((currentValue) => currentValue + 1);
   }
 
@@ -141,6 +144,9 @@ export function ManualInquiryEditor({
     <form
       action={formAction}
       className="dashboard-detail-layout items-start xl:grid-cols-[minmax(0,1.08fr)_0.92fr]"
+      onSubmit={(event) => {
+        if (isAttachmentUploading || attachmentError) event.preventDefault();
+      }}
     >
       <input name="formSlug" type="hidden" value={selectedForm.slug} />
 
@@ -156,7 +162,7 @@ export function ManualInquiryEditor({
             <FieldContent>
               <Combobox
                 aria-invalid={Boolean(getFieldMessage("formSlug"))}
-                disabled={isPending}
+                disabled={isPending || isAttachmentUploading}
                 id="manual-inquiry-form"
                 onValueChange={(value) => handleFormChange(value)}
                 options={formOptions}
@@ -352,36 +358,39 @@ export function ManualInquiryEditor({
             description="Optional files or references that belong with this inquiry."
             title={attachmentField.label}
           >
-            <Field data-invalid={Boolean(getFieldMessage("attachment")) || undefined}>
+            <Field
+              data-invalid={
+                Boolean(attachmentError) ||
+                Boolean(getFieldMessage("attachment")) ||
+                undefined
+              }
+            >
               <FieldLabel htmlFor="manual-inquiry-attachment">
                 <FieldLabelText label={attachmentField.label} />
               </FieldLabel>
               <FieldContent>
-                <Input
-                  accept={publicInquiryAttachmentAccept}
+                <InquiryAttachmentUploader
+                  businessSlug={businessSlug}
                   disabled={isPending}
+                  formSlug={selectedForm.slug}
+                  helpText={uploadHelpText}
                   id="manual-inquiry-attachment"
-                  key={`${selectedForm.slug}:${fileInputResetKey}`}
-                  name="attachment"
-                  onChange={(event) =>
-                    setSelectedFileName(
-                      event.currentTarget.files?.[0]?.name ?? null,
-                    )
-                  }
-                  type="file"
+                  onChange={setAttachment}
+                  onError={(message) => {
+                    setAttachmentError(message);
+                    if (message) toast.error(message);
+                  }}
+                  onUploadingChange={setIsAttachmentUploading}
+                  resetKey={`${selectedForm.slug}:${fileInputResetKey}`}
+                  value={attachment}
                 />
-                {selectedFileName ? (
-                  <p className="text-sm text-muted-foreground">
-                    Selected: {selectedFileName}
-                  </p>
-                ) : (
-                  <FieldDescription>{uploadHelpText}</FieldDescription>
-                )}
                 <FieldError
                   errors={
-                    getFieldMessage("attachment")
-                      ? [{ message: getFieldMessage("attachment")! }]
-                      : undefined
+                    attachmentError
+                      ? [{ message: attachmentError }]
+                      : getFieldMessage("attachment")
+                        ? [{ message: getFieldMessage("attachment")! }]
+                        : undefined
                   }
                 />
               </FieldContent>
@@ -392,7 +401,11 @@ export function ManualInquiryEditor({
         <DashboardSection
           contentClassName="flex flex-col gap-4"
           footer={
-            <Button disabled={isPending} size="lg" type="submit">
+            <Button
+              disabled={isPending || isAttachmentUploading || Boolean(attachmentError)}
+              size="lg"
+              type="submit"
+            >
               {isPending ? (
                 <>
                   <Spinner data-icon="inline-start" aria-hidden="true" />
@@ -425,7 +438,7 @@ export function ManualInquiryEditor({
         customerName={deferredCustomerName}
         projectFields={projectFields}
         projectValues={deferredProjectValues}
-        selectedFileName={deferredSelectedFileName}
+        selectedFileName={attachment?.fileName ?? null}
         selectedForm={selectedForm}
       />
     </form>

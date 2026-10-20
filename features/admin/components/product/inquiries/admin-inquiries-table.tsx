@@ -11,6 +11,7 @@ import { formatProductDate } from "@/features/admin/components/product/admin-pro
 import { getAdminInquiryDetailPath } from "@/features/admin/navigation";
 import type { AdminInquiryRow } from "@/features/admin/types";
 import { InquiryStatusBadge } from "@/features/inquiries/components/inquiry-status-badge";
+import { InquiryRecordStateBadge } from "@/features/inquiries/components/inquiry-record-state-badge";
 
 const adminInquiryColumns: AdminDataTableColumn<AdminInquiryRow>[] = [
   {
@@ -42,7 +43,12 @@ const adminInquiryColumns: AdminDataTableColumn<AdminInquiryRow>[] = [
     id: "status",
     header: "Status",
     width: "w-[9rem]",
-    cell: (row) => <InquiryStatusBadge status={row.status} />,
+    cell: (row) =>
+      row.recordState === "archived" ? (
+        <InquiryRecordStateBadge state="archived" />
+      ) : (
+        <InquiryStatusBadge status={row.status} />
+      ),
   },
   {
     id: "business",
@@ -111,7 +117,12 @@ export function AdminInquiriesTable({
       mobileCard={(row) => ({
         title: row.subject?.trim() || `Inquiry from ${row.customerName}`,
         subtitle: `${row.customerName} · ${row.businessName}`,
-        statusBadge: <InquiryStatusBadge status={row.status} />,
+        statusBadge:
+          row.recordState === "archived" ? (
+            <InquiryRecordStateBadge state="archived" />
+          ) : (
+            <InquiryStatusBadge status={row.status} />
+          ),
         metadata: <span>Submitted {formatProductDate(row.submittedAt)}</span>,
       })}
       pagination={pagination}

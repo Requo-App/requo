@@ -69,7 +69,8 @@ export function InquiryListCards({
                 {inquiry.hasDuplicateFlag ? (
                   <Copy
                     aria-label="Potential duplicate"
-                    className="size-3.5 shrink-0 text-amber-500"
+                    className="size-3.5 shrink-0 text-warning"
+                    role="img"
                   />
                 ) : null}
               </span>
@@ -88,7 +89,10 @@ export function InquiryListCards({
             metadata={
               <>
                 <span className="inline-flex items-center gap-1">
-                  <ChannelIcon className="size-3 shrink-0 text-muted-foreground" />
+                  <ChannelIcon
+                    aria-hidden="true"
+                    className="size-3 shrink-0 text-muted-foreground"
+                  />
                   <span className="truncate max-w-[120px]">{channel.label}</span>
                 </span>
                 <span aria-hidden="true" className="text-muted-foreground/40">·</span>

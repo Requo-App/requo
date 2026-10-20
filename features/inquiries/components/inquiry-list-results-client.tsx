@@ -11,6 +11,10 @@ import {
 import { BulkActionBar } from "@/components/shared/bulk-action-bar";
 import { DataListPagination } from "@/components/shared/data-list-pagination";
 import { InquiryBulkActions } from "@/features/inquiries/components/inquiry-bulk-actions";
+import {
+  getInquiryIdsForBulkSelectionAction,
+} from "@/features/inquiries/actions";
+import { inquiryBulkSelectionLimit } from "@/features/inquiries/utils";
 
 
 import { InquiryListCards } from "@/features/inquiries/components/inquiry-list-cards";
@@ -22,7 +26,7 @@ import { useBulkSelection } from "@/hooks/use-bulk-selection";
 
 type SearchParamsRecord = Record<string, string | string[] | undefined>;
 const EMPTY_PAGE_CACHE: Record<number, DashboardInquiryListItem[]> = {};
-const MAX_BULK_SELECTION = 50;
+const MAX_BULK_SELECTION = inquiryBulkSelectionLimit;
 
 function normalizePageCache(
   cachedPages: Record<number, DashboardInquiryListItem[]> | null | undefined,
@@ -54,6 +58,7 @@ export function InquiryListResultsClient({
     [cachedPages],
   );
   const [visiblePage, setVisiblePage] = useState(currentPage);
+  const [isSelectingAllMatching, setIsSelectingAllMatching] = useState(false);
   const displayPage = effectiveCachedPages[visiblePage]
     ? visiblePage
     : currentPage;
@@ -128,18 +133,23 @@ export function InquiryListResultsClient({
     }
   };
 
-  const handleSelectAllMatchingFilters = () => {
-    const allMatchingIds = Object.values(effectiveCachedPages).flatMap(
-      (pageItems) => pageItems.map((item) => item.id),
-    );
+  const handleSelectAllMatchingFilters = async () => {
+    setIsSelectingAllMatching(true);
 
-    if (allMatchingIds.length > MAX_BULK_SELECTION) {
-      selectAll(allMatchingIds.slice(0, MAX_BULK_SELECTION));
-      toast.info(
-        `Selection capped at ${MAX_BULK_SELECTION} items. ${allMatchingIds.length - MAX_BULK_SELECTION} items could not be selected.`,
-      );
-    } else {
-      selectAll(allMatchingIds);
+    try {
+      const matchingIds = await getInquiryIdsForBulkSelectionAction(searchParams);
+
+      selectAll(matchingIds);
+
+      if (matchingIds.length < totalItems) {
+        toast.info(
+          `Selected ${matchingIds.length} of ${totalItems} matching inquiries. Narrow the filters to select more.`,
+        );
+      }
+    } catch {
+      toast.error("We couldn't load the matching inquiries. Try again.");
+    } finally {
+      setIsSelectingAllMatching(false);
     }
   };
 
@@ -157,6 +167,8 @@ export function InquiryListResultsClient({
         allOnPageSelected={allOnPageSelected}
         onSelectAllOnPage={handleSelectAllOnPage}
         onSelectAllMatchingFilters={handleSelectAllMatchingFilters}
+        selectAllMatchingFiltersLabel={`Select all (up to ${MAX_BULK_SELECTION})`}
+        selectAllMatchingFiltersPending={isSelectingAllMatching}
         onDeselectAll={deselectAll}
       >
         <InquiryBulkActions

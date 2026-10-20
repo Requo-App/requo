@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import type { ReactNode } from "react";
 import { Facebook, Instagram, Linkedin, X } from "@thesvg/react";
 import { ArrowUpRight, Mail, Phone, Share2 } from "lucide-react";
@@ -486,7 +487,9 @@ function PublicInquiryReceivedFeedback({
         </div>
         <div className="motion-card-enter motion-delay-3">
           <Button asChild size="lg">
-            <a href={formHref}>Submit another inquiry</a>
+            <Link href={formHref} prefetch={true}>
+              Submit another inquiry
+            </Link>
           </Button>
         </div>
       </section>

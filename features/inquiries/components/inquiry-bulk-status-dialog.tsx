@@ -26,7 +26,7 @@ type InquiryBulkStatusDialogProps = {
   onOpenChange: (open: boolean) => void;
   serializedIds: string;
   selectedCount: number;
-  onSubmit: (formData: FormData) => Promise<void>;
+  onSubmit: (formData: FormData) => void | Promise<void>;
   isPending?: boolean;
 };
 
@@ -67,15 +67,21 @@ export function InquiryBulkStatusDialog({
           </ResponsiveOverlayDescription>
         </ResponsiveOverlayHeader>
         <div>
-          <div className="flex flex-col gap-1.5 px-4 pb-4 sm:px-6 sm:pb-6">
+          <div
+            aria-label="Target status"
+            className="flex flex-col gap-1.5 px-4 pb-4 sm:px-6 sm:pb-6"
+            role="radiogroup"
+          >
             {statusOptions.map((status) => (
               <button
+                aria-checked={targetStatus === status}
                 className={cn(
                   "flex w-full items-center rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-accent",
                   targetStatus === status && "bg-accent ring-1 ring-ring/30",
                 )}
                 key={status}
                 onClick={() => setTargetStatus(status)}
+                role="radio"
                 type="button"
               >
                 {getInquiryStatusLabel(status)}

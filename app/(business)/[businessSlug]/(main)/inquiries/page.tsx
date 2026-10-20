@@ -138,6 +138,21 @@ async function InquiriesHeaderActionsRegion({
     businessId: businessContext.business.id,
     filters: baseFilters,
   });
+  // The CSV export carries its own filters, so the list's filtered count
+  // cannot say whether an export would return rows. This is the
+  // business-wide count used to decide whether the export is offered.
+  const exportableInquiryCountPromise = getInquiryListCountForBusiness({
+    businessId: businessContext.business.id,
+    filters: {
+      view: "active",
+      status: "all",
+      form: "all",
+      source: "all",
+      sort: "newest",
+      escalated: false,
+      unread: false,
+    },
+  });
   const inquiryFormOptionsPromise = getBusinessInquiryFormOptionsForBusiness(
     businessContext.business.id,
   );
@@ -155,6 +170,7 @@ async function InquiriesHeaderActionsRegion({
       filters={filters}
       formOptionsPromise={inquiryFormOptionsPromise}
       archivedItemsPromise={archivedItemsPromise}
+      exportableInquiryCountPromise={exportableInquiryCountPromise}
       unarchiveAction={unarchiveInquiryAction}
       searchParams={resolvedSearchParams}
       totalItemsPromise={inquiryCountPromise}
@@ -200,12 +216,6 @@ async function InquiriesControlsRegion({
   const inquiryFormOptionsPromise = getBusinessInquiryFormOptionsForBusiness(
     businessContext.business.id,
   );
-  const archivedItemsPromise = getInquiryListPageForBusiness({
-    businessId: businessContext.business.id,
-    filters: { view: "archived", status: "all", form: "all", source: "all", sort: "newest", escalated: false, unread: false },
-    page: 1,
-    pageSize: 50,
-  });
 
   return (
     <InquiryListControlsSection
@@ -213,7 +223,6 @@ async function InquiriesControlsRegion({
       canExport={canExport}
       filters={filters}
       formOptionsPromise={inquiryFormOptionsPromise}
-      archivedItemsPromise={archivedItemsPromise}
       unarchiveAction={unarchiveInquiryAction}
       searchParams={resolvedSearchParams}
       totalItemsPromise={inquiryCountPromise}

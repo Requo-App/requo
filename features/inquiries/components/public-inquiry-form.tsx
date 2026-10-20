@@ -2,6 +2,7 @@
 
 import {
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -9,6 +10,7 @@ import {
 } from "react";
 
 import { FormActions, FormSection } from "@/components/shared/form-layout";
+import { toast } from "@/components/shared/notify";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Spinner } from "@/components/ui/spinner";
@@ -41,12 +43,13 @@ import {
   type InquiryFormFieldDefinition,
   type InquiryFormSystemFieldDefinition,
 } from "@/features/inquiries/form-config";
-import { publicInquiryAttachmentAccept } from "@/features/inquiries/schemas";
 import { getPublicInquiryAttachmentHelpText } from "@/features/inquiries/plan-rules";
 import type {
   PublicInquiryFormState,
   PublicInquiryBusiness,
 } from "@/features/inquiries/types";
+import { InquiryAttachmentUploader } from "@/features/inquiries/components/inquiry-attachment-uploader";
+import type { PublicInquiryAttachmentToken } from "@/features/inquiries/components/inquiry-attachment-uploader";
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
 import { cn } from "@/lib/utils";
 
@@ -140,7 +143,10 @@ export function PublicInquiryForm({
     action,
     initialState,
   );
-  const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
+  const [attachment, setAttachment] =
+    useState<PublicInquiryAttachmentToken | null>(null);
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
+  const [isAttachmentUploading, setIsAttachmentUploading] = useState(false);
   const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
   const [canSubmit, setCanSubmit] = useState(false);
   const [contactMethod, setContactMethod] = useState<InquiryContactMethod>("email");
@@ -193,8 +199,20 @@ export function PublicInquiryForm({
     value: string,
   ) {
     setContactHandle(normalizeInquiryContactHandleEditableValue(method, value));
-    queueMicrotask(syncCanSubmit);
   }
+
+  // Re-check validity whenever the contact method or handle changes.
+  // Switching to a non-email method reveals a newly required contact-handle
+  // field, and the handle is normalized on the way in — both change the
+  // form's validity without a user-typed change event. A microtask ran
+  // before React committed the new markup, so the check read the previous
+  // DOM and left the submit button enabled.
+  useEffect(() => {
+    // Reads the rendered form's validity, which only changes after React
+    // commits the new markup.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    syncCanSubmit();
+  }, [contactHandle, contactMethod, syncCanSubmit]);
 
   return (
     <>
@@ -205,6 +223,11 @@ export function PublicInquiryForm({
         onChangeCapture={syncCanSubmit}
         onInputCapture={syncCanSubmit}
         onSubmit={(event) => {
+          if (isAttachmentUploading || attachmentError) {
+            event.preventDefault();
+            return;
+          }
+
           if (!previewMode) {
             return;
           }
@@ -281,7 +304,6 @@ export function PublicInquiryForm({
                       const nextMethod = value as InquiryContactMethod;
                       setContactMethod(nextMethod);
                       setContactHandle("");
-                      queueMicrotask(syncCanSubmit);
                     }}
                     aria-invalid={Boolean(getFieldMessage("customerContactMethod"))}
                   />
@@ -371,26 +393,64 @@ export function PublicInquiryForm({
         {attachmentField ? (
           <FormSection title={attachmentField.label}>
             <FieldGroup>
-              <AttachmentField
-                error={getFieldMessage("attachment")}
-                field={attachmentField}
-                isPending={isPending}
-                helpText={attachmentHelpText}
-                onSelectFileName={setSelectedFileName}
-                selectedFileName={selectedFileName}
-              />
+              <Field
+                data-invalid={
+                  Boolean(attachmentError) ||
+                  Boolean(getFieldMessage("attachment")) ||
+                  undefined
+                }
+              >
+                <FieldLabel htmlFor="inquiry-attachment">
+                  <FieldLabelText label={attachmentField.label} required={false} />
+                </FieldLabel>
+                <FieldContent>
+                  <InquiryAttachmentUploader
+                    businessSlug={business.slug}
+                    disabled={isPending}
+                    formSlug={business.form.slug}
+                    helpText={attachmentHelpText}
+                    id="inquiry-attachment"
+                    onChange={setAttachment}
+                    onError={(message) => {
+                      setAttachmentError(message);
+                      if (message) toast.error(message);
+                    }}
+                    onUploadingChange={setIsAttachmentUploading}
+                    value={attachment}
+                  />
+                  <FieldError
+                    errors={
+                      attachmentError
+                        ? [{ message: attachmentError }]
+                        : getFieldMessage("attachment")
+                          ? [{ message: getFieldMessage("attachment")! }]
+                          : undefined
+                    }
+                  />
+                </FieldContent>
+              </Field>
             </FieldGroup>
           </FormSection>
         ) : null}
 
-        <div className="absolute left-[-10000px] top-auto h-px w-px overflow-hidden">
-          <label htmlFor="website">Leave this field empty</label>
+        {/*
+          Honeypot. Kept out of the accessibility tree and out of the
+          browser's autofill heuristics: a field that a screen reader can
+          reach, or that Chrome fills with a saved site URL, silently
+          discards a real customer's inquiry. The name deliberately
+          matches no autofill target.
+        */}
+        <div
+          aria-hidden="true"
+          className="absolute left-[-10000px] top-auto h-px w-px overflow-hidden"
+        >
+          <label htmlFor="company-fax-number">Leave this field empty</label>
           <input
-            id="website"
-            name="website"
+            id="company-fax-number"
+            name="company_fax_number"
             type="text"
             tabIndex={-1}
-            autoComplete="off"
+            autoComplete="new-password"
           />
         </div>
 
@@ -403,7 +463,10 @@ export function PublicInquiryForm({
             </p>
             <Button
               className="w-full sm:w-auto"
-              disabled={!previewMode && (isPending || !canSubmit)}
+              disabled={
+                !previewMode &&
+                (isPending || isAttachmentUploading || !canSubmit || Boolean(attachmentError))
+              }
               onClick={
                 previewMode ? () => setIsPreviewDialogOpen(true) : undefined
               }
@@ -527,6 +590,9 @@ function ProjectField({
 }) {
   const inputName = getInquiryFormFieldInputName(field);
   const inputId = `inquiry-${inputName}`;
+  const labelId = `${inputId}-label`;
+  const isMultiSelect =
+    field.kind === "custom" && field.fieldType === "multi_select";
   const isWide =
     (field.kind === "system" && field.key === "details") ||
     (field.kind === "custom" &&
@@ -537,9 +603,17 @@ function ProjectField({
       className={cn(isWide && "sm:col-span-2")}
       data-invalid={Boolean(error) || undefined}
     >
-      <FieldLabel htmlFor={inputId}>
-        <FieldLabelText label={field.label} required={field.required} />
-      </FieldLabel>
+      {isMultiSelect ? (
+        // A multi-select is a group of checkboxes, not a single input, so
+        // the label references the group instead of a control.
+        <FieldLabel id={labelId}>
+          <FieldLabelText label={field.label} required={field.required} />
+        </FieldLabel>
+      ) : (
+        <FieldLabel htmlFor={inputId}>
+          <FieldLabelText label={field.label} required={field.required} />
+        </FieldLabel>
+      )}
       <FieldContent>
         {renderProjectInput({
           hasError: Boolean(error),
@@ -547,6 +621,7 @@ function ProjectField({
           inputId,
           inputName,
           isPending,
+          labelId,
         })}
         <FieldError errors={error ? [{ message: error }] : undefined} />
       </FieldContent>
@@ -560,12 +635,14 @@ function renderProjectInput({
   inputId,
   inputName,
   isPending,
+  labelId,
 }: {
   hasError: boolean;
   field: InquiryFormFieldDefinition;
   inputId: string;
   inputName: string;
   isPending: boolean;
+  labelId: string;
 }) {
   if (field.kind === "system") {
     if (field.key === "requestedDeadline") {
@@ -653,6 +730,7 @@ function renderProjectInput({
           disabled={isPending}
           inputId={inputId}
           inputName={inputName}
+          labelId={labelId}
           options={field.options ?? []}
         />
       );
@@ -863,16 +941,23 @@ function MultiSelectField({
   inputId,
   inputName,
   options,
+  labelId,
 }: {
   disabled: boolean;
   inputId: string;
   inputName: string;
+  labelId: string;
   options: Array<{ id: string; label: string; value: string }>;
 }) {
   const [checked, setChecked] = useState<Set<string>>(new Set());
 
   return (
-    <div className="grid gap-2 sm:grid-cols-2">
+    <div
+      aria-labelledby={labelId}
+      className="grid gap-2 sm:grid-cols-2"
+      id={inputId}
+      role="group"
+    >
       {options.map((option) => {
         const optionId = `${inputId}-${option.id}`;
         const isChecked = checked.has(option.value);
@@ -908,47 +993,6 @@ function MultiSelectField({
         );
       })}
     </div>
-  );
-}
-
-function AttachmentField({
-  error,
-  field,
-  helpText,
-  isPending,
-  selectedFileName,
-  onSelectFileName,
-}: {
-  error?: string;
-  field: InquiryFormSystemFieldDefinition;
-  helpText: string;
-  isPending: boolean;
-  selectedFileName: string | null;
-  onSelectFileName: (fileName: string | null) => void;
-}) {
-  return (
-    <Field data-invalid={Boolean(error) || undefined}>
-      <FieldLabel htmlFor="inquiry-attachment">
-        <FieldLabelText label={field.label} required={false} />
-      </FieldLabel>
-      <FieldContent>
-        <Input
-          accept={publicInquiryAttachmentAccept}
-          disabled={isPending}
-          id="inquiry-attachment"
-          name="attachment"
-          onChange={(event) =>
-            onSelectFileName(event.currentTarget.files?.[0]?.name ?? null)
-          }
-          type="file"
-        />
-        <p className="text-xs text-muted-foreground">{helpText}</p>
-        {selectedFileName ? (
-          <p className="text-sm text-muted-foreground">Selected: {selectedFileName}</p>
-        ) : null}
-        <FieldError errors={error ? [{ message: error }] : undefined} />
-      </FieldContent>
-    </Field>
   );
 }
 

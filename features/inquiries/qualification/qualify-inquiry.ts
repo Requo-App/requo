@@ -49,16 +49,23 @@ export async function qualifyInquiry(input: {
 
     // 3. Persist duplicate flag if found
     if (duplicate) {
-      await db.insert(inquiryDuplicates).values({
-        id: newEntityId(),
-        businessId,
-        inquiryId,
-        originalInquiryId: duplicate.originalInquiryId,
-        reason: duplicate.reason,
-        tokenOverlap: duplicate.tokenOverlap
-          ? Math.round(duplicate.tokenOverlap)
-          : null,
-      });
+      // `inquiry_duplicates` has a unique index on `inquiry_id`. Without
+      // this guard a second qualification for the same inquiry threw, and
+      // the catch below reported "no duplicate found" for a record that
+      // does have one.
+      await db
+        .insert(inquiryDuplicates)
+        .values({
+          id: newEntityId(),
+          businessId,
+          inquiryId,
+          originalInquiryId: duplicate.originalInquiryId,
+          reason: duplicate.reason,
+          tokenOverlap: duplicate.tokenOverlap
+            ? Math.round(duplicate.tokenOverlap)
+            : null,
+        })
+        .onConflictDoNothing();
     }
 
     // 4. Return the result

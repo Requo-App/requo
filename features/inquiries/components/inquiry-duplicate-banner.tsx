@@ -2,13 +2,14 @@
 
 import { useTransition } from "react";
 
+import { toast } from "@/components/shared/notify";
 import { DuplicateWarningBanner } from "@/features/inquiries/components/duplicate-warning-banner";
 import type { DuplicateFlag } from "@/features/inquiries/qualification/types";
 
 type InquiryDuplicateBannerProps = {
   duplicate: DuplicateFlag;
   businessSlug: string;
-  dismissAction: () => Promise<void>;
+  dismissAction: () => Promise<{ error?: string } | void>;
 };
 
 export function InquiryDuplicateBanner({
@@ -20,7 +21,11 @@ export function InquiryDuplicateBanner({
 
   function handleDismiss() {
     startTransition(async () => {
-      await dismissAction();
+      const result = await dismissAction();
+
+      if (result?.error) {
+        toast.error(result.error);
+      }
     });
   }
 

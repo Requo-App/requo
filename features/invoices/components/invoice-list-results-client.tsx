@@ -115,6 +115,7 @@ export function InvoiceListResultsClient({
         allOnPageSelected={allOnPageSelected}
         onSelectAllOnPage={handleSelectAllOnPage}
         onSelectAllMatchingFilters={handleSelectAllMatchingFilters}
+        selectAllMatchingFiltersLabel="Select all on loaded pages"
         onDeselectAll={deselectAll}
       >
         <InvoiceBulkActions

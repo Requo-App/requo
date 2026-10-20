@@ -47,7 +47,7 @@ export function AdminInquiriesFilters({
       const trimmed = nextQuery.trim();
 
       for (const [key, value] of searchParams.entries()) {
-        if (key === "q" || key === "page" || key === "status") {
+        if (key === "q" || key === "search" || key === "page" || key === "status") {
           continue;
         }
         params.append(key, value);

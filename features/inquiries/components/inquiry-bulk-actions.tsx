@@ -17,6 +17,7 @@ import {
   bulkDeleteInquiriesAction,
 } from "@/features/inquiries/actions";
 import { InquiryBulkStatusDialog } from "@/features/inquiries/components/inquiry-bulk-status-dialog";
+import { useOptimisticMutation } from "@/hooks/use-optimistic-mutation";
 import type { OptimisticActionResult } from "@/hooks/use-optimistic-mutation";
 
 type InquiryBulkActionsProps = {
@@ -38,6 +39,7 @@ export function InquiryBulkActions({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
   const [showStatusDialog, setShowStatusDialog] = useState(false);
+  const { runMutation, isPending: isStatusPending } = useOptimisticMutation();
 
   const ids = serializedIds.split(",").filter(Boolean);
 
@@ -99,10 +101,17 @@ export function InquiryBulkActions({
         onOpenChange={setShowStatusDialog}
         serializedIds={serializedIds}
         selectedCount={selectedCount}
-        onSubmit={async (formData) => {
-          onOptimisticRemove?.(ids, async () =>
-            bulkChangeInquiryStatusAction({}, formData),
-          );
+        isPending={isStatusPending}
+        onSubmit={(formData) => {
+          // A status change keeps the row in the list — only archive and
+          // delete remove it. Optimistically removing the rows here made
+          // records vanish and reappear a moment later with a new badge.
+          runMutation({
+            applyOptimistic: () => {},
+            revertOptimistic: () => {},
+            mutation: () => bulkChangeInquiryStatusAction({}, formData),
+            pendingKey: "inquiry-bulk-status",
+          });
           setShowStatusDialog(false);
           onComplete();
         }}

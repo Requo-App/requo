@@ -4,9 +4,10 @@ import { db } from "@/lib/db/client";
 import { writeAuditLog } from "@/features/audit/mutations";
 import { newEntityId } from "@/lib/ids";
 import {
-  resolveSafeContentType,
-  sanitizeStorageFileName,
-} from "@/lib/files";
+  getBusinessInquiryDetailCacheTags,
+  getBusinessInquiryListCacheTags,
+  uniqueCacheTags,
+} from "@/lib/cache/business-tags";
 import {
   activityLogs,
   aiAgentSessions,
@@ -17,9 +18,9 @@ import {
 } from "@/lib/db/schema";
 import { insertBusinessNotification } from "@/features/notifications/mutations";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { resolveInquiryAttachmentContentType } from "@/features/inquiries/attachment-content";
 import {
   publicInquiryAttachmentBucket,
-  publicInquiryExtensionToMimeType,
   type PublicInquirySubmissionInput,
 } from "@/features/inquiries/schemas";
 import type {
@@ -28,9 +29,11 @@ import type {
   InquirySourceValue,
 } from "@/features/inquiries/types";
 import { inquirySources } from "@/features/inquiries/types";
+import { getEffectiveInquiryStatus } from "@/features/inquiries/status-sql";
 import { getInquiryStatusLabel } from "@/features/inquiries/utils";
 import type { PublicInquiryBusiness } from "@/features/inquiries/types";
 import { and, eq, inArray, isNotNull, isNull } from "drizzle-orm";
+import { revalidateTag } from "next/cache";
 import { qualifyInquiry } from "./qualification/qualify-inquiry";
 import {
   enqueueAiDraftQuoteOnQualify,
@@ -89,40 +92,59 @@ export async function createInquirySubmission({
   const inquiryId = newEntityId();
   const activityId = newEntityId();
   const now = new Date();
-  const attachment = submission.attachment;
-  const storageClient = attachment ? createSupabaseAdminClient() : null;
-
-  let uploadedStoragePath: string | null = null;
+  const attachmentUpload = submission.attachmentUpload;
   let preparedAttachment: PreparedAttachment | null = null;
 
-  if (attachment && storageClient) {
-    const safeContentType = resolveSafeContentType(attachment, {
-      extensionToMimeType: publicInquiryExtensionToMimeType,
-      fallback: "application/octet-stream",
-    });
-    const storagePath = `${business.id}/${inquiryId}/${sanitizeStorageFileName(
-      attachment.name,
-      "attachment",
-    )}`;
-
-    const { error } = await storageClient.storage
+  if (attachmentUpload) {
+    // The file was uploaded straight to storage before the form was
+    // submitted, because a function request body cannot carry it. Confirm
+    // the object is really there and use the size storage reports rather
+    // than the one the client claimed.
+    const storageClient = createSupabaseAdminClient();
+    const { data: objectInfo, error: infoError } = await storageClient.storage
       .from(publicInquiryAttachmentBucket)
-      .upload(storagePath, attachment, {
-        contentType: safeContentType,
-        upsert: false,
-      });
+      .info(attachmentUpload.storagePath);
 
-    if (error) {
-      throw new Error(`Failed to upload inquiry attachment: ${error.message}`);
+    if (infoError || !objectInfo) {
+      throw new Error("Failed to confirm the uploaded inquiry attachment.");
     }
 
-    uploadedStoragePath = storagePath;
+    const observedSize = objectInfo.size ?? 0;
+    const maxAttachmentBytes = submission.maxAttachmentBytes;
+
+    if (
+      observedSize <= 0 ||
+      (typeof maxAttachmentBytes === "number" &&
+        observedSize > maxAttachmentBytes)
+    ) {
+      throw new Error("The uploaded inquiry attachment failed validation.");
+    }
+
+    const { data: object, error: downloadError } = await storageClient.storage
+      .from(publicInquiryAttachmentBucket)
+      .download(attachmentUpload.storagePath);
+
+    if (downloadError || !object || object.size !== observedSize) {
+      throw new Error("Failed to confirm the uploaded inquiry attachment.");
+    }
+
+    const contentType = await resolveInquiryAttachmentContentType(
+      new Uint8Array(await object.arrayBuffer()),
+      attachmentUpload.fileName,
+    );
+
+    if (contentType !== attachmentUpload.contentType) {
+      throw new Error("The uploaded inquiry attachment failed validation.");
+    }
+
     preparedAttachment = {
       id: newEntityId(),
-      fileName: attachment.name,
-      contentType: safeContentType,
-      fileSize: attachment.size,
-      storagePath,
+      // This filename comes from the signed token payload; it is distinct
+      // from the sanitized filename in the storage path.
+      fileName: attachmentUpload.fileName.slice(0, 255),
+      contentType,
+      fileSize: observedSize,
+      storagePath: attachmentUpload.storagePath,
     };
   }
 
@@ -214,20 +236,21 @@ export async function createInquirySubmission({
       }
     });
   } catch (error) {
-    if (uploadedStoragePath && storageClient) {
-      const { error: storageCleanupError } = await storageClient.storage
-        .from(publicInquiryAttachmentBucket)
-        .remove([uploadedStoragePath]);
-
-      if (storageCleanupError) {
-        console.error(
-          "Failed to clean up uploaded inquiry attachment after a database error.",
-          storageCleanupError,
-        );
-      }
-    }
-
     throw error;
+  }
+
+  // Invalidate the cached inquiry list and detail so a lead created here is
+  // visible without waiting for the cache window to lapse. This lives in
+  // the mutation (not only in the callers) because the Agent and Assistant
+  // write paths would otherwise leave the dashboard showing a stale list.
+  //
+  // `revalidateTag` (not `updateTag`): this mutation also runs from a route
+  // handler, where `updateTag` is unsupported.
+  for (const tag of uniqueCacheTags([
+    ...getBusinessInquiryListCacheTags(business.id),
+    ...getBusinessInquiryDetailCacheTags(business.id, inquiryId),
+  ])) {
+    revalidateTag(tag, "max");
   }
 
   // Notify the customer via email (in-app owner notification is handled above).
@@ -357,7 +380,12 @@ export async function createAgentInquirySubmission({
       const [current] = await db
         .select()
         .from(aiAgentSessions)
-        .where(eq(aiAgentSessions.id, sessionId))
+        .where(
+          and(
+            eq(aiAgentSessions.id, sessionId),
+            eq(aiAgentSessions.businessId, business.id),
+          ),
+        )
         .limit(1);
       const existingMetadata =
         (current?.metadata as Record<string, unknown> | null) ?? {};
@@ -380,7 +408,12 @@ export async function createAgentInquirySubmission({
           },
           updatedAt: new Date(),
         })
-        .where(eq(aiAgentSessions.id, sessionId));
+        .where(
+          and(
+            eq(aiAgentSessions.id, sessionId),
+            eq(aiAgentSessions.businessId, business.id),
+          ),
+        );
     } catch (error) {
       console.error("[inquiries] Failed to link agent session.", error);
     }
@@ -426,7 +459,12 @@ export async function createAgentHandoffSubmission({
           inquiryId: result.inquiryId,
           updatedAt: new Date(),
         })
-        .where(eq(aiAgentSessions.id, sessionId));
+        .where(
+          and(
+            eq(aiAgentSessions.id, sessionId),
+            eq(aiAgentSessions.businessId, business.id),
+          ),
+        );
     } catch (error) {
       console.error("[inquiries] Failed to link handoff session.", error);
     }
@@ -454,9 +492,12 @@ export async function createAssistantInquirySubmission({
     business,
     submission,
     actorUserId,
-    source: inquirySources.manual,
+    // The Assistant is an AI surface, so the record is attributed to the
+    // AI Assistant source — not to "manual", which the dashboard and the
+    // CSV export both read.
+    source: inquirySources.aiAssistant,
     activity: {
-      type: "inquiry.created_manual",
+      type: "inquiry.submitted_ai_agent",
       summary: "Inquiry created by the business Assistant.",
     },
     notifyInAppOnNewInquiry: false,
@@ -543,13 +584,22 @@ export async function changeInquiryStatusForBusiness({
       .select({
         id: inquiries.id,
         status: inquiries.status,
+        effectiveStatus: getEffectiveInquiryStatus,
         archivedAt: inquiries.archivedAt,
         businessId: businesses.id,
         customerName: inquiries.customerName,
       })
       .from(inquiries)
       .innerJoin(businesses, eq(inquiries.businessId, businesses.id))
-      .where(and(eq(inquiries.id, inquiryId), eq(inquiries.businessId, businessId)))
+      .where(
+        and(
+          eq(inquiries.id, inquiryId),
+          eq(inquiries.businessId, businessId),
+          // A soft-deleted inquiry is out of the list; mutating it would
+          // only add a misleading activity row.
+          isNull(inquiries.deletedAt),
+        ),
+      )
       .limit(1);
 
     if (!existingInquiry) {
@@ -563,15 +613,20 @@ export async function changeInquiryStatusForBusiness({
         lockedReason: "archived" as const,
         previousStatus: existingInquiry.status,
         nextStatus: existingInquiry.status,
+        effectiveStatus: existingInquiry.effectiveStatus,
       };
     }
 
     if (existingInquiry.status === nextStatus) {
+      // Nothing to write. The visible status may still be derived (an open
+      // inquiry with a past deadline reads as "overdue"), so the caller is
+      // told the status the owner actually sees.
       return {
         changed: false,
         locked: false,
         previousStatus: existingInquiry.status,
         nextStatus,
+        effectiveStatus: existingInquiry.effectiveStatus,
       };
     }
 
@@ -582,6 +637,14 @@ export async function changeInquiryStatusForBusiness({
         updatedAt: now,
       })
       .where(and(eq(inquiries.id, inquiryId), eq(inquiries.businessId, businessId)));
+
+    // Read the effective status back so the confirmation matches the badge
+    // the owner is about to see.
+    const [updatedInquiry] = await tx
+      .select({ effectiveStatus: getEffectiveInquiryStatus })
+      .from(inquiries)
+      .where(and(eq(inquiries.id, inquiryId), eq(inquiries.businessId, businessId)))
+      .limit(1);
 
     await tx.insert(activityLogs).values({
       id: activityId,
@@ -605,6 +668,7 @@ export async function changeInquiryStatusForBusiness({
       locked: false,
       previousStatus: existingInquiry.status,
       nextStatus,
+      effectiveStatus: updatedInquiry?.effectiveStatus ?? nextStatus,
     };
   });
 }
@@ -653,7 +717,15 @@ export async function updateInquiryFieldsForBusiness({
       })
       .from(inquiries)
       .innerJoin(businesses, eq(inquiries.businessId, businesses.id))
-      .where(and(eq(inquiries.id, inquiryId), eq(inquiries.businessId, businessId)))
+      .where(
+        and(
+          eq(inquiries.id, inquiryId),
+          eq(inquiries.businessId, businessId),
+          // A soft-deleted inquiry is out of the list; mutating it would
+          // only add a misleading activity row.
+          isNull(inquiries.deletedAt),
+        ),
+      )
       .limit(1);
 
     if (!existingInquiry) {
@@ -771,7 +843,15 @@ export async function archiveInquiryForBusiness({
       })
       .from(inquiries)
       .innerJoin(businesses, eq(inquiries.businessId, businesses.id))
-      .where(and(eq(inquiries.id, inquiryId), eq(inquiries.businessId, businessId)))
+      .where(
+        and(
+          eq(inquiries.id, inquiryId),
+          eq(inquiries.businessId, businessId),
+          // A soft-deleted inquiry is out of the list; mutating it would
+          // only add a misleading activity row.
+          isNull(inquiries.deletedAt),
+        ),
+      )
       .limit(1);
 
     if (!existingInquiry) {
@@ -847,7 +927,15 @@ export async function unarchiveInquiryForBusiness({
       })
       .from(inquiries)
       .innerJoin(businesses, eq(inquiries.businessId, businesses.id))
-      .where(and(eq(inquiries.id, inquiryId), eq(inquiries.businessId, businessId)))
+      .where(
+        and(
+          eq(inquiries.id, inquiryId),
+          eq(inquiries.businessId, businessId),
+          // A soft-deleted inquiry is out of the list; mutating it would
+          // only add a misleading activity row.
+          isNull(inquiries.deletedAt),
+        ),
+      )
       .limit(1);
 
     if (!existingInquiry) {

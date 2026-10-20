@@ -16,28 +16,22 @@ import {
 } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
 
-import type { InquiryStatus } from "@/features/inquiries/types";
 import type {
   InquiryRecordState,
   InquiryRecordView,
 } from "@/features/inquiries/types";
 
-export const getEffectiveInquiryStatus = sql<InquiryStatus>`case
-  when ${inquiries.status} in ('new', 'waiting', 'quoted') and ${inquiries.requestedDeadline} is not null and ${inquiries.requestedDeadline} < current_date then 'overdue'
-  when ${inquiries.status} in ('new', 'waiting') and ${inquiries.submittedAt} >= now() - interval '48 hours' then 'new'
-  when ${inquiries.status} in ('new', 'waiting') and ${inquiries.submittedAt} < now() - interval '48 hours' then 'waiting'
-  else ${inquiries.status}::text
-end`;
-
-export const getInquiryRecordState = sql<InquiryRecordState>`case
-  when ${inquiries.archivedAt} is not null then 'archived'
-  else 'active'
-end`;
+export const getEffectiveInquiryStatus = effectiveInquiryStatus;
+export const getInquiryRecordState = inquiryRecordState;
 
 import {
   getNormalizedInquiryFormConfig,
   getNormalizedInquirySubmittedFieldSnapshot,
 } from "@/features/inquiries/form-config";
+import {
+  getEffectiveInquiryStatus as effectiveInquiryStatus,
+  getInquiryRecordState as inquiryRecordState,
+} from "@/features/inquiries/status-sql";
 import { getNormalizedInquiryPageConfig } from "@/features/inquiries/page-config";
 import {
   resolveInquiryFormConfigForPlan,
@@ -46,6 +40,7 @@ import {
 import { normalizeBusinessType } from "@/features/inquiries/business-types";
 import { getBusinessPublicInquiryUrl } from "@/features/settings/utils";
 import { isInquirySitemapSlugExcluded } from "@/lib/seo/inquiry-slugs";
+import { isValidDateInput } from "@/lib/zod-helpers";
 import {
   getBusinessInquiryDetailCacheTags,
   getBusinessInquiryFormCacheTags,
@@ -54,6 +49,7 @@ import {
   hotBusinessCacheLife,
 } from "@/lib/cache/business-tags";
 import { withCircuitBreaker } from "@/lib/db/circuit-breaker";
+import { getCachedEffectivePlanForBusiness } from "@/lib/billing/subscription-service";
 import { db } from "@/lib/db/client";
 import {
   activityLogs,
@@ -121,7 +117,6 @@ async function getInquiryBusinessBySlug({
       id: businesses.id,
       name: businesses.name,
       slug: businesses.slug,
-      plan: businesses.plan,
       businessType: businesses.businessType,
       shortDescription: businesses.shortDescription,
       logoStoragePath: businesses.logoStoragePath,
@@ -163,6 +158,13 @@ async function getInquiryBusinessBySlug({
 
   const formBusinessType = normalizeBusinessType(business.formBusinessType);
 
+  // The plan gates the form config, the page config, and the upload limit.
+  // It must come from the authoritative subscription, not the denormalized
+  // `businesses.plan` read cache: the submit action resolves the same
+  // effective plan, and a mismatch would silently drop the answers a
+  // visitor gave to fields the render path showed but the action dropped.
+  const effectivePlan = await getCachedEffectivePlanForBusiness(business.id);
+
   const inquiryFormConfig = getNormalizedInquiryFormConfig(
     business.inquiryFormConfig,
     {
@@ -183,7 +185,7 @@ async function getInquiryBusinessBySlug({
     id: business.id,
     name: business.name,
     slug: business.slug,
-    plan: business.plan,
+    plan: effectivePlan,
     businessType: formBusinessType,
     shortDescription: business.shortDescription,
     logoUrl: business.logoStoragePath
@@ -199,11 +201,11 @@ async function getInquiryBusinessBySlug({
     },
     inquiryFormConfig: resolveInquiryFormConfigForPlan(
       inquiryFormConfig,
-      business.plan,
+      effectivePlan,
     ),
     inquiryPageConfig: resolveInquiryPageConfigForPlan(
       inquiryPageConfig,
-      business.plan,
+      effectivePlan,
     ),
   };
 }
@@ -302,7 +304,6 @@ async function getInquiryBusinessByFormSlug({
       id: businesses.id,
       name: businesses.name,
       slug: businesses.slug,
-      plan: businesses.plan,
       businessType: businesses.businessType,
       shortDescription: businesses.shortDescription,
       logoStoragePath: businesses.logoStoragePath,
@@ -344,6 +345,13 @@ async function getInquiryBusinessByFormSlug({
 
   const formBusinessType = normalizeBusinessType(business.formBusinessType);
 
+  // The plan gates the form config, the page config, and the upload limit.
+  // It must come from the authoritative subscription, not the denormalized
+  // `businesses.plan` read cache: the submit action resolves the same
+  // effective plan, and a mismatch would silently drop the answers a
+  // visitor gave to fields the render path showed but the action dropped.
+  const effectivePlan = await getCachedEffectivePlanForBusiness(business.id);
+
   const inquiryFormConfig = getNormalizedInquiryFormConfig(
     business.inquiryFormConfig,
     {
@@ -364,7 +372,7 @@ async function getInquiryBusinessByFormSlug({
     id: business.id,
     name: business.name,
     slug: business.slug,
-    plan: business.plan,
+    plan: effectivePlan,
     businessType: formBusinessType,
     shortDescription: business.shortDescription,
     logoUrl: business.logoStoragePath
@@ -380,11 +388,11 @@ async function getInquiryBusinessByFormSlug({
     },
     inquiryFormConfig: resolveInquiryFormConfigForPlan(
       inquiryFormConfig,
-      business.plan,
+      effectivePlan,
     ),
     inquiryPageConfig: resolveInquiryPageConfigForPlan(
       inquiryPageConfig,
-      business.plan,
+      effectivePlan,
     ),
   };
 }
@@ -640,6 +648,71 @@ export async function getInquiryListPageForBusiness({
   );
 }
 
+/**
+ * Ids of the inquiries matching the current filters, capped at `limit`.
+ *
+ * The bulk "select all matching filters" affordance needs the whole
+ * matching set, but the list route only warms a window of pages around the
+ * current one — the client cannot derive the full set from what it holds.
+ */
+export async function getInquiryIdsMatchingFiltersForBusiness({
+  businessId,
+  filters,
+  limit,
+}: GetInquiryListForBusinessInput & {
+  limit: number;
+}): Promise<string[]> {
+  const conditions = getInquiryListConditions({
+    businessId,
+    filters,
+  });
+  const submittedAtSort = filters.sort === "oldest" ? asc : desc;
+  const createdAtSort = filters.sort === "oldest" ? asc : desc;
+
+  const rows = await db
+    .select({ id: inquiries.id })
+    .from(inquiries)
+    .leftJoin(
+      businessInquiryForms,
+      eq(inquiries.businessInquiryFormId, businessInquiryForms.id),
+    )
+    .where(and(...conditions))
+    .orderBy(
+      submittedAtSort(inquiries.submittedAt),
+      createdAtSort(inquiries.createdAt),
+    )
+    .limit(limit);
+
+  return rows.map((row) => row.id);
+}
+
+/**
+ * Upper bound on rows materialized by a single CSV export.
+ *
+ * The export builds the whole CSV in memory, so an unbounded result set is
+ * a memory risk on a single request.
+ */
+export const inquiryExportRowLimit = 10_000;
+
+/**
+ * Builds a UTC date boundary from a `YYYY-MM-DD` filter value.
+ *
+ * Returns null for a missing or impossible date (`2024-13-45` matches the
+ * shape but is not a real date) so a bad filter cannot produce an
+ * Invalid Date that later throws while serializing.
+ */
+function parseExportBoundary(value: string | undefined, edge: "start" | "end") {
+  if (!value || !isValidDateInput(value)) {
+    return null;
+  }
+
+  return new Date(
+    edge === "start"
+      ? `${value}T00:00:00.000Z`
+      : `${value}T23:59:59.999Z`,
+  );
+}
+
 type InquiryExportRow = {
   id: string;
   inquiryFormName: string | null;
@@ -672,12 +745,17 @@ export async function getInquiryExportRowsForBusiness({
     businessId,
     filters,
   });
-  if (from) {
-    conditions.push(gte(inquiries.submittedAt, new Date(`${from}T00:00:00.000Z`)));
+  const fromDate = parseExportBoundary(from, "start");
+  const toDate = parseExportBoundary(to, "end");
+
+  if (fromDate) {
+    conditions.push(gte(inquiries.submittedAt, fromDate));
   }
-  if (to) {
-    conditions.push(lte(inquiries.submittedAt, new Date(`${to}T23:59:59.999Z`)));
+
+  if (toDate) {
+    conditions.push(lte(inquiries.submittedAt, toDate));
   }
+
   const submittedAtSort = filters.sort === "oldest" ? asc : desc;
   const createdAtSort = filters.sort === "oldest" ? asc : desc;
 
@@ -706,7 +784,12 @@ export async function getInquiryExportRowsForBusiness({
       eq(inquiries.businessInquiryFormId, businessInquiryForms.id),
     )
     .where(and(...conditions))
-    .orderBy(submittedAtSort(inquiries.submittedAt), createdAtSort(inquiries.createdAt));
+    .orderBy(submittedAtSort(inquiries.submittedAt), createdAtSort(inquiries.createdAt))
+    // The export materializes every row in memory and joins it into a
+    // single CSV string. Cap the result so a large business cannot turn
+    // one request into a multi-hundred-megabyte allocation. One extra row
+    // lets the caller tell "exactly at the cap" from "truncated".
+    .limit(inquiryExportRowLimit + 1);
 }
 
 type GetInquiryDetailForBusinessInput = {
@@ -1019,10 +1102,8 @@ export async function getInquiryEditorFormsForBusiness(
       isDefault: businessInquiryForms.isDefault,
       publicInquiryEnabled: businessInquiryForms.publicInquiryEnabled,
       inquiryFormConfig: businessInquiryForms.inquiryFormConfig,
-      plan: businesses.plan,
     })
     .from(businessInquiryForms)
-    .innerJoin(businesses, eq(businessInquiryForms.businessId, businesses.id))
     .where(
       and(
         eq(businessInquiryForms.businessId, businessId),
@@ -1030,6 +1111,10 @@ export async function getInquiryEditorFormsForBusiness(
       ),
     )
     .orderBy(desc(businessInquiryForms.isDefault), asc(businessInquiryForms.name));
+
+  // Same plan source as the public inquiry path — the authoritative
+  // subscription, not the denormalized `businesses.plan` read cache.
+  const effectivePlan = await getCachedEffectivePlanForBusiness(businessId);
 
   return forms.map((form) => {
     const businessType = normalizeBusinessType(form.businessType);
@@ -1045,7 +1130,7 @@ export async function getInquiryEditorFormsForBusiness(
         getNormalizedInquiryFormConfig(form.inquiryFormConfig, {
           businessType,
         }),
-        form.plan,
+        effectivePlan,
       ),
     } satisfies InquiryEditorForm;
   });
@@ -1075,10 +1160,8 @@ export async function getInquiryEditorFormForBusiness({
       isDefault: businessInquiryForms.isDefault,
       publicInquiryEnabled: businessInquiryForms.publicInquiryEnabled,
       inquiryFormConfig: businessInquiryForms.inquiryFormConfig,
-      plan: businesses.plan,
     })
     .from(businessInquiryForms)
-    .innerJoin(businesses, eq(businessInquiryForms.businessId, businesses.id))
     .where(
       and(
         eq(businessInquiryForms.businessId, businessId),
@@ -1094,6 +1177,10 @@ export async function getInquiryEditorFormForBusiness({
 
   const businessType = normalizeBusinessType(form.businessType);
 
+  // Same plan source as the public inquiry path — the authoritative
+  // subscription, not the denormalized `businesses.plan` read cache.
+  const effectivePlan = await getCachedEffectivePlanForBusiness(businessId);
+
   return {
     id: form.id,
     name: form.name,
@@ -1105,7 +1192,7 @@ export async function getInquiryEditorFormForBusiness({
       getNormalizedInquiryFormConfig(form.inquiryFormConfig, {
         businessType,
       }),
-      form.plan,
+      effectivePlan,
     ),
   } satisfies InquiryEditorForm;
 }
@@ -1143,6 +1230,9 @@ export async function getInquiryAttachmentForBusiness({
         eq(inquiryAttachments.businessId, businessId),
         eq(inquiries.id, inquiryId),
         eq(inquiries.businessId, businessId),
+        // A deleted inquiry keeps its rows for audit, but its customer
+        // uploads must not stay downloadable.
+        isNull(inquiries.deletedAt),
       ),
     )
     .limit(1);

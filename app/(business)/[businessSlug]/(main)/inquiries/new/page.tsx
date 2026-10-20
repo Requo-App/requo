@@ -99,6 +99,7 @@ async function NewInquiryContent({
     <ManualInquiryEditor
       action={createManualInquiryAction}
       businessName={businessContext.business.name}
+      businessSlug={businessContext.business.slug}
       forms={inquiryForms}
       initialFormSlug={initialFormSlug}
       uploadHelpText={uploadHelpText}

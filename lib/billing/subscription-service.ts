@@ -8,7 +8,7 @@ import "server-only";
  */
 
 import { eq } from "drizzle-orm";
-import { cacheLife, cacheTag } from "next/cache";
+import { cacheLife, cacheTag, revalidateTag } from "next/cache";
 
 import { db } from "@/lib/db/client";
 import { businesses } from "@/lib/db/schema/businesses";
@@ -36,6 +36,23 @@ type SubscriptionLike = {
 };
 
 /* ── Read ──────────────────────────────────────────────────────────────────── */
+
+/**
+ * Invalidates the cached reads that depend on a business's plan.
+ *
+ * `revalidateTag` (not `updateTag`) because subscription writes happen in
+ * Route Handlers — the Polar webhooks and the expiry cron — where
+ * `updateTag` is unsupported.
+ *
+ * The business scope tag is included on purpose: plan-gated reads such as
+ * the inquiry form config are resolved against the plan, so they must
+ * converge with the subscription change too.
+ */
+function invalidateBusinessPlanCache(businessId: string) {
+  for (const tag of getBusinessBillingCacheTags(businessId)) {
+    revalidateTag(tag, "max");
+  }
+}
 
 /**
  * Returns the subscription row for a business, or `null` if no subscription
@@ -175,7 +192,7 @@ export async function activateSubscription(
 ): Promise<BusinessSubscriptionRow> {
   const now = new Date();
 
-  return db.transaction(async (tx) => {
+  const subscription = await db.transaction(async (tx) => {
     const [existing] = await tx
       .select()
       .from(businessSubscriptions)
@@ -250,13 +267,23 @@ export async function activateSubscription(
 
     // Keep the denormalized businesses.plan column in sync so UI reads
     // are immediately consistent without waiting for cache revalidation.
+    // The value is the *effective* plan derived from the subscription row,
+    // not the requested plan: a non-active status (pending, incomplete)
+    // must never leave a paid plan behind in the read cache.
     await tx
       .update(businesses)
-      .set({ plan: params.plan, updatedAt: now })
+      .set({
+        plan: resolveEffectivePlanFromSubscription(subscription),
+        updatedAt: now,
+      })
       .where(eq(businesses.id, params.businessId));
 
     return subscription;
   });
+
+  invalidateBusinessPlanCache(params.businessId);
+
+  return subscription;
 }
 
 /**
@@ -270,6 +297,12 @@ export async function createPendingSubscription(
 
 /**
  * Updates a subscription status from a provider event.
+ *
+ * The subscription row and the denormalized `businesses.plan` read cache
+ * are written in one transaction, so the cache can never drift from the
+ * authoritative row. Without the `businesses.plan` sync, a revoked or
+ * expired business keeps its paid plan in the column and every reader of
+ * that column keeps granting paid entitlements.
  */
 export async function updateSubscriptionStatus(
   businessId: string,
@@ -289,26 +322,48 @@ export async function updateSubscriptionStatus(
     return null;
   }
 
-  const [updated] = await db
-    .update(businessSubscriptions)
-    .set({
-      status,
-      providerSubscriptionId:
-        updates?.providerSubscriptionId ?? existing.providerSubscriptionId,
-      providerCustomerId:
-        updates?.providerCustomerId ?? existing.providerCustomerId,
-      paymentMethod: updates?.paymentMethod ?? existing.paymentMethod,
-      currentPeriodStart:
-        updates?.currentPeriodStart ?? existing.currentPeriodStart,
-      currentPeriodEnd:
-        updates?.currentPeriodEnd ?? existing.currentPeriodEnd,
-      canceledAt: updates?.canceledAt ?? existing.canceledAt,
-      updatedAt: new Date(),
-    })
-    .where(eq(businessSubscriptions.id, existing.id))
-    .returning();
+  const now = new Date();
 
-  return updated!;
+  const updated = await db.transaction(async (tx) => {
+    const [row] = await tx
+      .update(businessSubscriptions)
+      .set({
+        status,
+        providerSubscriptionId:
+          updates?.providerSubscriptionId ?? existing.providerSubscriptionId,
+        providerCustomerId:
+          updates?.providerCustomerId ?? existing.providerCustomerId,
+        paymentMethod: updates?.paymentMethod ?? existing.paymentMethod,
+        currentPeriodStart:
+          updates?.currentPeriodStart ?? existing.currentPeriodStart,
+        currentPeriodEnd:
+          updates?.currentPeriodEnd ?? existing.currentPeriodEnd,
+        canceledAt: updates?.canceledAt ?? existing.canceledAt,
+        updatedAt: now,
+      })
+      .where(eq(businessSubscriptions.id, existing.id))
+      .returning();
+
+    if (!row) {
+      return null;
+    }
+
+    await tx
+      .update(businesses)
+      .set({
+        plan: resolveEffectivePlanFromSubscription(row),
+        updatedAt: now,
+      })
+      .where(eq(businesses.id, businessId));
+
+    return row;
+  });
+
+  if (updated) {
+    invalidateBusinessPlanCache(businessId);
+  }
+
+  return updated;
 }
 
 /**

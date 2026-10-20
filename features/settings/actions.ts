@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { after } from "next/server";
 
 import { getValidationActionState } from "@/lib/action-state";
+import { getSafeInternalRedirectPath } from "@/lib/actions/run-record-action";
 import {
   getBusinessInquiryFormCacheTags,
   getBusinessInquiryFormsCacheTags,
@@ -1170,7 +1171,9 @@ export async function deleteBusinessInquiryFormAction(
   formData: FormData,
 ): Promise<BusinessInquiryFormDangerActionState> {
   const ownerAccess = await getOperationalBusinessActionContext();
-  const redirectHref = formData.get("redirectHref") as string | null;
+  const redirectHref = getSafeInternalRedirectPath(
+    formData.get("redirectHref") as string | null,
+  );
 
   if (!ownerAccess.ok) {
     return {

@@ -32,6 +32,9 @@ export function ManualProjectField({
 }) {
   const inputName = getInquiryFormFieldInputName(field);
   const inputId = `manual-inquiry-${inputName}`;
+  const labelId = `${inputId}-label`;
+  const isMultiSelect =
+    field.kind === "custom" && field.fieldType === "multi_select";
   const isWide =
     (field.kind === "system" && field.key === "details") ||
     (field.kind === "custom" &&
@@ -44,9 +47,17 @@ export function ManualProjectField({
       className={cn(isWide && "sm:col-span-2")}
       data-invalid={Boolean(error) || undefined}
     >
-      <FieldLabel htmlFor={inputId}>
-        <FieldLabelText label={field.label} required={field.required} />
-      </FieldLabel>
+      {isMultiSelect ? (
+        // A multi-select is a group of checkboxes, not a single input, so
+        // the label references the group instead of a control.
+        <FieldLabel id={labelId}>
+          <FieldLabelText label={field.label} required={field.required} />
+        </FieldLabel>
+      ) : (
+        <FieldLabel htmlFor={inputId}>
+          <FieldLabelText label={field.label} required={field.required} />
+        </FieldLabel>
+      )}
       <FieldContent>
         {renderProjectInput({
           field,
@@ -58,6 +69,7 @@ export function ManualProjectField({
           stringValue,
           multiValue,
           hasError: Boolean(error),
+          labelId,
         })}
         <FieldError errors={error ? [{ message: error }] : undefined} />
       </FieldContent>

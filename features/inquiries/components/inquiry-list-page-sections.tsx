@@ -45,12 +45,16 @@ type InquiryListControlsSectionProps = {
   searchParams: SearchParamsRecord;
   totalItemsPromise: Promise<number>;
   formOptionsPromise: Promise<InquiryFormOption[]>;
-  archivedItemsPromise: Promise<DashboardInquiryListItem[]>;
   unarchiveAction: (
     inquiryId: string,
     state: InquiryRecordActionState,
     formData: FormData,
   ) => Promise<InquiryRecordActionState>;
+};
+
+type InquiryListHeaderActionsProps = InquiryListControlsSectionProps & {
+  archivedItemsPromise: Promise<DashboardInquiryListItem[]>;
+  exportableInquiryCountPromise: Promise<number>;
 };
 
 export async function InquiryListHeaderActions({
@@ -60,13 +64,16 @@ export async function InquiryListHeaderActions({
   totalItemsPromise,
   formOptionsPromise,
   archivedItemsPromise,
+  exportableInquiryCountPromise,
   unarchiveAction,
-}: InquiryListControlsSectionProps) {
-  const [totalItems, inquiryFormOptions, archivedItems] = await Promise.all([
-    totalItemsPromise,
-    formOptionsPromise,
-    archivedItemsPromise,
-  ]);
+}: InquiryListHeaderActionsProps) {
+  const [, inquiryFormOptions, archivedItems, exportableCount] =
+    await Promise.all([
+      totalItemsPromise,
+      formOptionsPromise,
+      archivedItemsPromise,
+      exportableInquiryCountPromise,
+    ]);
   const formOptions = [
     {
       value: "all",
@@ -85,7 +92,7 @@ export async function InquiryListHeaderActions({
         canExport={canExport}
         filters={filters}
         formOptions={formOptions}
-        resultCount={totalItems}
+        resultCount={exportableCount}
       />
       <ArchivedInquiriesSheet
         businessSlug={businessSlug}
@@ -115,7 +122,6 @@ export async function InquiryListControlsSection({
   searchParams: _searchParams,
   totalItemsPromise,
   formOptionsPromise,
-  archivedItemsPromise: _archivedItemsPromise,
   unarchiveAction: _unarchiveAction,
 }: InquiryListControlsSectionProps) {
   const [totalItems, inquiryFormOptions] = await Promise.all([
@@ -135,7 +141,7 @@ export async function InquiryListControlsSection({
 
   return (
     <InquiryListToolbar
-      key={`${filters.view}:${filters.status}:${filters.form}:${filters.source}:${filters.q ?? ""}:${filters.sort}`}
+      key={`${filters.view}:${filters.status}:${filters.form}:${filters.source}:${filters.q ?? ""}:${filters.sort}:${filters.escalated ? "escalated" : ""}`}
       filters={filters}
       formOptions={formOptions}
       resultCount={totalItems}

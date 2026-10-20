@@ -21,6 +21,10 @@
     {
       "path": "/api/cron/expire-approvals",
       "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/api/cron/cleanup-inquiry-uploads",
+      "schedule": "0 5 * * *"
     }
   ]
 }

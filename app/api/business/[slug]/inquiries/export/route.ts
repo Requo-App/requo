@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 
 import {
   getInquiryExportRowsForBusiness,
+  inquiryExportRowLimit,
 } from "@/features/inquiries/queries";
 import { inquiryListFiltersSchema } from "@/features/inquiries/schemas";
 import { normalizeInquirySource } from "@/features/inquiries/types";
@@ -47,8 +48,16 @@ export async function GET(
       to: exportDateSchema,
     })
     .safeParse(Object.fromEntries(new URL(request.url).searchParams.entries()));
-  const from = dateParams.success ? dateParams.data.from : undefined;
-  const to = dateParams.success ? dateParams.data.to : undefined;
+
+  if (!dateParams.success) {
+    return NextResponse.json(
+      { error: "Enter a valid date range." },
+      { status: 400 },
+    );
+  }
+
+  const from = dateParams.data.from;
+  const to = dateParams.data.to;
   const rows = await getInquiryExportRowsForBusiness({
     businessId: requestContext.businessContext.business.id,
     filters: {
@@ -59,11 +68,25 @@ export async function GET(
       source: filters.source,
       sort: filters.sort,
       escalated: filters.escalated ?? false,
-      unread: filters.unread ?? false,
+      // The list always renders with the unread filter off, so the export
+      // must return the same row set for the same filters.
+      unread: false,
     },
     from,
     to,
   });
+
+  if (rows.length > inquiryExportRowLimit) {
+    // The export materializes the whole CSV in memory, so the result set
+    // is capped. Say so instead of silently truncating the file.
+    return NextResponse.json(
+      {
+        error:
+          "This export is too large. Narrow the date range or filters and try again.",
+      },
+      { status: 400 },
+    );
+  }
 
   return buildListCsvResponse(
     [

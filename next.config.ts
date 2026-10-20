@@ -109,7 +109,10 @@ const nextConfig: NextConfig = {
   },
   experimental: {
     serverActions: {
-      bodySizeLimit: "7mb",
+      // Stay below Vercel's 4.5 MB request cap while allowing existing
+      // 2 MB logo uploads plus form overhead. Inquiry attachments use
+      // signed direct-storage uploads via /api/public/inquiry-upload.
+      bodySizeLimit: "4mb",
     },
     // Lets `forbidden()` render `app/forbidden.tsx` instead of throwing a plain
     // error. Required by `features/admin/access.ts` — see below.

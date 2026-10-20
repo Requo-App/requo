@@ -19,9 +19,19 @@ import {
   normalizeInquirySource,
 } from "@/features/inquiries/types";
 import {
+  getInquiryContactHandleUrl,
   inquiryContactMethodLabels,
+  inquiryContactMethods,
   type InquiryContactMethod,
 } from "@/features/inquiries/form-config";
+
+/**
+ * Hard ceiling on how many inquiries a single bulk action may touch.
+ *
+ * Shared by the bulk actions (server), the bulk schema, and the list UI so
+ * the limit the user is promised is the limit the server enforces.
+ */
+export const inquiryBulkSelectionLimit = 50;
 
 export const inquiryStatusLabels: Record<InquiryStatus, string> = {
   new: "New",
@@ -193,14 +203,12 @@ export function getContactHandleUrl(method: string | null, handle: string | null
   const trimmedHandle = handle?.trim() ?? "";
   if (!normalizedMethod || !trimmedHandle) return null;
 
-  switch (normalizedMethod) {
-    case "facebook":
-      return `https://facebook.com/${trimmedHandle}`;
-    case "instagram":
-      return `https://instagram.com/${trimmedHandle}`;
-    case "whatsapp":
-      return `https://wa.me/${trimmedHandle.replace(/[^0-9+]/g, "")}`;
-    default:
-      return null;
+  if (!inquiryContactMethods.includes(normalizedMethod as InquiryContactMethod)) {
+    return null;
   }
+
+  return getInquiryContactHandleUrl(
+    normalizedMethod as InquiryContactMethod,
+    trimmedHandle,
+  );
 }

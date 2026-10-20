@@ -37,6 +37,8 @@ import {
 import {
   activateSubscription,
   cancelSubscription,
+  createPendingSubscription,
+  expireSubscription,
   resolveEffectivePlanFromSubscription,
 } from "@/lib/billing/subscription-service";
 import { closeTestDb, testDb } from "@/tests/support/db";
@@ -156,7 +158,7 @@ describe("activateSubscription atomicity", () => {
     expect(plan).toBe("business");
   });
 
-  it("cancellation preserves the existing plan mapping without touching the cache write path", async () => {
+  it("cancellation keeps paid access and the cached plan within the period", async () => {
     const { businessId } = await seedBusiness("cancel");
 
     await activateSubscription({
@@ -164,18 +166,60 @@ describe("activateSubscription atomicity", () => {
       plan: "pro",
       provider: "polar",
       currency: "USD",
+      currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
     });
     const canceled = await cancelSubscription(businessId);
 
     expect(canceled?.status).toBe("canceled");
-    // Authoritative mapping still resolves paid access within the period;
-    // the cache column itself is only written by activation.
-    const { sub } = await readState(businessId);
+
+    const { sub, plan } = await readState(businessId);
+
+    // The authoritative mapping still resolves paid access within the
+    // period, and the cached plan column matches it.
     expect(
       resolveEffectivePlanFromSubscription({
         ...sub!,
         currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       }),
     ).toBe("pro");
+    expect(plan).toBe("pro");
+  });
+
+  it("expiring a subscription downgrades the cached plan to free", async () => {
+    const { businessId } = await seedBusiness("expire");
+
+    await activateSubscription({
+      businessId,
+      plan: "pro",
+      provider: "polar",
+      currency: "USD",
+    });
+    expect((await readState(businessId)).plan).toBe("pro");
+
+    const expired = await expireSubscription(businessId);
+
+    expect(expired?.status).toBe("expired");
+
+    // Without this sync the denormalized column keeps granting paid
+    // entitlements after a revoke.
+    const { sub, plan } = await readState(businessId);
+    expect(sub?.status).toBe("expired");
+    expect(plan).toBe("free");
+  });
+
+  it("a pending subscription does not leave a paid plan in the cache", async () => {
+    const { businessId } = await seedBusiness("pending");
+
+    await createPendingSubscription({
+      businessId,
+      plan: "pro",
+      provider: "polar",
+      currency: "USD",
+    });
+
+    const { sub, plan } = await readState(businessId);
+    expect(sub?.status).toBe("pending");
+    // A pending checkout is not paid access yet.
+    expect(plan).toBe("free");
   });
 });

@@ -260,6 +260,13 @@
       "when": 1790278456420,
       "tag": "0036_verticalization_primitives",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1792514131017,
+      "tag": "0037_inquiries_active_submitted_at_index",
+      "breakpoints": true
     }
   ]
 }

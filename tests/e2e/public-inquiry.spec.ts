@@ -32,11 +32,16 @@ test("public inquiry page rejects unsupported attachments", async ({ page }) => 
     buffer: Buffer.from("pretend-binary"),
   });
 
-  await page.getByRole("button", { name: "Send" }).click();
-
+  // The file is uploaded straight to storage, so the type is refused
+  // before the inquiry is ever sent.
   await expect(
-    page.getByText("Upload a PDF, common document file, or image."),
+    page.getByText("Upload a PDF, common document file, or image.").first(),
   ).toBeVisible();
+
+  // A rejected file blocks the send until it is removed or replaced.
+  await expect(page.getByRole("button", { name: "Send" })).toBeDisabled();
+  await page.getByRole("button", { name: "Remove" }).click();
+  await expect(page.getByRole("button", { name: "Send" })).toBeEnabled();
 });
 
 test("public inquiry page accepts a new submission @smoke", async ({ page }) => {

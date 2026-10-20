@@ -1,8 +1,17 @@
-import { and, eq, gte, isNull, ne } from "drizzle-orm";
+import { and, desc, eq, gte, isNull, ne, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
 import { inquiries } from "@/lib/db/schema";
 import type { RecentInquiryInput } from "@/features/inquiries/qualification/types";
+
+/**
+ * Upper bound on the candidate set scanned for duplicates.
+ *
+ * The window bounds the time range, not the row count, so a customer who
+ * submits repeatedly would otherwise make every new submission tokenize an
+ * unbounded list on the public intake path.
+ */
+const duplicateCandidateLimit = 50;
 
 /**
  * Fetch recent inquiries from the same email for duplicate detection.
@@ -32,12 +41,18 @@ export async function getRecentInquiriesForDuplicateCheck(input: {
     .where(
       and(
         eq(inquiries.businessId, businessId),
-        eq(inquiries.customerEmail, customerEmail),
+        // Case-insensitive on purpose: the comparison in
+        // `duplicate-detection.ts` lowercases both sides, so a
+        // case-sensitive SQL pre-filter would make that path unreachable
+        // and silently under-report duplicates.
+        sql`lower(${inquiries.customerEmail}) = lower(${customerEmail})`,
         ne(inquiries.id, excludeInquiryId),
         gte(inquiries.submittedAt, windowStart),
         isNull(inquiries.deletedAt),
       ),
-    );
+    )
+    .orderBy(desc(inquiries.submittedAt))
+    .limit(duplicateCandidateLimit);
 
   return rows.map((row) => ({
     id: row.id,
