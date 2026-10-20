@@ -17,13 +17,15 @@ import {
 export default function AnalyticsLoading() {
   return (
     <DashboardPage>
-      <PageHeader
-        eyebrow="Analytics"
-        title="Pipeline analytics"
-        description="How inquiries arrive, how quotes move through the pipeline, and where follow-up and automation make a difference."
-        actions={<AnalyticsToolbarSkeleton />}
-      />
-      <AnalyticsContentSkeleton />
+      <div className="mx-auto flex w-full max-w-[80rem] flex-col gap-6">
+        <PageHeader
+          eyebrow="Analytics"
+          title="Pipeline analytics"
+          description="How inquiries arrive, how quotes move through the pipeline, and where follow-up and automation make a difference."
+          actions={<AnalyticsToolbarSkeleton />}
+        />
+        <AnalyticsContentSkeleton />
+      </div>
     </DashboardPage>
   );
 }

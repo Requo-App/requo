@@ -49,6 +49,8 @@ export type AnalyticsOutcomeSlice = {
   count: number;
   /** Share of all quotes represented in the slice list (0–1). */
   share: number;
+  /** Value behind the slice, in cents; omitted when the slice has no value. */
+  valueInCents?: number;
 };
 
 export type AnalyticsRankedItem = {
@@ -56,10 +58,15 @@ export type AnalyticsRankedItem = {
   count: number;
   /** Optional secondary value shown under the count (e.g. accepted value). */
   detail?: string;
+  /** Money behind the row, in cents, when the row ranks by value. */
+  valueInCents?: number;
   /** Share of the list total (0–1). */
   share: number;
   href: string | null;
 };
+
+/** The domain an attention row belongs to; picks the row's icon. */
+export type AnalyticsAttentionIcon = "inquiry" | "quote" | "follow-up";
 
 export type AnalyticsAttentionItem = {
   key: string;
@@ -68,6 +75,8 @@ export type AnalyticsAttentionItem = {
   count: number;
   href: string;
   tone: AnalyticsTone;
+  /** The kind of work the row points at, so the list can icon it. */
+  icon: AnalyticsAttentionIcon;
 };
 
 export type AnalyticsUsageMeter = {
@@ -164,9 +173,17 @@ export type OverviewPeriod = {
   /** accepted ÷ quotes sent. */
   acceptanceRate: number;
   revenueWonInCents: number;
+  /** Quotes accepted in the period — the same population as the revenue. */
+  quotesWon: number;
   quotedValueInCents: number;
   collectedInCents: number;
   invoicedInCents: number;
+  /** Value behind the accepted quotes, in cents. */
+  acceptedValueInCents: number;
+  /** Value behind the rejected quotes, in cents. */
+  rejectedValueInCents: number;
+  /** Value behind the expired quotes, in cents. */
+  expiredValueInCents: number;
 };
 
 /** Current receivables position (a snapshot, not window-scoped). */
@@ -177,15 +194,36 @@ export type OverviewReceivables = {
   overdueCount: number;
 };
 
+/**
+ * Time from an inquiry being submitted to the first team response.
+ *
+ * The unanswered inquiries are part of the measure, so a reader can see how
+ * much of the window the average is based on.
+ */
+export type FirstResponseMetric = {
+  /** Average hours to the first team response; null when nothing was answered. */
+  hours: number | null;
+  /** Inquiries in the window that got at least one team response. */
+  answered: number;
+  /** Inquiries in the window. */
+  total: number;
+};
+
 export type OverviewData = {
   currency: string;
   current: OverviewPeriod;
   /** null for Free and all-time (no comparable prior window). */
   prior: OverviewPeriod | null;
+  /** Time to the first team response, with the number of inquiries behind it. */
+  firstResponse: FirstResponseMetric;
+  /** The same measure for the comparison window. */
+  priorFirstResponse: FirstResponseMetric | null;
   series: AnalyticsSeriesPoint[];
   funnel: AnalyticsFunnelStep[];
   outcomes: AnalyticsOutcomeSlice[];
   receivables: OverviewReceivables;
+  /** Outstanding invoice balances by days past due (a live snapshot). */
+  arAging: AnalyticsAgingBucket[];
   attention: AnalyticsAttentionItem[];
   usage: AnalyticsUsageMeter[];
   /** False when the workspace has never recorded an inquiry or quote. */

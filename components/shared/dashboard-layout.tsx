@@ -50,18 +50,6 @@ export function DashboardPage({
   return <div className={cn("dashboard-page", className)}>{children}</div>;
 }
 
-type DashboardToolbarProps = {
-  children: ReactNode;
-  className?: string;
-};
-
-export function DashboardToolbar({
-  children,
-  className,
-}: DashboardToolbarProps) {
-  return <div className={cn("toolbar-panel", className)}>{children}</div>;
-}
-
 type DashboardStatsGridProps = {
   children: ReactNode;
   className?: string;

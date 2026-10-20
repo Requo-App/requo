@@ -1,11 +1,15 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { DeltaPill } from "@/components/shared/delta-pill";
-import { RankedBarList } from "@/features/analytics/components/charts/ranked-bar-list";
+import { DeltaBadge } from "@/features/analytics/components/primitives/delta-badge";
+import { BarList } from "@/features/analytics/components/primitives/bar-list";
+import { DataTable } from "@/features/analytics/components/primitives/data-table";
+import { EmptyState } from "@/features/analytics/components/primitives/empty-state";
+import { Funnel } from "@/features/analytics/components/primitives/funnel";
+import { Stat, StatGrid } from "@/features/analytics/components/primitives/stat";
+import { UsageMeter } from "@/features/analytics/components/primitives/usage-meter";
+import { AttentionList } from "@/features/analytics/components/primitives/attention-list";
 import { AnalyticsTabNav } from "@/features/analytics/components/controls/analytics-tab-nav";
-import { UsageMeter } from "@/features/analytics/components/meters/usage-meter";
-import { AnalyticsMetricTile } from "@/features/analytics/components/metric-tile";
 import {
   AnalyticsFirstRunEmpty,
   AnalyticsRangeEmpty,
@@ -31,43 +35,74 @@ vi.mock("next/link", () => ({
 /**
  * Analytics building blocks.
  *
- * These cover the shared vocabulary every tab renders — delta chips, metric
- * tiles, usage meters, ranked lists, empty states, and the tab bar's locked
- * state. Section components are server components (async) and are covered by
- * the query tests and route checks instead.
+ * These cover the shared vocabulary every tab renders — delta chips, stats,
+ * bar lists, funnels, usage meters, attention lists, tables, and the tab bar's
+ * locked state. Section components are server components (async) and are
+ * covered by the query tests and route checks instead.
  */
 
-describe("DeltaPill", () => {
+/** The stat grid's cells, in order. */
+function statCells(container: HTMLElement): Element[] {
+  const grid = container.firstElementChild;
+  if (!grid) throw new Error("Expected a stat grid.");
+  return Array.from(grid.children);
+}
+
+/**
+ * Whether a cell draws a rule at one breakpoint.
+ *
+ * `variant` is the breakpoint variant without its colon (`""` for the base
+ * one, `"@[24rem]"` for a container query). A cell declares either the rule
+ * or its absence at each breakpoint, so the last matching class is the
+ * effective one.
+ */
+function hasRule(
+  cell: Element,
+  variant: string,
+  side: "border-t" | "border-l",
+): boolean {
+  const prefix = variant ? `${variant}:` : "";
+  const classes = Array.from(cell.classList);
+  const matches = classes.filter(
+    (name) => name === `${prefix}${side}` || name === `${prefix}${side}-0`,
+  );
+  if (matches.length === 0) return false;
+  return matches[matches.length - 1] === `${prefix}${side}`;
+}
+
+describe("DeltaBadge", () => {
   it("renders nothing without a delta", () => {
-    const { container } = render(<DeltaPill delta={null} />);
+    const { container } = render(<DeltaBadge delta={null} />);
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("infers the direction from the sign and tints by sentiment", () => {
-    render(<DeltaPill delta="+12%" sentiment="positive" />);
-    const pill = screen.getByText("+12%");
-    expect(pill.parentElement?.className).toContain("bg-success/10");
+  it("tints by sentiment rather than by the sign of the change", () => {
+    render(<DeltaBadge delta="+12%" direction="up" sentiment="positive" />);
+    expect(screen.getByText("+12%").parentElement?.className).toContain(
+      "text-success",
+    );
   });
 
   it("keeps direction and sentiment independent for lower-is-better metrics", () => {
-    render(<DeltaPill delta="33% faster" direction="down" sentiment="positive" />);
+    render(
+      <DeltaBadge delta="33% faster" direction="down" sentiment="positive" />,
+    );
     expect(screen.getByText("33% faster").parentElement?.className).toContain(
-      "bg-success/10",
+      "text-success",
     );
   });
 
-  it("falls back to the neutral tone", () => {
-    render(<DeltaPill delta="No change" />);
-    expect(screen.getByText("No change").parentElement?.className).toContain(
-      "bg-muted",
-    );
+  it("renders no change as plain muted text", () => {
+    render(<DeltaBadge delta="No change" direction="flat" sentiment="neutral" />);
+    const badge = screen.getByText("No change");
+    expect(badge.className).toContain("text-muted-foreground");
   });
 });
 
-describe("AnalyticsMetricTile", () => {
+describe("Stat", () => {
   it("renders label, value, and caption", () => {
     render(
-      <AnalyticsMetricTile label="Win rate" value="42%" caption="Accepted ÷ decided" />,
+      <Stat label="Win rate" value="42%" caption="Accepted ÷ decided" />,
     );
 
     expect(screen.getByText("Win rate")).toBeInTheDocument();
@@ -75,17 +110,167 @@ describe("AnalyticsMetricTile", () => {
     expect(screen.getByText("Accepted ÷ decided")).toBeInTheDocument();
   });
 
-  it("links when a drill-down href is provided", () => {
-    render(<AnalyticsMetricTile label="Open" value="8" href="/acme/inquiries" />);
+  it("links the label when a drill-down href is provided", () => {
+    render(<Stat label="Open" value="8" href="/acme/inquiries" />);
     expect(screen.getByRole("link", { name: /Open/ })).toHaveAttribute(
       "href",
       "/acme/inquiries",
     );
   });
 
-  it("tints the value by tone", () => {
-    render(<AnalyticsMetricTile label="Failed" value="3" tone="negative" />);
-    expect(screen.getByText("3").className).toContain("text-destructive");
+  it("separates stats with a divider instead of boxing them", () => {
+    const { container } = render(
+      <StatGrid columns={2}>
+        <Stat label="One" value="1" />
+        <Stat label="Two" value="2" />
+      </StatGrid>,
+    );
+
+    const cells = statCells(container);
+    // The second cell starts a row of its own on a phone, so it carries the
+    // horizontal rule; the first cell is flush with the top.
+    expect(hasRule(cells[1]!, "", "border-t")).toBe(true);
+    expect(hasRule(cells[0]!, "", "border-t")).toBe(false);
+    // Nothing sits beside the first cell, so no vertical rule.
+    expect(hasRule(cells[1]!, "", "border-l")).toBe(false);
+  });
+
+  it("draws the vertical rule between the columns of a row", () => {
+    const { container } = render(
+      <StatGrid columns={2}>
+        <Stat label="One" value="1" />
+        <Stat label="Two" value="2" />
+        <Stat label="Three" value="3" />
+        <Stat label="Four" value="4" />
+      </StatGrid>,
+    );
+
+    const cells = statCells(container);
+    // Two columns once the card is wide enough.
+    expect(hasRule(cells[1]!, "@[24rem]", "border-l")).toBe(true);
+    expect(hasRule(cells[0]!, "@[24rem]", "border-l")).toBe(false);
+    // The second row starts below the first, so it carries the top rule.
+    expect(hasRule(cells[2]!, "@[24rem]", "border-t")).toBe(true);
+    expect(hasRule(cells[0]!, "@[24rem]", "border-t")).toBe(false);
+    // The cell that starts a row has no vertical rule.
+    expect(hasRule(cells[2]!, "@[24rem]", "border-l")).toBe(false);
+    expect(hasRule(cells[3]!, "@[24rem]", "border-l")).toBe(true);
+  });
+
+  it("keeps the vertical rules running through every row", () => {
+    const { container } = render(
+      <StatGrid columns={2}>
+        <Stat label="One" value="1" />
+        <Stat label="Two" value="2" />
+        <Stat label="Three" value="3" />
+        <Stat label="Four" value="4" />
+      </StatGrid>,
+    );
+
+    const cells = statCells(container);
+    // Cells touch: the rule of the cell above meets the rule of the cell
+    // below it, so the last cell of a row keeps its vertical rule.
+    expect(hasRule(cells[1]!, "@[24rem]", "border-l")).toBe(true);
+    expect(hasRule(cells[3]!, "@[24rem]", "border-l")).toBe(true);
+  });
+
+  it("follows the card container instead of the viewport", () => {
+    const { container } = render(
+      <StatGrid columns={4}>
+        <Stat label="One" value="1" />
+        <Stat label="Two" value="2" />
+        <Stat label="Three" value="3" />
+        <Stat label="Four" value="4" />
+      </StatGrid>,
+    );
+
+    const grid = container.firstElementChild;
+    expect(grid?.getAttribute("class")).toContain("@[44rem]:grid-cols-4");
+
+    const cells = statCells(container);
+    // Four columns at the widest size: every cell but the first of a row
+    // carries the vertical rule.
+    expect(hasRule(cells[1]!, "@[44rem]", "border-l")).toBe(true);
+    expect(hasRule(cells[2]!, "@[44rem]", "border-l")).toBe(true);
+    expect(hasRule(cells[3]!, "@[44rem]", "border-l")).toBe(true);
+    // The grid has no three-column step, so the rules never describe a
+    // layout the grid does not use.
+    expect(hasRule(cells[1]!, "@[38rem]", "border-l")).toBe(false);
+  });
+});
+
+describe("BarList", () => {
+  const items = [
+    { key: "direct", label: "Direct", value: "82", share: 0.82, href: null },
+    {
+      key: "google",
+      label: "google.com",
+      value: "18",
+      share: 0.18,
+      href: "/acme/inquiries?source=service_form",
+    },
+  ];
+
+  it("renders rows with the value and links tagged items", () => {
+    render(<BarList items={items} />);
+
+    expect(screen.getByText("Direct")).toBeInTheDocument();
+    expect(screen.getByText("82")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /google\.com/ })).toHaveAttribute(
+      "href",
+      "/acme/inquiries?source=service_form",
+    );
+  });
+
+  it("shows the empty label when there is nothing to rank", () => {
+    render(<BarList items={[]} emptyLabel="No form views in this period." />);
+    expect(screen.getByText("No form views in this period.")).toBeInTheDocument();
+  });
+
+  it("renders a zero share as an empty track rather than a stub", () => {
+    const { container } = render(
+      <BarList
+        items={[{ key: "zero", label: "Direct", value: "0", share: 0 }]}
+      />,
+    );
+    const fill = container.querySelector("div[style]");
+    expect(fill?.getAttribute("style")).toContain("width: 0%");
+  });
+});
+
+describe("Funnel", () => {
+  const steps = [
+    { key: "visitors", label: "Visitors", count: 7, href: null },
+    { key: "inquiries", label: "Inquiries", count: 7, href: null },
+    { key: "quotes", label: "Quotes sent", count: 4, href: null },
+  ];
+
+  it("renders each stage with its step conversion", () => {
+    render(<Funnel steps={steps} />);
+
+    expect(screen.getByText("Visitors")).toBeInTheDocument();
+    expect(screen.getByText("Quotes sent")).toBeInTheDocument();
+    expect(screen.getByText("100% of visitors")).toBeInTheDocument();
+    expect(screen.getByText("57.1% of inquiries")).toBeInTheDocument();
+  });
+
+  it("states the counts instead of a rate above 100%", () => {
+    render(
+      <Funnel
+        steps={[
+          { key: "visitors", label: "Visitors", count: 7, href: null },
+          { key: "inquiries", label: "Inquiries", count: 9, href: null },
+        ]}
+      />,
+    );
+
+    expect(screen.queryByText("128.6% of visitors")).not.toBeInTheDocument();
+    expect(screen.getByText("9 from 7 visitors")).toBeInTheDocument();
+  });
+
+  it("shows the empty label when nothing happened", () => {
+    render(<Funnel steps={[]} emptyLabel="No funnel activity yet." />);
+    expect(screen.getByText("No funnel activity yet.")).toBeInTheDocument();
   });
 });
 
@@ -131,37 +316,118 @@ describe("UsageMeter", () => {
   });
 });
 
-describe("RankedBarList", () => {
-  const items = [
-    { label: "Direct", count: 82, share: 0.82, href: null },
-    { label: "google.com", count: 18, share: 0.18, href: "/acme/inquiries?source=service_form" },
-  ];
-
-  it("renders rows, defaults to counts, and links tagged items", () => {
-    render(<RankedBarList items={items} />);
-
-    expect(screen.getByText("Direct")).toBeInTheDocument();
-    expect(screen.getByText("82")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /google\.com/ })).toHaveAttribute(
-      "href",
-      "/acme/inquiries?source=service_form",
-    );
-  });
-
-  it("accepts a value formatter for rate lists", () => {
+describe("AttentionList", () => {
+  it("mutes zero counts and accents the ones that need work", () => {
     render(
-      <RankedBarList
-        items={[{ label: "Repairs", count: 21, share: 0.5, href: null }]}
-        formatValue={(item) => `${Math.round(item.share * 100)}%`}
+      <AttentionList
+        items={[
+          {
+            key: "unviewed",
+            label: "Unviewed inquiries",
+            description: "No one has opened these yet.",
+            count: 18,
+            href: "/acme/inquiries?status=new",
+            tone: "warning",
+            icon: "inquiry",
+          },
+          {
+            key: "stale",
+            label: "Stale inquiries",
+            description: "Viewed but still sitting for more than 2 days.",
+            count: 0,
+            href: "/acme/inquiries?status=stale",
+            tone: "neutral",
+            icon: "inquiry",
+          },
+        ]}
       />,
     );
 
-    expect(screen.getByText("50%")).toBeInTheDocument();
+    expect(screen.getByText("Unviewed inquiries")).toBeInTheDocument();
+    expect(screen.getByText("18")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Unviewed inquiries/ })).toHaveAttribute(
+      "href",
+      "/acme/inquiries?status=new",
+    );
   });
 
-  it("shows the empty label when there is nothing to rank", () => {
-    render(<RankedBarList items={[]} emptyLabel="No form views in this period." />);
-    expect(screen.getByText("No form views in this period.")).toBeInTheDocument();
+  it("icons each row by the kind of work it points at", () => {
+    const { container } = render(
+      <AttentionList
+        items={[
+          {
+            key: "unviewed",
+            label: "Unviewed inquiries",
+            description: "No one has opened these yet.",
+            count: 1,
+            href: "/acme/inquiries?status=new",
+            tone: "warning",
+            icon: "inquiry",
+          },
+          {
+            key: "expiring",
+            label: "Quotes expiring this week",
+            description: "Sent quotes whose validity ends within 7 days.",
+            count: 2,
+            href: "/acme/quotes?status=sent",
+            tone: "info",
+            icon: "quote",
+          },
+          {
+            key: "overdue",
+            label: "Overdue follow-ups",
+            description: "Past their due date and still pending.",
+            count: 3,
+            href: "/acme/follow-ups?due=overdue",
+            tone: "negative",
+            icon: "follow-up",
+          },
+        ]}
+      />,
+    );
+
+    // One icon per row, and a different one for each kind of work.
+    const icons = container.querySelectorAll("svg");
+    expect(icons).toHaveLength(3);
+    expect(icons[0]?.getAttribute("class")).toContain("lucide-inbox");
+    expect(icons[1]?.getAttribute("class")).toContain("lucide-file-text");
+    expect(icons[2]?.getAttribute("class")).toContain("lucide-bell-ring");
+  });
+
+  it("says so when nothing needs attention", () => {
+    render(<AttentionList items={[]} />);
+    expect(screen.getByText("Nothing needs attention")).toBeInTheDocument();
+  });
+});
+
+describe("DataTable", () => {
+  it("renders headers and right-aligned values", () => {
+    render(
+      <DataTable
+        columns={[
+          { key: "stage", header: "Stage" },
+          { key: "count", header: "Count", align: "end" },
+        ]}
+        rows={[{ stage: "Sent", count: "4" }]}
+      />,
+    );
+
+    expect(screen.getByText("Stage")).toBeInTheDocument();
+    expect(screen.getByText("4")).toBeInTheDocument();
+  });
+
+  it("renders nothing without rows", () => {
+    const { container } = render(
+      <DataTable columns={[{ key: "stage", header: "Stage" }]} rows={[]} />,
+    );
+    expect(container).toBeEmptyDOMElement();
+  });
+});
+
+describe("EmptyState", () => {
+  it("renders one muted line", () => {
+    render(<EmptyState label="No activity in this period." />);
+    expect(screen.getByText("No activity in this period.")).toBeInTheDocument();
   });
 });
 

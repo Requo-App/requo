@@ -37,17 +37,27 @@ function getMoneyFormatter(currency: string, compact: boolean) {
 /**
  * Formats integer cents in the workspace currency. Whole units by default so
  * dashboard values stay scannable; `compact` is for tight chart axes/cells.
+ *
+ * A null, undefined, or non-finite amount reads as an em dash: every analytics
+ * surface shows the same "no value" mark, never `NaN` or `$0`.
  */
 export function formatMoney(
-  amountInCents: number,
+  amountInCents: number | null | undefined,
   currency = "USD",
   { compact = false }: { compact?: boolean } = {},
 ): string {
+  if (amountInCents === null || amountInCents === undefined) return "—";
+  if (!Number.isFinite(amountInCents)) return "—";
   return getMoneyFormatter(currency, compact).format(amountInCents / 100);
 }
 
 /** Full-value money with cents, for tooltips and CSV cells. */
-export function formatMoneyExact(amountInCents: number, currency = "USD"): string {
+export function formatMoneyExact(
+  amountInCents: number | null | undefined,
+  currency = "USD",
+): string {
+  if (amountInCents === null || amountInCents === undefined) return "—";
+  if (!Number.isFinite(amountInCents)) return "—";
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency,
@@ -56,11 +66,13 @@ export function formatMoneyExact(amountInCents: number, currency = "USD"): strin
   }).format(amountInCents / 100);
 }
 
-export function formatNumber(value: number): string {
+export function formatNumber(value: number | null | undefined): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) return "—";
   return new Intl.NumberFormat("en-US").format(value);
 }
 
-export function formatCompactNumber(value: number): string {
+export function formatCompactNumber(value: number | null | undefined): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) return "—";
   return new Intl.NumberFormat("en-US", {
     notation: "compact",
     maximumFractionDigits: 1,
@@ -228,6 +240,14 @@ export function formatSpeedDelta(
   if (current === null) return { label: "No data yet", direction: "flat" };
   if (prior === null) return { label: "No prior data", direction: "flat" };
   if (current === prior) return { label: "No change", direction: "flat" };
+
+  // A zero prior has no meaningful percentage; read it as a new baseline
+  // rather than dividing by zero.
+  if (prior === 0) {
+    return current > 0
+      ? { label: "No prior baseline", direction: "flat" }
+      : { label: "No change", direction: "flat" };
+  }
 
   const pct = Math.round((Math.abs(current - prior) / prior) * 100);
 

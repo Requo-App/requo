@@ -19,15 +19,14 @@ test("public inquiry page rejects unsupported attachments", async ({ page }) => 
   await page.goto(`/inquire/${demoBusinessSlug}`);
   await page.waitForLoadState("networkidle");
 
-  await page.getByLabel("Your name").fill("Taylor Nguyen");
+  await page.locator("#inquiry-customerName:visible").fill("Taylor Nguyen");
   await page
-    .getByLabel("Email address")
+    .locator("#inquiry-customerEmail:visible")
     .fill(`taylor+invalid-file-${Date.now()}@example.com`);
-  await page.getByLabel("Service or category").fill("Window graphics");
   await page
-    .getByLabel("Message and details")
+    .locator("#inquiry-details:visible")
     .fill("Need storefront graphics and want to send a sample file.");
-  await page.getByLabel("Attachment").setInputFiles({
+  await page.locator("#inquiry-attachment:visible").setInputFiles({
     name: "malware.exe",
     mimeType: "application/x-msdownload",
     buffer: Buffer.from("pretend-binary"),
@@ -48,7 +47,6 @@ test("public inquiry page accepts a new submission @smoke", async ({ page }) => 
   await page
     .locator("#inquiry-customerEmail:visible")
     .fill(`taylor+${Date.now()}@example.com`);
-  await page.locator("#inquiry-serviceCategory:visible").fill("Window graphics");
   await page.locator("#inquiry-budgetText:visible").fill("1500");
   await page
     .locator("#inquiry-details:visible")

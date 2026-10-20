@@ -5,24 +5,31 @@ import type { AnalyticsUsageMeter } from "@/features/analytics/types";
 import { cn } from "@/lib/utils";
 
 /**
- * Plan-limit bar with `role="progressbar"`. Tones step up as usage approaches
- * the cap; a cap of zero renders the upsell action instead of an empty bar,
- * because "0 of 0 credits" is not a progress state.
+ * Plan-limit meter. A 4px track with the used/limit figures in tabular
+ * numerals; the fill steps from the accent to warning at 80% and danger at
+ * 100%, so a nearly-spent allowance reads before it is spent.
  */
 export function UsageMeter({
   meter,
   action,
+  className,
 }: {
   meter: AnalyticsUsageMeter;
   action?: ReactNode;
+  className?: string;
 }) {
   const limit = meter.limit;
 
   if (limit === 0) {
     return (
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div
+        className={cn(
+          "flex flex-wrap items-center justify-between gap-2",
+          className,
+        )}
+      >
         <div className="min-w-0">
-          <p className="text-sm text-foreground">{meter.label}</p>
+          <p className="text-sm font-medium text-foreground">{meter.label}</p>
           <p className="text-xs text-muted-foreground">{meter.hint}</p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -34,22 +41,26 @@ export function UsageMeter({
   }
 
   const ratio = limit === null ? null : Math.min(meter.used / limit, 1);
-  const tone =
+  const fillClassName =
     ratio === null
-      ? "bg-chart-2"
+      ? "bg-primary"
       : ratio >= 1
         ? "bg-destructive"
         : ratio >= 0.8
           ? "bg-warning"
-          : "bg-chart-1";
+          : "bg-primary";
 
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className={cn("flex min-w-0 flex-col gap-2", className)}>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <p className="text-sm text-foreground">{meter.label}</p>
-        <p className="text-xs text-muted-foreground tabular-nums">
+        <p className="min-w-0 truncate text-sm font-medium text-foreground">
+          {meter.label}
+        </p>
+        <p className="shrink-0 text-xs text-muted-foreground tabular-nums">
           {formatNumber(meter.used)}
-          {limit === null ? ` ${meter.unit} · Unlimited` : ` / ${formatNumber(limit)} ${meter.unit}`}
+          {limit === null
+            ? ` ${meter.unit} · Unlimited`
+            : ` / ${formatNumber(limit)} ${meter.unit}`}
         </p>
       </div>
       <div
@@ -63,11 +74,14 @@ export function UsageMeter({
             ? `${formatNumber(meter.used)} ${meter.unit}, unlimited`
             : `${formatNumber(meter.used)} of ${formatNumber(limit)} ${meter.unit}`
         }
-        className="h-2 w-full overflow-hidden rounded-full bg-muted"
+        className="analytics-track h-1 w-full overflow-hidden rounded-full"
       >
         <div
-          className={cn("h-full rounded-full", tone)}
-          style={{ width: ratio === null ? "100%" : `${Math.max(ratio * 100, 2)}%` }}
+          className={cn("h-full rounded-full", fillClassName)}
+          style={{
+            width:
+              ratio === null ? "100%" : `${Math.max(ratio * 100, meter.used > 0 ? 2 : 0)}%`,
+          }}
         />
       </div>
       <p className="text-xs text-muted-foreground">{meter.hint}</p>

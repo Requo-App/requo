@@ -74,22 +74,24 @@ function toIsoDate(date: Date): string {
 export default function AnalyticsPage({ params, searchParams }: AnalyticsPageProps) {
   return (
     <DashboardPage>
-      <PageHeader
-        eyebrow="Analytics"
-        title="Pipeline analytics"
-        description="How inquiries arrive, how quotes move through the pipeline, and where follow-up and automation make a difference."
-        actions={
-          <Suspense fallback={<AnalyticsToolbarSkeleton />}>
-            <AnalyticsToolbarRegion params={params} searchParams={searchParams} />
-          </Suspense>
-        }
-      />
+      <div className="mx-auto flex w-full max-w-[80rem] flex-col gap-6">
+        <PageHeader
+          eyebrow="Analytics"
+          title="Pipeline analytics"
+          description="How inquiries arrive, how quotes move through the pipeline, and where follow-up and automation make a difference."
+          actions={
+            <Suspense fallback={<AnalyticsToolbarSkeleton />}>
+              <AnalyticsToolbarRegion params={params} searchParams={searchParams} />
+            </Suspense>
+          }
+        />
 
-      <Suspense fallback={<AnalyticsContentSkeleton />}>
-        <RegionErrorBoundary fallback={<AnalyticsErrorFallback />}>
-          <AnalyticsContentRegion params={params} searchParams={searchParams} />
-        </RegionErrorBoundary>
-      </Suspense>
+        <Suspense fallback={<AnalyticsContentSkeleton />}>
+          <RegionErrorBoundary fallback={<AnalyticsErrorFallback />}>
+            <AnalyticsContentRegion params={params} searchParams={searchParams} />
+          </RegionErrorBoundary>
+        </Suspense>
+      </div>
     </DashboardPage>
   );
 }
@@ -245,7 +247,7 @@ async function AnalyticsContentRegion({ params, searchParams }: AnalyticsPagePro
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <AnalyticsTabNav
           businessSlug={business.slug}
@@ -270,7 +272,7 @@ async function AnalyticsContentRegion({ params, searchParams }: AnalyticsPagePro
 
 function AnalyticsErrorFallback() {
   return (
-    <div className="rounded-xl border border-border/60 bg-card px-4 py-10 text-center text-sm text-muted-foreground">
+    <div className="analytics-card px-4 py-10 text-center text-sm text-muted-foreground sm:px-5">
       Could not load analytics right now. Refresh the page to try again.
     </div>
   );

@@ -27,12 +27,23 @@ describe("features/analytics/lib/format", () => {
     it("formats compact values for chart axes", () => {
       expect(nbspSafe(formatMoney(1234567, "USD", { compact: true }))).toBe("$12.3K");
     });
+
+    it("reads a missing amount as an em dash", () => {
+      expect(formatMoney(null, "USD")).toBe("—");
+      expect(formatMoney(undefined, "USD")).toBe("—");
+      expect(formatMoney(Number.NaN, "USD")).toBe("—");
+    });
   });
 
   describe("numbers and rates", () => {
     it("formats counts with grouping", () => {
       expect(formatNumber(12345)).toBe("12,345");
       expect(formatNumber(0)).toBe("0");
+    });
+
+    it("reads a missing count as an em dash", () => {
+      expect(formatNumber(null)).toBe("—");
+      expect(formatNumber(Number.NaN)).toBe("—");
     });
 
     it("formats 0–1 rates as percents", () => {
@@ -110,6 +121,14 @@ describe("features/analytics/lib/format", () => {
       expect(formatSpeedDelta(4, 3)).toEqual({ label: "33% slower", direction: "up" });
       expect(formatSpeedDelta(null, 3)).toEqual({ label: "No data yet", direction: "flat" });
       expect(formatSpeedDelta(2, null)).toEqual({ label: "No prior data", direction: "flat" });
+    });
+
+    it("never divides by a zero baseline", () => {
+      expect(formatSpeedDelta(2, 0)).toEqual({
+        label: "No prior baseline",
+        direction: "flat",
+      });
+      expect(formatSpeedDelta(0, 0)).toEqual({ label: "No change", direction: "flat" });
     });
 
     it("maps direction to sentiment, with inversion for lower-is-better", () => {

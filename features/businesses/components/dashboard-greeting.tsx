@@ -1,12 +1,13 @@
+"use client";
+
 import type { BusinessOverviewCounts } from "@/features/businesses/types";
 import type { FollowUpOverviewData } from "@/features/follow-ups/types";
-import type { BusinessDashboardSummaryData } from "@/features/businesses/types";
+import { useHydrated } from "@/hooks/use-hydrated";
 
 type DashboardGreetingProps = {
   userName: string;
   counts: BusinessOverviewCounts;
   followUpCounts: FollowUpOverviewData["counts"];
-  summary?: BusinessDashboardSummaryData | null;
 };
 
 export function DashboardGreeting({
@@ -15,7 +16,12 @@ export function DashboardGreeting({
   followUpCounts,
 }: DashboardGreetingProps) {
   const firstName = userName.split(" ")[0] || userName;
-  const greeting = getTimeOfDayGreeting();
+  const hydrated = useHydrated();
+
+  // The server cannot know the viewer's timezone, so the time-of-day
+  // greeting is resolved on the client. The hydration render keeps the
+  // server's copy, then it settles into the local greeting — no mismatch.
+  const greeting = hydrated ? getTimeOfDayGreeting() : "Welcome back";
 
   const urgentCount =
     counts.overdueInquiries +

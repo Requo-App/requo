@@ -19,7 +19,7 @@ export function AnalyticsSparkline({
   if (values.length < 2) return null;
 
   const width = 100;
-  const height = 28;
+  const height = 40;
   const padding = 3;
   const max = Math.max(...values);
   const min = Math.min(...values, 0);
@@ -39,7 +39,7 @@ export function AnalyticsSparkline({
     <svg
       viewBox={`0 0 ${width} ${height}`}
       preserveAspectRatio="none"
-      className={cn("h-7 w-full text-chart-1", className)}
+      className={cn("h-[var(--analytics-sparkline-height)] w-full text-chart-1", className)}
       role="img"
       aria-label={ariaLabel ?? "Trend"}
     >
@@ -48,7 +48,7 @@ export function AnalyticsSparkline({
         d={line}
         fill="none"
         stroke="currentColor"
-        strokeWidth={1.5}
+        strokeWidth={2}
         strokeLinecap="round"
         strokeLinejoin="round"
         vectorEffect="non-scaling-stroke"

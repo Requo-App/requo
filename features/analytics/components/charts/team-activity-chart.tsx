@@ -6,12 +6,14 @@ import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import {
   ChartContainer,
   ChartTooltip,
-  ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import { chartSeries } from "@/features/analytics/lib/chart-theme";
+import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
+import { chartStackSeries } from "@/features/analytics/lib/chart-theme";
+import { formatNumber } from "@/features/analytics/lib/format";
 import type { TeamData } from "@/features/analytics/types";
 
+import { AnalyticsTooltip, type AnalyticsTooltipSeries } from "./analytics-tooltip";
 import { ChartSeriesToggles } from "./chart-series-legend";
 
 const MAX_SERIES = 5;
@@ -19,7 +21,8 @@ const MAX_SERIES = 5;
 /**
  * Stacked activity bars per member over the last six months. Members beyond
  * the top five roll into an "Others" series so the stack stays readable; the
- * legend toggles each series.
+ * legend toggles each series. The stack starts on the brand accent and steps
+ * down through neutrals, so it never reads as a rainbow.
  */
 export function TeamActivityChart({
   activity,
@@ -28,6 +31,7 @@ export function TeamActivityChart({
   activity: TeamData["activitySeries"];
   ariaLabel: string;
 }) {
+  const reduceMotion = usePrefersReducedMotion();
   const [hidden, setHidden] = useState<string[]>([]);
 
   const series = useMemo(() => {
@@ -42,7 +46,7 @@ export function TeamActivityChart({
     const entries = top.map((member, index) => ({
       key: member.userId,
       label: member.name,
-      color: chartSeries(index),
+      color: chartStackSeries(index),
       counts: member.counts,
     }));
 
@@ -54,7 +58,7 @@ export function TeamActivityChart({
       entries.push({
         key: "others",
         label: `Others (${rest.length})`,
-        color: chartSeries(MAX_SERIES),
+        color: chartStackSeries(MAX_SERIES),
         counts,
       });
     }
@@ -77,19 +81,46 @@ export function TeamActivityChart({
 
   const visible = series.filter((entry) => !hidden.includes(entry.key));
 
+  const tooltipSeries: AnalyticsTooltipSeries[] = series.map((entry) => ({
+    key: entry.key,
+    label: entry.label,
+    color: entry.color,
+    format: (value) => formatNumber(value),
+  }));
+
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex min-w-0 flex-col gap-3">
       <ChartContainer
         config={config}
-        className="h-64 w-full"
+        className="aspect-auto h-52 w-full sm:h-[260px]"
         role="img"
         aria-label={ariaLabel}
+        tabIndex={-1}
       >
-        <BarChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" vertical={false} />
-          <XAxis dataKey="label" tickLine={false} axisLine={false} />
-          <YAxis tickLine={false} axisLine={false} width={36} allowDecimals={false} />
-          <ChartTooltip content={<ChartTooltipContent indicator="line" />} />
+        <BarChart data={data} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
+          <CartesianGrid
+            vertical={false}
+            stroke="var(--chart-grid)"
+            strokeWidth={1}
+          />
+          <XAxis
+            dataKey="label"
+            tickLine={false}
+            axisLine={false}
+            height={22}
+          />
+          <YAxis
+            tickLine={false}
+            axisLine={false}
+            width={44}
+            allowDecimals={false}
+            tickCount={4}
+            domain={[0, (dataMax: number) => (dataMax > 0 ? Math.ceil(dataMax * 1.1) : 1)]}
+          />
+          <ChartTooltip
+            cursor={{ fill: "var(--muted)", fillOpacity: 0.4 }}
+            content={<AnalyticsTooltip series={tooltipSeries} />}
+          />
           {visible.map((entry, index) => (
             <Bar
               key={entry.key}
@@ -97,8 +128,10 @@ export function TeamActivityChart({
               name={entry.label}
               stackId="activity"
               fill={entry.color}
-              radius={index === visible.length - 1 ? 6 : 0}
+              radius={index === visible.length - 1 ? [4, 4, 0, 0] : 0}
               maxBarSize={40}
+              isAnimationActive={!reduceMotion}
+              animationDuration={280}
             />
           ))}
         </BarChart>

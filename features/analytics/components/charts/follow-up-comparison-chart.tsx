@@ -5,16 +5,19 @@ import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import {
   ChartContainer,
   ChartTooltip,
-  ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
+import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
 import { formatPercent } from "@/features/analytics/lib/format";
 import type { FollowUpEffectivenessData } from "@/features/analytics/types";
 
+import { ANALYTICS_PLOT_HEIGHT } from "../primitives/plot-frame";
+import { AnalyticsTooltip, type AnalyticsTooltipSeries } from "./analytics-tooltip";
+
 /**
  * With vs without follow-up: the operations headline. Grouped bars compare
- * response and acceptance rates side by side; the card's caption table carries
- * the cohort sizes so a rate never floats free of its denominator.
+ * response and acceptance rates side by side; the card's table carries the
+ * cohort sizes so a rate never floats free of its denominator.
  */
 export function FollowUpComparisonChart({
   effectiveness,
@@ -23,6 +26,8 @@ export function FollowUpComparisonChart({
   effectiveness: FollowUpEffectivenessData;
   ariaLabel: string;
 }) {
+  const reduceMotion = usePrefersReducedMotion();
+
   const data = [
     {
       metric: "Response rate",
@@ -37,54 +42,78 @@ export function FollowUpComparisonChart({
   ];
 
   const config: ChartConfig = {
-    withFollowUp: { label: "With follow-up", color: "var(--success)" },
-    withoutFollowUp: { label: "Without follow-up", color: "var(--muted-foreground)" },
+    withFollowUp: { label: "With follow-up", color: "var(--chart-series-1)" },
+    withoutFollowUp: {
+      label: "Without follow-up",
+      color: "var(--chart-series-2)",
+    },
   };
+
+  const tooltipSeries: AnalyticsTooltipSeries[] = [
+    {
+      key: "withFollowUp",
+      label: "With follow-up",
+      color: "var(--chart-series-1)",
+      format: (value) => formatPercent(value),
+    },
+    {
+      key: "withoutFollowUp",
+      label: "Without follow-up",
+      color: "var(--chart-series-2)",
+      format: (value) => formatPercent(value),
+    },
+  ];
 
   return (
     <ChartContainer
       config={config}
-      className="h-56 w-full"
+      className="aspect-auto w-full flex-1"
+      style={{ minHeight: ANALYTICS_PLOT_HEIGHT }}
       role="img"
       aria-label={ariaLabel}
+      tabIndex={-1}
     >
-      <BarChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" vertical={false} />
-        <XAxis dataKey="metric" tickLine={false} axisLine={false} />
+      <BarChart data={data} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
+        <CartesianGrid
+          vertical={false}
+          stroke="var(--chart-grid)"
+          strokeWidth={1}
+        />
+        <XAxis
+          dataKey="metric"
+          tickLine={false}
+          axisLine={false}
+          height={22}
+        />
         <YAxis
           tickLine={false}
           axisLine={false}
-          width={40}
+          width={44}
+          tickCount={4}
+          domain={[0, 1]}
           tickFormatter={(value: number) => formatPercent(value, 0)}
         />
         <ChartTooltip
-          content={
-            <ChartTooltipContent
-              indicator="line"
-              formatter={(value, name) => (
-                <div className="flex w-full items-center justify-between gap-3">
-                  <span className="text-muted-foreground">{name}</span>
-                  <span className="font-medium tabular-nums text-foreground">
-                    {formatPercent(Number(value))}
-                  </span>
-                </div>
-              )}
-            />
-          }
+          cursor={{ fill: "var(--muted)", fillOpacity: 0.4 }}
+          content={<AnalyticsTooltip series={tooltipSeries} />}
         />
         <Bar
           dataKey="withFollowUp"
           name="With follow-up"
           fill="var(--color-withFollowUp)"
-          radius={6}
-          maxBarSize={48}
+          radius={[4, 4, 0, 0]}
+          maxBarSize={40}
+          isAnimationActive={!reduceMotion}
+          animationDuration={280}
         />
         <Bar
           dataKey="withoutFollowUp"
           name="Without follow-up"
           fill="var(--color-withoutFollowUp)"
-          radius={6}
-          maxBarSize={48}
+          radius={[4, 4, 0, 0]}
+          maxBarSize={40}
+          isAnimationActive={!reduceMotion}
+          animationDuration={280}
         />
       </BarChart>
     </ChartContainer>

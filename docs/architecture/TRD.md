@@ -90,12 +90,26 @@ Business analytics aggregations live in
 tab has one cached aggregator (`getOverviewData`, `getPerformanceData`,
 `getOperationsData`, `getTeamData`) that combines live tables with
 `analytics_daily_rollups`; rollups cover complete past days and the current day
-is read live. Preset ranges use `"use cache"` with `hotBusinessCacheLife` and
-business/tab tags, while custom ranges compute directly. Plan access is checked
-server-side before a tab's aggregator runs, and the export route re-resolves
-the window so plan caps cannot be bypassed. Goals, annotations, and scheduled
-reports are workspace-scoped records managed through
-`app/api/business/[slug]/analytics/*`.
+is read live. When a window contains days the rollup job has not processed
+(yet), the series builder fills those days from the live source tables, so a
+trend chart never reads as a flat zero line for a workspace whose history
+predates the job. The live fallback and the rollup count the same things —
+visitors who opened a service form, form views with a form, live inquiries
+and quotes — so a window that mixes rolled-up and live days plots one
+definition. A definition change is applied to the days already rolled up with
+`npm run db:backfill-rollups -- --from=YYYY-MM-DD --to=YYYY-MM-DD`.
+
+Every metric states the population it counts. "Revenue won" and "Avg won
+deal" count the quotes accepted inside the period, while the quote-outcome
+split counts the quotes sent inside the period and the response each one
+received. "First response" averages the inquiries that got a team reply and
+reports how many of the period's inquiries that was, because an average over
+answered inquiries alone improves as the service gets worse. Preset ranges
+use `"use cache"` with `hotBusinessCacheLife` and business/tab tags, while
+custom ranges compute directly. Plan access is checked server-side before a
+tab's aggregator runs, and the export route re-resolves the window so plan
+caps cannot be bypassed. Goals, annotations, and scheduled reports are
+workspace-scoped records managed through `app/api/business/[slug]/analytics/*`.
 
 ## Persistence and migrations
 

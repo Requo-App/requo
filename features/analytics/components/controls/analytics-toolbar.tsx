@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { Lock, SlidersHorizontal } from "lucide-react";
 
-import { DashboardToolbar } from "@/components/shared/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -125,7 +124,7 @@ export function AnalyticsToolbar({
 
   return (
     <>
-      <DashboardToolbar className="hidden flex-wrap items-center gap-2 sm:flex">
+      <div className="hidden flex-wrap items-center gap-2 sm:flex">
         {canCompare ? (
           <AnalyticsRangePicker label={label} range={range} from={from} to={to} />
         ) : (
@@ -134,7 +133,7 @@ export function AnalyticsToolbar({
         {canCompare ? <CompareToggle compare={compare} /> : null}
         {reportControl(false)}
         {exportControl}
-      </DashboardToolbar>
+      </div>
 
       <div className="flex w-full items-center gap-2 sm:hidden">
         <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>

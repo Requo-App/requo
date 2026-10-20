@@ -3,10 +3,9 @@
 import { cn } from "@/lib/utils";
 
 /**
- * Series toggling legend for multi-series charts. Same swatch vocabulary as
- * `ChartLegendContent` but interactive: clicking a series hides/shows it, and
- * hidden series read muted with a line-through label so the state is never
- * conveyed by color alone.
+ * Series legend for multi-series charts: small clickable chips under the
+ * title. Clicking a series hides it, and a hidden series reads muted with a
+ * line-through label so the state is never conveyed by colour alone.
  */
 export function ChartSeriesToggles({
   items,

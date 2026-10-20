@@ -1,13 +1,5 @@
 import { Badge } from "@/components/ui/badge";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
   formatDuration,
   formatMoney,
   formatNumber,
@@ -18,12 +10,18 @@ import type { AnalyticsWindow } from "@/features/analytics/lib/window";
 import type { TeamData, TeamMemberRole, TeamMemberRow } from "@/features/analytics/types";
 import { cn } from "@/lib/utils";
 
-import { AnalyticsChartCard, ChartDataTable } from "../chart-card";
+import { AnalyticsCard } from "../primitives/analytics-card";
+import { AnalyticsChartCard } from "../primitives/analytics-chart-card";
+import {
+  AnalyticsRow,
+  analyticsCol,
+} from "../primitives/analytics-section";
+import { BarList, type BarListItem } from "../primitives/bar-list";
+import { DataTable } from "../primitives/data-table";
+import { Stat, StatGrid } from "../primitives/stat";
 import { BenchmarkBars } from "../charts/benchmark-bar";
 import { CohortGrid } from "../charts/cohort-grid";
 import { LazyTeamActivityChart } from "../charts/lazy-charts";
-import { RankedBarList } from "../charts/ranked-bar-list";
-import { AnalyticsMetricTile as MetricTile } from "../metric-tile";
 import { AnalyticsRangeEmpty } from "../states/analytics-empty";
 
 /**
@@ -32,6 +30,8 @@ import { AnalyticsRangeEmpty } from "../states/analytics-empty";
  * Every export is a Suspense boundary over the shared `getTeamData` promise.
  * Attribution rules live in the query layer (quotes go to the member who
  * first sent them, views to `firstViewedBy`); sections only format.
+ *
+ * Rows are symmetric: one twelve-column table, then pairs of six.
  */
 
 export type TeamSectionProps = {
@@ -86,7 +86,7 @@ function TeamMemberMobileRow({
   currency: string;
 }) {
   return (
-    <div className="flex flex-col gap-1 rounded-xl border border-border/70 bg-background px-3 py-3">
+    <div className="flex flex-col gap-1 rounded-lg border border-border/60 px-3 py-3">
       <div className="flex items-center justify-between gap-2">
         <span className="min-w-0 truncate text-sm font-medium text-foreground">
           {member.name}
@@ -95,8 +95,9 @@ function TeamMemberMobileRow({
       </div>
       <p className="text-xs text-muted-foreground">{member.email}</p>
       <p className="text-xs text-muted-foreground">
-        {formatNumber(member.quotesSent)} quotes sent · {formatPercentOrDash(member.winRate)} win
-        rate · {formatMoney(member.valueWonInCents, currency)} won
+        {formatNumber(member.quotesSent)} quotes sent ·{" "}
+        {formatPercentOrDash(member.winRate)} win rate ·{" "}
+        {formatMoney(member.valueWonInCents, currency)} won
       </p>
       <p className="text-xs text-muted-foreground">
         {formatNumber(member.followUpsCompleted)} follow-ups ·{" "}
@@ -124,79 +125,68 @@ export async function TeamMembersCard(props: TeamSectionProps) {
   if (!hasActivity && data.workload.openInquiries === 0) return null;
 
   return (
-    <AnalyticsChartCard
-      title="Member performance"
-      description="Quotes are attributed to the member who first sent them; value won counts accepted quotes in the selected period."
-      contentClassName="gap-0"
-    >
-      <div className="flex flex-col gap-2.5 lg:hidden">
-        {data.members.map((member) => (
-          <TeamMemberMobileRow
-            key={member.userId}
-            member={member}
-            currency={data.currency}
-          />
-        ))}
-      </div>
+    <AnalyticsRow>
+      <AnalyticsCard
+        className={analyticsCol(12)}
+        title="Member performance"
+        description="Quotes are attributed to the member who first sent them; value won counts accepted quotes in the selected period."
+        bodyClassName="gap-0"
+      >
+        <div className="flex flex-col gap-2.5 lg:hidden">
+          {data.members.map((member) => (
+            <TeamMemberMobileRow
+              key={member.userId}
+              member={member}
+              currency={data.currency}
+            />
+          ))}
+        </div>
 
-      <div className="hidden overflow-x-auto no-scrollbar lg:block">
-        <Table className="min-w-[48rem]">
-          <TableHeader>
-            <TableRow>
-              <TableHead>Member</TableHead>
-              <TableHead className="text-right">Quotes sent</TableHead>
-              <TableHead className="text-right">Win rate</TableHead>
-              <TableHead className="text-right">Value won</TableHead>
-              <TableHead className="text-right">Follow-ups</TableHead>
-              <TableHead className="text-right">Avg response</TableHead>
-              <TableHead className="text-right">SLA breaches</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.members.map((member) => (
-              <TableRow key={member.userId}>
-                <TableCell>
-                  <div className="flex min-w-0 flex-col gap-0.5">
-                    <span className="flex items-center gap-2">
-                      <span className="truncate font-medium text-foreground">
-                        {member.name}
-                      </span>
-                      <Badge variant="outline">{roleLabels[member.role]}</Badge>
+        <div className="hidden min-w-0 lg:block">
+          <DataTable
+            minWidthClassName="min-w-[48rem]"
+            columns={[
+              { key: "member", header: "Member" },
+              { key: "quotesSent", header: "Quotes sent", align: "end" },
+              { key: "winRate", header: "Win rate", align: "end" },
+              { key: "valueWon", header: "Value won", align: "end" },
+              { key: "followUps", header: "Follow-ups", align: "end" },
+              { key: "response", header: "Avg response", align: "end" },
+              { key: "sla", header: "SLA breaches", align: "end" },
+            ]}
+            rows={data.members.map((member) => ({
+              member: (
+                <span className="flex min-w-0 flex-col gap-0.5">
+                  <span className="flex items-center gap-2">
+                    <span className="truncate font-medium text-foreground">
+                      {member.name}
                     </span>
-                    <span className="truncate text-xs text-muted-foreground">
-                      {member.email}
-                    </span>
-                  </div>
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {formatNumber(member.quotesSent)}
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {formatPercentOrDash(member.winRate)}
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {formatMoney(member.valueWonInCents, data.currency)}
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {formatNumber(member.followUpsCompleted)}
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {formatDuration(member.averageResponseHours)}
-                </TableCell>
-                <TableCell
+                    <Badge variant="outline">{roleLabels[member.role]}</Badge>
+                  </span>
+                  <span className="truncate text-xs text-muted-foreground">
+                    {member.email}
+                  </span>
+                </span>
+              ),
+              quotesSent: formatNumber(member.quotesSent),
+              winRate: formatPercentOrDash(member.winRate),
+              valueWon: formatMoney(member.valueWonInCents, data.currency),
+              followUps: formatNumber(member.followUpsCompleted),
+              response: formatDuration(member.averageResponseHours),
+              sla: (
+                <span
                   className={cn(
-                    "text-right tabular-nums",
                     member.slaBreaches > 0 ? "text-destructive" : undefined,
                   )}
                 >
                   {formatNumber(member.slaBreaches)}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-    </AnalyticsChartCard>
+                </span>
+              ),
+            }))}
+          />
+        </div>
+      </AnalyticsCard>
+    </AnalyticsRow>
   );
 }
 
@@ -204,127 +194,116 @@ export async function TeamMembersCard(props: TeamSectionProps) {
 // Workload & SLA
 // ---------------------------------------------------------------------------
 
-export async function TeamWorkloadCard(props: TeamSectionProps) {
+export async function TeamWorkloadRow(props: TeamSectionProps) {
   const data = await props.dataPromise;
-  const { workload } = data;
-  if (
-    workload.openInquiries === 0 &&
-    workload.unviewedInquiries === 0 &&
-    workload.pendingFollowUps === 0
-  ) {
-    return null;
-  }
+  const { workload, sla } = data;
+  const hasWorkload =
+    workload.openInquiries > 0 ||
+    workload.unviewedInquiries > 0 ||
+    workload.pendingFollowUps > 0;
+  const hasSla = sla.byMember.length > 0;
+
+  if (!hasWorkload && !hasSla) return null;
+
+  const breachItems: BarListItem[] = sla.byMember.map((item) => ({
+    key: `sla-${item.label}`,
+    label: item.label,
+    value: formatNumber(item.count),
+    share: item.share,
+    meta: item.detail,
+  }));
 
   return (
-    <AnalyticsChartCard
-      title="Workload right now"
-      description="Live counts across all time — the queues waiting on your team today."
-    >
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricTile
-          label="Open inquiries"
-          value={formatNumber(workload.openInquiries)}
-          caption="Not yet won, lost, or archived"
-          href={getInquiriesListHref(props.businessSlug)}
-        />
-        <MetricTile
-          label="Unviewed"
-          value={formatNumber(workload.unviewedInquiries)}
-          caption="Nobody has opened these yet"
-          tone={workload.unviewedInquiries > 0 ? "warning" : "default"}
-        />
-        <MetricTile
-          label="Oldest unviewed"
-          value={formatDuration(workload.oldestUnviewedHours)}
-          caption="Age of the longest-waiting inquiry"
-          tone={workload.oldestUnviewedHours && workload.oldestUnviewedHours > 24 ? "warning" : "default"}
-        />
-        <MetricTile
-          label="Pending follow-ups"
-          value={formatNumber(workload.pendingFollowUps)}
-          caption="Scheduled and not yet sent"
-          href={getFollowUpsListHref(props.businessSlug, { status: "pending" })}
-        />
-      </div>
-    </AnalyticsChartCard>
-  );
-}
+    <AnalyticsRow>
+      {hasWorkload ? (
+        <AnalyticsCard
+          className={analyticsCol(hasSla ? 6 : 12)}
+          title="Workload right now"
+          description="Live counts across all time — the queues waiting on your team today."
+        >
+          <StatGrid columns={2}>
+            <Stat
+              label="Open inquiries"
+              value={formatNumber(workload.openInquiries)}
+              caption="Not yet won, lost, or archived"
+              href={getInquiriesListHref(props.businessSlug)}
+            />
+            <Stat
+              label="Unviewed"
+              value={formatNumber(workload.unviewedInquiries)}
+              caption="Nobody has opened these yet"
+              valueClassName={
+                workload.unviewedInquiries > 0 ? "text-warning" : undefined
+              }
+            />
+            <Stat
+              label="Oldest unviewed"
+              value={formatDuration(workload.oldestUnviewedHours)}
+              caption="Age of the longest-waiting inquiry"
+              valueClassName={
+                workload.oldestUnviewedHours && workload.oldestUnviewedHours > 24
+                  ? "text-warning"
+                  : undefined
+              }
+            />
+            <Stat
+              label="Pending follow-ups"
+              value={formatNumber(workload.pendingFollowUps)}
+              caption="Scheduled and not yet sent"
+              href={getFollowUpsListHref(props.businessSlug, { status: "pending" })}
+            />
+          </StatGrid>
+        </AnalyticsCard>
+      ) : null}
 
-export async function TeamSlaCard(props: TeamSectionProps) {
-  const data = await props.dataPromise;
-  const { sla } = data;
-  if (sla.byMember.length === 0) return null;
-
-  return (
-    <AnalyticsChartCard
-      title="Response-time SLA"
-      description={`Inquiries submitted in this period that waited more than ${sla.targetHours}h before a first view or the first quote.`}
-    >
-      <div className="flex flex-col gap-5">
-        <div className="grid gap-3 sm:grid-cols-2">
-          <MetricTile
-            label="Breached inquiries"
-            value={formatNumber(sla.breachedInquiries)}
-            caption={`More than ${sla.targetHours}h to a first look`}
-            tone={sla.breachedInquiries > 0 ? "warning" : "positive"}
-          />
-          <MetricTile
-            label="Breach rate"
-            value={formatPercent(sla.breachRate)}
-            caption="Breaches ÷ inquiries submitted"
-            tone={sla.breachRate > 0.2 ? "negative" : "default"}
-          />
-        </div>
-        <div className="flex min-w-0 flex-col gap-3">
-          <h3 className="text-sm font-medium text-foreground">Breaches by member</h3>
-          <RankedBarList
-            items={sla.byMember}
-            emptyLabel="No breaches — every inquiry got a timely look."
-          />
-        </div>
-      </div>
-    </AnalyticsChartCard>
+      {hasSla ? (
+        <AnalyticsCard
+          className={analyticsCol(hasWorkload ? 6 : 12)}
+          title="Response-time SLA"
+          description={`Inquiries submitted in this period that waited more than ${sla.targetHours}h before a first view or the first quote.`}
+        >
+          <StatGrid columns={2}>
+            <Stat
+              label="Breached inquiries"
+              value={formatNumber(sla.breachedInquiries)}
+              caption={`More than ${sla.targetHours}h to a first look`}
+              valueClassName={
+                sla.breachedInquiries > 0 ? "text-warning" : "text-success"
+              }
+            />
+            <Stat
+              label="Breach rate"
+              value={formatPercent(sla.breachRate)}
+              caption="Breaches ÷ inquiries submitted"
+              valueClassName={sla.breachRate > 0.2 ? "text-destructive" : undefined}
+            />
+          </StatGrid>
+          <div className="flex min-w-0 flex-col gap-2">
+            <span className="meta-label">Breaches by member</span>
+            <BarList
+              items={breachItems}
+              emptyLabel="No breaches — every inquiry got a timely look."
+            />
+          </div>
+        </AnalyticsCard>
+      ) : null}
+    </AnalyticsRow>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Cohorts, benchmarks, activity
+// Cohorts and activity
 // ---------------------------------------------------------------------------
 
-export async function TeamCohortsCard(props: TeamSectionProps) {
+export async function TeamCohortRow(props: TeamSectionProps) {
   const data = await props.dataPromise;
-  if (!data.cohorts.some((cohort) => cohort.size > 0)) return null;
-
-  return (
-    <AnalyticsChartCard
-      title="Inquiry cohorts"
-      description="Each month's inquiries tracked through quoting to a win — the last six months, regardless of the selected range."
-    >
-      <CohortGrid cohorts={data.cohorts} />
-    </AnalyticsChartCard>
-  );
-}
-
-export async function TeamBenchmarksCard(props: TeamSectionProps) {
-  const data = await props.dataPromise;
-  if (data.benchmarks.length === 0) return null;
-
-  return (
-    <AnalyticsChartCard
-      title="How your team compares"
-      description="Your numbers against the median for similar businesses, matched by size tier. Benchmarks publish once at least 10 businesses share data."
-    >
-      <BenchmarkBars rows={data.benchmarks} />
-    </AnalyticsChartCard>
-  );
-}
-
-export async function TeamActivityCard(props: TeamSectionProps) {
-  const data = await props.dataPromise;
+  const hasCohorts = data.cohorts.some((cohort) => cohort.size > 0);
   const { activitySeries } = data;
-  if (!activitySeries.members.some((member) => member.counts.some((count) => count > 0))) {
-    return null;
-  }
+  const hasActivity = activitySeries.members.some((member) =>
+    member.counts.some((count) => count > 0),
+  );
+
+  if (!hasCohorts && !hasActivity) return null;
 
   const totals = activitySeries.members.map((member) => ({
     member,
@@ -333,35 +312,70 @@ export async function TeamActivityCard(props: TeamSectionProps) {
   const ranked = [...totals].sort((a, b) => b.total - a.total);
 
   return (
-    <AnalyticsChartCard
-      title="Team activity"
-      description="Quotes sent and follow-ups completed per member over the last six months. Members beyond the top five roll into Others."
-    >
-      <div className="flex flex-col gap-4">
-        <LazyTeamActivityChart
-          activity={activitySeries}
-          ariaLabel="Monthly quotes sent and follow-ups completed per team member"
+    <AnalyticsRow>
+      {hasCohorts ? (
+        <AnalyticsCard
+          className={analyticsCol(hasActivity ? 6 : 12)}
+          title="Inquiry cohorts"
+          description="Each month's inquiries tracked through quoting to a win — the last six months, regardless of the selected range."
+          bodyClassName="gap-0"
+        >
+          <CohortGrid cohorts={data.cohorts} />
+        </AnalyticsCard>
+      ) : null}
+
+      {hasActivity ? (
+        <AnalyticsChartCard
+          className={analyticsCol(hasCohorts ? 6 : 12)}
+          title="Team activity"
+          description="Quotes sent and follow-ups completed per member over the last six months. Members beyond the top five roll into Others."
+          chart={
+            <LazyTeamActivityChart
+              activity={activitySeries}
+              ariaLabel="Monthly quotes sent and follow-ups completed per team member"
+            />
+          }
+          table={
+            <DataTable
+              minWidthClassName="min-w-[36rem]"
+              columns={[
+                { key: "member", header: "Member" },
+                ...activitySeries.bucketLabels.map((label) => ({
+                  key: label,
+                  header: label,
+                  align: "end" as const,
+                })),
+                { key: "total", header: "Total", align: "end" as const },
+              ]}
+              rows={ranked.map(({ member, total }) => {
+                const row: Record<string, string> = { member: member.name };
+                activitySeries.bucketLabels.forEach((label, index) => {
+                  row[label] = formatNumber(member.counts[index] ?? 0);
+                });
+                row.total = formatNumber(total);
+                return row;
+              })}
+            />
+          }
         />
-        <ChartDataTable
-          columns={[
-            { key: "member", header: "Member" },
-            ...activitySeries.bucketLabels.map((label) => ({
-              key: label,
-              header: label,
-              align: "end" as const,
-            })),
-            { key: "total", header: "Total", align: "end" as const },
-          ]}
-          rows={ranked.map(({ member, total }) => {
-            const row: Record<string, string> = { member: member.name };
-            activitySeries.bucketLabels.forEach((label, index) => {
-              row[label] = formatNumber(member.counts[index] ?? 0);
-            });
-            row.total = formatNumber(total);
-            return row;
-          })}
-        />
-      </div>
-    </AnalyticsChartCard>
+      ) : null}
+    </AnalyticsRow>
+  );
+}
+
+export async function TeamBenchmarksRow(props: TeamSectionProps) {
+  const data = await props.dataPromise;
+  if (data.benchmarks.length === 0) return null;
+
+  return (
+    <AnalyticsRow>
+      <AnalyticsCard
+        className={analyticsCol(12)}
+        title="How your team compares"
+        description="Your numbers against the median for similar businesses, matched by size tier. Benchmarks publish once at least 10 businesses share data."
+      >
+        <BenchmarkBars rows={data.benchmarks} />
+      </AnalyticsCard>
+    </AnalyticsRow>
   );
 }
