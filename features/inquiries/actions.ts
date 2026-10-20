@@ -33,6 +33,10 @@ import {
   unarchiveInquiryForBusiness,
 } from "@/features/inquiries/mutations";
 import {
+  validatePublicInquiryAttachmentUpload,
+} from "@/features/inquiries/attachments";
+import { verifyInquiryAttachmentUploadToken } from "@/features/inquiries/attachment-tokens";
+import {
   getInquiryEditorFormForBusiness,
   getInquiryIdsMatchingFiltersForBusiness,
   getPublicInquiryBusinessByFormSlug,
@@ -43,6 +47,7 @@ import {
   inquiryListFiltersSchema,
   inquiryNoteSchema,
   inquiryStatusChangeSchema,
+  type PublicInquirySubmissionInput,
   validateManualQuickInquirySubmission,
   validatePublicInquirySubmission,
 } from "@/features/inquiries/schemas";
@@ -63,6 +68,7 @@ import {
   getPublicInquiryAttachmentMaxBytes,
   resolveInquiryFormConfigForPlan,
 } from "@/features/inquiries/plan-rules";
+import { publicInquiryRateLimit } from "@/features/inquiries/rate-limits";
 import { getBusinessPublicInquiryUrl } from "@/features/settings/utils";
 import { sendPushInquiryReceivedEvent } from "@/lib/inngest/send";
 
@@ -72,6 +78,72 @@ function getTextValue(formData: FormData, key: string) {
   return typeof value === "string" ? value : null;
 }
 
+/**
+ * Resolves the uploaded attachment for an intake action.
+ *
+ * The file was uploaded straight to storage before the form was submitted,
+ * so the action validates the storage path against the business and the
+ * plan before the mutation confirms the object really exists.
+ */
+function resolveSubmittedAttachment({
+  businessId,
+  submission,
+  maxBytes,
+}: {
+  businessId: string;
+  submission: PublicInquirySubmissionInput;
+  maxBytes: number;
+}):
+  | {
+      ok: true;
+      submission: PublicInquirySubmissionInput;
+    }
+  | { ok: false; error: string } {
+  if (!submission.attachment) {
+    return { ok: true, submission };
+  }
+
+  // The token is what binds the upload to this business. A token for
+  // another business, a tampered token, or an expired one is refused.
+  const payload = verifyInquiryAttachmentUploadToken(submission.attachment);
+
+  if (!payload) {
+    return {
+      ok: false,
+      error: "That file could not be used. Upload it again.",
+    };
+  }
+
+  if (payload.businessId !== businessId) {
+    return {
+      ok: false,
+      error: "That file could not be used. Upload it again.",
+    };
+  }
+
+  const resolution = validatePublicInquiryAttachmentUpload({
+    fileName: payload.fileName,
+    fileSize: payload.size,
+    maxBytes,
+  });
+
+  if (!resolution.ok) {
+    return { ok: false, error: resolution.error };
+  }
+
+  return {
+    ok: true,
+    submission: {
+      ...submission,
+      attachmentUpload: {
+        ...resolution.attachment,
+        storagePath: payload.storagePath,
+      },
+      maxAttachmentBytes: maxBytes,
+    },
+  };
+}
+
 function getInquiryMutationCacheTags(businessId: string, inquiryId: string) {
   return uniqueCacheTags([
     ...getBusinessInquiryListCacheTags(businessId),
@@ -79,14 +151,7 @@ function getInquiryMutationCacheTags(businessId: string, inquiryId: string) {
   ]);
 }
 
-const publicInquirySubmitRateLimit = {
-  limit: 4,
-  // Ceiling for the whole business+form scope. The per-fingerprint limit
-  // above can be bypassed by rotating the User-Agent, so this bounds the
-  // business regardless of what the client claims about itself.
-  scopeLimit: 12,
-  windowMs: 10 * 60 * 1000,
-} as const;
+const publicInquirySubmitRateLimit = publicInquiryRateLimit;
 
 function getSubmittedPublicInquiryUrl(business: {
   slug: string;
@@ -146,20 +211,31 @@ export async function submitPublicInquiryAction(
   const validationResult = validatePublicInquirySubmission(
     effectiveFormConfig,
     formData,
-    {
-      maxAttachmentSizeBytes:
-        getPublicInquiryAttachmentMaxBytes(plan),
-    },
   );
 
   if (!validationResult.success) {
     return getValidationActionState(validationResult.error, "Check the highlighted fields and try again.");
   }
 
+  const attachmentResolution = resolveSubmittedAttachment({
+    businessId: business.id,
+    submission: validationResult.data,
+    maxBytes: getPublicInquiryAttachmentMaxBytes(plan),
+  });
+
+  if (!attachmentResolution.ok) {
+    return {
+      error: attachmentResolution.error,
+      fieldErrors: {
+        attachment: [attachmentResolution.error],
+      },
+    };
+  }
+
   try {
     const createdInquiry = await createPublicInquirySubmission({
       business,
-      submission: validationResult.data,
+      submission: attachmentResolution.submission,
     });
 
     updateCacheTags([
@@ -232,11 +308,6 @@ export async function createManualInquiryAction(
   const validationResult = validateManualQuickInquirySubmission(
     effectiveFormConfig,
     formData,
-    {
-      maxAttachmentSizeBytes: getPublicInquiryAttachmentMaxBytes(
-        businessContext.business.plan,
-      ),
-    },
   );
 
   if (!validationResult.success) {
@@ -244,6 +315,23 @@ export async function createManualInquiryAction(
       validationResult.error,
       "Check the highlighted fields and try again.",
     );
+  }
+
+  const attachmentResolution = resolveSubmittedAttachment({
+    businessId: businessContext.business.id,
+    submission: validationResult.data,
+    maxBytes: getPublicInquiryAttachmentMaxBytes(
+      businessContext.business.plan,
+    ),
+  });
+
+  if (!attachmentResolution.ok) {
+    return {
+      error: attachmentResolution.error,
+      fieldErrors: {
+        attachment: [attachmentResolution.error],
+      },
+    };
   }
 
   let inquiryPath: string | null = null;
@@ -263,7 +351,7 @@ export async function createManualInquiryAction(
           publicInquiryEnabled: selectedForm.publicInquiryEnabled,
         },
       },
-      submission: validationResult.data,
+      submission: attachmentResolution.submission,
       actorUserId: user.id,
     });
 
@@ -537,13 +625,13 @@ export async function getInquiryIdsForBulkSelectionAction(
   const ownerAccess = await getWorkspaceBusinessActionContext();
 
   if (!ownerAccess.ok) {
-    return [];
+    throw new Error(ownerAccess.error);
   }
 
   const parsedFilters = inquiryListFiltersSchema.safeParse(searchParams);
 
   if (!parsedFilters.success) {
-    return [];
+    throw new Error("We couldn't read the current inquiry filters.");
   }
 
   const { page: _page, ...filters } = parsedFilters.data;

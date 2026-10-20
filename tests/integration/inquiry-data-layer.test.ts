@@ -60,7 +60,7 @@ describe("features/inquiries data layer", () => {
   it("matches duplicate candidates case-insensitively", async () => {
     await testDb
       .update(inquiries)
-      .set({ customerEmail: "Taylor@Example.com" })
+      .set({ customerEmail: "Taylor@Example.com", submittedAt: new Date() })
       .where(eq(inquiries.id, ids.inquiryId));
 
     const candidates = await getRecentInquiriesForDuplicateCheck({
@@ -77,11 +77,11 @@ describe("features/inquiries data layer", () => {
   it("keeps duplicate candidates inside the owning business", async () => {
     await testDb
       .update(inquiries)
-      .set({ customerEmail: "scoped@example.com" })
+      .set({ customerEmail: "scoped@example.com", submittedAt: new Date() })
       .where(eq(inquiries.id, ids.inquiryId));
     await testDb
       .update(inquiries)
-      .set({ customerEmail: "scoped@example.com" })
+      .set({ customerEmail: "scoped@example.com", submittedAt: new Date() })
       .where(eq(inquiries.id, ids.otherInquiryId));
 
     const candidates = await getRecentInquiriesForDuplicateCheck({

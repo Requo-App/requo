@@ -26,6 +26,10 @@ describe("inquiry acknowledgment email", () => {
 
     expect(html).not.toContain("<b>Bold</b>");
     expect(html).toContain("&lt;b&gt;Bold&lt;/b&gt;");
+    // The details card escapes the value itself, so it must not be
+    // escaped twice.
+    expect(html).not.toContain("&amp;lt;");
+    expect(html).not.toContain("&amp;quot;");
   });
 
   it("keeps newlines readable in the details block", () => {

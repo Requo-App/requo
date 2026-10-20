@@ -36,7 +36,9 @@ export function renderInquiryAcknowledgmentEmail({
       <p style="margin: 0 0 12px; color: ${emailBrand.foregroundColor}; font-size: 15px; line-height: 24px;">We received your <strong>${safeServiceName}</strong> inquiry and will get back to you soon.</p>
       <p style="margin: 0 0 12px; color: ${emailBrand.mutedTextColor}; font-size: 14px; line-height: 22px;">There is nothing else you need to do right now. If anything changes, we will reach out using the contact details you provided.</p>
       ${renderDetailsCard("Your inquiry", [
-        { label: "Service", value: safeServiceName },
+        // `renderDetailsCard` escapes the value itself, so it takes the raw
+        // text. Escaping here too would double-encode it.
+        { label: "Service", value: serviceName },
         { label: "Sent to", value: businessName },
       ])}
       ${

@@ -28,6 +28,19 @@ export type RateLimitConfig = {
   scope: string;
   limit: number;
   windowMs: number;
+  /**
+   * Ceiling for the whole scope, independent of any client-supplied
+   * fingerprint. Keep it far above legitimate traffic: it is a backstop
+   * against a flood, not the primary throttle, because a low value lets one
+   * sender lock a public form for every other customer.
+   */
+  scopeLimit?: number;
+  /**
+   * Ceiling for the scope from one IP address. The User-Agent is
+   * client-controlled, so this is the bucket that actually bounds a sender
+   * that rotates it.
+   */
+  ipLimit?: number;
 };
 
 export type RateLimitResult = {
@@ -137,6 +150,28 @@ async function getPublicActionFingerprint(scope: string): Promise<string> {
     .digest("hex");
 }
 
+/**
+ * Fingerprint for the scope from one IP address, without the User-Agent.
+ *
+ * The User-Agent is client-controlled, so the fingerprint bucket alone does
+ * not bound a sender that rotates it.
+ */
+async function getPublicActionIpFingerprint(scope: string): Promise<string> {
+  const headerStore = await headers();
+  const ipAddress = getPublicActionClientIpAddress(headerStore);
+
+  return createHash("sha256")
+    .update(`${scope}:${ipAddress}`)
+    .digest("hex");
+}
+
+/**
+ * Key for the scope-wide counter. It contains nothing the client controls.
+ */
+function getPublicActionScopeKey(scope: string): string {
+  return `scope:${scope}`;
+}
+
 // ---------------------------------------------------------------------------
 // Core sliding window rate limit check via Redis
 // ---------------------------------------------------------------------------
@@ -206,13 +241,46 @@ async function checkRateLimitRedis(
 export async function assertPublicActionRateLimit(
   config: RateLimitConfig,
 ): Promise<boolean> {
-  const { action, scope, limit, windowMs } = config;
+  const { action, scope, limit, windowMs, scopeLimit, ipLimit } = config;
 
   try {
-    const fingerprint = await getPublicActionFingerprint(scope);
-    const key = buildRedisKey(action, fingerprint);
-    const result = await checkRateLimitRedis(key, limit, windowMs);
-    return result.allowed;
+    // The buckets are checked in order of cost, and a request that fails
+    // one bucket does not consume the budget of the ones after it.
+    const fingerprintResult = await checkRateLimitRedis(
+      buildRedisKey(action, await getPublicActionFingerprint(scope)),
+      limit,
+      windowMs,
+    );
+
+    if (!fingerprintResult.allowed) {
+      return false;
+    }
+
+    if (typeof ipLimit === "number") {
+      const ipResult = await checkRateLimitRedis(
+        buildRedisKey(action, await getPublicActionIpFingerprint(scope)),
+        ipLimit,
+        windowMs,
+      );
+
+      if (!ipResult.allowed) {
+        return false;
+      }
+    }
+
+    if (typeof scopeLimit === "number") {
+      const scopeResult = await checkRateLimitRedis(
+        buildRedisKey(action, getPublicActionScopeKey(scope)),
+        scopeLimit,
+        windowMs,
+      );
+
+      if (!scopeResult.allowed) {
+        return false;
+      }
+    }
+
+    return true;
   } catch (error) {
     const reason: FallbackReason =
       error instanceof Error && error.message.includes("timed out")

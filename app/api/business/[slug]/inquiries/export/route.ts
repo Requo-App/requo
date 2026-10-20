@@ -76,7 +76,7 @@ export async function GET(
     to,
   });
 
-  if (rows.length >= inquiryExportRowLimit) {
+  if (rows.length > inquiryExportRowLimit) {
     // The export materializes the whole CSV in memory, so the result set
     // is capped. Say so instead of silently truncating the file.
     return NextResponse.json(

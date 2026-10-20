@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { getInquiryFormFieldInputName } from "@/features/inquiries/form-config";
+import { validatePublicInquiryAttachmentUpload } from "@/features/inquiries/attachments";
 import { createInquiryFormConfigDefaults } from "@/features/inquiries/form-config";
 import {
   createManualQuickInquiryFormConfig,
@@ -132,69 +132,52 @@ describe("inquiry validation schemas", () => {
     );
   });
 
-  it("rejects unsupported public inquiry attachments", () => {
-    const attachmentField = baseConfig.projectFields.find(
-      (field) => field.kind === "system" && field.key === "attachment",
-    );
+  it("carries the signed upload token instead of the file", () => {
     const formData = validFormData();
 
-    expect(attachmentField).toBeDefined();
-    formData.set(
-      getInquiryFormFieldInputName(attachmentField!),
-      new File(["pretend binary"], "malware.exe", {
-        type: "application/x-msdownload",
-      }),
+    formData.set("attachment", "signed-upload-token");
+
+    const data = expectValidSubmission(
+      validatePublicInquirySubmission(baseConfig, formData),
     );
 
-    const result = validatePublicInquirySubmission(baseConfig, formData);
-    const error = expectInvalidSubmission(result);
+    expect(data.attachment).toBe("signed-upload-token");
+  });
 
-    expect(error.issues).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          message: "Upload a PDF, common document file, or image.",
-        }),
-      ]),
+  it("rejects an unsupported uploaded attachment type", () => {
+    const result = validatePublicInquiryAttachmentUpload({
+      fileName: "malware.exe",
+      fileSize: 1024,
+      maxBytes: 5 * 1024 * 1024,
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        ok: false,
+        error: "Upload a PDF, common document file, or image.",
+      }),
     );
   });
 
   it("applies plan-specific public inquiry attachment size limits", () => {
-    const attachmentField = baseConfig.projectFields.find(
-      (field) => field.kind === "system" && field.key === "attachment",
-    );
-    const attachment = new File(
-      [new Uint8Array(6 * 1024 * 1024)],
-      "floor-plan.pdf",
-      {
-        type: "application/pdf",
-      },
-    );
-    const freeFormData = validFormData();
-    const proFormData = validFormData();
-
-    expect(attachmentField).toBeDefined();
-    freeFormData.set(getInquiryFormFieldInputName(attachmentField!), attachment);
-    proFormData.set(getInquiryFormFieldInputName(attachmentField!), attachment);
-
-    const freeResult = validatePublicInquirySubmission(
-      baseConfig,
-      freeFormData,
-      {
-        plan: "free",
-      },
-    );
-    const proResult = validatePublicInquirySubmission(baseConfig, proFormData, {
-      plan: "pro",
+    const freeResult = validatePublicInquiryAttachmentUpload({
+      fileName: "floor-plan.pdf",
+      fileSize: 6 * 1024 * 1024,
+      maxBytes: 5 * 1024 * 1024,
+    });
+    const proResult = validatePublicInquiryAttachmentUpload({
+      fileName: "floor-plan.pdf",
+      fileSize: 6 * 1024 * 1024,
+      maxBytes: 25 * 1024 * 1024,
     });
 
-    expect(expectInvalidSubmission(freeResult).issues).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          message: "Upload a file that is 5 MB or smaller.",
-        }),
-      ]),
+    expect(freeResult).toEqual(
+      expect.objectContaining({
+        ok: false,
+        error: "Upload a file that is 5 MB or smaller.",
+      }),
     );
-    expectValidSubmission(proResult);
+    expect(proResult.ok).toBe(true);
   });
 
   it("keeps manual quick inquiry validation focused on actionable intake fields", () => {
@@ -219,11 +202,11 @@ describe("inquiry validation schemas", () => {
     );
     const data = expectValidSubmission(result);
 
-    // The quick-add form shows an attachment section, so the snapshot
-    // records it. Nothing was attached here, so the value is empty.
+    // The attachment field carries a signed upload token, so it is never
+    // recorded in the submitted-field snapshot.
     expect(data.submittedFieldSnapshot.fields).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ id: "attachment", value: null }),
+      expect.not.arrayContaining([
+        expect.objectContaining({ id: "attachment" }),
       ]),
     );
   });

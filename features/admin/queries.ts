@@ -1203,7 +1203,10 @@ async function listAdminInquiriesInner(
   } else if (status) {
     // Match the status the product actually shows: a stored `new` reads as
     // `waiting` after 48 hours and as `overdue` once the deadline passes.
+    // Archived records are excluded — the `archived` filter above is the
+    // only way to see them.
     conditions.push(sql`${getEffectiveInquiryStatus} = ${status}`);
+    conditions.push(isNull(inquiries.archivedAt));
   } else {
     // The default list shows live records, like the business dashboard.
     conditions.push(isNull(inquiries.archivedAt));

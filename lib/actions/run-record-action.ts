@@ -63,6 +63,18 @@ export function getSafeInternalRedirectPath(
     return undefined;
   }
 
+  // URL parsers treat a backslash as a slash, so "/\evil.example" would
+  // navigate off-site.
+  if (trimmedValue.includes("\\")) {
+    return undefined;
+  }
+
+  // URL parsers strip control characters, which can turn a target that
+  // looks local into one that is not.
+  if (/[\u0000-\u001f\u007f]/.test(trimmedValue)) {
+    return undefined;
+  }
+
   return trimmedValue;
 }
 

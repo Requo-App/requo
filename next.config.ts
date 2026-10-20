@@ -109,14 +109,15 @@ const nextConfig: NextConfig = {
   },
   experimental: {
     serverActions: {
-      // The public inquiry form submits its attachment inside the action's
-      // FormData, so this limit is the real ceiling on an uploaded file.
-      // It must cover the largest plan limit
-      // (`publicInquiryAttachmentMaxBytes`, 50 MB on the business plan)
-      // plus multipart overhead — otherwise paid-plan uploads above this
-      // size are rejected by the framework with a generic error instead of
-      // the app's own "upload a file that is N MB or smaller" message.
-      bodySizeLimit: "52mb",
+      // The limit on a Server Action request body. A Vercel Function
+      // rejects any body above 4.5 MB with `413 FUNCTION_PAYLOAD_TOO_LARGE`
+      // before Next.js sees it, so this setting only bounds what the
+      // framework accepts — it cannot make a large upload work.
+      //
+      // Public inquiry attachments therefore upload straight to storage
+      // through a signed URL (`features/inquiries/attachments.ts`), not
+      // through the inquiry action.
+      bodySizeLimit: "7mb",
     },
     // Lets `forbidden()` render `app/forbidden.tsx` instead of throwing a plain
     // error. Required by `features/admin/access.ts` — see below.

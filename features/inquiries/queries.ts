@@ -787,8 +787,9 @@ export async function getInquiryExportRowsForBusiness({
     .orderBy(submittedAtSort(inquiries.submittedAt), createdAtSort(inquiries.createdAt))
     // The export materializes every row in memory and joins it into a
     // single CSV string. Cap the result so a large business cannot turn
-    // one request into a multi-hundred-megabyte allocation.
-    .limit(inquiryExportRowLimit);
+    // one request into a multi-hundred-megabyte allocation. One extra row
+    // lets the caller tell "exactly at the cap" from "truncated".
+    .limit(inquiryExportRowLimit + 1);
 }
 
 type GetInquiryDetailForBusinessInput = {

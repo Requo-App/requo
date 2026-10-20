@@ -9,6 +9,7 @@ export type ManualInquiryEditorProps = {
     formData: FormData,
   ) => Promise<ManualInquiryActionState>;
   businessName: string;
+  businessSlug: string;
   forms: InquiryEditorForm[];
   initialFormSlug: string;
   uploadHelpText: string;

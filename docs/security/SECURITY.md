@@ -48,13 +48,23 @@ root [`SECURITY.md`](../../SECURITY.md).
   helpers.
 - Public inquiry submissions use server validation, rate limits, and abuse
   checks. Preserve those controls when changing intake paths. The public
-  limiter has two ceilings: a per-fingerprint bucket (IP + User-Agent) and a
-  scope-wide bucket that no client-supplied value can influence — the
-  fingerprint limit alone is bypassable by rotating the User-Agent.
+  limiter has three ceilings: a per-fingerprint bucket (IP + User-Agent), a
+  per-IP bucket, and a scope-wide bucket that no client-supplied value can
+  influence. The fingerprint limit alone is bypassable by rotating the
+  User-Agent; the per-IP bucket is what actually bounds a sender, and the
+  scope-wide bucket is a high backstop so one sender cannot lock a form for
+  every other customer.
 - Public intake output is untrusted. Escape visitor-supplied text before it
   reaches an email body or a spreadsheet cell: the inquiry acknowledgment
   template escapes it, and `lib/csv.ts` neutralizes leading formula
   characters in every export.
+- Inquiry attachments upload straight to storage through a signed URL, not
+  through a server action — a Vercel Function rejects any request body
+  above 4.5 MB before Next.js sees it. The browser then submits a signed
+  upload token, which is what binds the upload to one business; the server
+  re-checks the plan limit and confirms the object exists before it
+  attaches. Treat the token as a capability: never accept a storage path
+  from the client.
 
 ## AI boundaries
 

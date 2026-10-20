@@ -117,7 +117,12 @@ export function AdminInquiriesTable({
       mobileCard={(row) => ({
         title: row.subject?.trim() || `Inquiry from ${row.customerName}`,
         subtitle: `${row.customerName} · ${row.businessName}`,
-        statusBadge: <InquiryStatusBadge status={row.status} />,
+        statusBadge:
+          row.recordState === "archived" ? (
+            <InquiryRecordStateBadge state="archived" />
+          ) : (
+            <InquiryStatusBadge status={row.status} />
+          ),
         metadata: <span>Submitted {formatProductDate(row.submittedAt)}</span>,
       })}
       pagination={pagination}

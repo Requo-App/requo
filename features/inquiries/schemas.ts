@@ -13,18 +13,13 @@ import {
   type InquiryContactMethod,
   type InquirySubmittedFieldSnapshot,
   type InquirySubmittedFieldSnapshotField,
-} from "@/features/inquiries/form-config";import { isAcceptedFileType } from "@/lib/files";
-import {
+} from "@/features/inquiries/form-config";import {
   coercePositiveInteger,
   emptyToUndefined,
   firstString,
   isValidDateInput,
 } from "@/lib/zod-helpers";
-import {
-  getPublicInquiryAttachmentHelpText,
-  getPublicInquiryAttachmentMaxBytes,
-} from "@/features/inquiries/plan-rules";
-import type { BusinessPlan as plan } from "@/lib/plans/plans";
+import { getPublicInquiryAttachmentHelpText } from "@/features/inquiries/plan-rules";
 import {
   inquiryRecordViews,
   inquirySourceFilterValues,
@@ -32,83 +27,39 @@ import {
   inquiryWorkflowStatuses,
 } from "@/features/inquiries/types";
 
-export const publicInquiryAttachmentBucket = "inquiry-attachments";
-export const publicInquiryMaxAttachmentSize =
-  getPublicInquiryAttachmentMaxBytes("free");
-export const publicInquiryAllowedExtensions = [
-  ".pdf",
-  ".doc",
-  ".docx",
-  ".jpg",
-  ".jpeg",
-  ".png",
-  ".webp",
-  ".txt",
-] as const;
-export const publicInquiryAllowedMimeTypes = [
-  "application/pdf",
-  "application/msword",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "text/plain",
-] as const;
-export const publicInquiryExtensionToMimeType: Record<string, string> = {
-  ".pdf": "application/pdf",
-  ".doc": "application/msword",
-  ".docx":
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  ".jpg": "image/jpeg",
-  ".jpeg": "image/jpeg",
-  ".png": "image/png",
-  ".webp": "image/webp",
-  ".txt": "text/plain",
+import {
+  type PublicInquiryAttachmentUpload,
+  publicInquiryAttachmentAccept,
+  publicInquiryAllowedExtensions,
+  publicInquiryAllowedMimeTypes,
+  publicInquiryAttachmentBucket,
+  publicInquiryAttachmentTypeError,
+  publicInquiryExtensionToMimeType,
+  publicInquiryMaxAttachmentSize,
+} from "@/features/inquiries/attachments";
+
+export {
+  publicInquiryAttachmentAccept,
+  publicInquiryAllowedExtensions,
+  publicInquiryAllowedMimeTypes,
+  publicInquiryAttachmentBucket,
+  publicInquiryAttachmentTypeError,
+  publicInquiryExtensionToMimeType,
+  publicInquiryMaxAttachmentSize,
 };
-export const publicInquiryAttachmentAccept = [
-  ...publicInquiryAllowedExtensions,
-  ...publicInquiryAllowedMimeTypes,
-].join(",");
+
 export const publicInquiryAttachmentLabel =
   getPublicInquiryAttachmentHelpText("free");
 
-function createPublicInquiryAttachmentSchema(maxSizeBytes: number) {
-  const maxSizeLabel = getPublicInquiryAttachmentHelpTextForBytes(maxSizeBytes);
-
-  return z.preprocess(
-    (value) => {
-      if (!(value instanceof File)) {
-        return undefined;
-      }
-
-      if (value.size === 0 || value.name.trim() === "") {
-        return undefined;
-      }
-
-      return value;
-    },
-    z
-      .instanceof(File)
-      .refine(
-        (file) => file.size <= maxSizeBytes,
-        `Upload a file that is ${maxSizeLabel} or smaller.`,
-      )
-      .refine(
-        (file) =>
-          isAcceptedFileType(file, {
-            allowedExtensions: publicInquiryAllowedExtensions,
-            allowedMimeTypes: publicInquiryAllowedMimeTypes,
-          }),
-        "Upload a PDF, common document file, or image.",
-      )
-      .optional(),
-  );
-}
-
-function getPublicInquiryAttachmentHelpTextForBytes(maxSizeBytes: number) {
-  const megabytes = maxSizeBytes / (1024 * 1024);
-  return `${Number.isInteger(megabytes) ? megabytes : megabytes.toFixed(1)} MB`;
-}
+/**
+ * The attachment is uploaded to storage before the inquiry is submitted, so
+ * the form carries a signed upload token instead of the file. The token
+ * names the file and the business, and is verified once the action runs.
+ */
+const optionalAttachmentTokenSchema = z.preprocess(
+  (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
+  z.string().trim().min(1).max(2000).optional(),
+);
 
 export type PublicInquirySubmissionInput = {
   customerName: string;
@@ -118,7 +69,15 @@ export type PublicInquirySubmissionInput = {
   requestedDeadline?: string;
   budgetText?: string;
   details: string;
-  attachment?: File;
+  /** Signed upload token for the attached file, when one was attached. */
+  attachment?: string;
+  /**
+   * The uploaded file, resolved and validated by the action against the
+   * business and the plan.
+   */
+  attachmentUpload?: PublicInquiryAttachmentUpload;
+  /** Upload ceiling for this business's plan, enforced on the stored file. */
+  maxAttachmentBytes?: number;
   submittedFieldSnapshot: InquirySubmittedFieldSnapshot;
 };
 
@@ -360,33 +319,8 @@ function createCustomFieldSchema(field: InquiryFormCustomFieldDefinition) {
   }
 }
 
-type PublicInquiryValidationOptions = {
-  maxAttachmentSizeBytes?: number;
-  plan?: plan;
-};
-
-function resolveAttachmentMaxSizeBytes(
-  options?: PublicInquiryValidationOptions,
-) {
-  if (typeof options?.maxAttachmentSizeBytes === "number") {
-    return options.maxAttachmentSizeBytes;
-  }
-
-  if (options?.plan) {
-    return getPublicInquiryAttachmentMaxBytes(options.plan);
-  }
-
-  return publicInquiryMaxAttachmentSize;
-}
-
-function createPublicInquirySubmissionSchema(
-  config: InquiryFormConfig,
-  options?: PublicInquiryValidationOptions,
-) {
+function createPublicInquirySubmissionSchema(config: InquiryFormConfig) {
   const shape: Record<string, z.ZodTypeAny> = {};
-  const attachmentSchema = createPublicInquiryAttachmentSchema(
-    resolveAttachmentMaxSizeBytes(options),
-  );
 
   if (config.contactFields.customerName.enabled) {
     shape.customerName = createRequiredTextSchema({
@@ -451,7 +385,7 @@ function createPublicInquirySubmissionSchema(
         });
         break;
       case "attachment":
-        shape[inputName] = attachmentSchema;
+        shape[inputName] = optionalAttachmentTokenSchema;
         break;
     }
   }
@@ -548,6 +482,13 @@ function buildSubmittedFieldSnapshot(
       continue;
     }
 
+    // The attachment field holds a signed upload token, which is a
+    // capability rather than a submitted value. The attachment itself is
+    // shown from the attachment rows.
+    if (field.kind === "system" && field.key === "attachment") {
+      continue;
+    }
+
     const value = getSubmittedFieldSnapshotValue(field, parsedValues);
 
     fields.push({
@@ -569,9 +510,8 @@ function buildSubmittedFieldSnapshot(
 export function validatePublicInquirySubmission(
   config: InquiryFormConfig,
   formData: FormData,
-  options?: PublicInquiryValidationOptions,
 ) {
-  const schema = createPublicInquirySubmissionSchema(config, options);
+  const schema = createPublicInquirySubmissionSchema(config);
   const candidate: Record<string, unknown> = {};
 
   if (config.contactFields.customerName.enabled) {
@@ -633,7 +573,7 @@ export function validatePublicInquirySubmission(
           : undefined,
       details: String(parsedValues.details ?? ""),
       attachment:
-        parsedValues.attachment instanceof File
+        typeof parsedValues.attachment === "string"
           ? parsedValues.attachment
           : undefined,
       submittedFieldSnapshot: buildSubmittedFieldSnapshot(config, parsedValues),
@@ -692,12 +632,10 @@ export function createManualQuickInquiryFormConfig(
 export function validateManualQuickInquirySubmission(
   config: InquiryFormConfig,
   formData: FormData,
-  options?: PublicInquiryValidationOptions,
 ) {
   return validatePublicInquirySubmission(
     createManualQuickInquiryFormConfig(config),
     formData,
-    options,
   );
 }
 

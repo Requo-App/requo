@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, it, vi } from "vitest";
-import { eq, like } from "drizzle-orm";
+import { and, eq, gte } from "drizzle-orm";
 
 /**
  * DB-backed regression test for the public rate limiter.
@@ -37,15 +37,26 @@ import { publicActionEvents } from "@/lib/db/schema";
 import { closeTestDb, testDb } from "@/tests/support/db";
 import { derivePerFilePrefix } from "@/tests/support/prefix";
 
-const prefix = derivePerFilePrefix(__filename);
+// The fingerprint rows are keyed by a hash that never contains the prefix,
+// so a rerun inside the window would reuse the same buckets. The timestamp
+// suffix gives every run its own keys.
+const prefix = `${derivePerFilePrefix(__filename)}_${Date.now()}`;
 const action = "public-inquiry-submit" as const;
 const windowMs = 60_000;
+const runStart = new Date();
 
 describe("public action rate limit", () => {
   afterAll(async () => {
+    // The fingerprint keys are hashes, so they are matched by action and
+    // creation time rather than by the prefix.
     await testDb
       .delete(publicActionEvents)
-      .where(like(publicActionEvents.key, `%${prefix}%`));
+      .where(
+        and(
+          eq(publicActionEvents.action, action),
+          gte(publicActionEvents.createdAt, runStart),
+        ),
+      );
     await closeTestDb();
   }, 30_000);
 

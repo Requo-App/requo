@@ -9,10 +9,6 @@ import {
   uniqueCacheTags,
 } from "@/lib/cache/business-tags";
 import {
-  resolveSafeContentType,
-  sanitizeStorageFileName,
-} from "@/lib/files";
-import {
   activityLogs,
   aiAgentSessions,
   businesses,
@@ -24,7 +20,6 @@ import { insertBusinessNotification } from "@/features/notifications/mutations";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
   publicInquiryAttachmentBucket,
-  publicInquiryExtensionToMimeType,
   type PublicInquirySubmissionInput,
 } from "@/features/inquiries/schemas";
 import type {
@@ -96,42 +91,42 @@ export async function createInquirySubmission({
   const inquiryId = newEntityId();
   const activityId = newEntityId();
   const now = new Date();
-  const attachment = submission.attachment;
-  const storageClient = attachment ? createSupabaseAdminClient() : null;
-
-  let uploadedStoragePath: string | null = null;
+  const attachmentUpload = submission.attachmentUpload;
   let preparedAttachment: PreparedAttachment | null = null;
 
-  if (attachment && storageClient) {
-    const safeContentType = resolveSafeContentType(attachment, {
-      extensionToMimeType: publicInquiryExtensionToMimeType,
-      fallback: "application/octet-stream",
-    });
-    const storagePath = `${business.id}/${inquiryId}/${sanitizeStorageFileName(
-      attachment.name,
-      "attachment",
-    )}`;
-
-    const { error } = await storageClient.storage
+  if (attachmentUpload) {
+    // The file was uploaded straight to storage before the form was
+    // submitted, because a function request body cannot carry it. Confirm
+    // the object is really there and use the size storage reports rather
+    // than the one the client claimed.
+    const storageClient = createSupabaseAdminClient();
+    const { data: objectInfo, error: infoError } = await storageClient.storage
       .from(publicInquiryAttachmentBucket)
-      .upload(storagePath, attachment, {
-        contentType: safeContentType,
-        upsert: false,
-      });
+      .info(attachmentUpload.storagePath);
 
-    if (error) {
-      throw new Error(`Failed to upload inquiry attachment: ${error.message}`);
+    if (infoError || !objectInfo) {
+      throw new Error("Failed to confirm the uploaded inquiry attachment.");
     }
 
-    uploadedStoragePath = storagePath;
+    const observedSize = objectInfo.size ?? 0;
+    const maxAttachmentBytes = submission.maxAttachmentBytes;
+
+    if (
+      observedSize <= 0 ||
+      (typeof maxAttachmentBytes === "number" &&
+        observedSize > maxAttachmentBytes)
+    ) {
+      throw new Error("The uploaded inquiry attachment failed validation.");
+    }
+
     preparedAttachment = {
       id: newEntityId(),
-      // The file name is client-supplied and the Zod attachment schema
-      // checks size and type but not length, so cap it here.
-      fileName: attachment.name.slice(0, 255),
-      contentType: safeContentType,
-      fileSize: attachment.size,
-      storagePath,
+      // The file name comes from the storage path, so it always matches the
+      // object that was actually uploaded.
+      fileName: attachmentUpload.fileName.slice(0, 255),
+      contentType: attachmentUpload.contentType,
+      fileSize: observedSize,
+      storagePath: attachmentUpload.storagePath,
     };
   }
 
@@ -223,19 +218,6 @@ export async function createInquirySubmission({
       }
     });
   } catch (error) {
-    if (uploadedStoragePath && storageClient) {
-      const { error: storageCleanupError } = await storageClient.storage
-        .from(publicInquiryAttachmentBucket)
-        .remove([uploadedStoragePath]);
-
-      if (storageCleanupError) {
-        console.error(
-          "Failed to clean up uploaded inquiry attachment after a database error.",
-          storageCleanupError,
-        );
-      }
-    }
-
     throw error;
   }
 

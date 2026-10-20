@@ -227,7 +227,17 @@ export function getInquiryContactHandleUrl(
       }
     }
 
-    return `https://${socialMeta.canonicalHost}/${trimmedHandle}`;
+    // The bare branch can still carry a host or a handle marker
+    // ("facebook.com/acme", "@acme"), so normalize it before adding the
+    // canonical host — otherwise the host would be prefixed twice.
+    const editableValue = normalizeInquiryContactHandleEditableValue(
+      method,
+      trimmedHandle,
+    );
+
+    return editableValue
+      ? `https://${socialMeta.canonicalHost}/${editableValue}`
+      : null;
   }
 
   if (method === "whatsapp") {

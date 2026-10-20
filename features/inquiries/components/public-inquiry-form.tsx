@@ -42,12 +42,13 @@ import {
   type InquiryFormFieldDefinition,
   type InquiryFormSystemFieldDefinition,
 } from "@/features/inquiries/form-config";
-import { publicInquiryAttachmentAccept } from "@/features/inquiries/schemas";
 import { getPublicInquiryAttachmentHelpText } from "@/features/inquiries/plan-rules";
 import type {
   PublicInquiryFormState,
   PublicInquiryBusiness,
 } from "@/features/inquiries/types";
+import { InquiryAttachmentUploader } from "@/features/inquiries/components/inquiry-attachment-uploader";
+import type { PublicInquiryAttachmentToken } from "@/features/inquiries/components/inquiry-attachment-uploader";
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
 import { cn } from "@/lib/utils";
 
@@ -141,7 +142,9 @@ export function PublicInquiryForm({
     action,
     initialState,
   );
-  const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
+  const [attachment, setAttachment] =
+    useState<PublicInquiryAttachmentToken | null>(null);
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
   const [canSubmit, setCanSubmit] = useState(false);
   const [contactMethod, setContactMethod] = useState<InquiryContactMethod>("email");
@@ -383,14 +386,38 @@ export function PublicInquiryForm({
         {attachmentField ? (
           <FormSection title={attachmentField.label}>
             <FieldGroup>
-              <AttachmentField
-                error={getFieldMessage("attachment")}
-                field={attachmentField}
-                isPending={isPending}
-                helpText={attachmentHelpText}
-                onSelectFileName={setSelectedFileName}
-                selectedFileName={selectedFileName}
-              />
+              <Field
+                data-invalid={
+                  Boolean(attachmentError) ||
+                  Boolean(getFieldMessage("attachment")) ||
+                  undefined
+                }
+              >
+                <FieldLabel htmlFor="inquiry-attachment">
+                  <FieldLabelText label={attachmentField.label} required={false} />
+                </FieldLabel>
+                <FieldContent>
+                  <InquiryAttachmentUploader
+                    businessSlug={business.slug}
+                    disabled={isPending}
+                    formSlug={business.form.slug}
+                    helpText={attachmentHelpText}
+                    id="inquiry-attachment"
+                    onChange={setAttachment}
+                    onError={setAttachmentError}
+                    value={attachment}
+                  />
+                  <FieldError
+                    errors={
+                      attachmentError
+                        ? [{ message: attachmentError }]
+                        : getFieldMessage("attachment")
+                          ? [{ message: getFieldMessage("attachment")! }]
+                          : undefined
+                    }
+                  />
+                </FieldContent>
+              </Field>
             </FieldGroup>
           </FormSection>
         ) : null}
@@ -425,7 +452,10 @@ export function PublicInquiryForm({
             </p>
             <Button
               className="w-full sm:w-auto"
-              disabled={!previewMode && (isPending || !canSubmit)}
+              disabled={
+                !previewMode &&
+                (isPending || !canSubmit || Boolean(attachmentError))
+              }
               onClick={
                 previewMode ? () => setIsPreviewDialogOpen(true) : undefined
               }
@@ -952,47 +982,6 @@ function MultiSelectField({
         );
       })}
     </div>
-  );
-}
-
-function AttachmentField({
-  error,
-  field,
-  helpText,
-  isPending,
-  selectedFileName,
-  onSelectFileName,
-}: {
-  error?: string;
-  field: InquiryFormSystemFieldDefinition;
-  helpText: string;
-  isPending: boolean;
-  selectedFileName: string | null;
-  onSelectFileName: (fileName: string | null) => void;
-}) {
-  return (
-    <Field data-invalid={Boolean(error) || undefined}>
-      <FieldLabel htmlFor="inquiry-attachment">
-        <FieldLabelText label={field.label} required={false} />
-      </FieldLabel>
-      <FieldContent>
-        <Input
-          accept={publicInquiryAttachmentAccept}
-          disabled={isPending}
-          id="inquiry-attachment"
-          name="attachment"
-          onChange={(event) =>
-            onSelectFileName(event.currentTarget.files?.[0]?.name ?? null)
-          }
-          type="file"
-        />
-        <p className="text-xs text-muted-foreground">{helpText}</p>
-        {selectedFileName ? (
-          <p className="text-sm text-muted-foreground">Selected: {selectedFileName}</p>
-        ) : null}
-        <FieldError errors={error ? [{ message: error }] : undefined} />
-      </FieldContent>
-    </Field>
   );
 }
 
