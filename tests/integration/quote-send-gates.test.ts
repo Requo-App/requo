@@ -248,8 +248,33 @@ describe("send gates", () => {
     expect(readiness.blockedReasons.some((reason) => reason.includes("teleport"))).toBe(true);
   }, 30_000);
 
-  it("exposes pack follow-up hints for packed businesses only", async () => {
-    const packed = await setupPackedBusiness("r3");
+  it("blocks sending a quote whose validity date has already passed", async () => {
+    const { userId, businessId } = await setupPackedBusiness("r5");
+
+    const quote = await createQuoteForBusiness({
+      businessId,
+      actorUserId: userId,
+      currency: "USD",
+      inquiryId: null,
+      quote: { ...quoteInput(), validUntil: "2000-01-01" },
+    });
+
+    const blocked = await markQuoteSentForBusiness({
+      businessId,
+      quoteId: quote!.id,
+      actorUserId: userId,
+      sendMethod: "manual",
+    });
+
+    expect(blocked).toMatchObject({ changed: false, blocked: true });
+    expect(
+      (blocked as { blockers: string[] }).blockers.some((reason) =>
+        reason.includes("validity date"),
+      ),
+    ).toBe(true);
+  }, 30_000);
+
+  it("exposes pack follow-up hints for packed businesses only", async () => {    const packed = await setupPackedBusiness("r3");
     expect(await getPackFollowUpHint(packed.businessId)).toContain("site readiness");
 
     const userId = `${prefix}_owner_r4`;

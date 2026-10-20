@@ -473,7 +473,7 @@ test("quotes and inquiries list exports honor filters and show export actions", 
   const quoteCsvText = await quoteCsvResponse.text();
   expect(quoteCsvText.startsWith("\uFEFF")).toBeTruthy();
   expect(quoteCsvText).toContain(
-    "quote_number,title,customer_name,customer_email,status,archived_at,voided_at,post_acceptance_status,linked_inquiry_id,valid_until,total_amount,currency,created_at,sent_at,customer_responded_at",
+    "quote_number,title,customer_name,customer_email,status,archived_at,voided_at,linked_inquiry_id,valid_until,total_amount,currency,created_at,sent_at,customer_responded_at",
   );
   expect(quoteCsvText).toContain(",sent,");
 
@@ -497,7 +497,7 @@ test("quotes and inquiries list exports honor filters and show export actions", 
   const inquiryCsvText = await inquiryCsvResponse.text();
   expect(inquiryCsvText.startsWith("\uFEFF")).toBeTruthy();
   expect(inquiryCsvText).toContain(
-    "inquiry_id,submitted_at,form_name,customer_name,customer_email,customer_phone,company_name,service_category,subject,status,record_state,budget_text,requested_deadline,details,archived_at,deleted_at",
+    "inquiry_id,submitted_at,form_name,customer_name,customer_email,contact_method,contact_handle,service,service_slug,source,source_label,subject,status,record_state,budget_text,requested_deadline,details,archived_at",
   );
   expect(inquiryCsvText).toContain(",new,");
 });
