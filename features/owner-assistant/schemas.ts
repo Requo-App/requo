@@ -126,20 +126,21 @@ export const createQuoteSchema = z.object({
   inquiryId: z.string().min(1).optional(),
   customerName: z.string().min(1).optional(),
   customerEmail: z.string().email().optional(),
+  /**
+   * The model supplies scope only. It never supplies a price — quotes are
+   * priced from the business's saved pricing library or by the owner.
+   */
   lineItems: z
     .array(
       z.object({
         description: z.string().min(1),
         quantity: z.number().min(1).max(999_999),
-        unitPrice: z.number().min(0).max(1_000_000),
-        productId: z.string().min(1).optional(),
       })
     )
     .min(1),
   notes: z.string().optional(),
   validUntil: z.string().datetime().optional(),
   terms: z.string().optional(),
-  useAiDrafting: z.boolean().default(false),
 });
 
 export const updateInquiryStatusSchema = z.object({
@@ -151,8 +152,13 @@ export const updateInquiryStatusSchema = z.object({
 export const sendQuoteSchema = z.object({
   quoteId: z.string().min(1),
   deliveryMethod: z.enum(["email", "link"]),
-  emailTemplate: z.string().optional(),
-  customMessage: z.string().optional(),
+  /**
+   * The quote state the owner approved. A staged send is refused when the
+   * quote changed in between, so the owner never approves one price and
+   * sends another.
+   */
+  expectedUpdatedAt: z.string().min(1).optional(),
+  expectedTotalInCents: z.number().int().optional(),
 });
 
 export const scheduleFollowUpSchema = z.object({

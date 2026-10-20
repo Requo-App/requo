@@ -38,7 +38,7 @@ type CreateQuoteOutput =
 
 export const createQuoteTool = tool<CreateQuoteInput, CreateQuoteOutput>({
   description:
-    "Create a new draft quote from an inquiry or from scratch with line items. This writes a real draft record — it never sends anything to the customer.",
+    "Create a new draft quote from an inquiry or from scratch with line items. This writes a real draft record — it never sends anything to the customer. Line items are created without prices: the owner sets the price from the saved pricing library or by hand before the quote can be sent.",
   inputSchema: createQuoteSchema,
   execute: async (params: CreateQuoteInput, options: ToolExecutionOptions) => {
     const context = options.experimental_context as ToolExecutionContext;
@@ -141,7 +141,11 @@ export const createQuoteTool = tool<CreateQuoteInput, CreateQuoteOutput>({
           id: newEntityId(),
           description: item.description,
           quantity: item.quantity,
-          unitPriceInCents: Math.round(item.unitPrice * 100),
+          // The model never authors a price. Line items start unpriced and the
+          // owner sets the amount in the quote editor; `send_quote` refuses a
+          // quote that still has unpriced lines.
+          unitPriceInCents: 0,
+          aiProductStatus: "unpriced" as const,
         })),
       });
 
@@ -194,7 +198,7 @@ export const createQuoteTool = tool<CreateQuoteInput, CreateQuoteOutput>({
           status: "draft",
           createdAt: new Date().toISOString(),
         },
-        summary: `Created draft quote ${created.quoteNumber} for ${customerName} ($${total.toLocaleString()})`,
+        summary: `Created draft quote ${created.quoteNumber} for ${customerName} with ${params.lineItems.length} line item${params.lineItems.length === 1 ? "" : "s"} awaiting pricing.`,
         metadata: { businessId: context.businessId },
       };
     } catch (error) {
