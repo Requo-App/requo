@@ -60,7 +60,7 @@ export function coercePositiveInteger(fieldLabel: string) {
       return Number(trimmed);
     },
     z
-      .number()
+      .number({ error: `${fieldLabel} must be a whole number.` })
       .int(`${fieldLabel} must be a whole number.`)
       .min(1, `${fieldLabel} must be at least 1.`),
   );

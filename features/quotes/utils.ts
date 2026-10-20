@@ -236,51 +236,144 @@ export function parseCurrencyInputToCents(value: string) {
   return Math.round(Number(normalized) * 100);
 }
 
-export function calculateQuoteEditorTotals(
-  items: QuoteEditorLineItemValue[],
-  discountValue: string,
-  discountType: "amount" | "percentage" = "amount",
-  taxValue: string = "",
-  taxType: "amount" | "percentage" = "amount",
-) {
-  const subtotalInCents = items.reduce((sum, item) => {
-    const quantity = Number.parseInt(item.quantity.trim(), 10);
-    const safeQuantity =
-      Number.isFinite(quantity) && quantity > 0 ? quantity : 0;
+/**
+ * Strict money parser for untrusted input. Returns `null` for anything that
+ * is not a positive decimal amount with at most two decimals — unlike
+ * `parseCurrencyInputToCents`, which folds bad input to `0` for display.
+ */
+export function parseQuoteMoneyAmountToCents(value: string): number | null {
+  const normalized = value.trim().replace(/,/g, "");
 
-    return sum + safeQuantity * parseCurrencyInputToCents(item.unitPrice);
-  }, 0);
+  if (!normalized) {
+    return 0;
+  }
+
+  if (!/^\d+(\.\d{1,2})?$/.test(normalized)) {
+    return null;
+  }
+
+  const parsed = Number(normalized);
+
+  if (!Number.isFinite(parsed)) {
+    return null;
+  }
+
+  return Math.round(parsed * 100);
+}
+
+/**
+ * Strict percentage parser for untrusted input. Returns `null` for anything
+ * outside `0`–`100`, so the caller can reject the value instead of silently
+ * treating it as zero.
+ */
+export function parseQuoteMoneyPercentage(value: string): number | null {
+  const normalized = value.trim();
+
+  if (!normalized) {
+    return 0;
+  }
+
+  const parsed = Number(normalized);
+
+  if (!Number.isFinite(parsed) || parsed < 0 || parsed > 100) {
+    return null;
+  }
+
+  return parsed;
+}
+
+export type QuoteMoneyInputType = "amount" | "percentage";
+
+/**
+ * Resolves the discount and tax amounts for a quote from the owner's raw
+ * intent.
+ *
+ * The percentage → amount conversion lives here, on the server as well as in
+ * the browser, so the persisted cents are always the ones the owner saw. The
+ * server re-derives the amounts from the submitted intent rather than
+ * trusting a total computed in the client.
+ */
+export function calculateQuoteDiscountAndTax(input: {
+  subtotalInCents: number;
+  discountValue: string;
+  discountType: QuoteMoneyInputType;
+  taxValue: string;
+  taxType: QuoteMoneyInputType;
+}) {
+  const { subtotalInCents } = input;
 
   let parsedDiscount = 0;
-  if (discountType === "percentage") {
-    const percentage = Number.parseFloat(discountValue.trim());
+  if (input.discountType === "percentage") {
+    const percentage = Number.parseFloat(input.discountValue.trim());
     if (Number.isFinite(percentage) && percentage > 0) {
-      parsedDiscount = Math.round(subtotalInCents * (percentage / 100));
+      parsedDiscount = Math.round((subtotalInCents * percentage) / 100);
     }
   } else {
-    parsedDiscount = parseCurrencyInputToCents(discountValue);
+    parsedDiscount = parseCurrencyInputToCents(input.discountValue);
   }
 
   const discountInCents = Math.min(subtotalInCents, parsedDiscount);
   const taxableAmount = subtotalInCents - discountInCents;
 
   let parsedTax = 0;
-  if (taxType === "percentage") {
-    const percentage = Number.parseFloat(taxValue.trim());
+  if (input.taxType === "percentage") {
+    const percentage = Number.parseFloat(input.taxValue.trim());
     if (Number.isFinite(percentage) && percentage > 0) {
-      parsedTax = Math.round(taxableAmount * (percentage / 100));
+      parsedTax = Math.round((taxableAmount * percentage) / 100);
     }
   } else {
-    parsedTax = parseCurrencyInputToCents(taxValue);
+    parsedTax = parseCurrencyInputToCents(input.taxValue);
   }
 
   const taxInCents = Math.max(0, parsedTax);
 
   return {
-    subtotalInCents,
     discountInCents,
     taxInCents,
     totalInCents: subtotalInCents - discountInCents + taxInCents,
+  };
+}
+
+/**
+ * Parses the editor's quantity input the way the server does. A partially
+ * numeric value such as `2abc` is rejected outright instead of being read as
+ * `2`, so the live total never overstates what the server will accept.
+ */
+function parseEditorQuantity(value: string) {
+  const normalized = value.trim();
+
+  if (!/^\d+$/.test(normalized)) {
+    return 0;
+  }
+
+  const parsed = Number.parseInt(normalized, 10);
+
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+}
+
+export function calculateQuoteEditorTotals(
+  items: QuoteEditorLineItemValue[],
+  discountValue: string,
+  discountType: QuoteMoneyInputType = "amount",
+  taxValue: string = "",
+  taxType: QuoteMoneyInputType = "amount",
+) {
+  const subtotalInCents = items.reduce((sum, item) => {
+    return (
+      sum +
+      parseEditorQuantity(item.quantity) * parseCurrencyInputToCents(item.unitPrice)
+    );
+  }, 0);
+
+  return {
+    subtotalInCents,
+    ...calculateQuoteDiscountAndTax({
+      subtotalInCents,
+      discountValue,
+      discountType,
+      taxValue,
+      taxType,
+    }),
   };
 }
 
@@ -324,7 +417,7 @@ export function getQuoteEditorInitialValuesFromInquiry(
     discount: "",
     discountType: "amount" as const,
     tax: "",
-    taxType: "percentage" as const,
+    taxType: "amount" as const,
     taxLabel: "",
     items: [createQuoteEditorLineItem()],
   };
@@ -352,7 +445,10 @@ export function getQuoteEditorInitialValuesFromDetail(
     discount: centsToMoneyInput(quote.discountInCents),
     discountType: "amount" as const,
     tax: centsToMoneyInput(quote.taxInCents),
-    taxType: "percentage" as const,
+    // The quote stores an absolute tax amount, so the editor must not read it
+    // back as a percentage — a percentage seed re-prices the tax against the
+    // subtotal and inflates the total on the next save.
+    taxType: "amount" as const,
     taxLabel: quote.taxLabel ?? "",
     items: quote.items.length
       ? quote.items.map((item) => ({

@@ -157,6 +157,12 @@ export function QuotePrintDocument({
                 label="Discount"
                 value={`-${formatQuoteMoney(quote.discountInCents, quote.currency)}`}
               />
+              {quote.taxInCents > 0 ? (
+                <SummaryRow
+                  label={quote.taxLabel ? `Tax (${quote.taxLabel})` : "Tax"}
+                  value={formatQuoteMoney(quote.taxInCents, quote.currency)}
+                />
+              ) : null}
               <div className="border-t border-border/70 pt-3">
                 <SummaryRow
                   label="Total"

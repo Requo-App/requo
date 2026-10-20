@@ -70,6 +70,7 @@ import { ApplyTemplateConfirmDialog } from "@/features/quotes/components/apply-t
 import { generateQuoteDraftAction } from "@/features/ai/actions";
 import type { AiQuoteDraft, AiQuoteReadiness } from "@/features/ai/types";
 import { useDeferredRefresh } from "@/hooks/use-deferred-refresh";
+import { getUserSafeErrorMessage } from "@/lib/action-state";
 import { cn } from "@/lib/utils";
 
 import type { QuoteEditorProps, EditorLineItem } from "./types";
@@ -231,10 +232,19 @@ export function QuoteEditor({
 
       if (nextState.success) {
         toast.success(nextState.success);
+        // The quote totals, the send panel and the follow-up summary all live
+        // in server-rendered regions on this route. Without a refresh they keep
+        // showing the pre-save values (including a stale total).
+        scheduleRefresh();
       }
 
-       if (firstFieldError || nextState.error) {
-        toast.error(firstFieldError ?? nextState.error ?? "Check the form and try again.");
+      if (firstFieldError || nextState.error) {
+        toast.error(
+          getUserSafeErrorMessage(
+            new Error(firstFieldError ?? nextState.error ?? ""),
+            "Check the form and try again.",
+          ),
+        );
       }
 
       if (nextState.success && showFloatingUnsavedChanges) {
@@ -1047,10 +1057,11 @@ export function QuoteEditor({
               >
                 <FieldLabel htmlFor="quote-discount">Discount</FieldLabel>
                 <FieldContent>
+                  <input name="discount" type="hidden" value={discount} />
                   <input
-                    name="discount"
+                    name="discountType"
                     type="hidden"
-                    value={centsToMoneyInput(totals.discountInCents)}
+                    value={discountType}
                   />
                   <div className="relative">
                     <Input
@@ -1100,11 +1111,8 @@ export function QuoteEditor({
               >
                 <FieldLabel htmlFor="quote-tax">Tax</FieldLabel>
                 <FieldContent>
-                  <input
-                    name="tax"
-                    type="hidden"
-                    value={centsToMoneyInput(totals.taxInCents)}
-                  />
+                  <input name="tax" type="hidden" value={tax} />
+                  <input name="taxType" type="hidden" value={taxType} />
                   <input
                     name="taxLabel"
                     type="hidden"

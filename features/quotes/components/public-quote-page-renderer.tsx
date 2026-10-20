@@ -152,18 +152,24 @@ function QuotePageContent({
                 {formatQuoteMoney(quote.subtotalInCents, quote.currency)}
               </span>
             </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Discount</span>
-              <span className="text-foreground">
-                -{formatQuoteMoney(quote.discountInCents, quote.currency)}
-              </span>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Tax</span>
-              <span className="text-foreground">
-                {formatQuoteMoney(quote.taxInCents, quote.currency)}
-              </span>
-            </div>
+            {quote.discountInCents > 0 ? (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Discount</span>
+                <span className="text-foreground">
+                  -{formatQuoteMoney(quote.discountInCents, quote.currency)}
+                </span>
+              </div>
+            ) : null}
+            {quote.taxInCents > 0 ? (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">
+                  {quote.taxLabel ? `Tax (${quote.taxLabel})` : "Tax"}
+                </span>
+                <span className="text-foreground">
+                  {formatQuoteMoney(quote.taxInCents, quote.currency)}
+                </span>
+              </div>
+            ) : null}
             <div className="flex items-center justify-between border-t border-border/40 pt-2 text-base font-semibold">
               <span className="text-foreground">Total</span>
               <span className="text-foreground">
