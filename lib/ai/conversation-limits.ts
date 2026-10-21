@@ -14,6 +14,11 @@
  *   assistantFileUploadsPerDay / agentFileUploadsPerDay: 5 / 20 / 50 —
  *   ephemeral chat attachments, counted per business per day via the
  *   `attachmentCount` message-metadata marker (no counter table).
+ *
+ * The shared weighted monthly credit pool (`reserveUsage` in
+ * `lib/ai/usage-limiter.ts`) remains the hard token-spend ceiling behind both
+ * buckets. Every AI surface reserves a credit before it calls a provider and
+ * settles it with the real token usage afterwards.
  */
 
 import "server-only";
