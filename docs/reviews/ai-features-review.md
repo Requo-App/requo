@@ -10,6 +10,7 @@ authenticated **Assistant**, the AI quote and suggestion pipeline, the shared
 | Branch | `chore/ai-features-review` |
 | Method | Five independent read-only reviews, one per surface, then cross-checking of every High finding against the source |
 | Scope | `lib/ai/**`, `features/ai/**`, `features/ai-agent/**`, `features/owner-assistant/**`, `features/memory/**`, `features/importer/ai-extractor.ts`, `features/quotes/**`, `features/follow-ups/**` AI paths, `features/settings/**` AI paths, `features/admin/components/ai/**`, `app/api/ai/**`, `app/admin/ai/**`, `app/(public)/b/[slug]/chat/**`, `app/(business)/[businessSlug]/(main)/assistant/**`, `app/(business)/[businessSlug]/settings/ai/**`, `lib/db/schema/{ai,ai-agent,owner-assistant,memories,knowledge-files}.ts` |
+| Status | **Fixed.** Every finding below is addressed on this branch. See [Resolution](#resolution). |
 
 No code was executed while producing this review. Every finding below was
 re-checked against the source; behaviour that could only be confirmed by
@@ -411,3 +412,79 @@ Highest-value additions, in order:
 
 Each group needs its own branch and PR — this review spans five independent
 areas and does not belong in a single change.
+
+---
+
+## Resolution
+
+Every finding in this review is fixed on `chore/ai-features-review`, in seven
+commits grouped by area. The mapping:
+
+| Finding | Resolution |
+|---|---|
+| 1 — readiness gate inert | `computeQuoteAiReadiness` recomputes readiness server-side from the persisted provenance; the client value is ignored. `aiGenerationId` is validated against the server-issued format. |
+| 2 — percentage discount | The actions submit `discountValue`/`discountType`/`taxValue`/`taxType`; the schema derives both amounts from the server-side subtotal. |
+| 3 — knowledge title | `sanitizeMemoryContent` returns the title and the content separately. |
+| 4 — public-inquiry kill switch | The Agent's approval path requires `businessInquiryForms.publicInquiryEnabled` and `businesses.publicInquiryEnabled`. |
+| 5 — locked business writes | The Assistant resolves its business with `requireActiveBusiness: true`. |
+| 6 — token double-count | The estimate is charged first and corrected afterwards; the correction now converges on every enforced dimension. |
+| 7 — lost lead after approval | The proposal moves to `sending`, returns to `pending` when the submission fails, and a stale send is reclaimed after two minutes. |
+| 8 — incomplete fence | Every customer-controlled value goes through one fence, the fence tag is stripped from untrusted text, and the revision request carries no special standing. |
+| 9 — model-chosen quantity | An exact match takes the quantity from the priced candidate. |
+| 10 — `streamWithFallback` | It now runs on the fallback wrapper, which resolves the candidate inside its own `doStream`, and corrects the usage when the stream ends. |
+| 11 — quota is a cached read | The Agent, the Assistant, the quote draft, the auto-draft job and the importer reserve a credit before the call and settle it with the real weight. |
+| 12 — unmetered digest | The digest's invocation is logged. It is deliberately not charged to the business's pool: it is a platform-provided feature for entitled businesses. |
+| 13 — `logAiInvocation` rejection | The insert is caught, and the stored error text is scrubbed of customer content. |
+| 14 — unbounded sanitizer | The inspection is capped and the separator rule no longer backtracks quadratically. |
+| 15 — request dedup | `CacheLayer.setIfAbsent` claims the key atomically. |
+| 16 — serial cache calls | The dead-model checks run concurrently. |
+| 17 — lost security events | The insert is awaited. |
+| 18 — usage counter restart | The cached counter is an absolute total again and is re-primed after an invalidation. |
+| 19 — uncorrected daily counters | The correction now covers the per-day and provider-shared counters and the neuron pool. |
+| 20 — dead provider-error branches | Provider errors are wrapped, so the retry-after back-off works. |
+| 21 — token-log cleanup | The cleanup drains in bounded batches. |
+| 22 — unbounded cache | The in-memory fallback is capped and swept. |
+| 23 — business instructions | The docblock now states what the function does: it normalises and caps owner-authored guidance, which is trusted by design. |
+| 24 — truncated transcript | The role filter runs in SQL and the newest 100 turns are kept. |
+| 25 — rotatable rate limits | The Agent's buckets have `ipLimit` and `scopeLimit`. |
+| 26 — session allowance | Only sessions that produced a message count. |
+| 27 — broken retry button | The token travels with the retry, and the retry reuses the client message id so the turn is not persisted or billed twice. |
+| 28 — stop generating | The request's abort signal reaches the provider and the run is closed on abort. |
+| 29 — unmetered failures | A failed turn is charged for what it spent. |
+| 30 — uncapped transport | The shared chat schema caps the transport the clients use. |
+| 31 — token in the URL | The client sends it as a bearer token. |
+| 32 — orphaned transcript | The session resolves by every inquiry it produced. |
+| 33 — unvalidated metadata | The metadata is parsed and bounded; the schema is strict. |
+| 34 — malformed messages | A bad payload is a 400, not a 500. |
+| 35 — undiscoverable chat | The page checks the plan entitlement. |
+| 36 — email before the transition | The post-send failure is reported honestly instead of as a failed send. |
+| 37 — `validUntil` | The tool's timestamp is normalised to the calendar date the quote schema wants. |
+| 38 — history cache | The cache is keyed per member, not per business. |
+| 39 — denormalized plan | The effective plan scopes the allowance and the entitlements. |
+| 40 — unfrozen confirmation | The staged payload freezes the approved state, and a confirmation expires after 30 minutes. |
+| 41 — dropped turn | The compaction preserves the latest turn. |
+| 42 — unmetered failures | The Assistant charges failed turns. |
+| 43 — full customer scan | The scan is bounded and the filters run in SQL. |
+| 44 — unsanitised attachments | The attachment text is sanitised before it reaches the model. |
+| 45 — fictional test files | The README states what is actually covered, and what is not. |
+| 46 — quota is a cached read | The draft path reserves and settles. |
+| 47 — stripped provenance | The editor keeps the AI provenance on every row. |
+| 48 — discarded draft | The auto-draft job persists the quote it generates. |
+| 49 — bearer token in a prompt | The prompt describes the quote; Requo appends the link to the finished message. |
+| 50 — importer bypass | The document is sanitised, the response is filtered and validated, and the invocation is metered and logged. |
+| 51 — price scale | The model reports the amount as written; the server owns the conversion to cents. |
+| 52 — raw output logged | Only the length and a short prefix are logged. |
+| 53 — cookie-scoped settings | The save is bound to the route slug. |
+| 54 — unfenced knowledge | The knowledge evidence is fenced and both prompts say what the fence means. |
+| 55 — orphaned file row | The row is deleted with the storage object. |
+| 56 — backfill starvation | The batch is ordered by creation, so the failed rows stop blocking the rest. |
+| 57 — tab queries | The Knowledge tab loads its data when it is opened. |
+| 58 — vectors in the payload | The vector is no longer selected. |
+| 59 — provider error text | The stored error is scrubbed before it is persisted. |
+| 60 — stuck files | The retry affordance covers a file stuck in "processing". |
+| Low — failed action reported as success | The confirmation action returns `ok: false` and the client surfaces the reason. |
+| Low — aggregates in USD | The business's own currency is used. |
+| Low — stale output-filter comment | The header now matches the fail-closed behaviour. |
+
+The test gaps listed above remain open: this branch fixes the defects, it does
+not add the missing coverage for them.

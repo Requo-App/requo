@@ -8,6 +8,7 @@ import { z } from "zod";
 import { searchQuotesSchema } from "../schemas";
 import { searchQuotesQuery } from "../queries";
 import { centsToDollars } from "../permissions";
+import { formatQuoteMoney } from "@/features/quotes/utils";
 import type { ErrorResult, ToolExecutionContext } from "../types";
 
 type SearchQuotesInput = z.infer<typeof searchQuotesSchema>;
@@ -29,6 +30,8 @@ type SearchQuotesOutput =
         }>;
         total: number;
         totalValue: number;
+        /** The currency the totals are in. */
+        currency: string;
         hasMore: boolean;
       };
       summary: string;
@@ -47,13 +50,18 @@ export const searchQuotesTool = tool<SearchQuotesInput, SearchQuotesOutput>({
       const result = await searchQuotesQuery(context.businessId, params);
       const totalValueDollars = centsToDollars(result.totalValue);
 
+      // The totals are reported in the currency the quotes are in, not in
+      // dollars: a business quoting in EUR was shown a dollar figure.
+      const currency =
+        result.results.find((row) => row.currency)?.currency ?? "USD";
+
       const statusText = params.status ? ` with status "${params.status}"` : "";
       const dateText = params.dateRange
         ? ` from ${new Date(params.dateRange.start).toLocaleDateString()} to ${new Date(params.dateRange.end).toLocaleDateString()}`
         : "";
       const valueText =
         totalValueDollars > 0
-          ? ` (total value: $${totalValueDollars.toLocaleString()})`
+          ? ` (total value: ${formatQuoteMoney(result.totalValue, currency)})`
           : "";
 
       return {
@@ -81,6 +89,7 @@ export const searchQuotesTool = tool<SearchQuotesInput, SearchQuotesOutput>({
           })),
           total: Number(result.total),
           totalValue: totalValueDollars,
+          currency,
           hasMore: result.hasMore,
         },
         summary: `Found ${result.results.length} quotes${statusText}${dateText}${valueText}`,

@@ -8,6 +8,10 @@ import { z } from "zod";
 import { getQuoteStatsSchema } from "../schemas";
 import { getQuoteStatsQuery } from "../queries";
 import { centsToDollars } from "../permissions";
+import { formatQuoteMoney } from "@/features/quotes/utils";
+import { db } from "@/lib/db/client";
+import { businesses } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
 import type { ErrorResult, ToolExecutionContext } from "../types";
 
 type GetQuoteStatsInput = z.infer<typeof getQuoteStatsSchema>;
@@ -40,13 +44,23 @@ export const getQuoteStatsTool = tool<GetQuoteStatsInput, GetQuoteStatsOutput>({
       const acceptedDollars = centsToDollars(stats.acceptedValue);
       const averageDollars = centsToDollars(stats.averageQuoteValue);
 
+      // The business's own currency. The aggregates used to be reported in
+      // dollars regardless, so a business quoting in EUR was shown a figure
+      // that did not match its own quote rows.
+      const [business] = await db
+        .select({ currency: businesses.defaultCurrency })
+        .from(businesses)
+        .where(eq(businesses.id, context.businessId))
+        .limit(1);
+      const currency = business?.currency ?? "USD";
+
       const statusBreakdown = Object.entries(stats.byStatus)
         .map(([status, count]) => `${count} ${status}`)
         .join(", ");
 
       const pipelineText =
         pipelineDollars > 0
-          ? ` Pipeline value: $${pipelineDollars.toLocaleString()}.`
+          ? ` Pipeline value: ${formatQuoteMoney(stats.pipelineValue, currency)}.`
           : "";
       const acceptanceText =
         Number(stats.acceptanceRate) > 0
@@ -66,19 +80,19 @@ export const getQuoteStatsTool = tool<GetQuoteStatsInput, GetQuoteStatsOutput>({
               label: "Pipeline value",
               value: pipelineDollars,
               format: "currency" as const,
-              currency: "USD",
+              currency,
             },
             {
               label: "Accepted value",
               value: acceptedDollars,
               format: "currency" as const,
-              currency: "USD",
+              currency,
             },
             {
               label: "Average quote",
               value: averageDollars,
               format: "currency" as const,
-              currency: "USD",
+              currency,
             },
             {
               label: "Acceptance rate",
