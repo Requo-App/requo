@@ -47,7 +47,7 @@ export async function createAutoDraftQuote(input: {
     id: newEntityId(),
     description: item.description,
     quantity: item.quantity,
-    unitPriceInCents: item.unitPriceInCents,
+    unitPriceInCents: (item.unitPriceInCents / 100).toFixed(2),
     aiReview: {
       name: item.name,
       pricingSource: item.pricingSource,

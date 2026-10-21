@@ -331,6 +331,18 @@ export async function sanitizeAiInput(
   input: string,
   conversationId?: string,
 ): Promise<SanitizationResult> {
+  // Reject oversized input before trimming, normalization, or pattern matching.
+  // Returning a prefix would let importers silently extract partial documents.
+  if (input && input.length > MAX_SANITIZE_INPUT_CHARS) {
+    return {
+      status: "rejected",
+      output: "",
+      title: "",
+      content: "",
+      patterns: ["input_truncated"],
+    };
+  }
+
   try {
     // Step 1: Check lockout counter if conversationId is provided
     if (conversationId) {
@@ -364,15 +376,8 @@ export async function sanitizeAiInput(
       };
     }
 
-    // Bound the inspection. The patterns run over the whole string, so an
-    // unbounded body made the sanitizer's cost attacker-controlled.
-    const truncated = input.length > MAX_SANITIZE_INPUT_CHARS;
-    const inspected = truncated
-      ? input.slice(0, MAX_SANITIZE_INPUT_CHARS)
-      : input;
-
-    // Normalize input: strip zero-width chars + NFKC normalization
-    const normalized = normalizeInput(inspected);
+    // Normalize input: strip zero-width chars + NFKC normalization.
+    const normalized = normalizeInput(input);
 
     const matchedPatterns: string[] = [];
 
@@ -433,7 +438,7 @@ export async function sanitizeAiInput(
       output: normalized,
       title: "",
       content: normalized,
-      patterns: truncated ? ["input_truncated"] : [],
+      patterns: [],
     };
   } catch {
     // Catch unexpected errors (e.g., catastrophic backtracking)

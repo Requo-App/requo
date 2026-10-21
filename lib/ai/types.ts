@@ -51,6 +51,8 @@ export type AiCompletionRequest = {
   routingProfile?: AiRoutingProfile;
   /** Preflight token estimate (input + output) for capacity selection. */
   estimatedTokens?: number;
+  /** Caller cancellation for streaming requests, shared by all fallback attempts. */
+  abortSignal?: AbortSignal;
 };
 
 /** Normalized response returned by every provider. */

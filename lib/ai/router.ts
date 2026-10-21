@@ -436,6 +436,7 @@ export async function streamWithFallback(
     modelIds,
     maxAttempts: CHAT_MAX_ATTEMPTS,
     estimatedTokens,
+    getTimeoutMs: ({ provider }) => PROVIDER_TIMEOUTS[normalizeProviderName(provider)] ?? 25_000,
     onModelSelected: (selected) => {
       servingModelId = selected.modelId;
       serving = {
@@ -451,13 +452,15 @@ export async function streamWithFallback(
     },
   });
 
+  let streamFailure: { error: unknown } | undefined;
   const result = streamText({
     model: fallbackModel,
     system,
     messages,
     temperature: request.temperature,
     maxOutputTokens: request.maxOutputTokens,
-    abortSignal: AbortSignal.timeout(PROVIDER_TIMEOUTS[serving.provider] ?? 25_000),
+    abortSignal: request.abortSignal,
+    onError: ({ error }) => { streamFailure = { error }; },
   });
 
   async function* chunks(): AsyncGenerator<AiStreamChunk> {
@@ -467,6 +470,8 @@ export async function streamWithFallback(
           yield { delta: chunk, finishReason: null };
         }
       }
+      request.abortSignal?.throwIfAborted();
+      if (streamFailure) throw streamFailure.error;
     } finally {
       // The real token spend is only known once the stream ends. Correct the
       // estimate charged when the model was selected so the counters
@@ -511,7 +516,6 @@ async function streamWithProviderFallback(
 
   for (const providerName of providers) {
     const models = getModelCandidates(request, providerName);
-    const timeout = PROVIDER_TIMEOUTS[providerName];
 
     for (const model of models) {
       const modelId = getRegistryModelId(providerName, model);
@@ -523,6 +527,7 @@ async function streamWithProviderFallback(
       const fallbackModel = createFallbackLanguageModel({
         modelIds: [modelId],
         maxAttempts: 1,
+        getTimeoutMs: ({ provider }) => PROVIDER_TIMEOUTS[normalizeProviderName(provider)] ?? 25_000,
         estimatedTokens: request.estimatedTokens ?? estimateRequestTokens(request),
         onAttemptFailed: () => {
           if (!fallbackReported) {
@@ -532,13 +537,15 @@ async function streamWithProviderFallback(
         },
       });
 
+      let streamFailure: { error: unknown } | undefined;
       const result = streamText({
         model: fallbackModel,
         system,
         messages,
         temperature: request.temperature,
         maxOutputTokens: request.maxOutputTokens,
-        abortSignal: AbortSignal.timeout(timeout),
+        abortSignal: request.abortSignal,
+        onError: ({ error }) => { streamFailure = { error }; },
       });
 
       async function* chunks(): AsyncGenerator<AiStreamChunk> {
@@ -547,6 +554,8 @@ async function streamWithProviderFallback(
             yield { delta: chunk, finishReason: null };
           }
         }
+        request.abortSignal?.throwIfAborted();
+        if (streamFailure) throw streamFailure.error;
         yield { delta: "", finishReason: "stop" };
       }
 

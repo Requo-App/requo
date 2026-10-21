@@ -25,6 +25,7 @@ import {
 import {
   checkAgentFileUploadLimit,
   checkAgentMessageLimit,
+  checkAgentSessionLimit,
 } from "@/lib/ai/conversation-limits";
 import {
   AGENT_ATTACHMENT_MAX_CHARS_PER_TURN,
@@ -55,6 +56,7 @@ import {
 import {
   addAgentMessage,
   buildAiSdkMessages,
+  countSessionMessages,
   hasAgentMessageWithClientId,
 } from "@/features/ai-agent/message-service";
 import {
@@ -232,6 +234,17 @@ export async function runAgent({
     throw new Error("AI agent is not available on this plan");
   }
 
+  // Empty sessions do not consume a session allowance until their first turn.
+  if (await countSessionMessages(sessionData.id) === 0) {
+    const sessionLimit = await checkAgentSessionLimit({
+      businessId: sessionData.business.id,
+      plan: sessionData.business.plan as BusinessPlan,
+    });
+    if (!sessionLimit.allowed) {
+      throw new Error(`SESSION_LIMIT_EXCEEDED: ${sessionLimit.message}`);
+    }
+  }
+
   // Hard usage quota check — block requests that exceed the plan's monthly
   // allowance. The credit is reserved (not merely read): a cached read let
   // every concurrent request pass the same stale total.
@@ -274,216 +287,218 @@ export async function runAgent({
     }
   };
 
-  const { id: sessionId, state, metadata } = sessionData;
-  const { business } = sessionData;
+  let runId: string | undefined;
+  try {
+    const { id: sessionId, state, metadata } = sessionData;
+    const { business } = sessionData;
 
-  // Per-session lifetime message ceiling.
-  const messageLimit = await checkAgentMessageLimit({ sessionId });
-  if (!messageLimit.allowed) {
-    throw new Error(`SESSION_LIMIT_EXCEEDED: ${messageLimit.message}`);
-  }
-
-  // Daily file-upload bucket per business (across visitors) — checked before
-  // parsing so a capped business pays for neither extraction nor tokens.
-  // Text-only turns skip it.
-  if (attachments.length > 0) {
-    const uploadResult = await checkAgentFileUploadLimit({
-      businessId: business.id,
-      plan: business.plan as BusinessPlan,
-    });
-    if (!uploadResult.allowed) {
-      throw new Error(`UPLOAD_LIMIT_EXCEEDED: ${uploadResult.message}`);
+    // Per-session lifetime message ceiling.
+    const messageLimit = await checkAgentMessageLimit({ sessionId });
+    if (!messageLimit.allowed) {
+      throw new Error(`SESSION_LIMIT_EXCEEDED: ${messageLimit.message}`);
     }
-  }
 
-  const qualificationState = state as QualificationState;
-  const configResult = agentConfigSchema.safeParse(
-    business.aiAgentConfig ?? null,
-  );
-  const config = configResult.success ? configResult.data : undefined;
-  const sessionMetadata = metadata as SessionMetadata;
-
-  // Resolve the latest user turn (UI transport or legacy content field).
-  const latestFromUi = uiMessages ? [...uiMessages].reverse().find((m) => m.role === "user") : undefined;
-  const rawUserMessage = (userMessage ?? latestFromUi?.content ?? "").trim();
-  if (!rawUserMessage) {
-    throw new Error("A user message is required.");
-  }
-
-  // Track search attempts for handoff trigger
-  const searchAttempts = sessionMetadata.searchAttempts ?? 0;
-
-  // Mitigate prompt injection before untrusted input reaches a model with tools.
-  const sanitized = await sanitizeAiInput(rawUserMessage, `ai-agent:${sessionId}`);
-  if (sanitized.status === "rejected" || sanitized.status === "locked") {
-    throw new Error(
-      "INPUT_REJECTED: That message can't be processed. Please rephrase, or use the inquiry form.",
-    );
-  }
-  const safeUserMessage = sanitized.output || rawUserMessage;
-
-  // Ephemeral attachments: parse to text for this turn only. Failures throw
-  // ATTACHMENT_REJECTED (mapped to a 400) before anything is persisted.
-  let attachmentBlock = "";
-  let attachmentCount = 0;
-  if (attachments.length > 0) {
-    try {
-      const processed = await processChatAttachments({
-        files: attachments,
-        maxFiles: AGENT_ATTACHMENT_MAX_FILES_PER_TURN,
-        maxCharsPerTurn: AGENT_ATTACHMENT_MAX_CHARS_PER_TURN,
+    // Daily file-upload bucket per business (across visitors) — checked before
+    // parsing so a capped business pays for neither extraction nor tokens.
+    // Text-only turns skip it.
+    if (attachments.length > 0) {
+      const uploadResult = await checkAgentFileUploadLimit({
+        businessId: business.id,
+        plan: business.plan as BusinessPlan,
       });
-      attachmentBlock = processed.block;
-      attachmentCount = processed.fileCount;
-    } catch (error) {
-      if (error instanceof ChatAttachmentError) {
-        throw new Error(`ATTACHMENT_REJECTED: ${error.message}`);
+      if (!uploadResult.allowed) {
+        throw new Error(`UPLOAD_LIMIT_EXCEEDED: ${uploadResult.message}`);
       }
-      throw error;
     }
-  }
-  // The parsed attachment text is untrusted content too: it reaches a model
-  // that holds tools, so it is sanitised before it is concatenated.
-  if (attachmentBlock) {
-    const attachmentSanitization = await sanitizeAiInput(
-      attachmentBlock,
-      `ai-agent:${sessionId}`,
+
+    const qualificationState = state as QualificationState;
+    const configResult = agentConfigSchema.safeParse(
+      business.aiAgentConfig ?? null,
     );
-    if (
-      attachmentSanitization.status === "rejected" ||
-      attachmentSanitization.status === "locked"
-    ) {
+    const config = configResult.success ? configResult.data : undefined;
+    const sessionMetadata = metadata as SessionMetadata;
+
+    // Resolve the latest user turn (UI transport or legacy content field).
+    const latestFromUi = uiMessages ? [...uiMessages].reverse().find((m) => m.role === "user") : undefined;
+    const rawUserMessage = (userMessage ?? latestFromUi?.content ?? "").trim();
+    if (!rawUserMessage) {
+      throw new Error("A user message is required.");
+    }
+
+    // Track search attempts for handoff trigger
+    const searchAttempts = sessionMetadata.searchAttempts ?? 0;
+
+    // Mitigate prompt injection before untrusted input reaches a model with tools.
+    const sanitized = await sanitizeAiInput(rawUserMessage, `ai-agent:${sessionId}`);
+    if (sanitized.status === "rejected" || sanitized.status === "locked") {
       throw new Error(
-        "ATTACHMENT_REJECTED: That file couldn't be processed. Try removing any instructional text and upload again.",
+        "INPUT_REJECTED: That message can't be processed. Please rephrase, or use the inquiry form.",
       );
     }
-    attachmentBlock = attachmentSanitization.output || attachmentBlock;
-  }
+    const safeUserMessage = sanitized.output || rawUserMessage;
 
-  const fullUserMessage = attachmentBlock
-    ? `${safeUserMessage}\n\n${attachmentBlock}`
-    : safeUserMessage;
+    // Ephemeral attachments: parse to text for this turn only. Failures throw
+    // ATTACHMENT_REJECTED (mapped to a 400) before anything is persisted.
+    let attachmentBlock = "";
+    let attachmentCount = 0;
+    if (attachments.length > 0) {
+      try {
+        const processed = await processChatAttachments({
+          files: attachments,
+          maxFiles: AGENT_ATTACHMENT_MAX_FILES_PER_TURN,
+          maxCharsPerTurn: AGENT_ATTACHMENT_MAX_CHARS_PER_TURN,
+        });
+        attachmentBlock = processed.block;
+        attachmentCount = processed.fileCount;
+      } catch (error) {
+        if (error instanceof ChatAttachmentError) {
+          throw new Error(`ATTACHMENT_REJECTED: ${error.message}`);
+        }
+        throw error;
+      }
+    }
+    // The parsed attachment text is untrusted content too: it reaches a model
+    // that holds tools, so it is sanitised before it is concatenated.
+    if (attachmentBlock) {
+      const attachmentSanitization = await sanitizeAiInput(
+        attachmentBlock,
+        `ai-agent:${sessionId}`,
+      );
+      if (
+        attachmentSanitization.status === "rejected" ||
+        attachmentSanitization.status === "locked"
+      ) {
+        throw new Error(
+          "ATTACHMENT_REJECTED: That file couldn't be processed. Try removing any instructional text and upload again.",
+        );
+      }
+      attachmentBlock = attachmentSanitization.output || attachmentBlock;
+    }
 
-  // Persist the user message. A retry carries the same client message id,
-  // so the turn is not written (and not billed) twice.
-  const isRetry = clientMessageId
-    ? await hasAgentMessageWithClientId({
+    const fullUserMessage = attachmentBlock
+      ? `${safeUserMessage}\n\n${attachmentBlock}`
+      : safeUserMessage;
+
+    // Persist the user message. A retry carries the same client message id,
+    // so the turn is not written (and not billed) twice.
+    const isRetry = clientMessageId
+      ? await hasAgentMessageWithClientId({
+          sessionId,
+          clientMessageId,
+        })
+      : false;
+
+    if (!isRetry) {
+      await addAgentMessage({
         sessionId,
-        clientMessageId,
-      })
-    : false;
+        role: "user",
+        content: fullUserMessage,
+        metadata: {
+          ...(attachmentCount > 0
+            ? { [ATTACHMENT_METADATA_KEY]: attachmentCount }
+            : {}),
+          ...(clientMessageId ? { clientMessageId } : {}),
+        },
+      });
+    }
 
-  if (!isRetry) {
-    await addAgentMessage({
-      sessionId,
-      role: "user",
-      content: fullUserMessage,
-      metadata: {
-        ...(attachmentCount > 0
-          ? { [ATTACHMENT_METADATA_KEY]: attachmentCount }
-          : {}),
-        ...(clientMessageId ? { clientMessageId } : {}),
-      },
-    });
-  }
+    // Advance qualification state as the conversation progresses.
+    const advancedState = advanceQualificationFromMessage(
+      qualificationState,
+      safeUserMessage,
+    );
+    if (JSON.stringify(advancedState) !== JSON.stringify(qualificationState)) {
+      await updateSessionState({ sessionId, state: advancedState });
+    }
 
-  // Advance qualification state as the conversation progresses.
-  const advancedState = advanceQualificationFromMessage(
-    qualificationState,
-    safeUserMessage,
-  );
-  if (JSON.stringify(advancedState) !== JSON.stringify(qualificationState)) {
-    await updateSessionState({ sessionId, state: advancedState });
-  }
+    // Card edits ride along: persist the current card values to the staged
+    // proposal before the model runs, so chat revision and manual editing
+    // compose instead of clobbering each other.
+    if (proposedInquiryValues && Object.keys(proposedInquiryValues).length > 0) {
+      const { persistProposalValuesFromCard } = await import(
+        "@/features/ai-agent/session-service"
+      );
+      await persistProposalValuesFromCard({
+        sessionId,
+        values: proposedInquiryValues,
+      });
+    }
 
-  // Card edits ride along: persist the current card values to the staged
-  // proposal before the model runs, so chat revision and manual editing
-  // compose instead of clobbering each other.
-  if (proposedInquiryValues && Object.keys(proposedInquiryValues).length > 0) {
-    const { persistProposalValuesFromCard } = await import(
+    // Reload state after the card merge so the prompt and tool context see the
+    // visitor's latest edits rather than the model's earlier guess.
+    const { loadSessionById } = await import(
       "@/features/ai-agent/session-service"
     );
-    await persistProposalValuesFromCard({
+    const freshSession = await loadSessionById(sessionId);
+    const freshState = (freshSession?.state ??
+      advancedState) as QualificationState & {
+      proposedInquiry?: import("@/features/ai-agent/types").ProposedInquiry | null;
+    };
+
+    // Build tool context (pre-validated, never from user input or LLM output)
+    // The orchestrator is given the currently staged proposal so a revision
+    // starts from the current values rather than re-deriving from the
+    // transcript.
+    const toolContext: AgentToolContext = {
       sessionId,
-      values: proposedInquiryValues,
+      businessId: business.id,
+      business: {
+        id: business.id,
+        name: business.name,
+        slug: business.slug,
+        plan: business.plan,
+        shortDescription: business.shortDescription,
+        contactEmail: business.contactEmail,
+        inquiryFormConfig: business.inquiryFormConfig,
+      },
+      state: freshState as QualificationState,
+    };
+
+    // Build system prompt first so overhead is measured, not guessed.
+    const systemPrompt = buildSystemPrompt({
+      businessName: business.name,
+      config,
+      state: freshState,
+      businessType: (business as { businessType?: string | null }).businessType ?? null,
     });
-  }
+    const measuredOverhead = measurePromptOverhead(systemPrompt, agentTools);
 
-  // Reload state after the card merge so the prompt and tool context see the
-  // visitor's latest edits rather than the model's earlier guess.
-  const { loadSessionById } = await import(
-    "@/features/ai-agent/session-service"
-  );
-  const freshSession = await loadSessionById(sessionId);
-  const freshState = (freshSession?.state ??
-    advancedState) as QualificationState & {
-    proposedInquiry?: import("@/features/ai-agent/types").ProposedInquiry | null;
-  };
+    // Build a bounded conversation context before selecting a provider.
+    // buildAiSdkMessages already drops empty rows (Google rejects part-less
+    // messages) and orders by (createdAt, id) for stable replay.
+    const conversationHistory = compactMessages(
+      await buildAiSdkMessages(sessionId),
+      CHAT_TOKEN_BUDGETS.agent.input,
+    );
 
-  // Build tool context (pre-validated, never from user input or LLM output)
-  // The orchestrator is given the currently staged proposal so a revision
-  // starts from the current values rather than re-deriving from the
-  // transcript.
-  const toolContext: AgentToolContext = {
-    sessionId,
-    businessId: business.id,
-    business: {
-      id: business.id,
-      name: business.name,
-      slug: business.slug,
-      plan: business.plan,
-      shortDescription: business.shortDescription,
-      contactEmail: business.contactEmail,
-      inquiryFormConfig: business.inquiryFormConfig,
-    },
-    state: freshState as QualificationState,
-  };
+    const estimatedTokens = estimateChatRequestTokens(
+      conversationHistory,
+      CHAT_TOKEN_BUDGETS.agent.output,
+      measuredOverhead,
+    );
 
-  // Build system prompt first so overhead is measured, not guessed.
-  const systemPrompt = buildSystemPrompt({
-    businessName: business.name,
-    config,
-    state: freshState,
-    businessType: (business as { businessType?: string | null }).businessType ?? null,
-  });
-  const measuredOverhead = measurePromptOverhead(systemPrompt, agentTools);
+    // Public Agent: fastest provider that genuinely fits short turns.
+    const chatModel = await resolveChatFallbackModel({
+      profile: "agent_chat",
+      estimatedTokens,
+    });
+    const { fallbackModel, serving, attemptTrail } = chatModel;
 
-  // Build a bounded conversation context before selecting a provider.
-  // buildAiSdkMessages already drops empty rows (Google rejects part-less
-  // messages) and orders by (createdAt, id) for stable replay.
-  const conversationHistory = compactMessages(
-    await buildAiSdkMessages(sessionId),
-    CHAT_TOKEN_BUDGETS.agent.input,
-  );
+    // Start telemetry run (with the first candidate — the fallback wrapper
+    // attributes the serving model in onFinish for messages and logging).
+    const run = await startAgentRun({
+      businessId: business.id,
+      sessionId,
+      model: serving.model,
+      provider: serving.provider,
+      metadata: {
+        searchAttempts,
+      },
+    });
 
-  const estimatedTokens = estimateChatRequestTokens(
-    conversationHistory,
-    CHAT_TOKEN_BUDGETS.agent.output,
-    measuredOverhead,
-  );
+    runId = run.id;
+    const startedAt = Date.now();
 
-  // Public Agent: fastest provider that genuinely fits short turns.
-  const chatModel = await resolveChatFallbackModel({
-    profile: "agent_chat",
-    estimatedTokens,
-  });
-  const { fallbackModel, serving, attemptTrail } = chatModel;
-
-  // Start telemetry run (with the first candidate — the fallback wrapper
-  // attributes the serving model in onFinish for messages and logging).
-  const run = await startAgentRun({
-    businessId: business.id,
-    sessionId,
-    model: serving.model,
-    provider: serving.provider,
-    metadata: {
-      searchAttempts,
-    },
-  });
-
-  const startedAt = Date.now();
-
-  try {
     // Invoke AI SDK with streaming and tools (AI SDK v6 API)
     const result = streamText({
       model: fallbackModel,
@@ -711,14 +726,17 @@ export async function runAgent({
       onError: () => AGENT_UNAVAILABLE_COPY,
     });
   } catch (error) {
-    // Log failure
-    await failAgentRun({
-      runId: run.id,
-      error: error instanceof Error ? error.message : "Unknown error",
-    });
-
-    // The turn never reached the provider: release the reserved credit.
+    // Release even if preparation or telemetry creation failed. Provider
+    // callbacks keep their existing settlement through the usageSettled guard.
     await releaseUsage();
+    if (runId) {
+      await failAgentRun({
+        runId,
+        error: error instanceof Error ? error.message : "Unknown error",
+      }).catch((telemetryError) => {
+        console.warn("[ai-agent] Failed to record run failure:", telemetryError);
+      });
+    }
 
     throw error;
   }

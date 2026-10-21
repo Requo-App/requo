@@ -153,7 +153,7 @@ function buildUserContent(payload: ExtractedPayload): Array<{ type: "text"; text
  * Sanitise the document text before it reaches the model. An uploaded file
  * is untrusted content, exactly like a customer's message.
  */
-async function sanitizeDocumentText(payload: ExtractedPayload): Promise<string> {
+async function sanitizeDocumentText(payload: ExtractedPayload): Promise<string | null> {
   if (payload.kind !== "text") {
     return "";
   }
@@ -161,10 +161,10 @@ async function sanitizeDocumentText(payload: ExtractedPayload): Promise<string> 
   const sanitized = await sanitizeAiInput(payload.text);
 
   if (sanitized.status === "rejected" || sanitized.status === "locked") {
-    return "[the document could not be processed]";
+    return null;
   }
 
-  return sanitized.output || payload.text;
+  return sanitized.output;
 }
 
 export async function aiExtractFromFile(
@@ -182,6 +182,12 @@ export async function aiExtractFromFile(
 
   const systemInstruction = PRICING_INSTRUCTIONS;
   const documentText = await sanitizeDocumentText(input.payload);
+  if (documentText === null) {
+    return {
+      ok: false,
+      error: "The document could not be processed. Try a smaller file without instructional text.",
+    };
+  }
   const userContent =
     input.payload.kind === "text"
       ? [
