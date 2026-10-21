@@ -51,6 +51,12 @@ export const businessInquiryForms = pgTable(
       table.businessId,
       table.slug,
     ),
+    // At most one default service per business. The application unsets every
+    // default before setting one; this index makes the invariant a database
+    // fact instead of a convention.
+    uniqueIndex("business_inquiry_forms_one_default_per_business")
+      .on(table.businessId)
+      .where(sql`${table.isDefault} = true`),
     index("business_inquiry_forms_business_id_idx").on(table.businessId),
     index("business_inquiry_forms_business_default_idx").on(
       table.businessId,

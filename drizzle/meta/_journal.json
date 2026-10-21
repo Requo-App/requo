@@ -274,6 +274,20 @@
       "when": 1792538469711,
       "tag": "0038_follow_up_overdue_notified_at",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1792538471711,
+      "tag": "0039_inquiry_attachment_bucket_limits",
+      "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1792563470361,
+      "tag": "0040_service_default_unique_index",
+      "breakpoints": true
     }
   ]
 }
