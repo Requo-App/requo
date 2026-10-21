@@ -506,9 +506,10 @@ export function ChatInterface({
         }
       }
 
-      // The transport carries the session token, so it is always the current
-      // one — including the token minted just above for this very first send.
+      // The token is read here rather than captured in the transport, so the
+      // one minted just above is attached to this very first send.
       const baseBody = {
+        sessionToken: tokenRef.current,
         ...(ridingValues ? { proposedInquiryValues: ridingValues } : {}),
       };
       if (attached.length === 0) {

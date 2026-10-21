@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { connection, NextResponse } from "next/server";
 import { z } from "zod";
 
 import {
@@ -23,6 +23,10 @@ const querySchema = z.object({
  * Read-only: every write goes through the bound server actions.
  */
 export async function GET(request: Request) {
+  // The response depends on the caller's membership, so it has to wait for a
+  // real request rather than being prerendered.
+  await connection();
+
   try {
     const url = new URL(request.url);
     const parsed = querySchema.safeParse({
