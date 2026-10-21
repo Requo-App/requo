@@ -114,7 +114,7 @@ export async function createMemoryEntryAction(
   );
 
   if (sanitization.status === "rejected") {
-    logAiSecurityEvent({
+    await logAiSecurityEvent({
       eventType: "injection_rejected",
       patternMatched: sanitization.patterns.join(", "),
       userId: actionContext.user.id,
@@ -208,7 +208,7 @@ export async function updateMemoryEntryAction(
   );
 
   if (sanitization.status === "rejected") {
-    logAiSecurityEvent({
+    await logAiSecurityEvent({
       eventType: "injection_rejected",
       patternMatched: sanitization.patterns.join(", "),
       userId: actionContext.user.id,
