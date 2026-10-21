@@ -20,6 +20,7 @@ import {
   getPublicActionClientIpAddress,
 } from "@/lib/public-action-rate-limit";
 import { createInquiryParamsSchema } from "@/features/ai-agent/schemas";
+import { getOperationalBusinessCondition } from "@/features/businesses/lifecycle";
 import type {
   AgentSessionState,
   ProposedInquiry,
@@ -60,7 +61,9 @@ export async function createAgentSessionAction({
         aiAgentEnabled: businesses.aiAgentEnabled,
       })
       .from(businesses)
-      .where(eq(businesses.slug, businessSlug))
+      .where(
+        and(eq(businesses.slug, businessSlug), getOperationalBusinessCondition()),
+      )
       .limit(1);
 
     if (!business) {

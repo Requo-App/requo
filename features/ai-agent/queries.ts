@@ -3,6 +3,7 @@ import "server-only";
 import { and, asc, desc, eq, isNull } from "drizzle-orm";
 import { cache } from "react";
 
+import { getOperationalBusinessCondition } from "@/features/businesses/lifecycle";
 import { db } from "@/lib/db/client";
 import {
   aiAgentSessions,
@@ -26,8 +27,8 @@ export type PublicAgentBusiness = {
 
 /**
  * Load the minimum business fields needed for the public agent chat page.
- * Returns null when the business doesn't exist, is soft-deleted, or the
- * agent is disabled.
+ * Returns null when the business doesn't exist, is not operational (archived,
+ * locked, or in the trash), or the agent is disabled.
  */
 export const getPublicAgentBusiness = cache(
   async (slug: string): Promise<PublicAgentBusiness | null> => {
@@ -43,7 +44,7 @@ export const getPublicAgentBusiness = cache(
         plan: businesses.plan,
       })
       .from(businesses)
-      .where(eq(businesses.slug, slug))
+      .where(and(eq(businesses.slug, slug), getOperationalBusinessCondition()))
       .limit(1);
 
     if (!row) return null;
