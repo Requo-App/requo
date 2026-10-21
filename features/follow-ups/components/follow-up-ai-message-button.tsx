@@ -8,26 +8,13 @@ import { Spinner } from "@/components/ui/spinner";
 import { FollowUpMessageCopyButton } from "@/features/follow-ups/components/follow-up-message-copy-button";
 
 type FollowUpAiMessageButtonProps = {
-  followUpTitle: string;
-  followUpReason: string;
-  channel: string;
-  customerName: string;
-  businessName: string;
-  recordKind: "inquiry" | "quote";
-  quoteUrl?: string | null;
-  quoteViewed?: boolean;
+  /** The server loads the customer, business and quote link from this. */
+  followUpId: string;
   aiTone?: "balanced" | "warm" | "direct" | "formal";
 };
 
 export function FollowUpAiMessageButton({
-  followUpTitle,
-  followUpReason,
-  channel,
-  customerName,
-  businessName,
-  recordKind,
-  quoteUrl,
-  quoteViewed,
+  followUpId,
   aiTone = "balanced",
 }: FollowUpAiMessageButtonProps) {
   const [message, setMessage] = useState<string | null>(null);
@@ -43,14 +30,7 @@ export function FollowUpAiMessageButton({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          followUpTitle,
-          followUpReason,
-          channel,
-          customerName,
-          businessName,
-          recordKind,
-          quoteUrl,
-          quoteViewed,
+          followUpId,
           aiTone,
         }),
       });

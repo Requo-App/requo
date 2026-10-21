@@ -31,8 +31,8 @@ import type {
 import {
   formatFollowUpDate,
   getDefaultFollowUpChannel,
-  getQuickFollowUpDueDate,
 } from "@/features/follow-ups/utils";
+import type { BusinessPlan } from "@/lib/plans/plans";
 
 type FollowUpCreateAction = (
   state: FollowUpCreateActionState,
@@ -49,6 +49,8 @@ export function FollowUpPanel({
   defaultTitle,
   followUps,
   members = [],
+  plan = "free",
+  timezone,
   sharedQuoteWithoutFollowUp = false,
 }: {
   businessName?: string;
@@ -60,6 +62,10 @@ export function FollowUpPanel({
   defaultTitle: string;
   followUps: FollowUpView[];
   members?: { userId: string; name: string; email: string }[];
+  /** Business plan — automatic sending is a paid capability. */
+  plan?: BusinessPlan;
+  /** Business timezone — due dates are read in it. */
+  timezone?: string;
   sharedQuoteWithoutFollowUp?: boolean;
 }) {
   const pendingFollowUps = followUps.filter((followUp) => followUp.status === "pending");
@@ -77,11 +83,12 @@ export function FollowUpPanel({
           ? getDefaultFollowUpChannel(defaultChannel)
           : defaultChannel ?? "email"
       }
-      defaultDueDate={getQuickFollowUpDueDate("3d")}
       defaultReason={defaultReason}
       defaultTitle={defaultTitle}
       description={ctaDescription}
       hasLinkedItem
+      plan={plan}
+      timezone={timezone}
       triggerLabel={sharedQuoteWithoutFollowUp ? "Set reminder" : "Set follow-up"}
     />
   );
@@ -132,7 +139,7 @@ export function FollowUpPanel({
                 action={<FollowUpStatusBadge status={followUp.status} />}
                 meta={
                   <>
-                    <span>Due {formatFollowUpDate(followUp.dueAt)}</span>
+                    <span>Due {formatFollowUpDate(followUp.dueAt, followUp.businessTimezone)}</span>
                     <span aria-hidden="true">·</span>
                     <span>{followUp.related.label}</span>
                   </>
@@ -165,7 +172,7 @@ export function FollowUpPanel({
                           action={<FollowUpStatusBadge status={followUp.status} />}
                           meta={
                             <>
-                              <span>Due {formatFollowUpDate(followUp.dueAt)}</span>
+                              <span>Due {formatFollowUpDate(followUp.dueAt, followUp.businessTimezone)}</span>
                               <span aria-hidden="true">·</span>
                               <span>{followUp.related.label}</span>
                             </>

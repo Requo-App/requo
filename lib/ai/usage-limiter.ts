@@ -70,6 +70,7 @@ export const TASK_WEIGHTS: Record<AiTaskType, number> = {
   quote_draft: 3,
   agent_conversation: 1, // One credit per agent turn (cheaper — public-facing, lighter quality tier)
   assistant_message: 1, // One credit per assistant turn; separate daily bucket enforced in conversation-limits
+  follow_up_message: 1, // One credit per generated follow-up message
 };
 
 // ---------------------------------------------------------------------------

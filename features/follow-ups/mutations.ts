@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, eq, inArray, isNull, ne } from "drizzle-orm";
+import { and, eq, inArray, isNull, ne, or } from "drizzle-orm";
 
 import type {
   FollowUpCreateInput,
@@ -8,11 +8,19 @@ import type {
   FollowUpReassignInput,
   FollowUpRescheduleInput,
 } from "@/features/follow-ups/schemas";
-import type { FollowUpRecurrence, FollowUpStatus } from "@/features/follow-ups/types";
+import type {
+  FollowUpCategory,
+  FollowUpChannel,
+  FollowUpRecurrence,
+  FollowUpSendMode,
+  FollowUpStatus,
+  FollowUpTerminationCondition,
+} from "@/features/follow-ups/types";
 import {
   createActivityId,
   createFollowUpId,
   formatFollowUpDate,
+  getFollowUpCategory,
   getNextRecurrenceDueDate,
   parseFollowUpDueDateInput,
   shouldRecur,
@@ -20,10 +28,16 @@ import {
 import { db } from "@/lib/db/client";
 import {
   activityLogs,
+  businesses,
+  businessMembers,
   followUps,
   inquiries,
   quotes,
 } from "@/lib/db/schema";
+import { hasFeatureAccess } from "@/lib/plans/entitlements";
+import type { BusinessPlan } from "@/lib/plans/plans";
+
+type FollowUpTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 // ---------------------------------------------------------------------------
 // Terminal status helpers
@@ -46,6 +60,7 @@ export function isTerminalQuoteStatus(status: string): boolean {
  *   has reached a terminal status
  */
 export async function shouldTerminateRecurrence(
+  tx: FollowUpTransaction,
   followUp: {
     recurrence: string;
     recurrenceLimit: number | null;
@@ -68,23 +83,26 @@ export async function shouldTerminateRecurrence(
   // Terminal status termination
   if (followUp.terminationCondition === "terminal_status") {
     if (followUp.inquiryId) {
-      const inquiry = await db.query.inquiries.findFirst({
-        where: and(
-          eq(inquiries.id, followUp.inquiryId),
-          eq(inquiries.businessId, businessId),
-        ),
-        columns: { status: true },
-      });
+      const [inquiry] = await tx
+        .select({ status: inquiries.status })
+        .from(inquiries)
+        .where(
+          and(eq(inquiries.id, followUp.inquiryId), eq(inquiries.businessId, businessId)),
+        )
+        .limit(1);
+
       if (inquiry && isTerminalInquiryStatus(inquiry.status)) return true;
     }
+
     if (followUp.quoteId) {
-      const quote = await db.query.quotes.findFirst({
-        where: and(
-          eq(quotes.id, followUp.quoteId),
-          eq(quotes.businessId, businessId),
-        ),
-        columns: { status: true },
-      });
+      const [quote] = await tx
+        .select({ status: quotes.status })
+        .from(quotes)
+        .where(
+          and(eq(quotes.id, followUp.quoteId), eq(quotes.businessId, businessId)),
+        )
+        .limit(1);
+
       if (quote && isTerminalQuoteStatus(quote.status)) return true;
     }
   }
@@ -139,12 +157,79 @@ function getFollowUpActionMetadata(input: {
 }
 
 export class FollowUpCreateValidationError extends Error {
-  field: "sendMode";
+  field: "sendMode" | "terminationCondition" | "assignedToUserId";
 
-  constructor(message: string) {
+  constructor(message: string, field: FollowUpCreateValidationError["field"] = "sendMode") {
     super(message);
     this.name = "FollowUpCreateValidationError";
-    this.field = "sendMode";
+    this.field = field;
+  }
+}
+
+/** Plan of the owning business, read inside the mutation so the check cannot be skipped. */
+async function getBusinessPlan(
+  tx: FollowUpTransaction,
+  businessId: string,
+): Promise<BusinessPlan> {
+  const [business] = await tx
+    .select({ plan: businesses.plan })
+    .from(businesses)
+    .where(eq(businesses.id, businessId))
+    .limit(1);
+
+  return (business?.plan ?? "free") as BusinessPlan;
+}
+
+/**
+ * Unattended sends are a paid capability. The check lives in the mutation —
+ * not only in the UI — so a crafted request cannot put a business on an
+ * "automated" follow-up it never paid for.
+ */
+async function assertAutomaticSendAllowed(
+  tx: FollowUpTransaction,
+  businessId: string,
+  sendMode: string | null | undefined,
+) {
+  if (sendMode !== "automatic") {
+    return;
+  }
+
+  const plan = await getBusinessPlan(tx, businessId);
+
+  if (!hasFeatureAccess(plan, "autoFollowUps")) {
+    throw new FollowUpCreateValidationError(
+      "Automatic follow-ups are available on the Pro plan and above.",
+      "sendMode",
+    );
+  }
+}
+
+/** The assignee must be a member of the business that owns the follow-up. */
+async function assertAssigneeIsBusinessMember(
+  tx: FollowUpTransaction,
+  businessId: string,
+  assignedToUserId: string | null | undefined,
+) {
+  if (!assignedToUserId) {
+    return;
+  }
+
+  const [member] = await tx
+    .select({ id: businessMembers.id })
+    .from(businessMembers)
+    .where(
+      and(
+        eq(businessMembers.businessId, businessId),
+        eq(businessMembers.userId, assignedToUserId),
+      ),
+    )
+    .limit(1);
+
+  if (!member) {
+    throw new FollowUpCreateValidationError(
+      "That person is not a member of this business.",
+      "assignedToUserId",
+    );
   }
 }
 
@@ -168,6 +253,13 @@ export async function createFollowUpForBusiness({
   return db.transaction(async (tx) => {
     let resolvedInquiryId = inquiryId ?? null;
     const resolvedQuoteId = quoteId ?? null;
+
+    await assertAutomaticSendAllowed(tx, businessId, followUp.sendMode);
+    await assertAssigneeIsBusinessMember(
+      tx,
+      businessId,
+      assignedToUserId ?? actorUserId,
+    );
 
     if (resolvedInquiryId) {
       const [inquiry] = await tx
@@ -255,7 +347,7 @@ export async function createFollowUpForBusiness({
       quoteId: resolvedQuoteId,
       actorUserId,
       type: "follow_up.created",
-      summary: `Follow-up created for ${formatFollowUpDate(dueAt)}.`,
+      summary: `Follow-up created for ${formatFollowUpDate(dueAt, timezone)}.`,
       metadata: getFollowUpActionMetadata({
         followUpId,
         title: followUp.title,
@@ -283,12 +375,143 @@ type UpdateFollowUpRecordInput = {
   actorUserId: string;
 };
 
+/** The fields a follow-up passes on to its next recurring occurrence. */
+export type RecurrenceParent = {
+  inquiryId: string | null;
+  quoteId: string | null;
+  title: string;
+  reason: string;
+  category: FollowUpCategory;
+  channel: FollowUpChannel;
+  assignedToUserId: string | null;
+  dueAt: Date;
+  sendMode: FollowUpSendMode;
+  recurrence: FollowUpRecurrence;
+  recurrenceCount: number;
+  recurrenceLimit: number | null;
+  terminationCondition: FollowUpTerminationCondition | null;
+};
+
+/**
+ * Create the next occurrence of a repeating follow-up.
+ *
+ * Shared by the single-record completion, the bulk completion and the
+ * automatic send, so a recurring series keeps running however the current
+ * occurrence is cleared. Returns the new follow-up id, or `null` when the
+ * series must stop.
+ */
+export async function spawnNextRecurrence(
+  tx: FollowUpTransaction,
+  {
+    businessId,
+    actorUserId,
+    parent,
+    parentFollowUpId,
+    now,
+    timezone,
+  }: {
+    businessId: string;
+    /** `null` for system-driven transitions (the automatic send job). */
+    actorUserId: string | null;
+    parent: RecurrenceParent;
+    parentFollowUpId: string;
+    now: Date;
+    /** Business timezone — the recorded dates are read in it. */
+    timezone?: string;
+  },
+) {
+  if (
+    !shouldRecur({
+      recurrence: parent.recurrence as FollowUpRecurrence,
+      recurrenceCount: parent.recurrenceCount,
+      recurrenceLimit: parent.recurrenceLimit,
+    })
+  ) {
+    return null;
+  }
+
+  const shouldTerminate = await shouldTerminateRecurrence(
+    tx,
+    {
+      recurrence: parent.recurrence,
+      recurrenceLimit: parent.recurrenceLimit,
+      recurrenceCount: parent.recurrenceCount,
+      terminationCondition: parent.terminationCondition,
+      inquiryId: parent.inquiryId,
+      quoteId: parent.quoteId,
+    },
+    businessId,
+  );
+
+  if (shouldTerminate) {
+    return null;
+  }
+
+  const nextDueAt = getNextRecurrenceDueDate(
+    parent.dueAt,
+    parent.recurrence as Exclude<FollowUpRecurrence, "none">,
+    timezone,
+  );
+  const nextFollowUpId = createFollowUpId();
+
+  await tx.insert(followUps).values({
+    id: nextFollowUpId,
+    businessId,
+    inquiryId: parent.inquiryId,
+    quoteId: parent.quoteId,
+    assignedToUserId: parent.assignedToUserId,
+    title: parent.title,
+    reason: parent.reason,
+    category: parent.category,
+    channel: parent.channel as typeof followUps.$inferInsert.channel,
+    sendMode: parent.sendMode,
+    recurrence: parent.recurrence,
+    recurrenceCount: parent.recurrenceCount + 1,
+    recurrenceLimit: parent.recurrenceLimit,
+    terminationCondition: parent.terminationCondition,
+    parentFollowUpId,
+    dueAt: nextDueAt,
+    status: "pending",
+    createdByUserId: actorUserId,
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  await tx.insert(activityLogs).values({
+    id: createActivityId(),
+    businessId,
+    inquiryId: parent.inquiryId,
+    quoteId: parent.quoteId,
+    actorUserId,
+    type: "follow_up.created",
+    summary: `Recurring follow-up created for ${formatFollowUpDate(nextDueAt, timezone)}.`,
+    metadata: {
+      followUpId: nextFollowUpId,
+      title: parent.title,
+      reason: parent.reason,
+      channel: parent.channel,
+      sendMode: parent.sendMode,
+      dueAt: nextDueAt.toISOString(),
+      parentFollowUpId,
+    },
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  return nextFollowUpId;
+}
+
 export async function completeFollowUpForBusiness({
   businessId,
   followUpId,
   actorUserId,
   completionNote,
-}: UpdateFollowUpRecordInput & { completionNote?: string | null }) {
+  timezone,
+}: UpdateFollowUpRecordInput & {
+  completionNote?: string | null;
+  /** Business timezone — the recorded dates are read in it. */
+  timezone?: string;
+}) {
   const now = new Date();
 
   return db.transaction(async (tx) => {
@@ -299,6 +522,7 @@ export async function completeFollowUpForBusiness({
         quoteId: followUps.quoteId,
         title: followUps.title,
         reason: followUps.reason,
+        category: followUps.category,
         channel: followUps.channel,
         assignedToUserId: followUps.assignedToUserId,
         status: followUps.status,
@@ -317,7 +541,10 @@ export async function completeFollowUpForBusiness({
           isNull(followUps.deletedAt),
         ),
       )
-      .limit(1);
+      .limit(1)
+      // Lock the row so a double submit (or a race with the auto-send job)
+      // cannot both pass the `pending` check and spawn two occurrences.
+      .for("update");
 
     if (!existingFollowUp) {
       return null;
@@ -345,7 +572,7 @@ export async function completeFollowUpForBusiness({
       } as const;
     }
 
-    await tx
+    const [updated] = await tx
       .update(followUps)
       .set({
         status: "completed",
@@ -356,8 +583,25 @@ export async function completeFollowUpForBusiness({
         updatedAt: now,
       })
       .where(
-        and(eq(followUps.id, followUpId), eq(followUps.businessId, businessId)),
-      );
+        and(
+          eq(followUps.id, followUpId),
+          eq(followUps.businessId, businessId),
+          eq(followUps.status, "pending"),
+        ),
+      )
+      .returning({ id: followUps.id });
+
+    if (!updated) {
+      // Another transaction won the race — do not log or spawn a second time.
+      return {
+        changed: false,
+        locked: true,
+        followUpId,
+        inquiryId: existingFollowUp.inquiryId,
+        quoteId: existingFollowUp.quoteId,
+        status: existingFollowUp.status,
+      } as const;
+    }
 
     await tx.insert(activityLogs).values({
       id: createActivityId(),
@@ -378,78 +622,17 @@ export async function completeFollowUpForBusiness({
       updatedAt: now,
     });
 
-    // Auto-create next recurring follow-up if applicable
-    if (
-      shouldRecur({
-        recurrence: existingFollowUp.recurrence as FollowUpRecurrence,
-        recurrenceCount: existingFollowUp.recurrenceCount,
-        recurrenceLimit: existingFollowUp.recurrenceLimit,
-      })
-    ) {
-      // Check termination conditions (terminal status requires async DB lookup)
-      const shouldTerminate = await shouldTerminateRecurrence(
-        {
-          recurrence: existingFollowUp.recurrence,
-          recurrenceLimit: existingFollowUp.recurrenceLimit,
-          recurrenceCount: existingFollowUp.recurrenceCount + 1,
-          terminationCondition: existingFollowUp.terminationCondition,
-          inquiryId: existingFollowUp.inquiryId,
-          quoteId: existingFollowUp.quoteId,
-        },
-        businessId,
-      );
-
-      if (!shouldTerminate) {
-        const nextDueAt = getNextRecurrenceDueDate(
-          existingFollowUp.dueAt,
-          existingFollowUp.recurrence as Exclude<FollowUpRecurrence, "none">,
-        );
-        const nextFollowUpId = createFollowUpId();
-
-        await tx.insert(followUps).values({
-          id: nextFollowUpId,
-          businessId,
-          inquiryId: existingFollowUp.inquiryId,
-          quoteId: existingFollowUp.quoteId,
-          assignedToUserId: existingFollowUp.assignedToUserId,
-          title: existingFollowUp.title,
-          reason: existingFollowUp.reason,
-          channel: existingFollowUp.channel as typeof followUps.$inferInsert.channel,
-          sendMode: existingFollowUp.sendMode,
-          recurrence: existingFollowUp.recurrence,
-          recurrenceCount: existingFollowUp.recurrenceCount + 1,
-          recurrenceLimit: existingFollowUp.recurrenceLimit,
-          terminationCondition: existingFollowUp.terminationCondition,
-          parentFollowUpId: followUpId,
-          dueAt: nextDueAt,
-          status: "pending",
-          createdByUserId: actorUserId,
-          createdAt: now,
-          updatedAt: now,
-        });
-
-        await tx.insert(activityLogs).values({
-          id: createActivityId(),
-          businessId,
-          inquiryId: existingFollowUp.inquiryId,
-          quoteId: existingFollowUp.quoteId,
-          actorUserId,
-          type: "follow_up.created",
-          summary: `Recurring follow-up created for ${formatFollowUpDate(nextDueAt)}.`,
-          metadata: {
-            followUpId: nextFollowUpId,
-            title: existingFollowUp.title,
-            reason: existingFollowUp.reason,
-            channel: existingFollowUp.channel,
-            sendMode: existingFollowUp.sendMode,
-            dueAt: nextDueAt.toISOString(),
-            parentFollowUpId: followUpId,
-          },
-          createdAt: now,
-          updatedAt: now,
-        });
-      }
-    }
+    await spawnNextRecurrence(tx, {
+      businessId,
+      actorUserId,
+      parent: {
+        ...existingFollowUp,
+        category: getFollowUpCategory(existingFollowUp.category),
+      },
+      parentFollowUpId: followUpId,
+      now,
+      timezone,
+    });
 
     return {
       changed: true,
@@ -486,7 +669,8 @@ export async function skipFollowUpForBusiness({
           isNull(followUps.deletedAt),
         ),
       )
-      .limit(1);
+      .limit(1)
+      .for("update");
 
     if (!existingFollowUp) {
       return null;
@@ -514,7 +698,7 @@ export async function skipFollowUpForBusiness({
       } as const;
     }
 
-    await tx
+    const [updated] = await tx
       .update(followUps)
       .set({
         status: "skipped",
@@ -523,8 +707,24 @@ export async function skipFollowUpForBusiness({
         updatedAt: now,
       })
       .where(
-        and(eq(followUps.id, followUpId), eq(followUps.businessId, businessId)),
-      );
+        and(
+          eq(followUps.id, followUpId),
+          eq(followUps.businessId, businessId),
+          eq(followUps.status, "pending"),
+        ),
+      )
+      .returning({ id: followUps.id });
+
+    if (!updated) {
+      return {
+        changed: false,
+        locked: true,
+        followUpId,
+        inquiryId: existingFollowUp.inquiryId,
+        quoteId: existingFollowUp.quoteId,
+        status: existingFollowUp.status,
+      } as const;
+    }
 
     await tx.insert(activityLogs).values({
       id: createActivityId(),
@@ -584,7 +784,8 @@ export async function rescheduleFollowUpForBusiness({
           isNull(followUps.deletedAt),
         ),
       )
-      .limit(1);
+      .limit(1)
+      .for("update");
 
     if (!existingFollowUp) {
       return null;
@@ -601,17 +802,34 @@ export async function rescheduleFollowUpForBusiness({
       } as const;
     }
 
-    await tx
+    const [updated] = await tx
       .update(followUps)
       .set({
         dueAt,
         reminderSentAt: null,
+        overdueNotifiedAt: null,
         snoozedUntil: null,
         updatedAt: now,
       })
       .where(
-        and(eq(followUps.id, followUpId), eq(followUps.businessId, businessId)),
-      );
+        and(
+          eq(followUps.id, followUpId),
+          eq(followUps.businessId, businessId),
+          eq(followUps.status, "pending"),
+        ),
+      )
+      .returning({ id: followUps.id });
+
+    if (!updated) {
+      return {
+        changed: false,
+        locked: true,
+        followUpId,
+        inquiryId: existingFollowUp.inquiryId,
+        quoteId: existingFollowUp.quoteId,
+        status: existingFollowUp.status,
+      } as const;
+    }
 
     await tx.insert(activityLogs).values({
       id: createActivityId(),
@@ -620,7 +838,7 @@ export async function rescheduleFollowUpForBusiness({
       quoteId: existingFollowUp.quoteId,
       actorUserId,
       type: "follow_up.rescheduled",
-      summary: `Follow-up rescheduled to ${formatFollowUpDate(dueAt)}.`,
+      summary: `Follow-up rescheduled to ${formatFollowUpDate(dueAt, timezone)}.`,
       metadata: {
         followUpId,
         title: existingFollowUp.title,
@@ -672,7 +890,8 @@ export async function editFollowUpForBusiness({
           isNull(followUps.deletedAt),
         ),
       )
-      .limit(1);
+      .limit(1)
+      .for("update");
 
     if (!existingFollowUp) {
       return null;
@@ -689,7 +908,9 @@ export async function editFollowUpForBusiness({
       } as const;
     }
 
-    await tx
+    await assertAutomaticSendAllowed(tx, businessId, followUp.sendMode);
+
+    const [updated] = await tx
       .update(followUps)
       .set({
         title: followUp.title,
@@ -702,12 +923,29 @@ export async function editFollowUpForBusiness({
         recurrenceLimit: followUp.recurrenceLimit ?? null,
         terminationCondition: followUp.terminationCondition ?? null,
         reminderSentAt: null,
+        overdueNotifiedAt: null,
         snoozedUntil: null,
         updatedAt: now,
       })
       .where(
-        and(eq(followUps.id, followUpId), eq(followUps.businessId, businessId)),
-      );
+        and(
+          eq(followUps.id, followUpId),
+          eq(followUps.businessId, businessId),
+          eq(followUps.status, "pending"),
+        ),
+      )
+      .returning({ id: followUps.id });
+
+    if (!updated) {
+      return {
+        changed: false,
+        locked: true,
+        followUpId,
+        inquiryId: existingFollowUp.inquiryId,
+        quoteId: existingFollowUp.quoteId,
+        status: existingFollowUp.status,
+      } as const;
+    }
 
     await tx.insert(activityLogs).values({
       id: createActivityId(),
@@ -761,7 +999,8 @@ export async function deleteFollowUpForBusiness({
       .where(
         and(eq(followUps.id, followUpId), eq(followUps.businessId, businessId)),
       )
-      .limit(1);
+      .limit(1)
+      .for("update");
 
     if (!existingFollowUp) {
       return null;
@@ -840,7 +1079,8 @@ export async function reassignFollowUpForBusiness({
           isNull(followUps.deletedAt),
         ),
       )
-      .limit(1);
+      .limit(1)
+      .for("update");
 
     if (!existingFollowUp) {
       return null;
@@ -868,15 +1108,39 @@ export async function reassignFollowUpForBusiness({
       } as const;
     }
 
-    await tx
+    // The assignee must belong to this business — a follow-up can never point
+    // at a user of another tenant.
+    await assertAssigneeIsBusinessMember(
+      tx,
+      businessId,
+      reassign.assignedToUserId,
+    );
+
+    const [updated] = await tx
       .update(followUps)
       .set({
         assignedToUserId: reassign.assignedToUserId,
         updatedAt: now,
       })
       .where(
-        and(eq(followUps.id, followUpId), eq(followUps.businessId, businessId)),
-      );
+        and(
+          eq(followUps.id, followUpId),
+          eq(followUps.businessId, businessId),
+          eq(followUps.status, "pending"),
+        ),
+      )
+      .returning({ id: followUps.id });
+
+    if (!updated) {
+      return {
+        changed: false,
+        locked: true,
+        followUpId,
+        inquiryId: existingFollowUp.inquiryId,
+        quoteId: existingFollowUp.quoteId,
+        status: existingFollowUp.status,
+      } as const;
+    }
 
     await tx.insert(activityLogs).values({
       id: createActivityId(),
@@ -916,7 +1180,12 @@ export async function snoozeFollowUpForBusiness({
   followUpId,
   actorUserId,
   snoozedUntil,
-}: UpdateFollowUpRecordInput & { snoozedUntil: Date }) {
+  timezone,
+}: UpdateFollowUpRecordInput & {
+  snoozedUntil: Date;
+  /** Business timezone — the recorded dates are read in it. */
+  timezone?: string;
+}) {
   const now = new Date();
 
   return db.transaction(async (tx) => {
@@ -936,7 +1205,8 @@ export async function snoozeFollowUpForBusiness({
           isNull(followUps.deletedAt),
         ),
       )
-      .limit(1);
+      .limit(1)
+      .for("update");
 
     if (!existingFollowUp) {
       return null;
@@ -953,15 +1223,31 @@ export async function snoozeFollowUpForBusiness({
       } as const;
     }
 
-    await tx
+    const [updated] = await tx
       .update(followUps)
       .set({
         snoozedUntil,
         updatedAt: now,
       })
       .where(
-        and(eq(followUps.id, followUpId), eq(followUps.businessId, businessId)),
-      );
+        and(
+          eq(followUps.id, followUpId),
+          eq(followUps.businessId, businessId),
+          eq(followUps.status, "pending"),
+        ),
+      )
+      .returning({ id: followUps.id });
+
+    if (!updated) {
+      return {
+        changed: false,
+        locked: true,
+        followUpId,
+        inquiryId: existingFollowUp.inquiryId,
+        quoteId: existingFollowUp.quoteId,
+        status: existingFollowUp.status,
+      } as const;
+    }
 
     await tx.insert(activityLogs).values({
       id: createActivityId(),
@@ -970,7 +1256,7 @@ export async function snoozeFollowUpForBusiness({
       quoteId: existingFollowUp.quoteId,
       actorUserId,
       type: "follow_up.snoozed",
-      summary: `Follow-up snoozed until ${formatFollowUpDate(snoozedUntil)}.`,
+      summary: `Follow-up snoozed until ${formatFollowUpDate(snoozedUntil, timezone)}.`,
       metadata: {
         followUpId,
         title: existingFollowUp.title,
@@ -1000,11 +1286,14 @@ export async function bulkCompleteFollowUpsForBusiness({
   followUpIds,
   actorUserId,
   completionNote,
+  timezone,
 }: {
   businessId: string;
   followUpIds: string[];
   actorUserId: string;
   completionNote?: string | null;
+  /** Business timezone — the recorded dates are read in it. */
+  timezone?: string;
 }): Promise<{ affected: number; inquiryIds: Set<string>; quoteIds: Set<string> }> {
   const now = new Date();
   const inquiryIds = new Set<string>();
@@ -1019,6 +1308,16 @@ export async function bulkCompleteFollowUpsForBusiness({
         inquiryId: followUps.inquiryId,
         quoteId: followUps.quoteId,
         title: followUps.title,
+        reason: followUps.reason,
+        category: followUps.category,
+        channel: followUps.channel,
+        assignedToUserId: followUps.assignedToUserId,
+        dueAt: followUps.dueAt,
+        sendMode: followUps.sendMode,
+        recurrence: followUps.recurrence,
+        recurrenceCount: followUps.recurrenceCount,
+        recurrenceLimit: followUps.recurrenceLimit,
+        terminationCondition: followUps.terminationCondition,
       })
       .from(followUps)
       .where(
@@ -1028,10 +1327,13 @@ export async function bulkCompleteFollowUpsForBusiness({
           isNull(followUps.deletedAt),
           inArray(followUps.id, followUpIds),
         ),
-      );
+      )
+      // Lock the selected rows so a concurrent single-record completion
+      // cannot also spawn the next occurrence of the same series.
+      .for("update");
 
     for (const fup of pendingFollowUps) {
-      await tx
+      const [updated] = await tx
         .update(followUps)
         .set({
           status: "completed",
@@ -1041,7 +1343,18 @@ export async function bulkCompleteFollowUpsForBusiness({
           snoozedUntil: null,
           updatedAt: now,
         })
-        .where(eq(followUps.id, fup.id));
+        .where(
+          and(
+            eq(followUps.id, fup.id),
+            eq(followUps.businessId, businessId),
+            eq(followUps.status, "pending"),
+          ),
+        )
+        .returning({ id: followUps.id });
+
+      if (!updated) {
+        continue;
+      }
 
       await tx.insert(activityLogs).values({
         id: createActivityId(),
@@ -1061,6 +1374,20 @@ export async function bulkCompleteFollowUpsForBusiness({
         },
         createdAt: now,
         updatedAt: now,
+      });
+
+      // A recurring series must survive a bulk completion, exactly as it
+      // does when the owner clears the row one at a time.
+      await spawnNextRecurrence(tx, {
+        businessId,
+        actorUserId,
+        parent: {
+          ...fup,
+          category: getFollowUpCategory(fup.category),
+        },
+        parentFollowUpId: fup.id,
+        now,
+        timezone,
       });
 
       if (fup.inquiryId) inquiryIds.add(fup.inquiryId);
@@ -1106,10 +1433,11 @@ export async function bulkSkipFollowUpsForBusiness({
           isNull(followUps.deletedAt),
           inArray(followUps.id, followUpIds),
         ),
-      );
+      )
+      .for("update");
 
     for (const fup of pendingFollowUps) {
-      await tx
+      const [updated] = await tx
         .update(followUps)
         .set({
           status: "skipped",
@@ -1118,7 +1446,18 @@ export async function bulkSkipFollowUpsForBusiness({
           snoozedUntil: null,
           updatedAt: now,
         })
-        .where(eq(followUps.id, fup.id));
+        .where(
+          and(
+            eq(followUps.id, fup.id),
+            eq(followUps.businessId, businessId),
+            eq(followUps.status, "pending"),
+          ),
+        )
+        .returning({ id: followUps.id });
+
+      if (!updated) {
+        continue;
+      }
 
       await tx.insert(activityLogs).values({
         id: createActivityId(),
@@ -1222,71 +1561,119 @@ export async function autoCloseFollowUpsForQuote({
 // ---------------------------------------------------------------------------
 
 /**
- * Called when an inquiry or quote status changes to a terminal status.
- * Finds all pending recurring follow-ups linked to the item with
- * `terminal_status` termination condition and skips them.
+ * Batch variant of {@link terminateRecurringFollowUpsForRecords}: stops every
+ * recurring series that is linked to one of the records that just reached a
+ * terminal status. Used by the bulk inquiry/quote status sweeps.
  */
-export async function checkAndTerminateRecurringFollowUps({
+export async function terminateRecurringFollowUpsForRecords({
   businessId,
-  inquiryId,
-  quoteId,
-  newStatus,
+  records,
 }: {
   businessId: string;
-  inquiryId?: string | null;
-  quoteId?: string | null;
-  newStatus: string;
+  records: {
+    inquiryId?: string | null;
+    quoteId?: string | null;
+    newStatus: string;
+  }[];
 }): Promise<number> {
-  // Only act if the new status is actually terminal
-  const isTerminal = inquiryId
-    ? isTerminalInquiryStatus(newStatus)
-    : quoteId
-      ? isTerminalQuoteStatus(newStatus)
-      : false;
+  const terminal = records.filter((record) => {
+    if (record.inquiryId) {
+      return isTerminalInquiryStatus(record.newStatus);
+    }
 
-  if (!isTerminal) {
+    if (record.quoteId) {
+      return isTerminalQuoteStatus(record.newStatus);
+    }
+
+    return false;
+  });
+
+  if (terminal.length === 0) {
     return 0;
   }
 
   const now = new Date();
+  const inquiryIds = terminal
+    .map((record) => record.inquiryId)
+    .filter((id): id is string => Boolean(id));
+  const quoteIds = terminal
+    .map((record) => record.quoteId)
+    .filter((id): id is string => Boolean(id));
 
-  // Build conditions for finding relevant recurring follow-ups
-  const conditions = [
-    eq(followUps.businessId, businessId),
-    eq(followUps.status, "pending"),
-    eq(followUps.terminationCondition, "terminal_status"),
-    ne(followUps.recurrence, "none"),
-    isNull(followUps.deletedAt),
-  ];
+  const statusByInquiry = new Map(
+    terminal
+      .filter((record) => record.inquiryId)
+      .map((record) => [record.inquiryId as string, record.newStatus]),
+  );
+  const statusByQuote = new Map(
+    terminal
+      .filter((record) => record.quoteId)
+      .map((record) => [record.quoteId as string, record.newStatus]),
+  );
 
-  if (inquiryId) {
-    conditions.push(eq(followUps.inquiryId, inquiryId));
-  }
-  if (quoteId) {
-    conditions.push(eq(followUps.quoteId, quoteId));
-  }
+  return db.transaction(async (tx) => {
+    let terminated = 0;
 
-  const pendingRecurring = await db
-    .select({
-      id: followUps.id,
-      inquiryId: followUps.inquiryId,
-      quoteId: followUps.quoteId,
-      title: followUps.title,
-    })
-    .from(followUps)
-    .where(and(...conditions));
+    const conditions = [
+      eq(followUps.businessId, businessId),
+      eq(followUps.status, "pending"),
+      eq(followUps.terminationCondition, "terminal_status"),
+      ne(followUps.recurrence, "none"),
+      isNull(followUps.deletedAt),
+    ];
 
-  if (!pendingRecurring.length) {
-    return 0;
-  }
+    // A batch may carry inquiry records, quote records, or both. The id
+    // predicate is an OR, otherwise a row would have to satisfy both.
+    const idConditions = [];
 
-  const reasonLabel = inquiryId
-    ? `Inquiry reached terminal status: ${newStatus}`
-    : `Quote reached terminal status: ${newStatus}`;
+    if (inquiryIds.length > 0) {
+      idConditions.push(inArray(followUps.inquiryId, inquiryIds));
+    }
 
-  await db.transaction(async (tx) => {
+    if (quoteIds.length > 0) {
+      idConditions.push(inArray(followUps.quoteId, quoteIds));
+    }
+
+    if (idConditions.length > 0) {
+      conditions.push(or(...idConditions)!);
+    }
+
+    const pendingRecurring = await tx
+      .select({
+        id: followUps.id,
+        inquiryId: followUps.inquiryId,
+        quoteId: followUps.quoteId,
+        title: followUps.title,
+      })
+      .from(followUps)
+      .where(and(...conditions))
+      .for("update");
+
+    if (pendingRecurring.length === 0) {
+      return 0;
+    }
+
     for (const fup of pendingRecurring) {
-      await tx
+      // A quote-linked follow-up also carries the quote's inquiry id, so the
+      // quote status is looked up first — the quote is the record that
+      // actually reached a terminal status in the quote paths.
+      const quoteStatus = fup.quoteId
+        ? statusByQuote.get(fup.quoteId)
+        : undefined;
+      const inquiryStatus = fup.inquiryId
+        ? statusByInquiry.get(fup.inquiryId)
+        : undefined;
+      const newStatus = quoteStatus ?? inquiryStatus;
+
+      if (!newStatus) {
+        continue;
+      }
+
+      const reasonLabel = quoteStatus
+        ? `Quote reached terminal status: ${newStatus}`
+        : `Inquiry reached terminal status: ${newStatus}`;
+
+      const [updated] = await tx
         .update(followUps)
         .set({
           status: "skipped",
@@ -1295,7 +1682,20 @@ export async function checkAndTerminateRecurringFollowUps({
           snoozedUntil: null,
           updatedAt: now,
         })
-        .where(eq(followUps.id, fup.id));
+        .where(
+          and(
+            eq(followUps.id, fup.id),
+            eq(followUps.businessId, businessId),
+            eq(followUps.status, "pending"),
+          ),
+        )
+        .returning({ id: followUps.id });
+
+      if (!updated) {
+        continue;
+      }
+
+      terminated++;
 
       await tx.insert(activityLogs).values({
         id: createActivityId(),
@@ -1315,7 +1715,7 @@ export async function checkAndTerminateRecurringFollowUps({
         updatedAt: now,
       });
     }
-  });
 
-  return pendingRecurring.length;
+    return terminated;
+  });
 }

@@ -619,6 +619,7 @@ export async function getInquiryListPageForBusiness({
             where ${followUps.businessId} = ${inquiries.businessId}
               and ${followUps.inquiryId} = ${inquiries.id}
               and ${followUps.status} = 'pending'
+              and ${followUps.deletedAt} is null
           )`,
           nextFollowUpDueAt: sql<Date | null>`(
             select min(${followUps.dueAt})
@@ -626,6 +627,7 @@ export async function getInquiryListPageForBusiness({
             where ${followUps.businessId} = ${inquiries.businessId}
               and ${followUps.inquiryId} = ${inquiries.id}
               and ${followUps.status} = 'pending'
+              and ${followUps.deletedAt} is null
           )`,
           hasDuplicateFlag: sql<boolean>`exists(
             select 1 from inquiry_duplicates

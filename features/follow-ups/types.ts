@@ -1,3 +1,5 @@
+import type { BusinessPlan } from "@/lib/plans/plans";
+
 export const followUpStatuses = ["pending", "completed", "skipped"] as const;
 export const followUpStatusFilterValues = ["all", ...followUpStatuses] as const;
 export const followUpDueFilterValues = [
@@ -46,31 +48,9 @@ export type FollowUpDueBucket = "overdue" | "today" | "upcoming" | "done";
 /**
  * Where a follow-up activity item came from. Storage remains split for now
  * (follow_ups rows vs quotes.autoFollowUp* columns); the UI composes both
- * through a unified read model (see getUnifiedFollowUpActivityForBusiness).
+ * through a unified read model (see getActiveAutoFollowUpSequencesForBusiness).
  */
 export type FollowUpSource = "manual" | "system_suggested" | "automatic_sequence";
-
-/**
- * Customer-touch outcome recorded when an action is taken. Kept separate from
- * the DB lifecycle status (pending/completed/skipped) so history can answer
- * "did the customer reply?" rather than only "did the owner clear the task?".
- */
-export type FollowUpOutcomeType =
-  | "contacted"
-  | "replied"
-  | "accepted"
-  | "rejected"
-  | "dismissed"
-  | "no_answer"
-  | "other";
-
-export type FollowUpDismissalReason =
-  | "not_relevant"
-  | "already_responded"
-  | "duplicate"
-  | "lost_opportunity"
-  | "revisit_later"
-  | "other";
 
 export type QuoteFollowUpContext = {
   status: string | null;
@@ -107,6 +87,10 @@ export type FollowUpListQueryFilters = Omit<FollowUpListFilters, "page">;
 export type FollowUpView = {
   id: string;
   businessId: string;
+  /** IANA timezone of the owning business — due dates are read in it. */
+  businessTimezone: string;
+  /** Plan of the owning business — drives the automatic-send entitlement. */
+  businessPlan: BusinessPlan;
   inquiryId: string | null;
   quoteId: string | null;
   assignedToUserId: string | null;
@@ -181,6 +165,8 @@ export type FollowUpActivityItem =
       quoteTitle: string | null;
       customerName: string;
       customerEmail: string | null;
+      /** IANA timezone of the owning business — send dates are read in it. */
+      businessTimezone: string;
       sequence: FollowUpSequenceState;
       quoteContext: QuoteFollowUpContext;
     };
@@ -194,7 +180,7 @@ export type FollowUpSummaryCounts = {
 };
 
 export type FollowUpCreateFieldErrors = Partial<
-  Record<"title" | "reason" | "channel" | "category" | "sendMode" | "dueDate" | "recurrence" | "recurrenceLimit" | "terminationCondition", string[] | undefined>
+  Record<"title" | "reason" | "channel" | "category" | "sendMode" | "dueDate" | "recurrence" | "recurrenceLimit" | "terminationCondition" | "assignedToUserId", string[] | undefined>
 >;
 
 export type FollowUpEditFieldErrors = Partial<
@@ -259,4 +245,5 @@ export type FollowUpBulkActionState = {
 export type FollowUpCompleteActionState = {
   error?: string;
   success?: string;
+  fieldErrors?: Partial<Record<"completionNote", string[] | undefined>>;
 };

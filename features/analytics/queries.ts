@@ -956,7 +956,7 @@ async function getOverviewAttention(
       label: "Overdue follow-ups",
       description: "Past their due date and still pending.",
       count: followUpsOverdue,
-      href: `${getBusinessFollowUpsPath(businessSlug)}?due=overdue`,
+      href: `${getBusinessFollowUpsPath(businessSlug)}?view=list&due=overdue`,
       tone: "negative",
       icon: "follow-up",
     },

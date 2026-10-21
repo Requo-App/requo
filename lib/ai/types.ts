@@ -11,7 +11,7 @@ export type { AiProviderName, AiQualityTier } from "@/lib/ai/model-options";
 // Task types — quote generation and agent conversation tasks.
 // ---------------------------------------------------------------------------
 
-export const aiTaskTypes = ["quote_draft", "quote_improvement", "agent_conversation", "assistant_message"] as const;
+export const aiTaskTypes = ["quote_draft", "quote_improvement", "agent_conversation", "assistant_message", "follow_up_message"] as const;
 
 export type AiTaskType = (typeof aiTaskTypes)[number];
 

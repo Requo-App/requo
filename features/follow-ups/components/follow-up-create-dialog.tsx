@@ -27,6 +27,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useDeferredActionState } from "@/hooks/use-deferred-action-state";
+import { safeHasFeatureAccess } from "@/features/paywall/lib/utils";
+import type { BusinessPlan } from "@/lib/plans/plans";
 import type {
   FollowUpCategory,
   FollowUpChannel,
@@ -80,12 +82,14 @@ const categoryOptions = [
 export function FollowUpCreateDialog({
   action,
   defaultChannel = "email",
-  defaultDueDate = getQuickFollowUpDueDate("3d"),
+  defaultDueDate,
   defaultReason,
   defaultTitle,
   description = "Set a simple reminder for the next customer touchpoint.",
   hasLinkedItem = false,
   onOptimisticInsert,
+  plan = "free",
+  timezone,
   triggerLabel = "Set follow-up",
   triggerVariant = "outline",
 }: {
@@ -97,16 +101,26 @@ export function FollowUpCreateDialog({
   description?: string;
   hasLinkedItem?: boolean;
   onOptimisticInsert?: () => void;
+  /** Business plan — automatic sending is a paid capability. */
+  plan?: BusinessPlan;
+  /** Business timezone — the default due date is read in it. */
+  timezone?: string;
   triggerLabel?: string;
   triggerVariant?: React.ComponentProps<typeof Button>["variant"];
 }) {
+  const canSendAutomatically = safeHasFeatureAccess(plan, "autoFollowUps");
+  const availableSendModeOptions = sendModeOptions.filter(
+    (option) => option.value !== "automatic" || canSendAutomatically,
+  );
+  const resolvedDefaultDueDate =
+    defaultDueDate ?? getQuickFollowUpDueDate("3d", new Date(), timezone);
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState(defaultTitle);
   const [reason, setReason] = useState(defaultReason);
   const [channel, setChannel] = useState<FollowUpChannel>(defaultChannel);
   const [sendMode, setSendMode] = useState<FollowUpSendMode>("manual");
   const [category, setCategory] = useState<FollowUpCategory>("sales");
-  const [dueDate, setDueDate] = useState(defaultDueDate);
+  const [dueDate, setDueDate] = useState(resolvedDefaultDueDate);
   const [recurrence, setRecurrence] = useState<FollowUpRecurrence>("none");
   const [recurrenceLimit, setRecurrenceLimit] = useState("");
   const [terminationCondition, setTerminationCondition] = useState<FollowUpTerminationCondition | "none">("none");
@@ -127,7 +141,7 @@ export function FollowUpCreateDialog({
     setChannel(defaultChannel);
     setSendMode("manual");
     setCategory("sales");
-    setDueDate(defaultDueDate);
+    setDueDate(resolvedDefaultDueDate);
     setRecurrence("none");
     setRecurrenceLimit("");
     setTerminationCondition("none");
@@ -204,7 +218,7 @@ export function FollowUpCreateDialog({
                   </FieldContent>
                   <div className="flex flex-wrap items-center gap-2">
                     <Button
-                      onClick={() => setDueDate(getQuickFollowUpDueDate("tomorrow"))}
+                      onClick={() => setDueDate(getQuickFollowUpDueDate("tomorrow", new Date(), timezone))}
                       size="xs"
                       type="button"
                       variant="outline"
@@ -212,7 +226,7 @@ export function FollowUpCreateDialog({
                       Tomorrow
                     </Button>
                     <Button
-                      onClick={() => setDueDate(getQuickFollowUpDueDate("3d"))}
+                      onClick={() => setDueDate(getQuickFollowUpDueDate("3d", new Date(), timezone))}
                       size="xs"
                       type="button"
                       variant="outline"
@@ -220,7 +234,7 @@ export function FollowUpCreateDialog({
                       In 3 days
                     </Button>
                     <Button
-                      onClick={() => setDueDate(getQuickFollowUpDueDate("7d"))}
+                      onClick={() => setDueDate(getQuickFollowUpDueDate("7d", new Date(), timezone))}
                       size="xs"
                       type="button"
                       variant="outline"
@@ -260,12 +274,18 @@ export function FollowUpCreateDialog({
                       aria-invalid={Boolean(state.fieldErrors?.sendMode?.[0])}
                       id="follow-up-send-mode"
                       onValueChange={(value) => setSendMode(value as FollowUpSendMode)}
-                      options={sendModeOptions}
+                      options={availableSendModeOptions}
                       placeholder="Choose send mode"
                       value={sendMode}
                     />
                   </FieldContent>
                 </Field>
+
+                {!canSendAutomatically ? (
+                  <p className="text-sm text-muted-foreground">
+                    Automatic sending is available on the Pro plan and above.
+                  </p>
+                ) : null}
 
                 {sendMode === "automatic" && channel !== "email" && (
                   <p className="text-sm text-destructive" role="alert">

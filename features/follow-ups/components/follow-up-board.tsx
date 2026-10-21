@@ -50,6 +50,7 @@ import {
 } from "@/features/follow-ups/components/follow-up-status-badge";
 import { FollowUpHistorySheet } from "@/features/follow-ups/components/follow-up-history-sheet";
 import { FollowUpMessageCopyButton } from "@/features/follow-ups/components/follow-up-message-copy-button";
+import { getBusinessFollowUpsPath } from "@/features/businesses/routes";
 import { QuoteStatusBadge } from "@/features/quotes/components/quote-status-badge";
 import type { QuoteStatus } from "@/features/quotes/types";
 import { quoteStatuses } from "@/features/quotes/types";
@@ -268,6 +269,14 @@ export function FollowUpBoard({
             history={history}
             historyCount={historyCount}
           />
+          <Button asChild size="sm" variant="ghost">
+            <Link
+              href={`${getBusinessFollowUpsPath(businessSlug)}?view=list`}
+              prefetch={true}
+            >
+              View all
+            </Link>
+          </Button>
           {createButton}
         </div>
       </div>
@@ -453,7 +462,7 @@ function FollowUpCard({
   isPendingKey: (key: string) => boolean;
 }) {
   const channelLabel = getFollowUpChannelLabel(followUp.channel);
-  const dueLabel = formatFollowUpDate(followUp.dueAt);
+  const dueLabel = formatFollowUpDate(followUp.dueAt, followUp.businessTimezone);
   const isPending = isPendingKey(followUp.id);
 
   function handleComplete(e: React.MouseEvent) {
@@ -537,7 +546,7 @@ function AutoSequenceCard({
       <p className="truncate text-xs text-muted-foreground/80">
         {item.quoteNumber ? `Quote ${item.quoteNumber}` : item.quoteTitle}
         {item.sequence.nextSendAt
-          ? ` · Next email ${formatFollowUpDate(item.sequence.nextSendAt)}`
+          ? ` · Next email ${formatFollowUpDate(item.sequence.nextSendAt, item.businessTimezone)}`
           : null}
       </p>
       <div className="flex items-center gap-2 pt-0.5">
@@ -582,7 +591,7 @@ function FollowUpDetailDialog({
 
   const relatedHref = getFollowUpRelatedHref(businessSlug, followUp);
   const channelLabel = getFollowUpChannelLabel(followUp.channel);
-  const dueLabel = formatFollowUpDate(followUp.dueAt);
+  const dueLabel = formatFollowUpDate(followUp.dueAt, followUp.businessTimezone);
   const hasRecurrence = followUp.recurrence !== "none";
   const isActioning = isPendingKey(followUp.id);
   const isAutomatic = (followUp.sendMode ?? "manual") === "automatic";
@@ -710,7 +719,7 @@ function FollowUpDetailDialog({
                       </Badge>
                     ) : null}
                     {followUp.quoteContext.sentAt ? (
-                      <span>Sent {formatFollowUpDate(followUp.quoteContext.sentAt)}</span>
+                      <span>Sent {formatFollowUpDate(followUp.quoteContext.sentAt, followUp.businessTimezone)}</span>
                     ) : null}
                   </div>
                   {staleLabel ? (

@@ -12,6 +12,7 @@ import {
   updateCacheTags,
 } from "@/lib/cache/business-tags";
 import { getWorkspaceBusinessActionContext } from "@/lib/db/business-access";
+import { parseFollowUpDateTimeInput } from "@/features/follow-ups/utils";
 import {
   bulkCompleteFollowUpsForBusiness,
   bulkSkipFollowUpsForBusiness,
@@ -214,7 +215,7 @@ async function createFollowUpActionForRecord({
     if (error instanceof FollowUpCreateValidationError) {
       return {
         error: error.message,
-        fieldErrors: { sendMode: [error.message] },
+        fieldErrors: { [error.field]: [error.message] },
       };
     }
 
@@ -316,7 +317,15 @@ export async function completeFollowUpAction(
     completionNote: formData.get("completionNote"),
   });
 
-  const completionNote = parsed.success ? parsed.data.completionNote : null;
+  if (!parsed.success) {
+    return getValidationActionState(
+      parsed.error,
+      "Check the completion note and try again.",
+      (fieldErrors) => ({ completionNote: fieldErrors.completionNote }),
+    );
+  }
+
+  const completionNote = parsed.data.completionNote;
 
   try {
     const result = await completeFollowUpForBusiness({
@@ -324,6 +333,7 @@ export async function completeFollowUpAction(
       followUpId,
       actorUserId: user.id,
       completionNote,
+      timezone: businessContext.business.timezone,
     });
 
     if (!result) {
@@ -513,6 +523,13 @@ export async function editFollowUpAction(
       success: "Follow-up updated.",
     };
   } catch (error) {
+    if (error instanceof FollowUpCreateValidationError) {
+      return {
+        error: error.message,
+        fieldErrors: { [error.field]: [error.message] },
+      };
+    }
+
     console.error("Failed to edit follow-up.", error);
 
     return {
@@ -630,6 +647,13 @@ export async function reassignFollowUpAction(
       success: result.changed ? "Follow-up reassigned." : "Already assigned to that person.",
     };
   } catch (error) {
+    if (error instanceof FollowUpCreateValidationError) {
+      return {
+        error: error.message,
+        fieldErrors: { [error.field]: [error.message] },
+      };
+    }
+
     console.error("Failed to reassign follow-up.", error);
 
     return {
@@ -667,7 +691,10 @@ export async function snoozeFollowUpAction(
     );
   }
 
-  const snoozedUntil = new Date(validationResult.data.snoozedUntil);
+  const snoozedUntil = parseFollowUpDateTimeInput(
+    validationResult.data.snoozedUntil,
+    businessContext.business.timezone,
+  );
 
   try {
     const result = await snoozeFollowUpForBusiness({
@@ -675,6 +702,7 @@ export async function snoozeFollowUpAction(
       followUpId,
       actorUserId: user.id,
       snoozedUntil,
+      timezone: businessContext.business.timezone,
     });
 
     if (!result) {
@@ -733,6 +761,7 @@ export async function bulkCompleteFollowUpsAction(
       followUpIds: parsed.data.followUpIds,
       actorUserId: user.id,
       completionNote: parsed.data.completionNote,
+      timezone: businessContext.business.timezone,
     });
 
     const tags = getFollowUpMutationCacheTags({

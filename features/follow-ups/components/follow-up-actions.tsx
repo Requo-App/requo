@@ -27,7 +27,7 @@ import type {
   FollowUpRescheduleActionState,
   FollowUpSnoozeActionState,
 } from "@/features/follow-ups/types";
-import { getDateInputValue, getFutureUtcDateString } from "@/features/follow-ups/utils";
+import { getDateInputValue, getQuickFollowUpDueDate } from "@/features/follow-ups/utils";
 
 type CompleteAction = (
   state: FollowUpCompleteActionState,
@@ -57,6 +57,7 @@ export function FollowUpActions({
   dueAt,
   disabled = false,
   onOptimisticDismiss,
+  timezone,
 }: {
   completeAction: CompleteAction;
   skipAction: RecordAction;
@@ -65,6 +66,8 @@ export function FollowUpActions({
   dueAt: Date;
   disabled?: boolean;
   onOptimisticDismiss?: () => void;
+  /** Business timezone — due dates are read and entered in it. */
+  timezone?: string;
 }) {
   return (
     <div className="dashboard-actions [&>*]:w-full sm:[&>*]:w-auto">
@@ -77,9 +80,14 @@ export function FollowUpActions({
         action={rescheduleAction}
         disabled={disabled}
         dueAt={dueAt}
+        timezone={timezone}
       />
       {snoozeAction ? (
-        <FollowUpSnoozeDialog action={snoozeAction} disabled={disabled} />
+        <FollowUpSnoozeDialog
+          action={snoozeAction}
+          disabled={disabled}
+          timezone={timezone}
+        />
       ) : null}
       <FollowUpSkipButton
         action={skipAction}
@@ -220,13 +228,15 @@ function FollowUpRescheduleDialog({
   action,
   disabled,
   dueAt,
+  timezone,
 }: {
   action: RescheduleAction;
   disabled: boolean;
   dueAt: Date;
+  timezone?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const [dueDate, setDueDate] = useState(getDateInputValue(dueAt));
+  const [dueDate, setDueDate] = useState(getDateInputValue(dueAt, timezone));
   const [state, formAction, isPending] = useDeferredActionState(
     action,
     {} as FollowUpRescheduleActionState,
@@ -242,7 +252,7 @@ function FollowUpRescheduleDialog({
       open={open}
       onOpenChange={(nextOpen) => {
         if (nextOpen) {
-          setDueDate(getDateInputValue(dueAt));
+          setDueDate(getDateInputValue(dueAt, timezone));
         }
 
         setOpen(nextOpen);
@@ -301,12 +311,16 @@ function FollowUpRescheduleDialog({
 function FollowUpSnoozeDialog({
   action,
   disabled,
+  timezone,
 }: {
   action: SnoozeAction;
   disabled: boolean;
+  timezone?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const [snoozeDate, setSnoozeDate] = useState(getFutureUtcDateString(1));
+  const [snoozeDate, setSnoozeDate] = useState(
+    getQuickFollowUpDueDate("tomorrow", new Date(), timezone),
+  );
   const [snoozeTime, setSnoozeTime] = useState("09:00");
   const [state, formAction, isPending] = useDeferredActionState(
     action,
@@ -323,7 +337,7 @@ function FollowUpSnoozeDialog({
       open={open}
       onOpenChange={(nextOpen) => {
         if (nextOpen) {
-          setSnoozeDate(getFutureUtcDateString(1));
+          setSnoozeDate(getQuickFollowUpDueDate("tomorrow", new Date(), timezone));
           setSnoozeTime("09:00");
         }
         setOpen(nextOpen);

@@ -12,6 +12,7 @@ import {
   Pencil,
   Phone,
   Trash2,
+  UserRoundCog,
 } from "lucide-react";
 
 import { ConfirmationDialog } from "@/components/shared/confirmation-dialog";
@@ -171,6 +172,7 @@ export function FollowUpItem({
   const [expanded, setExpanded] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const editTriggerRef = useRef<HTMLDivElement>(null);
+  const reassignTriggerRef = useRef<HTMLDivElement>(null);
   const { refreshNow } = useDeferredRefresh();
   const deleteFormRef = useRef<HTMLFormElement>(null);
   const relatedHref = getFollowUpRelatedHref(businessSlug, followUp);
@@ -201,7 +203,7 @@ export function FollowUpItem({
   );
 
   const channelLabel = getFollowUpChannelLabel(followUp.channel);
-  const dueLabel = formatFollowUpDate(followUp.dueAt);
+  const dueLabel = formatFollowUpDate(followUp.dueAt, followUp.businessTimezone);
   const isPending = followUp.status === "pending";
   const staleLabel = (() => {
     switch (followUp.quoteContext?.status) {
@@ -316,7 +318,15 @@ export function FollowUpItem({
               </DropdownMenuItem>
             ) : null}
             {members.length > 1 && isPending ? (
-              <DropdownMenuItem disabled>Reassign</DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={() => {
+                  const btn = reassignTriggerRef.current?.querySelector("button");
+                  btn?.click();
+                }}
+              >
+                <UserRoundCog />
+                Reassign
+              </DropdownMenuItem>
             ) : null}
             <DropdownMenuItem
               variant="destructive"
@@ -427,14 +437,7 @@ export function FollowUpItem({
                 {isPending && businessName ? (
                   <FollowUpAiMessageButton
                     aiTone={aiTone}
-                    businessName={businessName}
-                    channel={followUp.channel}
-                    customerName={followUp.customerName}
-                    followUpReason={followUp.reason}
-                    followUpTitle={followUp.title}
-                    quoteUrl={followUp.quotePublicUrl}
-                    quoteViewed={Boolean(followUp.quoteViewedAt)}
-                    recordKind={followUp.related.kind}
+                    followUpId={followUp.id}
                   />
                 ) : null}
               </div>
@@ -442,14 +445,7 @@ export function FollowUpItem({
           ) : showMessage && isPending && businessName ? (
             <FollowUpAiMessageButton
               aiTone={aiTone}
-              businessName={businessName}
-              channel={followUp.channel}
-              customerName={followUp.customerName}
-              followUpReason={followUp.reason}
-              followUpTitle={followUp.title}
-              quoteUrl={followUp.quotePublicUrl}
-              quoteViewed={Boolean(followUp.quoteViewedAt)}
-              recordKind={followUp.related.kind}
+              followUpId={followUp.id}
             />
           ) : null}
 
@@ -463,6 +459,7 @@ export function FollowUpItem({
                 rescheduleAction={rescheduleAction}
                 skipAction={skipAction}
                 snoozeAction={snoozeAction}
+                timezone={followUp.businessTimezone}
               />
             </div>
           ) : null}
@@ -478,7 +475,7 @@ export function FollowUpItem({
           {/* Snoozed indicator */}
           {followUp.snoozedUntil && isPending ? (
             <p className="text-xs text-muted-foreground">
-              Snoozed until {formatFollowUpDate(followUp.snoozedUntil)}
+              Snoozed until {formatFollowUpDate(followUp.snoozedUntil, followUp.businessTimezone)}
             </p>
           ) : null}
         </div>
@@ -510,9 +507,9 @@ export function FollowUpItem({
         icon={Trash2}
       />
 
-      {/* Reassign (hidden, for members > 1) */}
+      {/* Reassign — trigger hidden, opened from the row menu via ref */}
       {members.length > 1 && isPending ? (
-        <div className="hidden">
+        <div ref={reassignTriggerRef} className="sr-only">
           <FollowUpReassignDialog
             action={reassignAction}
             currentAssignedUserId={followUp.assignedToUserId}

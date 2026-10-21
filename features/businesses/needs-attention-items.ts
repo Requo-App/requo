@@ -9,6 +9,7 @@ import type {
   NeedsAttentionItemData,
 } from "@/features/businesses/components/needs-attention-tabs";
 import { formatQuoteDate } from "@/features/quotes/utils";
+import { formatFollowUpDate } from "@/features/follow-ups/utils";
 
 /**
  * Map dashboard overview + follow-up snapshots to priority-queue items.
@@ -32,7 +33,7 @@ export function buildNeedsAttentionItems({
       label: "Overdue follow-up",
       title: followUp.title,
       description: `${followUp.customerName} · ${followUp.reason}`,
-      meta: `Due ${formatQuoteDate(followUp.dueAt)}`,
+      meta: `Due ${formatFollowUpDate(followUp.dueAt, followUp.businessTimezone)}`,
       actionLabel: "Follow up now",
       tone: "urgent" as const,
       iconName: "bell-ring" as NeedsAttentionIconName,
@@ -46,7 +47,7 @@ export function buildNeedsAttentionItems({
       label: "Due today",
       title: followUp.title,
       description: `${followUp.customerName} · ${followUp.reason}`,
-      meta: `Due ${formatQuoteDate(followUp.dueAt)}`,
+      meta: `Due ${formatFollowUpDate(followUp.dueAt, followUp.businessTimezone)}`,
       actionLabel: "Follow up",
       tone: "normal" as const,
       iconName: "bell-ring" as NeedsAttentionIconName,

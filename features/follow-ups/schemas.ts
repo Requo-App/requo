@@ -17,6 +17,42 @@ import {
   isValidDateInput,
 } from "@/lib/zod-helpers";
 
+/**
+ * Recurrence rules shared by the create and edit schemas.
+ *
+ * A repeating follow-up without a stop condition runs forever, so the server
+ * refuses the ambiguous combinations instead of trusting the client form:
+ * - `count` termination needs the limit that defines the count;
+ * - a limit only makes sense when the follow-up actually repeats.
+ */
+function refineRecurrence(
+  value: {
+    recurrence: (typeof followUpRecurrences)[number];
+    recurrenceLimit: number | null;
+    terminationCondition: (typeof followUpTerminationConditions)[number] | null;
+  },
+  ctx: z.RefinementCtx,
+) {
+  if (
+    value.terminationCondition === "count" &&
+    value.recurrenceLimit === null
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["recurrenceLimit"],
+      message: "Set how many times this follow-up should repeat.",
+    });
+  }
+
+  if (value.recurrenceLimit !== null && value.recurrence === "none") {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["recurrence"],
+      message: "Choose how often this follow-up should repeat.",
+    });
+  }
+}
+
 export const followUpCreateSchema = z
   .object({
     title: z
@@ -55,7 +91,8 @@ export const followUpCreateSchema = z
       z.enum(followUpTerminationConditions).nullable().default(null),
     ),
   })
-  .strict();
+  .strict()
+  .superRefine(refineRecurrence);
 
 export const followUpEditSchema = z
   .object({
@@ -95,14 +132,16 @@ export const followUpEditSchema = z
       z.enum(followUpTerminationConditions).nullable().default(null),
     ),
   })
-  .strict();
+  .strict()
+  .superRefine(refineRecurrence);
 
 export const followUpReassignSchema = z
   .object({
     assignedToUserId: z
       .string()
       .trim()
-      .min(1, "Choose a team member to assign."),
+      .min(1, "Choose a team member to assign.")
+      .max(64, "Choose a team member to assign."),
   })
   .strict();
 
@@ -128,10 +167,10 @@ export const followUpListFiltersSchema = z.object({
     .catch(undefined),
   status: z
     .preprocess(
-      (value) => firstString(value) ?? "pending",
+      (value) => firstString(value) ?? "all",
       z.enum(followUpStatusFilterValues),
     )
-    .catch("pending"),
+    .catch("all"),
   due: z
     .preprocess(
       (value) => firstString(value) ?? "all",
@@ -148,12 +187,17 @@ export const followUpListFiltersSchema = z.object({
 });
 
 export const followUpCompleteSchema = z.object({
-  completionNote: z
-    .string()
-    .trim()
-    .max(500, "Completion notes must be 500 characters or fewer.")
-    .optional()
-    .transform((v) => v || null),
+  completionNote: z.preprocess(
+    // `FormData.get` returns null for a missing key, and the board's quick
+    // "Done" action submits no note at all.
+    emptyToUndefined,
+    z
+      .string()
+      .trim()
+      .max(500, "Completion notes must be 500 characters or fewer.")
+      .optional()
+      .transform((v) => v || null),
+  ),
 });
 
 export const followUpSnoozeSchema = z.object({
@@ -162,9 +206,13 @@ export const followUpSnoozeSchema = z.object({
     .trim()
     .refine(
       (value) => {
-        // Accept ISO datetime or date-only format
-        const parsed = new Date(value);
-        return !Number.isNaN(parsed.getTime());
+        // The client sends a business-local `YYYY-MM-DDTHH:mm` wall clock.
+        // Accept a full ISO instant too, but reject anything ambiguous.
+        if (!/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2})?/.test(value)) {
+          return false;
+        }
+
+        return !Number.isNaN(new Date(value).getTime());
       },
       "Enter a valid snooze date/time.",
     ),

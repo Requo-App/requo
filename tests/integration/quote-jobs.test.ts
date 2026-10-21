@@ -6,7 +6,7 @@ vi.mock("@/lib/db/client", async () => {
   return { db: testDb };
 });
 vi.mock("@/lib/email/transactional", () => ({
-  sendQuoteAutoFollowUpEmail: vi.fn().mockResolvedValue(undefined),
+  sendQuoteAutoFollowUpEmail: vi.fn().mockResolvedValue(true),
 }));
 vi.mock("@/lib/plans/usage", () => ({
   getDailyAutoFollowUpSendCount: vi.fn().mockResolvedValue(0),

@@ -8,7 +8,7 @@ import "server-only";
  * globally by `features/businesses/quota.ts`.
  */
 
-import { and, count, eq, gte, isNull, lt, sql } from "drizzle-orm";
+import { and, count, eq, gte, inArray, isNull, lt, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
 import {
@@ -97,6 +97,10 @@ export async function getMonthlyRequoQuoteSendCount(
  * Auto follow-ups log `quote.auto_follow_up_sent` (distinct from the
  * explicit `quote.sent` entries counted by the Requo-email budget), so they
  * get their own allowance instead of consuming the owner's send quota.
+ *
+ * The unattended follow-up path (`follow_ups.send_mode = 'automatic'`) logs
+ * `follow_up.auto_sent` and draws from the same allowance, so a business
+ * cannot send twice its quota by splitting the work across both paths.
  */
 async function getAutoFollowUpSendCount(
   businessId: string,
@@ -108,7 +112,10 @@ async function getAutoFollowUpSendCount(
     .where(
       and(
         eq(activityLogs.businessId, businessId),
-        eq(activityLogs.type, "quote.auto_follow_up_sent"),
+        inArray(activityLogs.type, [
+          "quote.auto_follow_up_sent",
+          "follow_up.auto_sent",
+        ]),
         gte(activityLogs.createdAt, start),
         lt(activityLogs.createdAt, end),
       ),

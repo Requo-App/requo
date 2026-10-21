@@ -3,7 +3,7 @@ import "server-only";
 import { and, eq, inArray, isNotNull, isNull, lt, ne, sql } from "drizzle-orm";
 
 import { writeAuditLog } from "@/features/audit/mutations";
-import { autoCloseFollowUpsForQuote } from "@/features/follow-ups/mutations";
+import { autoCloseFollowUpsForQuote, terminateRecurringFollowUpsForRecords } from "@/features/follow-ups/mutations";
 import { notifyOwnerQuoteViewed } from "@/features/quotes/defaults";
 import { db } from "@/lib/db/client";
 import { newEntityId } from "@/lib/ids";
@@ -284,7 +284,7 @@ async function expireQuoteRows(
   }>,
 ) {
   if (!rows.length) {
-    return 0;
+    return { count: 0, expired: [] as typeof rows };
   }
 
   const now = new Date();
@@ -309,7 +309,7 @@ async function expireQuoteRows(
   const expiredRows = rows.filter((row) => expiredIds.has(row.id));
 
   if (expiredRows.length === 0) {
-    return 0;
+    return { count: 0, expired: [] as typeof rows };
   }
 
   await tx.insert(activityLogs).values(
@@ -329,7 +329,32 @@ async function expireQuoteRows(
     })),
   );
 
-  return expiredRows.length;
+  return { count: expiredRows.length, expired: expiredRows };
+}
+
+/**
+ * Stop the recurring follow-up series of quotes that just expired.
+ *
+ * Runs after the expiry transaction commits so the follow-up rows are not
+ * locked inside the quote transaction.
+ */
+async function terminateFollowUpsForExpiredQuotes(
+  expired: Array<{ id: string; businessId: string }>,
+) {
+  const byBusiness = new Map<string, string[]>();
+
+  for (const row of expired) {
+    const ids = byBusiness.get(row.businessId) ?? [];
+    ids.push(row.id);
+    byBusiness.set(row.businessId, ids);
+  }
+
+  for (const [businessId, quoteIds] of byBusiness) {
+    await terminateRecurringFollowUpsForRecords({
+      businessId,
+      records: quoteIds.map((quoteId) => ({ quoteId, newStatus: "expired" })),
+    });
+  }
 }
 
 export async function syncExpiredQuotesForBusiness(businessId: string) {
@@ -355,7 +380,9 @@ export async function syncExpiredQuotesForBusiness(businessId: string) {
     return 0;
   }
 
-  const count = await db.transaction((tx) => expireQuoteRows(tx, rows));
+  const { count, expired } = await db.transaction((tx) => expireQuoteRows(tx, rows));
+
+  await terminateFollowUpsForExpiredQuotes(expired);
 
   return count;
 }
@@ -403,7 +430,9 @@ export async function syncExpiredQuotesGlobal({
       break;
     }
 
-    await db.transaction((tx) => expireQuoteRows(tx, rows));
+    const { expired } = await db.transaction((tx) => expireQuoteRows(tx, rows));
+
+    await terminateFollowUpsForExpiredQuotes(expired);
 
     totalExpired += rows.length;
     batches += 1;
@@ -440,7 +469,9 @@ export async function syncExpiredQuoteForPublicToken(token: string) {
     return 0;
   }
 
-  const count = await db.transaction((tx) => expireQuoteRows(tx, rows));
+  const { count, expired } = await db.transaction((tx) => expireQuoteRows(tx, rows));
+
+  await terminateFollowUpsForExpiredQuotes(expired);
 
   return count;
 }
@@ -1039,7 +1070,7 @@ export async function voidQuoteForBusiness({
 }: UpdateQuoteRecordStateForBusinessInput) {
   const now = new Date();
 
-  return db.transaction(async (tx) => {
+  const voidQuoteResult = await db.transaction(async (tx) => {
     const [existingQuote] = await tx
       .select({
         id: quotes.id,
@@ -1145,6 +1176,18 @@ export async function voidQuoteForBusiness({
       status: "voided" as const,
     };
   });
+
+  // A voided quote is terminal: stop the recurring follow-up series linked to it.
+  const result = await voidQuoteResult;
+
+  if (result?.changed) {
+    await terminateRecurringFollowUpsForRecords({
+      businessId,
+      records: [{ quoteId, newStatus: "voided" }],
+    });
+  }
+
+  return result;
 }
 
 type MarkQuoteSentForBusinessInput = {

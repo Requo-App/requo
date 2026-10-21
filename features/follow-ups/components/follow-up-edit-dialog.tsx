@@ -27,6 +27,7 @@ import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { useDeferredActionState } from "@/hooks/use-deferred-action-state";
+import { safeHasFeatureAccess } from "@/features/paywall/lib/utils";
 import type {
   FollowUpCategory,
   FollowUpChannel,
@@ -87,13 +88,22 @@ export function FollowUpEditDialog({
   followUp: FollowUpView;
   disabled?: boolean;
 }) {
+  const canSendAutomatically = safeHasFeatureAccess(
+    followUp.businessPlan,
+    "autoFollowUps",
+  );
+  const availableSendModeOptions = sendModeOptions.filter(
+    (option) => option.value !== "automatic" || canSendAutomatically,
+  );
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState(followUp.title);
   const [reason, setReason] = useState(followUp.reason);
   const [channel, setChannel] = useState<FollowUpChannel>(followUp.channel);
   const [sendMode, setSendMode] = useState<FollowUpSendMode>(followUp.sendMode ?? "manual");
   const [category, setCategory] = useState<FollowUpCategory>(followUp.category);
-  const [dueDate, setDueDate] = useState(getDateInputValue(followUp.dueAt));
+  const [dueDate, setDueDate] = useState(
+    getDateInputValue(followUp.dueAt, followUp.businessTimezone),
+  );
   const [recurrence, setRecurrence] = useState<FollowUpRecurrence>(followUp.recurrence);
   const [recurrenceLimit, setRecurrenceLimit] = useState(
     followUp.recurrenceLimit?.toString() ?? "",
@@ -116,7 +126,7 @@ export function FollowUpEditDialog({
     setChannel(followUp.channel);
     setSendMode(followUp.sendMode ?? "manual");
     setCategory(followUp.category);
-    setDueDate(getDateInputValue(followUp.dueAt));
+    setDueDate(getDateInputValue(followUp.dueAt, followUp.businessTimezone));
     setRecurrence(followUp.recurrence);
     setRecurrenceLimit(followUp.recurrenceLimit?.toString() ?? "");
     setTerminationCondition(followUp.terminationCondition ?? "none");
@@ -134,7 +144,13 @@ export function FollowUpEditDialog({
       }}
     >
       <ResponsiveOverlayTrigger asChild>
-        <Button disabled={disabled} size="sm" type="button" variant="ghost">
+        <Button
+          disabled={disabled}
+          size="sm"
+          tabIndex={-1}
+          type="button"
+          variant="ghost"
+        >
           <Pencil data-icon="inline-start" />
           Edit
         </Button>
@@ -222,12 +238,18 @@ export function FollowUpEditDialog({
                     aria-invalid={Boolean(state.fieldErrors?.sendMode?.[0])}
                     id="edit-follow-up-send-mode"
                     onValueChange={(value) => setSendMode(value as FollowUpSendMode)}
-                    options={sendModeOptions}
+                    options={availableSendModeOptions}
                     placeholder="Choose send mode"
                     value={sendMode}
                   />
                 </FieldContent>
               </Field>
+
+              {!canSendAutomatically ? (
+                <p className="text-sm text-muted-foreground">
+                  Automatic sending is available on the Pro plan and above.
+                </p>
+              ) : null}
 
               {sendMode === "automatic" && channel !== "email" && (
                 <p className="text-sm text-destructive" role="alert">

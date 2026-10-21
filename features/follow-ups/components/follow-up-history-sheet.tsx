@@ -179,7 +179,7 @@ export function FollowUpHistorySheet({
                       {item.title}
                     </p>
                     <p className="truncate text-xs text-muted-foreground/90">
-                      {formatFollowUpDate(finishedAt)}
+                      {formatFollowUpDate(finishedAt, item.businessTimezone)}
                       {" · via "}
                       {getFollowUpChannelLabel(item.channel)}
                     </p>

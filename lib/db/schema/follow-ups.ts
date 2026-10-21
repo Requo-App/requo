@@ -98,6 +98,11 @@ export const followUps = pgTable(
     snoozedUntil: timestamp("snoozed_until", { withTimezone: true }),
     /** Whether a reminder notification has been sent for the current due date. */
     reminderSentAt: timestamp("reminder_sent_at", { withTimezone: true }),
+    /**
+     * When the "still overdue" notification was last raised. Keeps the job
+     * from raising the same overdue notice every single day.
+     */
+    overdueNotifiedAt: timestamp("overdue_notified_at", { withTimezone: true }),
     createdByUserId: text("created_by_user_id").references(() => user.id, {
       onDelete: "set null",
     }),

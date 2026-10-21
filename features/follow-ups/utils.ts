@@ -1,34 +1,19 @@
 import type { StatusTone } from "@/components/shared/status-badge";
 import { newEntityId } from "@/lib/ids";
 import type {
+  FollowUpCategory,
   FollowUpChannel,
   FollowUpDueBucket,
-  FollowUpDueFilterValue,
-  FollowUpListFilters,
   FollowUpRecurrence,
   FollowUpSendMode,
-  FollowUpSortValue,
   FollowUpStatus,
-  FollowUpStatusFilterValue,
   FollowUpTerminationCondition,
-} from "@/features/follow-ups/types";
-import {
-  followUpDueFilterValues,
-  followUpSortValues,
-  followUpStatusFilterValues,
 } from "@/features/follow-ups/types";
 
 export const followUpStatusLabels: Record<FollowUpStatus, string> = {
   pending: "To do",
   completed: "Done",
   skipped: "Dismissed",
-};
-
-/** Legacy task-only labels, kept for admin/audit surfaces that need them. */
-export const followUpLifecycleLabels: Record<FollowUpStatus, string> = {
-  pending: "Pending",
-  completed: "Completed",
-  skipped: "Skipped",
 };
 
 export const followUpChannelLabels: Record<FollowUpChannel, string> = {
@@ -106,41 +91,6 @@ export const followUpTerminationConditionLabels: Record<FollowUpTerminationCondi
   terminal_status: "Until linked item reaches terminal status",
 };
 
-export const followUpDismissalReasonLabels: Record<
-  import("@/features/follow-ups/types").FollowUpDismissalReason,
-  string
-> = {
-  not_relevant: "Not relevant anymore",
-  already_responded: "Customer already responded",
-  duplicate: "Duplicate",
-  lost_opportunity: "Lost opportunity",
-  revisit_later: "Will revisit later",
-  other: "Other",
-};
-
-export const followUpOutcomeLabels: Record<
-  import("@/features/follow-ups/types").FollowUpOutcomeType,
-  string
-> = {
-  contacted: "Sent message",
-  replied: "Customer replied",
-  accepted: "Quote accepted",
-  rejected: "Quote declined",
-  dismissed: "Dismissed",
-  no_answer: "No answer",
-  other: "Other outcome",
-};
-
-/** Quick outcome choices offered after a customer-touch action. */
-export const followUpOutcomeChoices = [
-  "contacted",
-  "replied",
-  "accepted",
-  "no_answer",
-  "dismissed",
-  "other",
-] as const satisfies readonly import("@/features/follow-ups/types").FollowUpOutcomeType[];
-
 export function createFollowUpId() {
   return newEntityId();
 }
@@ -179,24 +129,146 @@ export function addCalendarDays(date: string, days: number): string {
   return result.toISOString().slice(0, 10);
 }
 
-export function getFutureUtcDateString(daysAhead: number, now = new Date()) {
-  return new Date(now.getTime() + daysAhead * 24 * 60 * 60 * 1000)
-    .toISOString()
-    .slice(0, 10);
+/**
+ * Offset (in ms) between UTC and the given IANA timezone at `instant`.
+ *
+ * Positive for zones east of Greenwich (`Asia/Tokyo` → +9h), negative west.
+ */
+function getTimezoneOffsetMs(instant: Date, timezone: string): number {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    hour12: false,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).formatToParts(instant);
+
+  const values: Partial<Record<Intl.DateTimeFormatPartTypes, number>> = {};
+
+  for (const part of parts) {
+    if (part.type === "literal") {
+      continue;
+    }
+
+    const numeric = Number(part.value);
+
+    if (!Number.isNaN(numeric)) {
+      values[part.type] = numeric;
+    }
+  }
+
+  // Some ICU builds render midnight as hour 24.
+  const hour = values.hour === 24 ? 0 : (values.hour ?? 0);
+  const asUtc = Date.UTC(
+    values.year ?? 1970,
+    (values.month ?? 1) - 1,
+    values.day ?? 1,
+    hour,
+    values.minute ?? 0,
+    values.second ?? 0,
+  );
+
+  return asUtc - instant.getTime();
+}
+
+/** Local wall-clock time of `instant` in `timezone`, read back as a UTC ms value. */
+function getWallClockMs(instant: Date, timezone: string): number {
+  const offset = getTimezoneOffsetMs(instant, timezone);
+
+  return instant.getTime() + offset;
+}
+
+/**
+ * Convert a business-local calendar date + wall-clock time into the UTC
+ * instant it refers to.
+ *
+ * The naive "9 AM local = 9:00 − offset" shortcut breaks for every zone east
+ * of UTC+9: the local morning falls on the *previous* UTC day, so the stored
+ * instant lands on the wrong calendar date. This resolves the wall clock
+ * against the zone instead, and handles DST gaps (spring forward) and
+ * overlaps (fall back) the way `ZonedDateTime` does.
+ */
+export function zonedDateTimeToUtc(
+  date: string,
+  time: string,
+  timezone: string,
+): Date {
+  const [year, month, day] = date.split("-").map(Number);
+  const [hour, minute] = time.split(":").map(Number);
+
+  if (
+    !year ||
+    !month ||
+    !day ||
+    Number.isNaN(hour) ||
+    Number.isNaN(minute)
+  ) {
+    return new Date(`${date}T12:00:00.000Z`);
+  }
+
+  const targetWallMs = Date.UTC(year, month - 1, day, hour, minute, 0);
+
+  let offsets: number[];
+
+  try {
+    // Probe around the target so a DST transition inside the probe window
+    // still yields the offset that actually applies.
+    const probes = [
+      targetWallMs,
+      targetWallMs - 12 * 60 * 60 * 1000,
+      targetWallMs + 12 * 60 * 60 * 1000,
+    ];
+
+    offsets = [...new Set(probes.map((probe) => getTimezoneOffsetMs(new Date(probe), timezone)))];
+  } catch {
+    return new Date(`${date}T12:00:00.000Z`);
+  }
+
+  for (const offset of offsets) {
+    const candidate = new Date(targetWallMs - offset);
+
+    if (getWallClockMs(candidate, timezone) === targetWallMs) {
+      return candidate;
+    }
+  }
+
+  // The wall clock does not exist (DST spring-forward gap). Keep the earliest
+  // candidate so the follow-up lands on the same calendar day.
+  return new Date(targetWallMs - offsets[0]);
+}
+
+/**
+ * The UTC instant of 00:00 on the given calendar date in the business
+ * timezone. Used as the inclusive/exclusive bound for "today" and "tomorrow"
+ * in list and overview queries.
+ */
+export function getBusinessDayStartInstant(
+  date: string,
+  timezone: string,
+): Date {
+  return zonedDateTimeToUtc(date, "00:00", timezone);
 }
 
 export function getQuickFollowUpDueDate(
   option: "tomorrow" | "3d" | "7d",
   now = new Date(),
+  timezone?: string,
 ) {
+  const today = timezone
+    ? getTodayDateStringInTimezone(timezone, now)
+    : getTodayUtcDateString(now);
+
   switch (option) {
     case "tomorrow":
-      return getFutureUtcDateString(1, now);
+      return addCalendarDays(today, 1);
     case "7d":
-      return getFutureUtcDateString(7, now);
+      return addCalendarDays(today, 7);
     case "3d":
     default:
-      return getFutureUtcDateString(3, now);
+      return addCalendarDays(today, 3);
   }
 }
 
@@ -210,45 +282,52 @@ export function parseFollowUpDueDateInput(value: string, timezone?: string) {
   }
 
   try {
-    // Create a date at 9 AM in the business timezone
-    // We use a trick: construct the date string and find the UTC offset
-    const targetLocal = new Date(`${value}T09:00:00`);
-    const formatter = new Intl.DateTimeFormat("en-US", {
-      timeZone: timezone,
-      timeZoneName: "shortOffset",
-    });
-    const parts = formatter.formatToParts(targetLocal);
-    const offsetPart = parts.find((p) => p.type === "timeZoneName")?.value ?? "";
-
-    // Parse offset like "GMT-5" or "GMT+5:30"
-    const offsetMatch = offsetPart.match(/GMT([+-]?)(\d{1,2})(?::(\d{2}))?/);
-
-    if (!offsetMatch) {
-      return new Date(`${value}T12:00:00.000Z`);
-    }
-
-    const sign = offsetMatch[1] === "-" ? -1 : 1;
-    const hours = Number.parseInt(offsetMatch[2], 10);
-    const minutes = Number.parseInt(offsetMatch[3] || "0", 10);
-    const totalOffsetMinutes = sign * (hours * 60 + minutes);
-
-    // 9 AM local = 9:00 - offset in UTC
-    const utcHour = 9 * 60 - totalOffsetMinutes;
-    const utcHours = Math.floor(utcHour / 60);
-    const utcMinutes = utcHour % 60;
-
-    const h = String(((utcHours % 24) + 24) % 24).padStart(2, "0");
-    const m = String(Math.abs(utcMinutes)).padStart(2, "0");
-
-    return new Date(`${value}T${h}:${m}:00.000Z`);
+    return zonedDateTimeToUtc(value, "09:00", timezone);
   } catch {
     return new Date(`${value}T12:00:00.000Z`);
   }
 }
 
-export function getDateInputValue(value: Date | string) {
+/**
+ * Parse a business-local date + time (`YYYY-MM-DDTHH:mm`) into a UTC instant.
+ *
+ * The browser sends a naive wall-clock string, so it must be read in the
+ * business timezone — parsing it in the server timezone would shift the
+ * snooze by the offset between the two.
+ */
+export function parseFollowUpDateTimeInput(
+  value: string,
+  timezone?: string,
+): Date {
+  const match = /^(\d{4}-\d{2}-\d{2})[T ](\d{2}):(\d{2})/.exec(value.trim());
+
+  if (!match) {
+    const parsed = new Date(value);
+
+    return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+  }
+
+  const [, date, hour, minute] = match;
+
+  if (!timezone) {
+    return new Date(`${date}T${hour}:${minute}:00.000Z`);
+  }
+
+  return zonedDateTimeToUtc(date, `${hour}:${minute}`, timezone);
+}
+
+/**
+ * Calendar date of an instant, rendered in the given timezone. Without a
+ * timezone the UTC date is used, which keeps server and client output
+ * identical for records that carry no business context.
+ */
+export function getDateInputValue(value: Date | string, timezone?: string) {
   if (typeof value === "string") {
     return value.slice(0, 10);
+  }
+
+  if (timezone) {
+    return getLocalDateString(value, timezone);
   }
 
   return value.toISOString().slice(0, 10);
@@ -266,7 +345,9 @@ export function getFollowUpDueBucket(
     return "done";
   }
 
-  const dueDate = getDateInputValue(input.dueAt);
+  // Compare business-local calendar dates: a follow-up due "today" in Sydney
+  // must not read as overdue because its UTC date already rolled over.
+  const dueDate = getDateInputValue(input.dueAt, timezone);
   const today = timezone
     ? getTodayDateStringInTimezone(timezone, now)
     : getTodayUtcDateString(now);
@@ -290,26 +371,54 @@ export function getFollowUpChannelLabel(channel: FollowUpChannel) {
   return followUpChannelLabels[channel];
 }
 
+/**
+ * Normalize the stored category. The column is free text, so anything that
+ * is not the known "post win" value is treated as a sales follow-up.
+ */
+export function getFollowUpCategory(value: string | null | undefined): FollowUpCategory {
+  return value === "post_win" ? "post_win" : "sales";
+}
+
 export function getFollowUpDueBucketLabel(bucket: FollowUpDueBucket) {
   return followUpDueBucketLabels[bucket];
 }
 
-export function formatFollowUpDate(value: Date | string) {
-  const date =
-    typeof value === "string"
-      ? new Date(`${value.slice(0, 10)}T00:00:00.000Z`)
-      : value;
+/**
+ * Human-readable date for a follow-up instant.
+ *
+ * The business timezone is used when known so the rendered day matches the
+ * day the owner picked. Rendering stays deterministic (a fixed IANA zone, not
+ * the browser zone) so server and client markup match.
+ */
+export function formatFollowUpDate(value: Date | string, timezone?: string) {
+  if (typeof value === "string") {
+    // A bare `YYYY-MM-DD` string is a calendar date, not an instant, so it
+    // is rendered in UTC. Converting it into the target zone first would
+    // shift it a day backwards for every negative offset.
+    const date = new Date(`${value.slice(0, 10)}T00:00:00.000Z`);
 
-  if (Number.isNaN(date.getTime())) {
+    if (Number.isNaN(date.getTime())) {
+      return "Set a date";
+    }
+
+    return new Intl.DateTimeFormat("en-US", {
+      day: "numeric",
+      month: "short",
+      timeZone: "UTC",
+      year: "numeric",
+    }).format(date);
+  }
+
+  if (Number.isNaN(value.getTime())) {
     return "Set a date";
   }
 
   return new Intl.DateTimeFormat("en-US", {
     day: "numeric",
     month: "short",
-    timeZone: "UTC",
+    timeZone: timezone || "UTC",
     year: "numeric",
-  }).format(date);
+  }).format(value);
 }
 
 export function getDefaultFollowUpChannel(contactMethod?: string | null) {
@@ -368,14 +477,39 @@ export function buildFollowUpSuggestedMessage(input: {
   return `Hi ${customerName}, just following up on the quote we sent. Let us know if you have any questions.`;
 }
 
+/**
+ * The next due date of a recurring follow-up.
+ *
+ * With a business timezone the step is taken in calendar days at the same
+ * local wall clock, so a 9 AM follow-up stays at 9 AM across a DST change
+ * instead of drifting an hour every time the clocks move.
+ */
 export function getNextRecurrenceDueDate(
   currentDueAt: Date,
   recurrence: Exclude<FollowUpRecurrence, "none">,
+  timezone?: string,
 ): Date {
   const days = followUpRecurrenceDays[recurrence];
-  const next = new Date(currentDueAt.getTime() + days * 24 * 60 * 60 * 1000);
 
-  return next;
+  if (!timezone) {
+    return new Date(currentDueAt.getTime() + days * 24 * 60 * 60 * 1000);
+  }
+
+  const localDate = getLocalDateString(currentDueAt, timezone);
+  const nextDate = addCalendarDays(localDate, days);
+
+  // Rebuild the same wall-clock time on the new calendar date.
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: timezone,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(currentDueAt);
+
+  const hour = parts.find((part) => part.type === "hour")?.value ?? "09";
+  const minute = parts.find((part) => part.type === "minute")?.value ?? "00";
+
+  return zonedDateTimeToUtc(nextDate, `${hour}:${minute}`, timezone);
 }
 
 export function shouldRecur(input: {
@@ -392,39 +526,6 @@ export function shouldRecur(input: {
   }
 
   return true;
-}
-
-export function getFollowUpRecurrenceLabel(recurrence: FollowUpRecurrence) {
-  return followUpRecurrenceLabels[recurrence];
-}
-
-/**
- * Compute due bucket using business timezone instead of UTC.
- */
-export function getFollowUpDueBucketWithTimezone(
-  input: {
-    status: FollowUpStatus;
-    dueAt: Date;
-  },
-  timezone: string,
-  now = new Date(),
-): FollowUpDueBucket {
-  if (input.status !== "pending") {
-    return "done";
-  }
-
-  const dueDate = getDateInputValue(input.dueAt);
-  const today = getLocalDateString(now, timezone);
-
-  if (dueDate < today) {
-    return "overdue";
-  }
-
-  if (dueDate === today) {
-    return "today";
-  }
-
-  return "upcoming";
 }
 
 /**
@@ -525,21 +626,6 @@ export function getFollowUpNextActionLabel(input: {
   return input.relatedKind === "quote" ? "Open quote" : "Open inquiry";
 }
 
-/** Quote-linked items sort before inquiry/post-win work (quote-first queue). */
-export function compareQuoteFirst(
-  left: { quoteId: string | null; dueAt: Date },
-  right: { quoteId: string | null; dueAt: Date },
-): number {
-  const leftIsQuote = left.quoteId ? 0 : 1;
-  const rightIsQuote = right.quoteId ? 0 : 1;
-
-  if (leftIsQuote !== rightIsQuote) {
-    return leftIsQuote - rightIsQuote;
-  }
-
-  return left.dueAt.getTime() - right.dueAt.getTime();
-}
-
 /** Nullable whole-unit money for quote-linked follow-up rows. */
 export function formatQuoteAmount(
   totalInCents: number | null | undefined,
@@ -559,31 +645,4 @@ export function formatQuoteAmount(
   } catch {
     return `${(totalInCents / 100).toFixed(0)}`;
   }
-}
-
-/**
- * Parse the follow-up list view's URL searchParams. Defaults to the
- * unfiltered list ("all" everywhere, page 1). Single home for the parser
- * previously inline in the follow-ups page.
- */
-export function parseFollowUpListFilters(
-  searchParams: Record<string, string | string[] | undefined>,
-): FollowUpListFilters {
-  const rawStatus = typeof searchParams.status === "string" ? searchParams.status : "all";
-  const rawDue = typeof searchParams.due === "string" ? searchParams.due : "all";
-  const rawSort = typeof searchParams.sort === "string" ? searchParams.sort : "due_asc";
-  const rawQ = typeof searchParams.q === "string" ? searchParams.q : "";
-  const rawPage = typeof searchParams.page === "string" ? Number(searchParams.page) : 1;
-
-  const status: FollowUpStatusFilterValue = (followUpStatusFilterValues as readonly string[]).includes(rawStatus)
-    ? (rawStatus as FollowUpStatusFilterValue)
-    : "all";
-  const due: FollowUpDueFilterValue = (followUpDueFilterValues as readonly string[]).includes(rawDue)
-    ? (rawDue as FollowUpDueFilterValue)
-    : "all";
-  const sort: FollowUpSortValue = (followUpSortValues as readonly string[]).includes(rawSort)
-    ? (rawSort as FollowUpSortValue)
-    : "due_asc";
-
-  return { status, due, sort, q: rawQ, page: Math.max(1, rawPage) };
 }
