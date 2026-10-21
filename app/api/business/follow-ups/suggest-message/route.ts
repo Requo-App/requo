@@ -6,7 +6,13 @@ import { generateWithFallback } from "@/lib/ai/router";
 import { sanitizeAiInput } from "@/lib/ai/input-sanitizer";
 import { filterAiOutput } from "@/lib/ai/output-filter";
 import { getAiCanaryToken } from "@/lib/ai/canary";
-import { checkUsageLimit, computeUsageWeight, recordUsage, startCooldown } from "@/lib/ai/usage-limiter";
+import {
+  computeUsageWeight,
+  releaseUsageReservation,
+  reserveUsage,
+  settleUsageReservation,
+  startCooldown,
+} from "@/lib/ai/usage-limiter";
 import { getEffectivePlanForBusiness } from "@/lib/billing/subscription-service";
 import { assertBusinessActionRateLimit } from "@/lib/rate-limit/redis-rate-limiter";
 import { getFollowUpAiContextForBusiness } from "@/features/follow-ups/queries";
@@ -68,17 +74,6 @@ export async function POST(request: Request) {
   // it draws on the same monthly credit pool as every other AI surface.
   const plan = await getEffectivePlanForBusiness(businessId);
 
-  const usageCheck = await checkUsageLimit({
-    userId: ownerAccess.user.id,
-    businessId,
-    taskType: "follow_up_message",
-    plan,
-  });
-
-  if (!usageCheck.allowed) {
-    return NextResponse.json({ error: usageCheck.message }, { status: 429 });
-  }
-
   // Treat owner/customer-supplied fields as data, not instructions. Reject
   // high-confidence injection patterns before they reach the model.
   for (const value of [context.title, context.reason, context.customerName]) {
@@ -123,7 +118,21 @@ Rules:
 
 Write only the message, nothing else.`;
 
+  const usageCheck = await reserveUsage({
+    userId: ownerAccess.user.id,
+    businessId,
+    taskType: "follow_up_message",
+    plan,
+  });
+
+  if (!usageCheck.allowed) {
+    return NextResponse.json({ error: usageCheck.message }, { status: 429 });
+  }
+
+  let settled = false;
+
   try {
+    await startCooldown(ownerAccess.user.id, "follow_up_message");
     const result = await generateWithFallback({
       messages: [
         { role: "system", content: "You are a helpful business assistant that writes follow-up messages." },
@@ -148,14 +157,8 @@ Write only the message, nothing else.`;
       outputTokens: result.usage?.completionTokens,
     });
 
-    await recordUsage(
-      ownerAccess.user.id,
-      businessId,
-      "follow_up_message",
-      weight,
-      plan,
-    );
-    await startCooldown(ownerAccess.user.id, "follow_up_message");
+    await settleUsageReservation(usageCheck.reservation, weight);
+    settled = true;
 
     return NextResponse.json({
       message: filtered.output.trim(),
@@ -163,6 +166,13 @@ Write only the message, nothing else.`;
       provider: result.provider,
     });
   } catch (error) {
+    if (!settled) {
+      try {
+        await releaseUsageReservation(usageCheck.reservation);
+      } catch (releaseError) {
+        console.error("[follow-up-suggest] Failed to release AI credit", releaseError);
+      }
+    }
     console.error("[follow-up-suggest] AI generation failed", error);
 
     return NextResponse.json(

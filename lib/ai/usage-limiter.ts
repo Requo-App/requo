@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, eq, gte, isNull, or, sum } from "drizzle-orm";
+import { and, eq, gte, isNull, or, sql, sum } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
 import { aiUsageEvents } from "@/lib/db/schema";
@@ -239,7 +239,24 @@ export async function checkUsageLimit(
 ): Promise<UsageLimitResult> {
   const { userId, businessId, taskType, plan } = input;
 
-  // --- Cooldown check (via Cache Layer) ---
+  const cooldown = await checkCooldown(userId, taskType);
+  if (cooldown) return cooldown;
+
+  // --- Quota check (cache-first with DB fallback) ---
+  const limit = PLAN_LIMITS[plan];
+  const businessUsage = await getCachedOrDbBusinessUsage(businessId, plan);
+
+  if (businessUsage >= limit) {
+    return buildQuotaExceededResult(plan);
+  }
+
+  return { allowed: true };
+}
+
+async function checkCooldown(
+  userId: string,
+  taskType: AiTaskType,
+): Promise<Extract<UsageLimitResult, { allowed: false }> | null> {
   const cooldownKey = getCooldownKey(userId, taskType);
   const lastAccepted = await cacheLayer.get<number>(cooldownKey);
 
@@ -257,15 +274,102 @@ export async function checkUsageLimit(
     }
   }
 
-  // --- Quota check (cache-first with DB fallback) ---
-  const limit = PLAN_LIMITS[plan];
-  const businessUsage = await getCachedOrDbBusinessUsage(businessId, plan);
+  return null;
+}
 
-  if (businessUsage >= limit) {
-    return buildQuotaExceededResult(plan);
+type UsageReservation = {
+  id: string;
+  businessId: string;
+  plan: BusinessPlan;
+};
+
+type UsageReservationResult =
+  | { allowed: true; reservation: UsageReservation }
+  | Extract<UsageLimitResult, { allowed: false }>;
+
+/** Reserve one credit before invoking a provider, serialized per business. */
+export async function reserveUsage(
+  input: UsageLimitCheck,
+): Promise<UsageReservationResult> {
+  const { userId, businessId, taskType, plan } = input;
+  const cooldown = await checkCooldown(userId, taskType);
+  if (cooldown) return cooldown;
+
+  const result = await db.transaction(async (tx): Promise<UsageReservationResult> => {
+    await tx.execute(
+      sql`select pg_advisory_xact_lock(hashtext('ai-usage'), hashtext(${businessId}))`,
+    );
+
+    // Read the database after acquiring the lock. A cached total cannot
+    // enforce an allowance shared by concurrent requests.
+    const [row] = await tx
+      .select({ total: sum(aiUsageEvents.weight) })
+      .from(aiUsageEvents)
+      .where(and(
+        eq(aiUsageEvents.businessId, businessId),
+        gte(aiUsageEvents.createdAt, getStartOfCurrentMonthUTC()),
+        planScope(plan),
+      ));
+
+    if (Number(row?.total ?? 0) >= PLAN_LIMITS[plan]) {
+      return buildQuotaExceededResult(plan);
+    }
+
+    const reservation = { id: newEntityId(), businessId, plan };
+    await tx.insert(aiUsageEvents).values({
+      ...reservation, userId, taskType, weight: MIN_CREDITS_PER_INVOCATION,
+    });
+    return { allowed: true, reservation };
+  });
+
+  if (result.allowed) await invalidateUsageCache(result.reservation);
+  return result;
+}
+
+/** Replace the reservation with the invocation's final token-weighted cost. */
+export async function settleUsageReservation(
+  reservation: UsageReservation,
+  weight: number,
+): Promise<void> {
+  await finalizeUsageReservation(reservation, weight);
+}
+
+/** Release the reserved credit when generation fails. */
+export async function releaseUsageReservation(
+  reservation: UsageReservation,
+): Promise<void> {
+  await finalizeUsageReservation(reservation, null);
+}
+
+async function finalizeUsageReservation(
+  reservation: UsageReservation,
+  weight: number | null,
+): Promise<void> {
+  await db.transaction(async (tx) => {
+    await tx.execute(
+      sql`select pg_advisory_xact_lock(hashtext('ai-usage'), hashtext(${reservation.businessId}))`,
+    );
+    const condition = and(
+      eq(aiUsageEvents.id, reservation.id),
+      eq(aiUsageEvents.businessId, reservation.businessId),
+      eq(aiUsageEvents.plan, reservation.plan),
+    );
+    if (weight === null) {
+      await tx.delete(aiUsageEvents).where(condition);
+    } else {
+      await tx.update(aiUsageEvents).set({ weight }).where(condition);
+    }
+  });
+  await invalidateUsageCache(reservation);
+}
+
+async function invalidateUsageCache(reservation: UsageReservation): Promise<void> {
+  try {
+    await cacheLayer.delete(getBusinessUsageCacheKey(reservation.businessId, reservation.plan));
+  } catch {
+    // Reservations always enforce quota from the DB; display caches expire.
+    console.warn("[usage-limiter] Failed to invalidate usage cache");
   }
-
-  return { allowed: true };
 }
 
 /**
@@ -444,7 +548,9 @@ async function safeIncrementCache(
   }
 }
 
-function buildQuotaExceededResult(plan: BusinessPlan): UsageLimitResult {
+function buildQuotaExceededResult(
+  plan: BusinessPlan,
+): Extract<UsageLimitResult, { allowed: false }> {
   const upgradePlan = getUpgradePlan(plan);
   const upgradeMessage = upgradePlan
     ? " Upgrade for more drafts."

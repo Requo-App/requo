@@ -1070,7 +1070,7 @@ export async function voidQuoteForBusiness({
 }: UpdateQuoteRecordStateForBusinessInput) {
   const now = new Date();
 
-  const voidQuoteResult = await db.transaction(async (tx) => {
+  const result = await db.transaction(async (tx) => {
     const [existingQuote] = await tx
       .select({
         id: quotes.id,
@@ -1099,8 +1099,10 @@ export async function voidQuoteForBusiness({
       existingQuote.validUntil,
     );
 
+    let expiredInThisCall = false;
+
     if (existingQuote.status === "sent" && effectiveStatus === "expired") {
-      await expireQuoteRows(tx, [
+      const expiry = await expireQuoteRows(tx, [
         {
           id: existingQuote.id,
           businessId,
@@ -1108,6 +1110,7 @@ export async function voidQuoteForBusiness({
           quoteNumber: existingQuote.quoteNumber,
         },
       ]);
+      expiredInThisCall = expiry.count > 0;
     }
 
     if (effectiveStatus === "voided") {
@@ -1117,6 +1120,7 @@ export async function voidQuoteForBusiness({
         inquiryId: existingQuote.inquiryId,
         quoteNumber: existingQuote.quoteNumber,
         status: effectiveStatus,
+        expiredInThisCall,
       };
     }
 
@@ -1127,6 +1131,7 @@ export async function voidQuoteForBusiness({
         inquiryId: existingQuote.inquiryId,
         quoteNumber: existingQuote.quoteNumber,
         status: effectiveStatus,
+        expiredInThisCall,
       } as const;
     }
 
@@ -1174,16 +1179,20 @@ export async function voidQuoteForBusiness({
       inquiryId: existingQuote.inquiryId,
       quoteNumber: existingQuote.quoteNumber,
       status: "voided" as const,
+      expiredInThisCall,
     };
   });
 
   // A voided quote is terminal: stop the recurring follow-up series linked to it.
-  const result = await voidQuoteResult;
-
   if (result?.changed) {
     await terminateRecurringFollowUpsForRecords({
       businessId,
       records: [{ quoteId, newStatus: "voided" }],
+    });
+  } else if (result?.expiredInThisCall) {
+    await terminateRecurringFollowUpsForRecords({
+      businessId,
+      records: [{ quoteId, newStatus: "expired" }],
     });
   }
 

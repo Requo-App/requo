@@ -243,6 +243,8 @@ export async function processFollowUpReminders(): Promise<FollowUpRemindersSumma
               and(
                 eq(followUps.id, overdue.followUpId),
                 eq(followUps.businessId, overdue.businessId),
+                eq(followUps.status, "pending"),
+                isNull(followUps.deletedAt),
                 or(
                   isNull(followUps.overdueNotifiedAt),
                   lt(followUps.overdueNotifiedAt, dayStart),

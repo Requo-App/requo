@@ -153,6 +153,19 @@ describe("follow-up auto-send job", () => {
     expect(sendFollowUpAutoSendEmail).not.toHaveBeenCalled();
   });
 
+  it("paginates past the first batch of existing rows", async () => {
+    await testDb.update(businesses).set({ plan: "free" })
+      .where(eq(businesses.id, ids.businessId));
+    await Promise.all(Array.from({ length: 101 }, (_, index) =>
+      insertAutomaticFollowUp(`batch_${String(index).padStart(3, "0")}`),
+    ));
+
+    const summary = await processAutomaticFollowUpSends();
+
+    expect(summary.skipped).toBe(101);
+    expect(summary.limitReached).toBe(false);
+  });
+
   it("leaves a snoozed follow-up alone", async () => {
     const id = await insertAutomaticFollowUp("snoozed");
 
@@ -220,6 +233,11 @@ describe("follow-up auto-send job", () => {
     expect(children[0].sendMode).toBe("automatic");
     expect(children[0].recurrence).toBe("weekly");
     expect(children[0].recurrenceCount).toBe(1);
+    expect(children[0].dueAt.getTime()).toBeGreaterThan(Date.now());
+
+    const secondRun = await processAutomaticFollowUpSends();
+    expect(secondRun.sent).toBe(0);
+    expect(sendFollowUpAutoSendEmail).toHaveBeenCalledTimes(1);
   });
 
   it("leaves the follow-up pending when the email could not be sent", async () => {

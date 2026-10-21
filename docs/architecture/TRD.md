@@ -208,6 +208,8 @@ There are two chat products: the anonymous customer-facing Agent in
 drafting and business-knowledge retrieval are separate feature flows. Model
 selection, provider SDKs, fallback, usage limits, caching, input sanitization,
 output filtering, and invocation logging are centralized in `lib/ai/`.
+Follow-up message suggestions reserve one credit atomically before generation,
+settle that event to its token-weighted cost on success, and release it on failure.
 
 Providers currently wired through the router include Groq, Cerebras, Gemini,
 Mistral, Cloudflare Workers AI, NVIDIA NIM, and OpenRouter. Agent tools stage an
@@ -256,7 +258,9 @@ select the row `FOR UPDATE` and write only while it is still `pending`, so a
 double submit or a race with the auto-send job cannot both clear the task or
 both spawn the next occurrence of a recurring series. The next occurrence is
 created by the same helper whichever path cleared the current one — the owner
-completing it, a bulk completion, or the automatic send.
+completing it, a bulk completion, or the automatic send. Automatic sends skip
+missed recurrence slots so the next occurrence is strictly in the future,
+while keeping the business-local cadence.
 
 ## Caching, client state, and observability
 

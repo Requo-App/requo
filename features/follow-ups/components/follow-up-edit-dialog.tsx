@@ -95,11 +95,15 @@ export function FollowUpEditDialog({
   const availableSendModeOptions = sendModeOptions.filter(
     (option) => option.value !== "automatic" || canSendAutomatically,
   );
+  const initialSendMode =
+    followUp.sendMode === "automatic" && !canSendAutomatically
+      ? "manual"
+      : followUp.sendMode ?? "manual";
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState(followUp.title);
   const [reason, setReason] = useState(followUp.reason);
   const [channel, setChannel] = useState<FollowUpChannel>(followUp.channel);
-  const [sendMode, setSendMode] = useState<FollowUpSendMode>(followUp.sendMode ?? "manual");
+  const [sendMode, setSendMode] = useState<FollowUpSendMode>(initialSendMode);
   const [category, setCategory] = useState<FollowUpCategory>(followUp.category);
   const [dueDate, setDueDate] = useState(
     getDateInputValue(followUp.dueAt, followUp.businessTimezone),
@@ -124,7 +128,7 @@ export function FollowUpEditDialog({
     setTitle(followUp.title);
     setReason(followUp.reason);
     setChannel(followUp.channel);
-    setSendMode(followUp.sendMode ?? "manual");
+    setSendMode(initialSendMode);
     setCategory(followUp.category);
     setDueDate(getDateInputValue(followUp.dueAt, followUp.businessTimezone));
     setRecurrence(followUp.recurrence);

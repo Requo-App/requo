@@ -1,6 +1,5 @@
 import {
   emailBrand,
-  escapeAttribute,
   escapeHtml,
   renderEmailLayout,
   renderTextUrl,
@@ -45,7 +44,7 @@ export function renderFollowUpEmail({
   const safeSignature = emailSignature
     ? escapeHtml(emailSignature).replace(/\n/g, "<br />")
     : "";
-  const ctaHref = ctaUrl ? escapeAttribute(ctaUrl) : null;
+  const ctaHref = ctaUrl?.trim() || null;
   const ctaLabelText = ctaLabel?.trim() || "View details";
 
   const children = `
@@ -66,7 +65,7 @@ export function renderFollowUpEmail({
     preheader: `${businessName} is following up with you.`,
     footerContext: businessName,
     children,
-    ...(ctaHref ? { cta: { href: ctaHref, label: escapeHtml(ctaLabelText) } } : {}),
+    ...(ctaHref ? { cta: { href: ctaHref, label: ctaLabelText } } : {}),
   });
 
   const text = [

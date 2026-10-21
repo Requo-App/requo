@@ -1,10 +1,11 @@
 import "server-only";
 
-import { and, eq, gt, isNull, lte, or } from "drizzle-orm";
+import { and, eq, gt, isNull, lt, lte, or } from "drizzle-orm";
 
 import {
   buildFollowUpSuggestedMessage,
   getFollowUpCategory,
+  getNextRecurrenceDueDate,
 } from "@/features/follow-ups/utils";
 import { spawnNextRecurrence } from "@/features/follow-ups/mutations";
 import type {
@@ -61,12 +62,6 @@ export async function processAutomaticFollowUpSends(): Promise<FollowUpAutoSendS
   let limitReached = false;
   let lastProcessedId: string | null = null;
 
-  // Rows created during this run (a spawned recurrence) must not be picked
-  // up by a later batch of the same run: the series would advance two
-  // occurrences at once. The watermark is the highest id seen in the first
-  // batch, so anything created afterwards is excluded.
-  let runWatermark: string | null = null;
-
   // Load each business's remaining budget once per run, then decrement as we
   // send so a single batch can never overshoot the plan allowance.
   const budgetByBusiness = new Map<string, AutoSendBudget>();
@@ -112,17 +107,14 @@ export async function processAutomaticFollowUpSends(): Promise<FollowUpAutoSendS
       eq(followUps.channel, "email"),
       isNull(followUps.deletedAt),
       lte(followUps.dueAt, now),
+      // Exclude recurrences spawned during this run, regardless of ID order.
+      lt(followUps.createdAt, now),
       // Respect snooze: skip if snoozedUntil is in the future
       or(isNull(followUps.snoozedUntil), lte(followUps.snoozedUntil, now))!,
     ];
 
     if (lastProcessedId) {
       conditions.push(gt(followUps.id, lastProcessedId));
-    }
-
-    if (runWatermark) {
-      // Never send a row that was created during this run.
-      conditions.push(lte(followUps.id, runWatermark));
     }
 
     const dueFollowUps = await db
@@ -167,13 +159,6 @@ export async function processAutomaticFollowUpSends(): Promise<FollowUpAutoSendS
 
     if (dueFollowUps.length === 0) {
       break;
-    }
-
-    if (!runWatermark) {
-      // Freeze the run at the highest id of the first batch. Rows created
-      // during this run (a spawned recurrence) sort after it and are
-      // therefore excluded from the remaining batches.
-      runWatermark = dueFollowUps[dueFollowUps.length - 1].followUpId;
     }
 
     for (const row of dueFollowUps) {
@@ -295,6 +280,23 @@ export async function processAutomaticFollowUpSends(): Promise<FollowUpAutoSendS
           // A repeating automatic follow-up must keep repeating: the next
           // occurrence inherits the send mode and the recurrence, exactly as
           // it does when the owner completes the row by hand.
+          // Skip missed occurrences so an overdue series resumes with the
+          // first future slot. The spawn helper advances the parent once more.
+          let recurrenceDueAt = row.dueAt;
+
+          if (row.recurrence !== "none") {
+            let nextDueAt = getNextRecurrenceDueDate(
+              recurrenceDueAt, row.recurrence, row.businessTimezone,
+            );
+
+            while (nextDueAt <= now) {
+              recurrenceDueAt = nextDueAt;
+              nextDueAt = getNextRecurrenceDueDate(
+                recurrenceDueAt, row.recurrence, row.businessTimezone,
+              );
+            }
+          }
+
           await spawnNextRecurrence(tx, {
             businessId: row.businessId,
             actorUserId: null,
@@ -306,7 +308,7 @@ export async function processAutomaticFollowUpSends(): Promise<FollowUpAutoSendS
               category: getFollowUpCategory(row.category),
               channel: row.channel,
               assignedToUserId: row.assignedToUserId,
-              dueAt: row.dueAt,
+              dueAt: recurrenceDueAt,
               sendMode: row.sendMode,
               recurrence: row.recurrence,
               recurrenceCount: row.recurrenceCount,

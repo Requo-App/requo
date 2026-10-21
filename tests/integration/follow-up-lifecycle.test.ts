@@ -24,6 +24,7 @@ import {
   snoozeFollowUpForBusiness,
   terminateRecurringFollowUpsForRecords,
 } from "@/features/follow-ups/mutations";
+import { voidQuoteForBusiness } from "@/features/quotes/mutations";
 import { activityLogs, businesses, followUps, quotes } from "@/lib/db/schema";
 
 import { closeTestDb, testDb } from "@/tests/support/db";
@@ -353,6 +354,41 @@ describe("follow-up lifecycle", () => {
       .where(eq(followUps.id, created!.followUpId));
 
     expect(row.status).toBe("skipped");
+  });
+
+  it("terminates recurring follow-ups when voiding first expires a sent quote", async () => {
+    const quoteId = `${prefix}_expired_quote`;
+    await testDb.insert(quotes).values({
+      id: quoteId,
+      businessId: ids.businessId,
+      inquiryId: ids.inquiryId,
+      quoteNumber: "Q-EXPIRED",
+      title: "Expired quote",
+      customerName: "Quote Customer",
+      customerEmail: "quote@example.com",
+      publicToken: `${quoteId}_token`,
+      status: "sent",
+      validUntil: "2020-01-01",
+      sentAt: new Date("2019-12-01T12:00:00Z"),
+    });
+    const created = await createFollowUp({
+      recurrence: "weekly", terminationCondition: "terminal_status",
+    });
+    await testDb.update(followUps).set({ quoteId })
+      .where(eq(followUps.id, created!.followUpId));
+
+    const result = await voidQuoteForBusiness({
+      businessId: ids.businessId, quoteId, actorUserId: ids.ownerUserId,
+    });
+
+    expect(result).toMatchObject({ changed: false, status: "expired", expiredInThisCall: true });
+    const [row] = await testDb.select().from(followUps)
+      .where(eq(followUps.id, created!.followUpId));
+    expect(row.status).toBe("skipped");
+    const second = await voidQuoteForBusiness({
+      businessId: ids.businessId, quoteId, actorUserId: ids.ownerUserId,
+    });
+    expect(second).toMatchObject({ changed: false, expiredInThisCall: false });
   });
 
   it("rejects an assignee who is not a member of the business", async () => {
