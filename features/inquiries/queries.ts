@@ -127,7 +127,8 @@ async function getInquiryBusinessBySlug({
       formSlug: businessInquiryForms.slug,
       formBusinessType: businessInquiryForms.businessType,
       formIsDefault: businessInquiryForms.isDefault,
-      publicInquiryEnabled: businessInquiryForms.publicInquiryEnabled,
+      formPublicInquiryEnabled: businessInquiryForms.publicInquiryEnabled,
+      businessPublicInquiryEnabled: businesses.publicInquiryEnabled,
       inquiryFormConfig: businessInquiryForms.inquiryFormConfig,
       inquiryPageConfig: businessInquiryForms.inquiryPageConfig,
     })
@@ -152,7 +153,12 @@ async function getInquiryBusinessBySlug({
     )
     .limit(1);
 
-  if (!business || (!includeDisabled && !business.publicInquiryEnabled)) {
+  if (
+    !business ||
+    (!includeDisabled &&
+      (!business.formPublicInquiryEnabled ||
+        !business.businessPublicInquiryEnabled))
+  ) {
     return null;
   }
 
@@ -197,7 +203,7 @@ async function getInquiryBusinessBySlug({
       slug: business.formSlug,
       businessType: formBusinessType,
       isDefault: business.formIsDefault,
-      publicInquiryEnabled: business.publicInquiryEnabled,
+      publicInquiryEnabled: business.formPublicInquiryEnabled,
     },
     inquiryFormConfig: resolveInquiryFormConfigForPlan(
       inquiryFormConfig,
@@ -314,7 +320,8 @@ async function getInquiryBusinessByFormSlug({
       formSlug: businessInquiryForms.slug,
       formBusinessType: businessInquiryForms.businessType,
       formIsDefault: businessInquiryForms.isDefault,
-      publicInquiryEnabled: businessInquiryForms.publicInquiryEnabled,
+      formPublicInquiryEnabled: businessInquiryForms.publicInquiryEnabled,
+      businessPublicInquiryEnabled: businesses.publicInquiryEnabled,
       inquiryFormConfig: businessInquiryForms.inquiryFormConfig,
       inquiryPageConfig: businessInquiryForms.inquiryPageConfig,
     })
@@ -339,7 +346,12 @@ async function getInquiryBusinessByFormSlug({
     )
     .limit(1);
 
-  if (!business || (!includeDisabled && !business.publicInquiryEnabled)) {
+  if (
+    !business ||
+    (!includeDisabled &&
+      (!business.formPublicInquiryEnabled ||
+        !business.businessPublicInquiryEnabled))
+  ) {
     return null;
   }
 
@@ -384,7 +396,7 @@ async function getInquiryBusinessByFormSlug({
       slug: business.formSlug,
       businessType: formBusinessType,
       isDefault: business.formIsDefault,
-      publicInquiryEnabled: business.publicInquiryEnabled,
+      publicInquiryEnabled: business.formPublicInquiryEnabled,
     },
     inquiryFormConfig: resolveInquiryFormConfigForPlan(
       inquiryFormConfig,

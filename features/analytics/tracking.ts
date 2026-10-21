@@ -12,6 +12,7 @@ import {
   quotes,
 } from "@/lib/db/schema";
 import { getPublicActionClientIpAddress } from "@/lib/public-action-rate-limit";
+import { getOperationalBusinessCondition } from "@/features/businesses/lifecycle";
 import { hashOpaqueToken } from "@/lib/security/tokens";
 
 export type PublicAnalyticsHeaderStore = Pick<Headers, "get">;
@@ -182,8 +183,7 @@ export async function isTrackablePublicInquiryForm(input: {
         eq(businessInquiryForms.publicInquiryEnabled, true),
         isNull(businessInquiryForms.archivedAt),
         eq(businesses.publicInquiryEnabled, true),
-        isNull(businesses.archivedAt),
-        isNull(businesses.deletedAt),
+        getOperationalBusinessCondition(),
       ),
     )
     .limit(1);
