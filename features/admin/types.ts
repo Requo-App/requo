@@ -795,6 +795,7 @@ export type AdminAiCapacityEntry = {
   minuteUsage: number;
   dayUsage: number;
   available: boolean;
+  quotaExhausted: boolean;
   rpm: number;
   rpd: number;
   tpm: number;

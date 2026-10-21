@@ -231,7 +231,6 @@ export function computeEstimatedCostCents({
   if (!resolvedProvider) {
     const lower = model.toLowerCase();
     if (lower.includes("gemini")) resolvedProvider = "google";
-    else if (lower.includes("mistral")) resolvedProvider = "mistral";
     else resolvedProvider = "groq";
   }
   const cost = sharedEstimate(resolvedProvider, resolvedModel, inputTokens, outputTokens);

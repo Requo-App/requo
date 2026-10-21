@@ -42,9 +42,7 @@ const envSchema = z.object({
   EMAIL_FROM_SUPPORT: emptyToUndefined(z.string().trim().min(1)),
   GROQ_API_KEY: emptyToUndefined(z.string().min(1)),
   GEMINI_API_KEY: emptyToUndefined(z.string().min(1)),
-  CEREBRAS_API_KEY: emptyToUndefined(z.string().min(1)),
   OPENROUTER_API_KEY: emptyToUndefined(z.string().min(1)),
-  MISTRAL_API_KEY: emptyToUndefined(z.string().min(1)),
   CLOUDFLARE_ACCOUNT_ID: emptyToUndefined(z.string().min(1)),
   CLOUDFLARE_API_TOKEN: emptyToUndefined(z.string().min(1)),
   NVIDIA_NIM_API_KEY: emptyToUndefined(z.string().min(1)),
@@ -159,13 +157,11 @@ export const isEmailConfigured = Boolean(
 
 export const isGroqConfigured = Boolean(env.GROQ_API_KEY);
 export const isGeminiConfigured = Boolean(env.GEMINI_API_KEY);
-export const isCerebrasConfigured = Boolean(env.CEREBRAS_API_KEY);
 export const isSupabaseRealtimeConfigured = Boolean(env.SUPABASE_JWT_SECRET);
 
 export const isOpenRouterConfigured = Boolean(
   (process.env.OPENROUTER_API_KEY ?? "").trim().length > 0,
 );
-export const isMistralConfigured = Boolean(env.MISTRAL_API_KEY);
 export const isCloudflareAiConfigured = Boolean(
   env.CLOUDFLARE_ACCOUNT_ID && env.CLOUDFLARE_API_TOKEN,
 );

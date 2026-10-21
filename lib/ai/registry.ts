@@ -1,14 +1,19 @@
 import "server-only";
 
 import { createGroq } from "@ai-sdk/groq";
-import { createCerebras } from "@ai-sdk/cerebras";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
-import { createMistral } from "@ai-sdk/mistral";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
-import { createProviderRegistry, customProvider } from "ai";
+import { createProviderRegistry } from "ai";
 
-import { env, isGroqConfigured, isCerebrasConfigured, isGeminiConfigured, isOpenRouterConfigured, isMistralConfigured, isCloudflareAiConfigured, isNvidiaNimConfigured } from "@/lib/env";
+import {
+  env,
+  isGroqConfigured,
+  isGeminiConfigured,
+  isOpenRouterConfigured,
+  isCloudflareAiConfigured,
+  isNvidiaNimConfigured,
+} from "@/lib/env";
 
 // ---------------------------------------------------------------------------
 // AI Provider Registry — Vercel AI SDK
@@ -17,8 +22,17 @@ import { env, isGroqConfigured, isCerebrasConfigured, isGeminiConfigured, isOpen
 // All providers are registered here and accessed via string IDs:
 //   registry.languageModel("groq:model-name")
 //
-// Fallback order: Groq → Cerebras → Gemini → OpenRouter
-// The router.ts file handles provider/model fallback using this registry.
+// Providers are free-tier-first and wired in this order:
+//   Groq → Gemini → Cloudflare Workers AI → NVIDIA NIM → OpenRouter
+//
+// NVIDIA NIM is a deliberate production exception: its hosted endpoints are
+// documented for prototyping/development, but Requo production routing was
+// explicitly configured to include them. See `lib/ai/catalog.ts` and
+// `docs/setup/ai-provider-limits.md`.
+//
+// `lib/ai/catalog.ts` is the paid-usage allowlist. The router refuses a
+// pinned provider/model that is absent from it, so adding a provider here
+// without a catalog entry cannot route traffic to a paid model.
 // ---------------------------------------------------------------------------
 
 // ── Provider instances (only created if configured) ───────────────────────
@@ -27,20 +41,12 @@ const groq = isGroqConfigured
   ? createGroq({ apiKey: env.GROQ_API_KEY })
   : null;
 
-const cerebras = isCerebrasConfigured
-  ? createCerebras({ apiKey: env.CEREBRAS_API_KEY })
-  : null;
-
 const google = isGeminiConfigured
   ? createGoogleGenerativeAI({ apiKey: env.GEMINI_API_KEY })
   : null;
 
 const openrouter = isOpenRouterConfigured
   ? createOpenRouter({ apiKey: process.env.OPENROUTER_API_KEY })
-  : null;
-
-const mistral = isMistralConfigured
-  ? createMistral({ apiKey: env.MISTRAL_API_KEY })
   : null;
 
 const cloudflare = isCloudflareAiConfigured
@@ -67,16 +73,20 @@ const nvidia = isNvidiaNimConfigured
 
 /**
  * Build the registry with only configured providers.
- * Access models via: registry.languageModel("groq:llama-3.3-70b-versatile")
+ * Access models via: registry.languageModel("groq:openai/gpt-oss-120b")
  */
 function buildRegistry() {
-  const providers: Record<string, ReturnType<typeof customProvider> | ReturnType<typeof createGroq> | ReturnType<typeof createCerebras> | ReturnType<typeof createGoogleGenerativeAI> | ReturnType<typeof createOpenRouter> | ReturnType<typeof createMistral> | ReturnType<typeof createOpenAICompatible>> = {};
+  const providers: Record<
+    string,
+    | ReturnType<typeof createGroq>
+    | ReturnType<typeof createGoogleGenerativeAI>
+    | ReturnType<typeof createOpenRouter>
+    | ReturnType<typeof createOpenAICompatible>
+  > = {};
 
   if (groq) providers.groq = groq;
-  if (cerebras) providers.cerebras = cerebras;
   if (google) providers.google = google;
   if (openrouter) providers.openrouter = openrouter;
-  if (mistral) providers.mistral = mistral;
   if (cloudflare) providers.cloudflare = cloudflare;
   if (nvidia) providers.nvidia = nvidia;
 
@@ -87,9 +97,15 @@ export const registry = buildRegistry();
 
 // ── Provider availability checks ──────────────────────────────────────────
 
-export { groq, cerebras, google, openrouter, mistral, cloudflare, nvidia };
+export { groq, google, openrouter, cloudflare, nvidia };
 
 /** Returns true if at least one AI provider is configured. */
 export function isAiConfigured(): boolean {
-  return isGroqConfigured || isCerebrasConfigured || isGeminiConfigured || isOpenRouterConfigured || isMistralConfigured || isCloudflareAiConfigured || isNvidiaNimConfigured;
+  return (
+    isGroqConfigured ||
+    isGeminiConfigured ||
+    isOpenRouterConfigured ||
+    isCloudflareAiConfigured ||
+    isNvidiaNimConfigured
+  );
 }

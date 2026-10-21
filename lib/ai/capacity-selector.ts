@@ -3,10 +3,8 @@ import "server-only";
 import { cacheLayer } from "@/lib/ai/cache-layer";
 import {
   isGroqConfigured,
-  isCerebrasConfigured,
   isGeminiConfigured,
   isOpenRouterConfigured,
-  isMistralConfigured,
   isCloudflareAiConfigured,
   isNvidiaNimConfigured,
 } from "@/lib/env";
@@ -60,6 +58,13 @@ export type ModelCapacity = {
 const RPM_TTL_SECONDS = 60;
 const TPM_TTL_SECONDS = 60;
 const CAPACITY_THRESHOLD = 0.80; // Pick models under 80% of their limit
+/**
+ * The hard ceiling. A candidate at or above 100% of any modelled free quota
+ * is never returned: the 80% threshold only deprioritizes a model, it does
+ * not license exceeding the quota. A next-request load of exactly 1.0 is
+ * still inside the quota, so the cutoff is `> 1`.
+ */
+const QUOTA_CEILING = 1;
 const EXHAUSTED_SENTINEL = 99999;
 /** Dead identifiers are remembered for hours, not seconds. */
 const DEAD_MODEL_TTL_SECONDS = 6 * 60 * 60;
@@ -406,6 +411,27 @@ export async function markModelExhausted(
         EXHAUSTED_SENTINEL,
         dayTtl,
       );
+      // A day-level refusal applies to the provider's shared request bucket
+      // for the rest of the day. This also covers providers whose daily cap
+      // is not modelled, where poisoning the unused RPD key alone would leave
+      // every model selectable.
+      if (entry?.sharedWithProvider.includes("rpm")) {
+        await cacheLayer.set<number>(
+          getProviderKey("rpm", provider),
+          EXHAUSTED_SENTINEL,
+          dayTtl,
+        );
+      }
+      // Cloudflare's daily quota is the shared neuron pool, not RPD. Poisoning
+      // the pool makes every Cloudflare candidate look exhausted until the
+      // UTC boundary instead of leaving the pool at its recorded load.
+      if (entry?.limits.neuronsPerMillion) {
+        await cacheLayer.set<number>(
+          getNeuronKey(provider),
+          EXHAUSTED_SENTINEL * 1000,
+          dayTtl,
+        );
+      }
     }
     return;
   }
@@ -415,22 +441,36 @@ export async function markModelExhausted(
       .filter((e) => e.sharedWithProvider.includes("tpm"))
       .map((e) => providerOf(e.modelId)),
   );
+  const sharedRpmProviders = new Set(
+    getModelCatalog()
+      .filter((e) => e.sharedWithProvider.includes("rpm"))
+      .map((e) => providerOf(e.modelId)),
+  );
+  const providerSharesMinute =
+    Boolean(provider) &&
+    (sharedTpmProviders.has(provider) || sharedRpmProviders.has(provider));
 
-  const modelsToExhaust =
-    provider && sharedTpmProviders.has(provider)
-      ? getModelCatalog()
-          .filter((m) => m.modelId.startsWith(provider + ":"))
-          .map((m) => m.modelId)
-      : [modelId];
+  const modelsToExhaust = providerSharesMinute
+    ? getModelCatalog()
+        .filter((m) => m.modelId.startsWith(provider + ":"))
+        .map((m) => m.modelId)
+    : [modelId];
 
   await Promise.all(
     modelsToExhaust.map((id) =>
       cacheLayer.set<number>(getRpmKey(id), EXHAUSTED_SENTINEL, RPM_TTL_SECONDS),
     ),
   );
-  if (provider && sharedTpmProviders.has(provider)) {
+  if (provider && providerSharesMinute) {
     await cacheLayer.set<number>(
       getProviderKey("rpm", provider),
+      EXHAUSTED_SENTINEL,
+      RPM_TTL_SECONDS,
+    );
+  }
+  if (provider && sharedTpmProviders.has(provider)) {
+    await cacheLayer.set<number>(
+      getProviderKey("tpm", provider),
       EXHAUSTED_SENTINEL,
       RPM_TTL_SECONDS,
     );
@@ -569,14 +609,10 @@ export async function selectModels(
     switch (prov) {
       case "groq":
         return isGroqConfigured;
-      case "cerebras":
-        return isCerebrasConfigured;
       case "google":
         return isGeminiConfigured;
       case "openrouter":
         return isOpenRouterConfigured;
-      case "mistral":
-        return isMistralConfigured;
       case "cloudflare":
         return isCloudflareAiConfigured;
       case "nvidia":
@@ -650,7 +686,9 @@ export async function selectModels(
   }));
 
   const available = scored.filter((m) => m.loadRatio < CAPACITY_THRESHOLD);
-  const stressed = scored.filter((m) => m.loadRatio >= CAPACITY_THRESHOLD);
+  const stressed = scored.filter(
+    (m) => m.loadRatio >= CAPACITY_THRESHOLD && m.loadRatio <= QUOTA_CEILING,
+  );
 
   // Profile order is the ranking: stable-sort by (reserve, stressed-position)
   // while preserving the profile's explicit sequence. Higher quality does NOT
@@ -673,6 +711,33 @@ export async function selectModels(
   });
 
   return [...available, ...stressed].map((m) => m.modelId);
+}
+
+export type ModelQuotaState =
+  | "available"
+  | "stressed"
+  | "exhausted"
+  | "dead"
+  | "unknown";
+
+/**
+ * Check one model against its modelled free quota.
+ *
+ * The pinned-model router path uses this before calling a provider: a model
+ * that is absent from the catalog, remembered dead, or already at its quota
+ * fails without spending a request. "Stressed" is still selectable; it only
+ * ranks behind healthy candidates in normal selection.
+ */
+export async function getModelQuotaState(
+  modelId: string,
+  estimatedTokens = 0,
+): Promise<ModelQuotaState> {
+  const entry = catalogEntryFor(modelId);
+  if (!entry) return "unknown";
+  if (await isModelDead(modelId)) return "dead";
+  const ratio = await getLoadRatio(entry, estimatedTokens);
+  if (ratio > QUOTA_CEILING) return "exhausted";
+  return ratio >= CAPACITY_THRESHOLD ? "stressed" : "available";
 }
 
 // ---------------------------------------------------------------------------
@@ -701,6 +766,7 @@ export async function getCapacitySnapshot(): Promise<
     neuronPool: number | null;
     loadRatio: number;
     available: boolean;
+    quotaExhausted: boolean;
   }>
 > {
   const catalog = getModelCatalog();
@@ -745,6 +811,7 @@ export async function getCapacitySnapshot(): Promise<
           : null,
         loadRatio,
         available: loadRatio < CAPACITY_THRESHOLD,
+        quotaExhausted: loadRatio > QUOTA_CEILING,
       };
     }),
   );

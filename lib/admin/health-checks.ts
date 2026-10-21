@@ -117,16 +117,8 @@ function isGroqConfigured(): boolean {
   return Boolean(getEnv("GROQ_API_KEY"));
 }
 
-function isCerebrasConfigured(): boolean {
-  return Boolean(getEnv("CEREBRAS_API_KEY"));
-}
-
 function isGeminiConfigured(): boolean {
   return Boolean(getEnv("GEMINI_API_KEY"));
-}
-
-function isMistralConfigured(): boolean {
-  return Boolean(getEnv("MISTRAL_API_KEY"));
 }
 
 function isCloudflareAiConfigured(): boolean {
@@ -170,9 +162,7 @@ function isPushConfigured(): boolean {
 export function getConfiguredAiProviderLabels(): string[] {
   const providers: string[] = [];
   if (isGroqConfigured()) providers.push("Groq");
-  if (isCerebrasConfigured()) providers.push("Cerebras");
   if (isGeminiConfigured()) providers.push("Gemini");
-  if (isMistralConfigured()) providers.push("Mistral");
   if (isCloudflareAiConfigured()) providers.push("Cloudflare");
   if (isNvidiaNimConfigured()) providers.push("NVIDIA NIM");
   if (isOpenRouterConfigured()) providers.push("OpenRouter");

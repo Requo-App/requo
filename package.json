@@ -75,10 +75,8 @@
     "test:coverage": "vitest run tests/unit/ tests/components/ --coverage && node scripts/test/check-coverage-outputs.mjs"
   },
   "dependencies": {
-    "@ai-sdk/cerebras": "^2.0.51",
     "@ai-sdk/google": "^3.0.75",
     "@ai-sdk/groq": "^3.0.39",
-    "@ai-sdk/mistral": "^3.0.37",
     "@ai-sdk/openai-compatible": "^2.0.47",
     "@ai-sdk/provider": "^3.0.16",
     "@ai-sdk/react": "^3.0.279",

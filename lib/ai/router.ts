@@ -2,7 +2,7 @@ import "server-only";
 
 import { generateText, streamText } from "ai";
 
-import { registry, groq, cerebras, google, openrouter, mistral, cloudflare, nvidia } from "@/lib/ai/registry";
+import { registry, groq, google, openrouter, cloudflare, nvidia, isAiConfigured } from "@/lib/ai/registry";
 import {
   AiProviderError,
   getSanitizedErrorInfo,
@@ -19,6 +19,7 @@ import {
   recordModelTokenUsageDetailed,
   recordModelUsage,
   markModelExhausted,
+  getModelQuotaState,
   selectModels,
 } from "@/lib/ai/capacity-selector";
 import { createFallbackLanguageModel } from "@/lib/ai/fallback-model";
@@ -50,11 +51,9 @@ const MAX_RETRY_AFTER_MS = 5_000;
 
 const PROVIDER_TIMEOUTS: Record<AiProviderName, number> = {
   groq: 15_000,
-  cerebras: 20_000,
   gemini: 20_000,
-  mistral: 25_000,
   cloudflare: 25_000,
-  nvidia: 30_000,
+  nvidia: 25_000,
   openrouter: 30_000,
 };
 
@@ -62,9 +61,7 @@ const PROVIDER_TIMEOUTS: Record<AiProviderName, number> = {
 function getConfiguredProviderNames(): AiProviderName[] {
   const names: AiProviderName[] = [];
   if (groq) names.push("groq");
-  if (cerebras) names.push("cerebras");
   if (google) names.push("gemini");
-  if (mistral) names.push("mistral");
   if (cloudflare) names.push("cloudflare");
   if (nvidia) names.push("nvidia");
   if (openrouter) names.push("openrouter");
@@ -94,6 +91,38 @@ function getModelCandidates(
 function getRegistryModelId(providerName: AiProviderName, model: string): `${string}:${string}` {
   const registryPrefix = providerName === "gemini" ? "google" : providerName;
   return `${registryPrefix}:${model}` as `${string}:${string}`;
+}
+
+/**
+ * The free-tier allowlist gate for pinned/manual model overrides.
+ *
+ * A request that names a provider and model bypasses normal profile
+ * selection, so this is the only place that can stop a stale setting,
+ * hand-edited payload, or removed model from reaching a paid endpoint.
+ * Anything absent from `lib/ai/catalog.ts` fails before a provider call.
+ */
+async function assertPinnedModelAllowed(
+  modelId: `${string}:${string}`,
+  estimatedTokens: number,
+): Promise<void> {
+  const entry = getCatalogEntry(modelId);
+  if (!entry) {
+    throw new Error(
+      `The selected AI model "${modelId}" is not in the free-tier catalog. Choose an auto-routed model instead.`,
+    );
+  }
+
+  const quota = await getModelQuotaState(modelId, estimatedTokens);
+  if (quota === "dead") {
+    throw new Error(
+      `The selected AI model "${modelId}" is unavailable. Choose an auto-routed model instead.`,
+    );
+  }
+  if (quota === "exhausted") {
+    throw new Error(
+      `The free-tier quota for "${modelId}" is exhausted. Wait for it to reset or choose an auto-routed model.`,
+    );
+  }
 }
 
 /** The registry prefixes `google` for Gemini; the rest of the code uses `gemini`. */
@@ -161,6 +190,21 @@ function estimateRequestTokens(request: AiCompletionRequest): number {
   return estimateTokens(text) + (request.maxOutputTokens ?? 0) + 500;
 }
 
+/**
+ * Distinguish "nothing is configured" from "everything free is used up".
+ * Both return no candidates, but only one is fixed by waiting.
+ */
+function noModelsAvailableError(): Error {
+  if (isAiConfigured()) {
+    return new Error(
+      "No free-tier AI capacity is available for this request. Every configured free quota is exhausted or cooling down; wait for the quota to reset or configure another free provider.",
+    );
+  }
+  return new Error(
+    "No AI providers are configured. Add at least one free-tier API key to enable the assistant.",
+  );
+}
+
 function contextWindowOf(modelId: string): number {
   try {
     return getCatalogEntry(modelId)?.contextWindow ?? 0;
@@ -199,9 +243,7 @@ export async function generateWithFallback(
   const modelIds = await selectModels({ profile, estimatedTokens });
 
   if (modelIds.length === 0) {
-    throw new Error(
-      "No AI providers are configured. Add at least one API key to enable the assistant.",
-    );
+    throw noModelsAvailableError();
   }
 
   let lastError: unknown;
@@ -321,8 +363,12 @@ export async function generateWithFallback(
 }
 
 /**
- * Legacy provider-specific fallback (used when a specific provider is pinned).
- * Advances on every failure (including non-retryable) — only exhaustion fails.
+ * Pinned-model path (a specific provider + model was requested).
+ *
+ * The model must be in the free-tier catalog and under its modelled quota
+ * before any provider call. There is deliberately no cross-model fallback:
+ * a manual override that is unavailable fails safely rather than silently
+ * spending a different quota.
  */
 async function generateWithProviderFallback(
   request: AiCompletionRequest,
@@ -335,6 +381,8 @@ async function generateWithProviderFallback(
     );
   }
 
+  const estimatedTokens =
+    request.estimatedTokens ?? estimateRequestTokens(request);
   let lastError: unknown;
   const { system, messages } = buildMessages(request);
 
@@ -344,6 +392,7 @@ async function generateWithProviderFallback(
 
     for (const model of models) {
       const modelId = getRegistryModelId(providerName, model);
+      await assertPinnedModelAllowed(modelId, estimatedTokens);
 
       try {
         const result = await generateText({
@@ -356,6 +405,25 @@ async function generateWithProviderFallback(
         });
 
         await recordModelUsage(modelId);
+        const inputTokens = result.usage?.inputTokens ?? 0;
+        const outputTokens = result.usage?.outputTokens ?? 0;
+        if (inputTokens > 0 || outputTokens > 0) {
+          // Charge the preflight estimate first, then post the difference so
+          // the counters converge on real usage. Same sequence as the
+          // profile-driven and chat paths.
+          await safeSettle(
+            recordModelTokenUsageDetailed(modelId, {
+              inputTokens: estimatedTokens,
+              outputTokens: 0,
+            }),
+          );
+          await safeSettle(
+            correctTokenUsage(modelId, estimatedTokens, {
+              inputTokens,
+              outputTokens,
+            }),
+          );
+        }
         console.info(
           `[ai-router] Completion succeeded: provider="${providerName}" model="${model}"`,
         );
@@ -374,24 +442,27 @@ async function generateWithProviderFallback(
           raw: result,
         };
       } catch (error) {
-        lastError = error;
-        const errorInfo = getSanitizedErrorInfo(error);
+        // Wrap so status/retry classification is consistent with the
+        // profile path, while preserving the original message.
+        const providerError = wrapProviderError(providerName, error);
+        lastError = providerError;
+        const errorInfo = getSanitizedErrorInfo(providerError);
 
         console.warn(
-          `[ai-router] Failed (advancing): provider="${providerName}" model="${model}" status=${errorInfo.statusCode ?? "N/A"} retryable=${errorInfo.retryable}`,
+          `[ai-router] Failed (pinned): provider="${providerName}" model="${model}" status=${errorInfo.statusCode ?? "N/A"} retryable=${errorInfo.retryable}`,
         );
 
-        if (isModelNotFoundError(error)) {
+        if (isModelNotFoundError(providerError)) {
           await safeSettle(markModelDead(modelId));
           continue;
         }
-        await safeSettle(markModelExhausted(modelId, error));
+        await safeSettle(markModelExhausted(modelId, providerError));
       }
     }
   }
 
   if (lastError instanceof AiProviderError) throw lastError;
-  throw new Error(lastError instanceof Error ? lastError.message : "All AI providers failed.");
+  throw new Error(lastError instanceof Error ? lastError.message : "The selected AI model failed.");
 }
 
 // ---------------------------------------------------------------------------
@@ -416,14 +487,13 @@ export async function streamWithFallback(
   const modelIds = await selectModels({ profile, estimatedTokens });
 
   if (modelIds.length === 0) {
-    throw new Error(
-      "No AI providers are configured. Add at least one API key to enable the assistant.",
-    );
+    throw noModelsAvailableError();
   }
 
   const { system, messages } = buildMessages(request);
   let serving = parseServingModel(modelIds[0]);
   let servingModelId = modelIds[0];
+  let served = false;
   let fallbackReported = false;
   // The AI SDK's `streamText` is synchronous: it returns a result object and
   // performs the provider call lazily, when the stream is consumed. A
@@ -438,6 +508,7 @@ export async function streamWithFallback(
     estimatedTokens,
     getTimeoutMs: ({ provider }) => PROVIDER_TIMEOUTS[normalizeProviderName(provider)] ?? 25_000,
     onModelSelected: (selected) => {
+      served = true;
       servingModelId = selected.modelId;
       serving = {
         provider: normalizeProviderName(selected.provider),
@@ -477,7 +548,7 @@ export async function streamWithFallback(
       // estimate charged when the model was selected so the counters
       // converge on the actual spend.
       const usage = await Promise.resolve(result.usage).catch(() => null);
-      if (usage) {
+      if (served && usage) {
         await safeSettle(
           correctTokenUsage(servingModelId, estimatedTokens, {
             inputTokens: usage.inputTokens ?? 0,
@@ -497,7 +568,11 @@ export async function streamWithFallback(
 }
 
 /**
- * Legacy provider-specific streaming fallback (pinned path).
+ * Pinned-model streaming path.
+ *
+ * Like the non-streaming pinned path, the model must be in the free-tier
+ * catalog and under its modelled quota before a provider call. Real usage is
+ * corrected after the stream settles, matching the profile path.
  */
 async function streamWithProviderFallback(
   request: AiCompletionRequest,
@@ -511,6 +586,8 @@ async function streamWithProviderFallback(
     );
   }
 
+  const estimatedTokens =
+    request.estimatedTokens ?? estimateRequestTokens(request);
   const { system, messages } = buildMessages(request);
   let fallbackReported = false;
 
@@ -519,8 +596,10 @@ async function streamWithProviderFallback(
 
     for (const model of models) {
       const modelId = getRegistryModelId(providerName, model);
+      await assertPinnedModelAllowed(modelId, estimatedTokens);
 
-      // The fallback wrapper is what makes the chain work: `streamText` is
+      let served = false;
+      // The fallback wrapper is what makes streaming work: `streamText` is
       // synchronous and performs the provider call lazily, so only a wrapper
       // that resolves the candidate inside `doStream` can observe and
       // recover from a provider failure.
@@ -528,7 +607,10 @@ async function streamWithProviderFallback(
         modelIds: [modelId],
         maxAttempts: 1,
         getTimeoutMs: ({ provider }) => PROVIDER_TIMEOUTS[normalizeProviderName(provider)] ?? 25_000,
-        estimatedTokens: request.estimatedTokens ?? estimateRequestTokens(request),
+        estimatedTokens,
+        onModelSelected: () => {
+          served = true;
+        },
         onAttemptFailed: () => {
           if (!fallbackReported) {
             fallbackReported = true;
@@ -549,13 +631,29 @@ async function streamWithProviderFallback(
       });
 
       async function* chunks(): AsyncGenerator<AiStreamChunk> {
-        for await (const chunk of result.textStream) {
-          if (chunk) {
-            yield { delta: chunk, finishReason: null };
+        try {
+          for await (const chunk of result.textStream) {
+            if (chunk) {
+              yield { delta: chunk, finishReason: null };
+            }
+          }
+          request.abortSignal?.throwIfAborted();
+          if (streamFailure) throw streamFailure.error;
+        } finally {
+          // The wrapper charged the preflight estimate when the model was
+          // selected. Correct it with the real spend once the stream ends —
+          // but never when no model actually served, or the correction would
+          // subtract an estimate that was never charged.
+          const usage = await Promise.resolve(result.usage).catch(() => null);
+          if (served && usage) {
+            await safeSettle(
+              correctTokenUsage(modelId, estimatedTokens, {
+                inputTokens: usage.inputTokens ?? 0,
+                outputTokens: usage.outputTokens ?? 0,
+              }),
+            );
           }
         }
-        request.abortSignal?.throwIfAborted();
-        if (streamFailure) throw streamFailure.error;
         yield { delta: "", finishReason: "stop" };
       }
 
@@ -567,5 +665,5 @@ async function streamWithProviderFallback(
     }
   }
 
-  throw new Error("All AI providers failed.");
+  throw new Error("The selected AI model failed.");
 }

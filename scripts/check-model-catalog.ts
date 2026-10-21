@@ -6,12 +6,12 @@
  * - Listing-only mode (default): runs as part of `npm run check`. Fails on
  *   any identifier Requo names but the provider no longer serves.
  * - `--probe`: opt-in, makes one minimal tool-calling request per candidate
- *   to confirm tool capability (settles the NVIDIA/Cloudflare question).
- *   Kept OUT of the automatic check — it spends real free-tier quota.
+ *   to confirm tool capability. Kept OUT of the automatic check — it spends
+ *   real free-tier quota.
  *
  * Note the limit of a name-only diff: a provider can keep listing an
- * identifier it refuses to serve (a retired Gemini model, or NVIDIA's
- * inference-only 404s). Only `--probe` sees that class of breakage.
+ * identifier it refuses to serve (a retired Gemini model, for example).
+ * Only `--probe` sees that class of breakage.
  *
  * Fails loudly when a provider's credentials are absent: a green check means
  * the catalog was really compared, not skipped.
@@ -114,17 +114,6 @@ function providers(): ProviderSpec[] {
       },
     },
     {
-      name: "cerebras",
-      envKeys: ["CEREBRAS_API_KEY"],
-      listModels: async () => {
-        const key = mustGetEnv("CEREBRAS_API_KEY");
-        const json = await fetchJson("https://api.cerebras.ai/v1/models", {
-          Authorization: `Bearer ${key}`,
-        });
-        return extractIds(json);
-      },
-    },
-    {
       name: "gemini",
       envKeys: ["GEMINI_API_KEY"],
       listModels: async () => {
@@ -133,17 +122,6 @@ function providers(): ProviderSpec[] {
           `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(key)}`,
           {},
         );
-        return extractIds(json);
-      },
-    },
-    {
-      name: "mistral",
-      envKeys: ["MISTRAL_API_KEY"],
-      listModels: async () => {
-        const key = mustGetEnv("MISTRAL_API_KEY");
-        const json = await fetchJson("https://api.mistral.ai/v1/models", {
-          Authorization: `Bearer ${key}`,
-        });
         return extractIds(json);
       },
     },

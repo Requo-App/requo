@@ -24,7 +24,7 @@ export function applyTestEnv(): void {
     RESEND_API_KEY: '',
     GROQ_API_KEY: '',
     GEMINI_API_KEY: '',
-    CEREBRAS_API_KEY: '',
+    NVIDIA_NIM_API_KEY: '',
   };
 
   for (const [key, value] of Object.entries(defaults)) {

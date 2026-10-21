@@ -12,6 +12,7 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ### Changed
 
+- The AI router is now free-tier-only end to end. Every routed model must resolve to an entry in `lib/ai/catalog.ts`; pinned/manual overrides outside that allowlist are refused before any provider call, and a model at or above 100% of any modelled quota is dropped from selection (80% only deprioritizes). Daily provider refusals cool the shared request or neuron bucket, and the assistant now distinguishes "no provider configured" from "all free capacity exhausted".
 - The service editor surfaces the server's rules before the owner submits: publishing is owner-only, an unpublished service cannot be made the default, and the danger zone disables archiving and deleting with the reason. The two public `public_inquiry_enabled` flags (business-level and service-level) are now enforced consistently on the public inquiry pages.
 - The database now enforces at most one default service per business with a partial unique index, and the plan's custom-field allowance is applied when a service's intake form is saved, so a crafted request cannot persist fields the plan does not include.
 - The integration test suite runs its files sequentially so the end-of-run residue check is deterministic instead of flagging whichever file happened to still be running.
@@ -41,6 +42,7 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ### Removed
 
+- Removed Cerebras and Mistral from AI routing, environment variables, the admin surface, tests, and legal disclosures. Cerebras' free allocation is expiring trial credit that requires a payment method, and Mistral is no longer part of Requo's provider set. Removed the retired Gemini 2.5 identifiers in favour of the current free-tier Gemini models.
 - Removed the analytics AI narrative summary card; the rebuilt tabs present the same period data directly.
 
 ### Fixed

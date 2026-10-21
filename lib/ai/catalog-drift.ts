@@ -21,8 +21,6 @@ export type DriftDiff = {
 const REGISTRY_PREFIXES = new Set([
   "google",
   "groq",
-  "cerebras",
-  "mistral",
   "cloudflare",
   "nvidia",
   "openrouter",
@@ -47,8 +45,8 @@ function providerOf(modelId: string): string {
  *
  * `liveIds` are bare provider model names (as returned by `models`
  * endpoints), optionally prefixed — both shapes are accepted. Comparison is
- * per-provider: a catalog entry `google:gemini-2.5-flash` matches live
- * `gemini-2.5-flash` or `google:gemini-2.5-flash`.
+ * per-provider: a catalog entry `google:gemini-3.8-flash` matches live
+ * `gemini-3.8-flash` or `google:gemini-3.8-flash`.
  */
 export function diffCatalogAgainstLive(
   catalogIds: string[],

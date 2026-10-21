@@ -60,7 +60,7 @@ const LEAKAGE_PATTERNS: Array<{ pattern: RegExp; name: string }> = [
   },
   {
     pattern:
-      /(?:(?:OPENAI|GROQ|CEREBRAS|OPENROUTER|MISTRAL|GOOGLE)[_-]?(?:API[_-]?KEY|SECRET|TOKEN)\s*[:=]\s*\S+)/i,
+      /(?:(?:OPENAI|GROQ|OPENROUTER|NVIDIA|GOOGLE)[_-]?(?:API[_-]?KEY|SECRET|TOKEN)\s*[:=]\s*\S+)/i,
     name: "config_leakage",
   },
   {

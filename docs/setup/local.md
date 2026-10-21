@@ -155,9 +155,7 @@ Optional but commonly needed:
 - `RESEND_FROM_EMAIL` (legacy fallback)
 - `RESEND_REPLY_TO_EMAIL`
 - `GROQ_API_KEY`
-- `CEREBRAS_API_KEY`
 - `GEMINI_API_KEY`
-- `MISTRAL_API_KEY`
 - `CLOUDFLARE_ACCOUNT_ID`
 - `CLOUDFLARE_API_TOKEN`
 - `NVIDIA_NIM_API_KEY`
@@ -239,10 +237,11 @@ DATABASE_MIGRATION_URL=postgresql://postgres.<project-ref>:<db-password>@aws-<re
 
 ### AI Providers
 
-- The AI router tries configured providers in this order: Groq, Cerebras, Gemini, Mistral, Cloudflare Workers AI, NVIDIA NIM, then OpenRouter.
+- The router registers free-tier-first providers in this order: Groq, Gemini, Cloudflare Workers AI, NVIDIA NIM, then OpenRouter. Each routing profile defines the model order for its kind of work.
 - Leave AI provider keys blank if you do not need live AI locally.
 - Configure at least one provider to test AI-assisted inquiry replies or drafting.
-- The inquiry assistant returns a configuration-related error when no AI provider is configured.
+- The inquiry assistant returns a configuration-related error when no AI provider is configured, and a quota-exhausted error when every configured free allowance is used up.
+- Only models listed in `lib/ai/catalog.ts` are routable. See `docs/setup/ai-provider-limits.md` for the free-tier rules.
 
 ## Demo Data
 

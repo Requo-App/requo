@@ -2,9 +2,7 @@ import { getModelCatalog } from "@/lib/ai/catalog";
 
 export const aiProviderNames = [
   "groq",
-  "cerebras",
   "gemini",
-  "mistral",
   "cloudflare",
   "nvidia",
   "openrouter",
@@ -137,12 +135,8 @@ export function formatAiProviderName(provider: AiProviderName) {
   switch (provider) {
     case "groq":
       return "Groq";
-    case "cerebras":
-      return "Cerebras";
     case "gemini":
       return "Gemini";
-    case "mistral":
-      return "Mistral";
     case "cloudflare":
       return "Cloudflare";
     case "nvidia":

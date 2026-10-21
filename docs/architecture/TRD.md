@@ -222,9 +222,14 @@ output filtering, and invocation logging are centralized in `lib/ai/`.
 Follow-up message suggestions reserve one credit atomically before generation,
 settle that event to its token-weighted cost on success, and release it on failure.
 
-Providers currently wired through the router include Groq, Cerebras, Gemini,
-Mistral, Cloudflare Workers AI, NVIDIA NIM, and OpenRouter. Agent tools stage an
-inquiry proposal; only visitor approval creates it. Agent sessions are not
+Providers currently wired through the router are free-tier-first: Groq,
+Gemini, Cloudflare Workers AI, NVIDIA NIM, and OpenRouter. NVIDIA
+NIM is a deliberate production exception: NVIDIA documents its hosted
+endpoints for development/testing, while production use requires NVIDIA AI
+Enterprise. Models absent from `lib/ai/catalog.ts` are not routable,
+including pinned/manual overrides. Agent
+tools stage an inquiry proposal; only visitor approval creates it. Agent
+sessions are not
 searchable by the business; transcripts become visible only through an
 inquiry they produced, and abandoned transcripts have bounded retention.
 Assistant reads and writes are business-scoped; outbound or pipeline-mutating

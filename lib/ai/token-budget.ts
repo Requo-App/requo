@@ -6,12 +6,10 @@ import { getModelCatalog } from "@/lib/ai/catalog";
 /** Conservative deployment defaults. Provider dashboards remain authoritative. */
 const DEFAULT_TPM: Record<AiProviderName, number> = {
   groq: 8_000,
-  cerebras: 30_000,
   gemini: 250_000,
-  mistral: 500_000,
   cloudflare: 10_000,
   nvidia: 20_000,
-  openrouter: 20_000,
+  openrouter: 0,
 };
 
 function envNumber(name: string, fallback: number): number {
