@@ -144,8 +144,12 @@ export async function createMemoryEntryAction(
     await createBusinessMemory({
       businessId,
       entry: {
-        title: sanitization.output || parsed.data.title,
-        content: sanitization.output || parsed.data.content,
+        // The sanitizer returns the title and the content separately. Assigning
+        // the content to both fields replaced the owner's title with the body
+        // text and made every entry longer than the title constraint
+        // unsaveable.
+        title: sanitization.title || parsed.data.title,
+        content: sanitization.content || parsed.data.content,
         category: parsed.data.category,
       },
     });
@@ -222,8 +226,8 @@ export async function updateMemoryEntryAction(
       businessId: actionContext.businessContext.business.id,
       memoryId,
       update: {
-        title: sanitization.output || parsed.data.title,
-        content: sanitization.output || parsed.data.content,
+        title: sanitization.title || parsed.data.title,
+        content: sanitization.content || parsed.data.content,
         category: parsed.data.category,
       },
     });
