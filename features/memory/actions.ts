@@ -114,7 +114,7 @@ export async function createMemoryEntryAction(
   );
 
   if (sanitization.status === "rejected") {
-    logAiSecurityEvent({
+    await logAiSecurityEvent({
       eventType: "injection_rejected",
       patternMatched: sanitization.patterns.join(", "),
       userId: actionContext.user.id,
@@ -144,8 +144,12 @@ export async function createMemoryEntryAction(
     await createBusinessMemory({
       businessId,
       entry: {
-        title: sanitization.output || parsed.data.title,
-        content: sanitization.output || parsed.data.content,
+        // The sanitizer returns the title and the content separately. Assigning
+        // the content to both fields replaced the owner's title with the body
+        // text and made every entry longer than the title constraint
+        // unsaveable.
+        title: sanitization.title || parsed.data.title,
+        content: sanitization.content || parsed.data.content,
         category: parsed.data.category,
       },
     });
@@ -204,7 +208,7 @@ export async function updateMemoryEntryAction(
   );
 
   if (sanitization.status === "rejected") {
-    logAiSecurityEvent({
+    await logAiSecurityEvent({
       eventType: "injection_rejected",
       patternMatched: sanitization.patterns.join(", "),
       userId: actionContext.user.id,
@@ -222,8 +226,8 @@ export async function updateMemoryEntryAction(
       businessId: actionContext.businessContext.business.id,
       memoryId,
       update: {
-        title: sanitization.output || parsed.data.title,
-        content: sanitization.output || parsed.data.content,
+        title: sanitization.title || parsed.data.title,
+        content: sanitization.content || parsed.data.content,
         category: parsed.data.category,
       },
     });
@@ -453,6 +457,25 @@ export async function uploadKnowledgeFileAction(
       await supabase.storage.from(KNOWLEDGE_FILES_BUCKET).remove([storagePath]);
     } catch {
       // Ignore cleanup failures.
+    }
+
+    // The row has to go too. Leaving it behind left a "pending" file whose
+    // object was gone: it could never process, the UI offered no retry, and
+    // it permanently consumed one of the plan's knowledge-source slots.
+    try {
+      await db
+        .delete(businessKnowledgeFiles)
+        .where(
+          and(
+            eq(businessKnowledgeFiles.id, fileId),
+            eq(businessKnowledgeFiles.businessId, businessId),
+          ),
+        );
+    } catch (cleanupError) {
+      console.error(
+        "Failed to remove the orphaned knowledge file row.",
+        cleanupError,
+      );
     }
 
     return { error: "We couldn't upload that file right now." };

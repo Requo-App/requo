@@ -84,6 +84,8 @@ export type FallbackModelOptions = {
   maxAttempts?: number;
   /** Preflight token estimate, attributed to the model that serves. */
   estimatedTokens?: number;
+  /** A fresh provider timeout is created for each candidate attempt. */
+  getTimeoutMs?: (selected: FallbackModelSelected) => number;
   onModelSelected?: (selected: FallbackModelSelected) => void;
   onAttemptFailed?: (selected: FallbackModelSelected, error: unknown) => void;
 };
@@ -305,6 +307,20 @@ export function createFallbackLanguageModel(
   // providers that already failed moments earlier.
   let preferredModelId: `${string}:${string}` | undefined;
 
+  function attemptOptions(
+    options: LanguageModelV3CallOptions,
+    selected: FallbackModelSelected,
+  ): LanguageModelV3CallOptions {
+    if (!opts.getTimeoutMs) return options;
+    const timeoutSignal = AbortSignal.timeout(opts.getTimeoutMs(selected));
+    return {
+      ...options,
+      abortSignal: options.abortSignal
+        ? AbortSignal.any([options.abortSignal, timeoutSignal])
+        : timeoutSignal,
+    };
+  }
+
   if (modelIds.length === 0) {
     throw new Error("createFallbackLanguageModel requires at least one modelId");
   }
@@ -323,6 +339,7 @@ export function createFallbackLanguageModel(
       let attemptsUsed = 0;
 
       while (remaining.length > 0 && attemptsUsed < maxAttempts) {
+        options.abortSignal?.throwIfAborted();
         const candidate = remaining.shift() as `${string}:${string}`;
         const selected = parseModelId(candidate);
         try {
@@ -338,7 +355,7 @@ export function createFallbackLanguageModel(
         }
         try {
           const model = candidateModel(candidate);
-          const result = await model.doGenerate(options);
+          const result = await model.doGenerate(attemptOptions(options, selected));
           await attributeSuccess(
             candidate,
             estimatedTokens,
@@ -348,6 +365,7 @@ export function createFallbackLanguageModel(
           preferredModelId = candidate;
           return result;
         } catch (error) {
+          options.abortSignal?.throwIfAborted();
           lastError = error;
           const kind = await noteAttemptFailed(
             candidate,
@@ -382,6 +400,7 @@ export function createFallbackLanguageModel(
       let attemptsUsed = 0;
 
       while (remaining.length > 0 && attemptsUsed < maxAttempts) {
+        options.abortSignal?.throwIfAborted();
         const candidate = remaining.shift() as `${string}:${string}`;
         const selected = parseModelId(candidate);
         try {
@@ -397,7 +416,7 @@ export function createFallbackLanguageModel(
         }
         try {
           const model = candidateModel(candidate);
-          const result = await model.doStream(options);
+          const result = await model.doStream(attemptOptions(options, selected));
           const { buffered, head, reader, doneEarly } =
             await peekHead(result);
 
@@ -436,6 +455,7 @@ export function createFallbackLanguageModel(
             ...(result.response ? { response: result.response } : {}),
           };
         } catch (error) {
+          options.abortSignal?.throwIfAborted();
           lastError = error;
           const kind = await noteAttemptFailed(
             candidate,

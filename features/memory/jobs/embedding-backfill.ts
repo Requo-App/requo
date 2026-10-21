@@ -74,7 +74,11 @@ export async function backfillMissingEmbeddings(): Promise<EmbeddingBackfillSumm
           eq(businessKnowledgeFiles.status, "ready"),
         ),
       )
-      .orderBy(asc(businessKnowledgeChunks.updatedAt))
+      // Ordered by creation, not by the timestamp the job itself updates.
+      // Ordering by `updatedAt` re-selected the rows that failed to embed
+      // first, forever: the same poison rows were retried every hour and
+      // everything behind them was never repaired.
+      .orderBy(asc(businessKnowledgeChunks.createdAt))
       .limit(EMBEDDING_BACKFILL_BATCH_SIZE),
     db
       .select({
@@ -85,7 +89,7 @@ export async function backfillMissingEmbeddings(): Promise<EmbeddingBackfillSumm
       })
       .from(businessMemories)
       .where(isNull(businessMemories.embedding))
-      .orderBy(asc(businessMemories.updatedAt))
+      .orderBy(asc(businessMemories.createdAt))
       .limit(EMBEDDING_BACKFILL_BATCH_SIZE),
   ]);
 

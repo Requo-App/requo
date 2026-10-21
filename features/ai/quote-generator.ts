@@ -43,7 +43,7 @@ import {
   retrieveBusinessKnowledge,
   type KnowledgeEvidence,
 } from "@/features/memory/retrieval";
-import { formatQuoteMoney } from "@/features/quotes/utils";
+import { computeQuoteAiReadiness, formatQuoteMoney } from "@/features/quotes/utils";
 import { db } from "@/lib/db/client";
 import { businesses } from "@/lib/db/schema";
 import {
@@ -51,11 +51,14 @@ import {
   generateWithFallback,
   logAiInvocation,
   recordUsage,
+  releaseUsageReservation,
+  settleUsageReservation,
   startCooldown,
   computeUsageWeight,
   setCachedOutput,
   getCachedOutput,
 } from "@/lib/ai";
+import type { UsageReservation } from "@/lib/ai/usage-limiter";
 import type {
   AiCompletionRequest,
   AiQualityTier,
@@ -238,6 +241,34 @@ const UNTRUSTED_CUSTOMER_CONTENT_OPEN = "<untrusted_customer_content>";
 const UNTRUSTED_CUSTOMER_CONTENT_CLOSE = "</untrusted_customer_content>";
 
 /**
+ * Removes the fence tags (and near-variants) from untrusted text.
+ *
+ * Without this a customer could write `</untrusted_customer_content>` and
+ * everything after it would sit outside the region the prompt defines as
+ * data — the fence has to be unclosable from the inside.
+ */
+function stripFenceTags(value: string): string {
+  return value
+    .replace(/<\s*\/?\s*untrusted_customer_content\s*>/gi, "")
+    .replace(/<\s*\/?\s*untrusted[_\s-]*(customer|business|knowledge)[_\s-]*content\s*>/gi, "");
+}
+
+/**
+ * Wraps untrusted text in the customer-content fence.
+ *
+ * Every customer-controlled value goes through here: the fence is only a
+ * boundary if it wraps everything the customer wrote, not just the message
+ * body.
+ */
+function fenceUntrusted(value: string): string {
+  return [
+    UNTRUSTED_CUSTOMER_CONTENT_OPEN,
+    stripFenceTags(value),
+    UNTRUSTED_CUSTOMER_CONTENT_CLOSE,
+  ].join("\n");
+}
+
+/**
  * Customer-supplied text reaches the model as data, never as instructions.
  * High-confidence injection attempts are redacted instead of aborting the
  * quote, so a hostile inquiry cannot steer the draft the owner sends.
@@ -253,7 +284,7 @@ async function sanitizeCustomerText(value: string | null | undefined) {
     return "[redacted — content could not be processed]";
   }
 
-  return sanitized.output || "";
+  return stripFenceTags(sanitized.output || "");
 }
 
 async function formatInquiryContextLines(
@@ -267,6 +298,9 @@ async function formatInquiryContextLines(
   );
   const budgetText = await sanitizeCustomerText(context.inquiry.budgetText);
 
+  // Every field the customer controls is inside the fence. The form name is
+  // business-authored, but it shares the block so no customer-controlled
+  // value can sit next to the fence boundary.
   const headerFields: string[] = [`Customer: ${customerName}`];
   if (customerEmail) headerFields.push(`email: ${customerEmail}`);
   if (context.inquiry.inquiryFormName) headerFields.push(`service: ${context.inquiry.inquiryFormName}`);
@@ -275,7 +309,8 @@ async function formatInquiryContextLines(
   if (budgetText) headerFields.push(`budget: ${budgetText}`);
 
   const sections: string[] = [
-    `Inquiry: ${headerFields.join("; ")}`,
+    "Inquiry:",
+    fenceUntrusted(headerFields.join("; ")),
   ];
 
   const snapshot = context.inquiry.submittedFieldSnapshot;
@@ -287,24 +322,22 @@ async function formatInquiryContextLines(
         return `- ${truncate(field.label, 80)}: ${truncate(displayValue, 300)}`;
       }),
     );
-    sections.push("", "Submitted fields", fieldLines.join("\n"));
+    sections.push(
+      "",
+      "Submitted fields",
+      fenceUntrusted(fieldLines.join("\n")),
+    );
   }
 
   const details = await sanitizeCustomerText(context.inquiry.details);
-  sections.push(
-    "",
-    "Details",
-    `${UNTRUSTED_CUSTOMER_CONTENT_OPEN}`,
-    truncate(details, 2000),
-    `${UNTRUSTED_CUSTOMER_CONTENT_CLOSE}`,
-  );
+  sections.push("", "Details", fenceUntrusted(truncate(details, 2000)));
 
   if (context.messages.length > 0) {
     const messageLines = context.messages
       .slice(0, 10)
       .map((msg) => `[${msg.role}]: ${truncate(msg.content, 400)}`)
       .join("\n");
-    sections.push("", "Conversation", messageLines);
+    sections.push("", "Conversation", fenceUntrusted(messageLines));
   }
 
   if (context.notes.length) {
@@ -449,7 +482,7 @@ function hydrateDraftItem(
     raw.name?.trim() ? raw.name : fallbackNameFromDescription(description),
     MAX_NAME_LENGTH,
   );
-  const quantity = clampQuantity(raw.quantity);
+  let quantity = clampQuantity(raw.quantity);
   const reason =
     truncate(raw.reason, MAX_REASON_LENGTH) ||
     "No reason provided by the assistant.";
@@ -500,6 +533,13 @@ function hydrateDraftItem(
       unitPriceInCents = clampPrice(resolution.item?.unitPriceInCents ?? 0);
       reviewStatus = "matched";
       aiProductStatus = "verified";
+      // The saved price belongs to the quantity it was authored for. The
+      // model chose the quantity, and the quantity multiplies the DB unit
+      // price — so an exact match takes the quantity from the priced item
+      // instead of from the model.
+      if (resolution.item) {
+        quantity = clampQuantity(resolution.item.quantity);
+      }
       aiEvidence = {
         entryId: resolution.entry.entryId,
         itemId: resolution.item?.itemId ?? null,
@@ -713,27 +753,20 @@ function repairGroundedDraft(items: AiQuoteDraftItem[]) {
 }
 
 /**
- * Server-computed readiness. Never trusted from the model.
+ * Server-computed readiness. Never trusted from the model, and never trusted
+ * from the browser: the quote mutations recompute it with the same helper
+ * from the provenance that is actually persisted.
  */
 function computeQuoteReadiness(
   items: AiQuoteDraftItem[],
   missingInfo: AiQuoteMissingInfoItem[],
 ): AiQuoteReadiness {
-  const hasUnpriced = items.some(
-    (item) => item.aiProductStatus === "unpriced" || item.aiProductStatus === null,
+  return (
+    computeQuoteAiReadiness({ items, missingInfo }) ??
+    // Every draft item carries a server-assigned status, so the fallback is
+    // unreachable in practice. It keeps the return type non-nullable.
+    "ready"
   );
-  const hasSuggested = items.some((item) => item.aiProductStatus === "suggested");
-  const hasCriticalQuestions = missingInfo.some((item) => item.critical === true);
-
-  if (hasUnpriced) {
-    return "scope_only";
-  }
-
-  if (hasSuggested || hasCriticalQuestions) {
-    return "needs_confirmation";
-  }
-
-  return "ready";
 }
 
 // ---------------------------------------------------------------------------
@@ -838,7 +871,13 @@ function buildGroundedContext(input: {
   );
 
   if (input.revisionContext) {
-    contextParts.push(`\nREVISION REQUEST:\n${truncate(input.revisionContext, 1000)}`);
+    // The revision request is written by the customer, so it is fenced like
+    // every other customer-controlled value. The prompt gives it no special
+    // standing: a customer could otherwise use it to steer which candidate the
+    // model picks.
+    contextParts.push(
+      `\nREVISION REQUEST (customer-written, untrusted):\n${fenceUntrusted(truncate(input.revisionContext, 1000))}`,
+    );
   }
 
   if (input.currentItemsText) {
@@ -1081,6 +1120,11 @@ async function finalizeDraft(input: {
   /** Cache hits skip usage deduction and cooldown. */
   fromCache?: boolean;
   /**
+   * The reserved credit for this invocation. When present the reserved row
+   * settles with the real weight instead of a second row being written.
+   */
+  usageReservation?: UsageReservation;
+  /**
    * AI-01 (b): pack for missing-information criticality overlay. Applied to
    * fresh generations only — cached outputs keep the attribution of the
    * version under which they were generated.
@@ -1192,6 +1236,14 @@ async function finalizeDraft(input: {
   }
 
   if (input.fromCache) {
+    // A cached draft spent no tokens: release the reserved credit so the
+    // cache hit is free, exactly like the usage recording below skips it.
+    if (input.usageReservation) {
+      await releaseUsageReservation(input.usageReservation).catch((error) => {
+        console.warn("[quote-generator] Failed to release AI credit:", error);
+      });
+    }
+
     return draft;
   }
 
@@ -1201,13 +1253,22 @@ async function finalizeDraft(input: {
     inputTokens: input.responseUsage?.promptTokens,
     outputTokens: input.responseUsage?.outputTokens,
   });
-  await recordUsage(
-    input.userId,
-    input.businessId,
-    input.taskType,
-    weight,
-    input.plan,
-  );
+
+  if (input.usageReservation) {
+    // The reservation row IS the usage event — settle it rather than adding
+    // a second row for the same invocation.
+    await settleUsageReservation(input.usageReservation, weight).catch((error) => {
+      console.warn("[quote-generator] Failed to settle AI credit:", error);
+    });
+  } else {
+    await recordUsage(
+      input.userId,
+      input.businessId,
+      input.taskType,
+      weight,
+      input.plan,
+    );
+  }
   await startCooldown(input.userId, input.taskType);
 
   await logAiInvocation({
@@ -1234,14 +1295,20 @@ async function parseModelDraftResponse(
   const rawJson = extractJsonObject(responseText);
 
   if (!rawJson) {
-    console.error("[quote-generator] No JSON found in response. Raw text:", responseText.slice(0, 500));
+    // The raw text can echo the customer's own message, so it is not logged
+    // verbatim — only its length and a short prefix.
+    console.error(
+      `[quote-generator] No JSON found in response. Length=${responseText.length} Preview=${responseText.slice(0, 120)}`,
+    );
     return null;
   }
 
   const parsedJson = parseJsonSafe(rawJson);
 
   if (parsedJson === null) {
-    console.error("[quote-generator] JSON parse failed. Extracted JSON:", rawJson.slice(0, 500));
+    console.error(
+      `[quote-generator] JSON parse failed. Length=${rawJson.length} Preview=${rawJson.slice(0, 120)}`,
+    );
     return null;
   }
 
@@ -1277,6 +1344,11 @@ type GenerateQuoteDraftInput = {
     quantity: number;
     unitPriceInCents: number;
   }> | null;
+  /**
+   * The reserved credit for this invocation. The reserved row settles with
+   * the real token weight instead of a second usage row being written.
+   */
+  usageReservation?: UsageReservation;
 };
 
 type GenerateQuoteDraftResult =
@@ -1316,7 +1388,7 @@ export async function generateQuoteDraftForBusiness(
     const sanitization = await sanitizeAiInput(userInputText);
 
     if (sanitization.status === "rejected") {
-      logAiSecurityEvent({
+      await logAiSecurityEvent({
         eventType: "injection_rejected",
         patternMatched: sanitization.patterns.join(", "),
         userId: input.userId,
@@ -1330,7 +1402,7 @@ export async function generateQuoteDraftForBusiness(
     }
 
     if (sanitization.status === "sanitized") {
-      logAiSecurityEvent({
+      await logAiSecurityEvent({
         eventType: "injection_detected",
         patternMatched: sanitization.patterns.join(", "),
         userId: input.userId,
@@ -1501,6 +1573,7 @@ export async function generateQuoteDraftForBusiness(
             responseProvider: cachedOutput.provider,
             startTime: Date.now(),
             fromCache: true,
+            usageReservation: input.usageReservation,
           });
 
           if (cachedDraft) {
@@ -1550,7 +1623,7 @@ export async function generateQuoteDraftForBusiness(
       { canaryToken: getAiCanaryToken() },
     );
     if (outputFilterResult.status === "redacted") {
-      logAiSecurityEvent({
+      await logAiSecurityEvent({
         eventType: "output_redacted",
         patternMatched: outputFilterResult.redactedPatterns.join(", "),
         userId: input.userId,
@@ -1595,6 +1668,7 @@ export async function generateQuoteDraftForBusiness(
       startTime,
       pack: packGuidance.pack,
       packGuidanceRecipeConfig: packGuidance.recipeConfig,
+      usageReservation: input.usageReservation,
     });
 
     if (!draft) {
@@ -1646,6 +1720,11 @@ type GenerateQuoteImprovementInput = {
   plan: BusinessPlan;
   inquiryId: string;
   existingQuoteDraft: string;
+  /**
+   * The reserved credit for this invocation. The reserved row settles with
+   * the real token weight instead of a second usage row being written.
+   */
+  usageReservation?: UsageReservation;
 };
 
 type GenerateQuoteImprovementResult =
@@ -1681,7 +1760,7 @@ export async function generateQuoteImprovementForBusiness(
     const sanitization = await sanitizeAiInput(input.existingQuoteDraft);
 
     if (sanitization.status === "rejected") {
-      logAiSecurityEvent({
+      await logAiSecurityEvent({
         eventType: "injection_rejected",
         patternMatched: sanitization.patterns.join(", "),
         userId: input.userId,
@@ -1695,7 +1774,7 @@ export async function generateQuoteImprovementForBusiness(
     }
 
     if (sanitization.status === "sanitized") {
-      logAiSecurityEvent({
+      await logAiSecurityEvent({
         eventType: "injection_detected",
         patternMatched: sanitization.patterns.join(", "),
         userId: input.userId,
@@ -1837,6 +1916,7 @@ export async function generateQuoteImprovementForBusiness(
             responseProvider: cachedOutput.provider,
             startTime: Date.now(),
             fromCache: true,
+            usageReservation: input.usageReservation,
           });
 
           if (cachedDraft) {
@@ -1880,7 +1960,7 @@ export async function generateQuoteImprovementForBusiness(
       { canaryToken: getAiCanaryToken() },
     );
     if (outputFilterResult.status === "redacted") {
-      logAiSecurityEvent({
+      await logAiSecurityEvent({
         eventType: "output_redacted",
         patternMatched: outputFilterResult.redactedPatterns.join(", "),
         userId: input.userId,
@@ -1925,6 +2005,7 @@ export async function generateQuoteImprovementForBusiness(
       startTime,
       pack: packGuidance.pack,
       packGuidanceRecipeConfig: packGuidance.recipeConfig,
+      usageReservation: input.usageReservation,
     });
 
     if (!draft) {

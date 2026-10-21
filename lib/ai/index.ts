@@ -44,6 +44,9 @@ export {
   computeUsageWeight,
   checkUsageLimit,
   recordUsage,
+  reserveUsage,
+  settleUsageReservation,
+  releaseUsageReservation,
   startCooldown,
   resetCooldown,
   getMonthlyUsageSummary,
@@ -51,6 +54,7 @@ export {
 export type {
   UsageLimitCheck,
   UsageLimitResult,
+  UsageReservation,
   InvocationTokenUsage,
 } from "./usage-limiter";
 export {

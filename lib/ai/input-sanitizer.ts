@@ -19,7 +19,15 @@ import { logAiSecurityEvent } from "@/lib/ai/security-events";
 
 export interface SanitizationResult {
   status: "clean" | "sanitized" | "rejected" | "locked";
+  /**
+   * The sanitized single-field output. For callers that only have one piece
+   * of text this is the content; `title`/`content` carry the split fields.
+   */
   output: string;
+  /** Sanitized title, when the caller supplied one. */
+  title?: string;
+  /** Sanitized content, when the caller supplied one. */
+  content?: string;
   patterns: string[]; // matched patterns if any
 }
 
@@ -36,6 +44,13 @@ export interface SanitizationResult {
  * U+00AD Soft Hyphen
  */
 const ZERO_WIDTH_REGEX = /[\u200B\u200C\u200D\uFEFF\u00AD]/g;
+
+/**
+ * The maximum number of characters the sanitizer inspects. The output path
+ * caps its inspection for the same reason: the rejection patterns are the
+ * request path's cost, and an unbounded body makes that cost unbounded too.
+ */
+export const MAX_SANITIZE_INPUT_CHARS = 20_000;
 
 /**
  * Normalizes input by stripping zero-width characters and applying NFKC
@@ -193,8 +208,13 @@ const SANITIZATION_PATTERNS: Array<{ pattern: RegExp; name: string }> = [
     name: "heading_injection",
   },
   // Separator-based injection (----, ====, etc. followed by instruction keywords)
+  //
+  // The separator run is bounded and anchored to a line start: an unbounded
+  // `[-=]{4,}` retries the tail of the pattern at every position, so a long
+  // run of dashes made the match quadratic — attacker-controlled work with
+  // no bound, on the request path.
   {
-    pattern: /(?:[-=]{4,})\s*\n\s*(?:new\s+)?(?:system|instructions?|rules?|prompt)\s*(?::|\n)/gim,
+    pattern: /(?:^|\n)[-=]{4,16}[ \t]*\n[ \t]*(?:new\s+)?(?:system|instructions?|rules?|prompt)\s*(?::|\n)/gim,
     name: "separator_injection",
   },
 ];
@@ -239,6 +259,8 @@ export function sanitizeMemoryContent(
       return {
         status: "rejected",
         output: "",
+        title: "",
+        content: "",
         patterns: Array.from(new Set(matchedPatterns)),
       };
     }
@@ -280,16 +302,26 @@ export function sanitizeMemoryContent(
       return {
         status: "sanitized",
         output: sanitizedContent.trim(),
+        title: sanitizedTitle.trim(),
+        content: sanitizedContent.trim(),
         patterns: Array.from(new Set(sanitizedPatterns)),
       };
     }
 
-    return { status: "clean", output: normalizedContent, patterns: [] };
+    return {
+      status: "clean",
+      output: normalizedContent,
+      title: normalizedTitle,
+      content: normalizedContent,
+      patterns: [],
+    };
   } catch {
     // Fail-closed: reject the content on unexpected errors
     return {
       status: "rejected",
       output: "",
+      title: "",
+      content: "",
       patterns: ["processing_error"],
     };
   }
@@ -299,6 +331,18 @@ export async function sanitizeAiInput(
   input: string,
   conversationId?: string,
 ): Promise<SanitizationResult> {
+  // Reject oversized input before trimming, normalization, or pattern matching.
+  // Returning a prefix would let importers silently extract partial documents.
+  if (input && input.length > MAX_SANITIZE_INPUT_CHARS) {
+    return {
+      status: "rejected",
+      output: "",
+      title: "",
+      content: "",
+      patterns: ["input_truncated"],
+    };
+  }
+
   try {
     // Step 1: Check lockout counter if conversationId is provided
     if (conversationId) {
@@ -308,6 +352,8 @@ export async function sanitizeAiInput(
           return {
             status: "locked",
             output: "",
+            title: "",
+            content: "",
             patterns: ["conversation_locked"],
           };
         }
@@ -321,10 +367,16 @@ export async function sanitizeAiInput(
 
     // Handle empty/null input
     if (!input || input.trim().length === 0) {
-      return { status: "clean", output: input || "", patterns: [] };
+      return {
+        status: "clean",
+        output: input || "",
+        title: "",
+        content: input || "",
+        patterns: [],
+      };
     }
 
-    // Normalize input: strip zero-width chars + NFKC normalization
+    // Normalize input: strip zero-width chars + NFKC normalization.
     const normalized = normalizeInput(input);
 
     const matchedPatterns: string[] = [];
@@ -346,6 +398,8 @@ export async function sanitizeAiInput(
       return {
         status: "rejected",
         output: "",
+        title: "",
+        content: "",
         patterns: Array.from(new Set(matchedPatterns)),
       };
     }
@@ -373,17 +427,27 @@ export async function sanitizeAiInput(
       return {
         status: "sanitized",
         output: sanitizedOutput.trim(),
+        title: "",
+        content: sanitizedOutput.trim(),
         patterns: Array.from(new Set(sanitizedPatterns)),
       };
     }
 
-    return { status: "clean", output: normalized, patterns: [] };
+    return {
+      status: "clean",
+      output: normalized,
+      title: "",
+      content: normalized,
+      patterns: [],
+    };
   } catch {
     // Catch unexpected errors (e.g., catastrophic backtracking)
     // Fail-closed: reject the input
     return {
       status: "rejected",
       output: "",
+      title: "",
+      content: "",
       patterns: ["processing_error"],
     };
   }
@@ -408,7 +472,7 @@ async function incrementLockoutCounter(conversationId: string): Promise<void> {
     );
 
     if (newCount >= LOCKOUT_THRESHOLD) {
-      logAiSecurityEvent({
+      await logAiSecurityEvent({
         eventType: "conversation_locked",
         patternMatched: "lockout_threshold_reached",
         rawInput: `conversationId:${conversationId}`,

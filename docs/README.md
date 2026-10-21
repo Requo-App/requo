@@ -32,6 +32,8 @@ index is the map to the product, current implementation, and recurring work.
   [setup guides](#setup-guides).
 - App Router rendering and navigation: [instant navigation](architecture/instant-navigation.md).
 - Known implementation inconsistencies: [technical debt](technical-debt.md).
+- Reviewing the AI surfaces (Agent, Assistant, quote AI, knowledge):
+  [AI features review](reviews/ai-features-review.md).
 
 ## Repository orientation
 

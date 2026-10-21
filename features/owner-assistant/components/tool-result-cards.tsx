@@ -240,6 +240,8 @@ interface QuoteListResult extends BaseToolResult {
     results: QuoteRow[];
     total: number;
     totalValue: number;
+    /** The currency the totals are in. */
+    currency: string;
     hasMore: boolean;
   };
 }
@@ -250,7 +252,7 @@ interface QuoteListCardProps {
 }
 
 export function QuoteListCard({ result, businessSlug }: QuoteListCardProps) {
-  const { results, total, totalValue, hasMore } = result.data;
+  const { results, total, totalValue, currency, hasMore } = result.data;
 
   if (results.length === 0) {
     return (
@@ -279,7 +281,7 @@ export function QuoteListCard({ result, businessSlug }: QuoteListCardProps) {
           <div className="flex items-center gap-2 shrink-0">
             {totalValue > 0 && (
               <span className="text-sm font-semibold text-foreground">
-                {formatCurrency(totalValue)}
+                {formatCurrency(totalValue, currency)}
               </span>
             )}
             <span className="meta-label">{total} total</span>

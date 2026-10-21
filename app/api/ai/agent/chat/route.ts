@@ -51,26 +51,50 @@ export async function POST(request: Request) {
     );
     if (!decoded.ok) return decoded.response;
     const rawAttachments = decoded.rawAttachments;
-    const uiMessages = Array.isArray(
+    // A malformed `messages` array is a client error, not a server fault:
+    // parsing it outside a guarded branch turned a bad payload into a 500.
+    const uiMessagesResult = Array.isArray(
       (body as { messages?: unknown }).messages,
     )
-      ? uiMessageSchema.array().parse(
+      ? uiMessageSchema.array().safeParse(
           (body as { messages?: unknown }).messages,
         )
-      : undefined;
+      : null;
+
+    if (uiMessagesResult && !uiMessagesResult.success) {
+      return NextResponse.json(
+        { error: "Invalid request. Session token and message content are required." },
+        { status: 400 },
+      );
+    }
+
+    const uiMessages = uiMessagesResult?.data;
     const content =
       "content" in parsed.data && typeof parsed.data.content === "string"
         ? parsed.data.content
         : undefined;
 
+    // The client message id makes a retry idempotent: the same turn is not
+    // persisted (and not billed) twice.
+    const latestUserMessage = uiMessages
+      ? [...uiMessages].reverse().find((message) => message.role === "user")
+      : undefined;
+    const clientMessageId = latestUserMessage?.id ?? null;
+
     const headerStore = await headers();
     const clientIp = getPublicActionClientIpAddress(headerStore);
 
-    // Rate limit: per-IP (100 messages per hour)
+    // Rate limit: per-IP (100 messages per hour).
+    //
+    // The User-Agent is client-controlled, so the fingerprint bucket alone
+    // does not bound a sender that rotates it. `ipLimit` is the bucket that
+    // actually bounds one, and `scopeLimit` is the flood backstop.
     const ipAllowed = await assertPublicActionRateLimit({
       action: "public-inquiry-submit",
       scope: `ai-agent-ip:${clientIp}`,
       limit: 100,
+      ipLimit: 100,
+      scopeLimit: 1000,
       windowMs: 60 * 60 * 1000,
     });
 
@@ -81,11 +105,14 @@ export async function POST(request: Request) {
       );
     }
 
-    // Rate limit: per-session (50 messages per hour)
+    // Rate limit: per-session (50 messages per hour). The session token is
+    // server-issued and not client-controlled, so this bucket cannot be
+    // rotated.
     const sessionAllowed = await assertPublicActionRateLimit({
       action: "public-inquiry-submit",
       scope: `ai-agent-session:${sessionToken}`,
       limit: 50,
+      ipLimit: 50,
       windowMs: 60 * 60 * 1000,
     });
 
@@ -101,6 +128,10 @@ export async function POST(request: Request) {
       sessionToken,
       attachments: rawAttachments,
       userMessage: content,
+      clientMessageId,
+      // The request's signal reaches the provider call, so a visitor who
+      // stops generating actually cancels the turn.
+      abortSignal: request.signal,
       uiMessages: uiMessages?.map((message) => ({
         role: message.role,
         content: extractUiMessageText(message),

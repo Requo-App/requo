@@ -6,7 +6,7 @@ import { generateQuoteDraftForBusiness } from "@/features/ai/quote-generator";
 import type { AiQuoteDraftActionState } from "@/features/ai/types";
 import { getBusinessActionContext } from "@/lib/db/business-access";
 import { hasFeatureAccess } from "@/lib/plans";
-import { checkUsageLimit } from "@/lib/ai";
+import { releaseUsageReservation, reserveUsage } from "@/lib/ai";
 import { getEffectivePlanForBusiness } from "@/lib/billing/subscription-service";
 import type { AiTaskType } from "@/lib/ai/types";
 import { emptyToUndefined, firstString } from "@/lib/zod-helpers";
@@ -109,10 +109,13 @@ export async function generateQuoteDraftAction(
     };
   }
 
-  // 4. Check usage limit
+  // 4. Reserve usage. The credit is reserved (not merely read): a cached
+  // read let every concurrent request pass the same stale total, and
+  // `aiQuoteDrafting` ships on every plan, so the monthly pool is the only
+  // real cost control on this endpoint.
   const taskType: AiTaskType = "quote_draft";
 
-  const usageCheck = await checkUsageLimit({
+  const usageCheck = await reserveUsage({
     userId,
     businessId,
     taskType,
@@ -124,6 +127,8 @@ export async function generateQuoteDraftAction(
       error: usageCheck.message,
     };
   }
+
+  const usageReservation = usageCheck.reservation;
 
   // 5. Invoke the quote generator
   let currentItemsData: Array<{
@@ -157,9 +162,16 @@ export async function generateQuoteDraftAction(
     revisionComment: parsed.data.revisionComment ?? null,
     currentItems: parsed.data.currentItems ?? null,
     currentItemsData,
+    usageReservation,
   });
 
   if (!result.ok) {
+    // The draft never reached the provider (or produced nothing): release
+    // the reserved credit.
+    await releaseUsageReservation(usageReservation).catch((error) => {
+      console.warn("[ai-quote-draft] Failed to release AI credit:", error);
+    });
+
     return {
       error: result.error,
     };

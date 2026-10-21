@@ -41,10 +41,14 @@ async function generateDedupKey(
 /**
  * Checks whether a request is a duplicate within the 10-second dedup window.
  *
+ * The check and the write are one atomic operation: a get-then-set let two
+ * concurrent identical requests both observe "no key" and both proceed, which
+ * is exactly the double-click and retry case the module exists for.
+ *
  * @param conversationId - The conversation this message belongs to
  * @param messageContent - The raw message content from the user
  * @returns `true` if the request is a duplicate (caller should return 409),
- *          `false` if this is a new request (key is set with 10s TTL)
+ *          `false` if this call claimed the key (a new request)
  */
 export async function checkDuplicate(
   conversationId: string,
@@ -53,17 +57,15 @@ export async function checkDuplicate(
   try {
     const key = await generateDedupKey(conversationId, messageContent);
 
-    // Check if key already exists
-    const existing = await cacheLayer.get<boolean>(key);
+    // `setIfAbsent` returns false when another caller already claimed the
+    // key, which means this request is a duplicate.
+    const claimed = await cacheLayer.setIfAbsent(
+      key,
+      true,
+      DEDUP_TTL_SECONDS,
+    );
 
-    if (existing) {
-      // Duplicate request within the 10-second window
-      return true;
-    }
-
-    // First occurrence — set the key with 10s TTL
-    await cacheLayer.set(key, true, DEDUP_TTL_SECONDS);
-    return false;
+    return !claimed;
   } catch (error) {
     // Fail-open: if anything goes wrong, allow the request through
     console.warn(

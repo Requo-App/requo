@@ -23,9 +23,10 @@ import {
 } from "@/lib/ai/token-budget";
 import { truncateToolOutput } from "@/lib/ai/tool-truncator";
 import {
-  checkUsageLimit,
   computeUsageWeight,
-  recordUsage,
+  releaseUsageReservation,
+  reserveUsage,
+  settleUsageReservation,
 } from "@/lib/ai/usage-limiter";
 import {
   checkAssistantFileUploadLimit,
@@ -136,8 +137,10 @@ export async function runOwnerAssistant({
   messages: clientMessages,
   attachments = [],
 }: RunOwnerAssistantParams): Promise<{ response: Response; sessionId: string }> {
-  // Hard usage quota check — block requests that exceed the plan's monthly allowance
-  const quotaResult = await checkUsageLimit({
+  // Hard usage quota check — block requests that exceed the plan's monthly
+  // allowance. The credit is reserved (not merely read): a cached read let
+  // every concurrent turn pass the same stale total.
+  const quotaResult = await reserveUsage({
     userId,
     businessId,
     taskType: "assistant_message",
@@ -147,6 +150,38 @@ export async function runOwnerAssistant({
   if (!quotaResult.allowed) {
     throw new Error(`QUOTA_EXCEEDED: ${quotaResult.message}`);
   }
+
+  const usageReservation = quotaResult.reservation;
+  let usageSettled = false;
+
+  /** Release the reserved credit when the turn never reached the provider. */
+  const releaseUsage = async () => {
+    if (usageSettled) return;
+    usageSettled = true;
+    try {
+      await releaseUsageReservation(usageReservation);
+    } catch (releaseError) {
+      console.warn("[owner-assistant] Failed to release AI credit:", releaseError);
+    }
+  };
+
+  /**
+   * Charge the reserved credit with what the turn actually spent. The
+   * reservation row IS the usage event, so it settles the credit instead of
+   * adding a second row.
+   */
+  const settleUsage = async (inputTokens: number, outputTokens: number) => {
+    if (usageSettled) return;
+    usageSettled = true;
+    try {
+      await settleUsageReservation(
+        usageReservation,
+        computeUsageWeight("assistant_message", { inputTokens, outputTokens }),
+      );
+    } catch (settleError) {
+      console.warn("[owner-assistant] Failed to settle AI credit:", settleError);
+    }
+  };
 
   // Per-surface daily bucket — customer-independent, Assistant-only.
   const bucketResult = await checkAssistantMessageLimit({ businessId, plan });
@@ -218,6 +253,26 @@ export async function runOwnerAssistant({
       throw error;
     }
   }
+
+  // The parsed attachment text is untrusted content too: a document the
+  // owner re-uploaded is usually one a customer sent them. It is sanitised
+  // before it reaches a model that holds write tools.
+  if (attachmentBlock) {
+    const attachmentSanitization = await sanitizeAiInput(
+      attachmentBlock,
+      `owner-assistant:${session.sessionId}`,
+    );
+    if (
+      attachmentSanitization.status === "rejected" ||
+      attachmentSanitization.status === "locked"
+    ) {
+      throw new Error(
+        "ATTACHMENT_REJECTED: That file couldn't be processed. Try removing any instructional text and upload again.",
+      );
+    }
+    attachmentBlock = attachmentSanitization.output || attachmentBlock;
+  }
+
   const fullUserText = attachmentBlock
     ? `${safeUserText}\n\n${attachmentBlock}`
     : safeUserText;
@@ -417,7 +472,7 @@ export async function runOwnerAssistant({
         });
 
         if (filtered.status === "redacted") {
-          logAiSecurityEvent({
+          await logAiSecurityEvent({
             eventType: "output_redacted",
             patternMatched: filtered.redactedPatterns.join(",") || "redacted",
             userId,
@@ -431,18 +486,9 @@ export async function runOwnerAssistant({
         // assistant row poisons the next turn (Google rejects part-less
         // messages), and logging it as success hid the regression.
         if (isEmpty) {
-          recordUsage(
-            userId,
-            businessId,
-            "assistant_message",
-            computeUsageWeight("assistant_message", {
-              inputTokens,
-              outputTokens,
-            }),
-            plan,
-          ).catch((err) => {
-            console.warn("[owner-assistant] Failed to record usage:", err);
-          });
+          // The provider was called and the tokens were spent even though the
+          // turn produced no text: charge the reserved credit for it.
+          await settleUsage(inputTokens, outputTokens);
           void logAiInvocation({
             userId,
             businessId,
@@ -472,20 +518,10 @@ export async function runOwnerAssistant({
           console.error("[owner-assistant] Failed to persist message:", err);
         });
 
-        // Record usage against the business plan (non-blocking), weighted by
-        // the tokens this turn actually spent.
-        recordUsage(
-          userId,
-          businessId,
-          "assistant_message",
-          computeUsageWeight("assistant_message", {
-            inputTokens,
-            outputTokens,
-          }),
-          plan,
-        ).catch((err) => {
-          console.warn("[owner-assistant] Failed to record usage:", err);
-        });
+        // Charge the reserved credit with what the turn actually spent. The
+        // reservation row IS the usage event, so it settles the credit
+        // instead of adding a second row.
+        await settleUsage(inputTokens, outputTokens);
 
         // Attribute token spend for this surface (non-blocking)
         void logAiInvocation({
@@ -505,6 +541,9 @@ export async function runOwnerAssistant({
       },
       onError: async ({ error }) => {
         console.error("Owner assistant stream error:", error);
+        // The turn failed after the provider was called: the reserved credit
+        // is charged rather than released.
+        await settleUsage(0, 0);
         void logAiInvocation({
           userId,
           businessId,
@@ -529,6 +568,8 @@ export async function runOwnerAssistant({
     };
   } catch (error) {
     console.error("Owner assistant orchestrator error:", error);
+    // The turn never reached the provider: release the reserved credit.
+    await releaseUsage();
     throw error;
   }
 }

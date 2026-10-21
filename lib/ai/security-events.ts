@@ -7,9 +7,11 @@ import { newEntityId } from "@/lib/ids";
 // ---------------------------------------------------------------------------
 // AI Security Events Logger
 //
-// Fire-and-forget utility that logs AI security events (injection detection,
-// rejection, output redaction) to the ai_security_events table. Failures are
-// swallowed with a console.error — callers should never block on logging.
+// Records AI security events (injection detection, rejection, output
+// redaction) in the ai_security_events table. Failures are swallowed with a
+// console.error — logging must never break the caller's turn — but the
+// insert is awaited by the caller so a serverless runtime cannot freeze the
+// instance before the audit row is written.
 // ---------------------------------------------------------------------------
 
 export type AiSecurityEventType =
@@ -40,28 +42,29 @@ async function hashInput(input: string): Promise<string> {
 }
 
 /**
- * Logs an AI security event to the database. Fire-and-forget — does not throw
- * on failure, only logs to console.error.
+ * Logs an AI security event to the database. Never throws — a failed write
+ * only reaches the console. The returned promise is awaited by the callers so
+ * the audit row is not lost when the runtime freezes the instance right after
+ * the response is returned.
  */
-export function logAiSecurityEvent(params: LogAiSecurityEventParams): void {
+export async function logAiSecurityEvent(
+  params: LogAiSecurityEventParams,
+): Promise<void> {
   const { eventType, patternMatched, userId, businessId, rawInput } = params;
 
-  // Fire-and-forget: start the async work but don't block the caller
-  void (async () => {
-    try {
-      const id = newEntityId();
-      const inputHash = await hashInput(rawInput);
+  try {
+    const id = newEntityId();
+    const inputHash = await hashInput(rawInput);
 
-      await db.insert(aiSecurityEvents).values({
-        id,
-        eventType,
-        patternMatched,
-        userId: userId ?? null,
-        businessId: businessId ?? null,
-        inputHash,
-      });
-    } catch (error) {
-      console.error("[ai-security-events] Failed to log event:", error);
-    }
-  })();
+    await db.insert(aiSecurityEvents).values({
+      id,
+      eventType,
+      patternMatched,
+      userId: userId ?? null,
+      businessId: businessId ?? null,
+      inputHash,
+    });
+  } catch (error) {
+    console.error("[ai-security-events] Failed to log event:", error);
+  }
 }

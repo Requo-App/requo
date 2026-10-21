@@ -48,7 +48,17 @@ export type QualificationState = {
  * data. A session holds at most one — a revision supersedes rather than
  * versions. No schema migration.
  */
-export type ProposedInquiryStatus = "pending" | "approved" | "discarded";
+export type ProposedInquiryStatus =
+  | "pending"
+  | "sending"
+  | "approved"
+  | "discarded";
+
+/**
+ * A proposal that has been consumed for sending but whose Inquiry has not
+ * been created yet. The visitor can retry it once the window below elapses.
+ */
+export const AGENT_PROPOSAL_SENDING_STALE_MS = 2 * 60 * 1000;
 
 export type ProposedInquiry = {
   id: string; // identifies this proposal for exactly-once consumption
@@ -66,6 +76,8 @@ export type ProposedInquiry = {
   proposedAt: string;
   status: ProposedInquiryStatus;
   inquiryId?: string; // set once approved
+  /** Set while the Inquiry is being created; used to reclaim a stale send. */
+  sendingAt?: string;
 };
 
 /** Full session state: Qualification plus the single staged proposal. */

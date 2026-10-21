@@ -19,12 +19,13 @@ import {
   assertPublicActionRateLimit,
   getPublicActionClientIpAddress,
 } from "@/lib/public-action-rate-limit";
-import { createInquiryParamsSchema } from "@/features/ai-agent/schemas";
+import { createInquiryParamsSchema, sessionMetadataSchema } from "@/features/ai-agent/schemas";
 import { getOperationalBusinessCondition } from "@/features/businesses/lifecycle";
 import type {
   AgentSessionState,
   ProposedInquiry,
 } from "@/features/ai-agent/types";
+import { AGENT_PROPOSAL_SENDING_STALE_MS } from "@/features/ai-agent/types";
 
 type CreateSessionResult =
   | {
@@ -89,12 +90,17 @@ export async function createAgentSessionAction({
 
     // Anonymous session creation is rate-limited per IP so an
     // unauthenticated caller cannot mint sessions without bound.
+    //
+    // The User-Agent is client-controlled, so the fingerprint bucket alone
+    // does not bound a sender that rotates it: `ipLimit` is the bucket that
+    // actually bounds one address.
     const headerStore = await headers();
     const clientIp = getPublicActionClientIpAddress(headerStore);
     const creationAllowed = await assertPublicActionRateLimit({
       action: "public-inquiry-submit",
       scope: `ai-agent-create:${clientIp}`,
       limit: 20,
+      ipLimit: 20,
       windowMs: 60 * 60 * 1000,
     });
 
@@ -118,9 +124,14 @@ export async function createAgentSessionAction({
     }
 
     // Create session
+    // The metadata comes from a public, unauthenticated action, so it is
+    // parsed and bounded before it is persisted: unknown keys and oversized
+    // values must not reach the metadata column.
+    const parsedMetadata = sessionMetadataSchema.safeParse(metadata ?? {});
+
     const result = await createAgentSession({
       businessId: business.id,
-      metadata,
+      metadata: parsedMetadata.success ? parsedMetadata.data : {},
     });
 
     return {
@@ -148,6 +159,60 @@ type ApproveProposalResult =
  */
 function hashTokenScope(prefix: string, token: string): string {
   return `${prefix}:${createHash("sha256").update(token).digest("hex").slice(0, 32)}`;
+}
+
+/**
+ * Release a proposal that was consumed for sending but never produced an
+ * Inquiry. The proposal returns to `pending` so the visitor can retry, and
+ * the failure is visible in the transcript instead of a false receipt.
+ */
+async function releaseAgentProposalForRetry({
+  sessionId,
+  proposalId,
+}: {
+  sessionId: string;
+  proposalId: string;
+}) {
+  try {
+    await db.transaction(async (tx) => {
+      const [row] = await tx
+        .select({ id: aiAgentSessions.id, state: aiAgentSessions.state })
+        .from(aiAgentSessions)
+        .where(eq(aiAgentSessions.id, sessionId))
+        .for("update")
+        .limit(1);
+
+      if (!row) return;
+
+      const state = (row.state ?? {}) as AgentSessionState;
+      const current = state.proposedInquiry;
+
+      if (
+        !current ||
+        current.id !== proposalId ||
+        current.status !== "sending"
+      ) {
+        return;
+      }
+
+      await tx
+        .update(aiAgentSessions)
+        .set({
+          state: {
+            ...(state as Record<string, unknown>),
+            proposedInquiry: {
+              ...current,
+              status: "pending",
+              sendingAt: undefined,
+            },
+          },
+          updatedAt: new Date(),
+        })
+        .where(eq(aiAgentSessions.id, row.id));
+    });
+  } catch (error) {
+    console.error("[ai-agent] Failed to release proposal for retry.", error);
+  }
 }
 
 /**
@@ -253,6 +318,44 @@ export async function approveAgentProposalAction({
         if (pending?.status === "approved") {
           return { kind: "sending" } as ConsumeOutcome;
         }
+        if (pending?.status === "sending") {
+          // A send that never produced an Inquiry (the process died between
+          // consuming the proposal and creating the row) is reclaimed once it
+          // goes stale, so the visitor can retry instead of losing the lead.
+          const sendingAt = pending.sendingAt
+            ? Date.parse(pending.sendingAt)
+            : Number.NaN;
+          const isStale =
+            !Number.isFinite(sendingAt) ||
+            Date.now() - sendingAt > AGENT_PROPOSAL_SENDING_STALE_MS;
+
+          if (!isStale) {
+            return { kind: "sending" } as ConsumeOutcome;
+          }
+
+          const reclaimed: ProposedInquiry = {
+            ...pending,
+            status: "pending",
+            sendingAt: undefined,
+          };
+
+          await tx
+            .update(aiAgentSessions)
+            .set({
+              state: {
+                ...(state as Record<string, unknown>),
+                proposedInquiry: reclaimed,
+              },
+              updatedAt: new Date(),
+            })
+            .where(eq(aiAgentSessions.id, row.id));
+
+          return {
+            kind: "consumed",
+            proposal: reclaimed,
+            businessId: row.businessId,
+          } as ConsumeOutcome;
+        }
         return { kind: "missing" } as ConsumeOutcome;
       }
 
@@ -286,7 +389,8 @@ export async function approveAgentProposalAction({
           additionalFields: parsedValues.data.additionalFields,
         },
         proposedAt: pending.proposedAt,
-        status: "approved",
+        status: "sending",
+        sendingAt: new Date().toISOString(),
       };
 
       await tx
@@ -343,6 +447,7 @@ export async function approveAgentProposalAction({
       slug: businesses.slug,
       plan: businesses.plan,
       aiAgentEnabled: businesses.aiAgentEnabled,
+      publicInquiryEnabled: businesses.publicInquiryEnabled,
     })
     .from(businesses)
     .where(eq(businesses.id, consume.businessId))
@@ -352,6 +457,21 @@ export async function approveAgentProposalAction({
     return {
       success: false,
       error: "Could not send that inquiry. Please try again.",
+    };
+  }
+
+  // The business-wide public intake switch. Every other public intake path
+  // refuses when it is off, so the Agent must refuse too.
+  if (!business.publicInquiryEnabled) {
+    await releaseAgentProposalForRetry({
+      sessionId,
+      proposalId: consume.proposal.id,
+    });
+
+    return {
+      success: false,
+      error:
+        "This business is not accepting inquiries through chat right now. Please use their inquiry form.",
     };
   }
 
@@ -391,6 +511,7 @@ export async function approveAgentProposalAction({
             businessInquiryForms.slug,
             consume.proposal.values.serviceSlug,
           ),
+          eq(businessInquiryForms.publicInquiryEnabled, true),
           isNull(businessInquiryForms.archivedAt),
         ),
       )
@@ -411,11 +532,17 @@ export async function approveAgentProposalAction({
             and(
               eq(businessInquiryForms.businessId, business.id),
               eq(businessInquiryForms.isDefault, true),
+              eq(businessInquiryForms.publicInquiryEnabled, true),
               isNull(businessInquiryForms.archivedAt),
             ),
           )
           .limit(1);
     if (!defaultForm) {
+      await releaseAgentProposalForRetry({
+        sessionId,
+        proposalId: consume.proposal.id,
+      });
+
       return {
         success: false,
         error: "No active service is available right now.",
@@ -461,9 +588,14 @@ export async function approveAgentProposalAction({
     inquiryId = result.inquiryId;
   } catch (error) {
     console.error("[ai-agent] Proposal approval submission failed.", error);
-    // The proposal was already consumed; surface a retry via a fresh revision
-    // rather than silently losing the lead — the transcript still holds the
-    // values, so the visitor can continue the conversation.
+    // The Inquiry was never created. Release the proposal back to `pending`
+    // so the visitor can retry: consuming it up front and never releasing it
+    // lost the lead permanently and showed a false "sent" receipt.
+    await releaseAgentProposalForRetry({
+      sessionId,
+      proposalId: consume.proposal.id,
+    });
+
     return {
       success: false,
       error: "Could not send that inquiry. Please try again.",

@@ -303,6 +303,11 @@ export async function recordModelTokenUsageDetailed(
  * Correct a minute's counters against the real usage a turn reported, so
  * accounting converges on truth instead of accumulating an estimate's error.
  * Posts the difference (actual − estimated), not the full amount.
+ *
+ * Every dimension the selector enforces has to converge: the per-minute and
+ * per-day token counters, the provider-shared token counters and the
+ * Cloudflare neuron pool. Correcting only the per-minute counter left the
+ * daily budget pinned to an estimate that never moved.
  */
 export async function correctTokenUsage(
   modelId: string,
@@ -312,19 +317,68 @@ export async function correctTokenUsage(
   const actual =
     Math.max(0, actualTokens.inputTokens) +
     Math.max(0, actualTokens.outputTokens);
-  const delta = Math.ceil(actual - Math.max(0, estimatedTokens));
-  if (delta === 0) return;
-  // incrementBy with a negative delta corrects an over-estimate downward.
-  await cacheLayer.incrementBy(getTpmKey(modelId), delta, TPM_TTL_SECONDS);
+  const estimated = Math.max(0, estimatedTokens);
+  const delta = Math.ceil(actual - estimated);
   const entry = catalogEntryFor(modelId);
   const provider = providerOf(modelId);
-  if (entry && provider && entry.sharedWithProvider.includes("tpm")) {
-    await cacheLayer.incrementBy(
-      getProviderKey("tpm", provider),
-      delta,
-      TPM_TTL_SECONDS,
+  const dayTtl = entry ? dayTtlSeconds(entry.dayResets) : 86_400;
+  const writes: Array<Promise<number | void>> = [];
+
+  if (delta !== 0) {
+    // incrementBy with a negative delta corrects an over-estimate downward.
+    writes.push(
+      cacheLayer.incrementBy(getTpmKey(modelId), delta, TPM_TTL_SECONDS),
+      cacheLayer.incrementBy(getTpdKey(modelId), delta, dayTtl),
     );
+    if (entry && provider) {
+      if (entry.sharedWithProvider.includes("tpm")) {
+        writes.push(
+          cacheLayer.incrementBy(
+            getProviderKey("tpm", provider),
+            delta,
+            TPM_TTL_SECONDS,
+          ),
+        );
+      }
+      // Daily tokens are provider-scoped whenever the provider shares any
+      // token dimension (Groq's 200K TPD covers all its models).
+      if (
+        entry.sharedWithProvider.includes("tpd") ||
+        entry.sharedWithProvider.includes("tpm")
+      ) {
+        writes.push(
+          cacheLayer.incrementBy(getProviderKey("tpd", provider), delta, dayTtl),
+        );
+      }
+    }
   }
+
+  // The neuron pool is charged by a rate-weighted amount, and the estimate
+  // was charged at the higher of the two rates. The correction is the
+  // difference between the real weighted charge and that estimate.
+  if (entry?.limits.neuronsPerMillion) {
+    const rates = entry.limits.neuronsPerMillion;
+    const actualCharge =
+      (Math.max(0, actualTokens.inputTokens) * rates.input +
+        Math.max(0, actualTokens.outputTokens) * rates.output) /
+      1_000_000;
+    const estimateCharge =
+      (estimated * Math.max(rates.input, rates.output)) / 1_000_000;
+    const neuronDelta =
+      Math.ceil(actualCharge * 1000) - Math.ceil(estimateCharge * 1000);
+
+    if (neuronDelta !== 0) {
+      writes.push(
+        cacheLayer.incrementBy(
+          getNeuronKey(provider || "cloudflare"),
+          neuronDelta,
+          dayTtl,
+        ),
+      );
+    }
+  }
+
+  if (writes.length > 0) await Promise.all(writes);
 }
 
 /**
@@ -574,11 +628,17 @@ export async function selectModels(
   }
 
   // Dead identifiers are skipped here as well as in the fallback wrapper, so
-  // a stale catalog entry costs nothing at selection time either.
+  // a stale catalog entry costs nothing at selection time either. The checks
+  // run concurrently: this is the hot path of every AI turn, and a serial
+  // cache round-trip per candidate made the per-turn latency a function of
+  // the chain length.
+  const deadFlags = await Promise.all(
+    ordered.map((entry) => isModelDead(entry.modelId)),
+  );
   const alive: ModelEntry[] = [];
-  for (const entry of ordered) {
-    if (!(await isModelDead(entry.modelId))) alive.push(entry);
-  }
+  ordered.forEach((entry, index) => {
+    if (!deadFlags[index]) alive.push(entry);
+  });
   ordered = alive;
 
   const loadRatios = await Promise.all(

@@ -18,7 +18,14 @@ export async function generateMetadata({
   const { slug } = await params;
   const business = await getPublicAgentBusiness(slug);
 
-  if (!business || !business.aiAgentEnabled) {
+  // The Agent needs Pro+. A downgrade leaves `ai_agent_enabled` set, so the
+  // plan gate is the other half of the condition: without it the route
+  // stays discoverable and the visitor gets a chat whose first send fails.
+  if (
+    !business ||
+    !business.aiAgentEnabled ||
+    !hasFeatureAccess(business.plan, "aiAgent")
+  ) {
     return { title: "Chat" };
   }
 
@@ -45,7 +52,14 @@ export default async function AgentChatPage({
   const { slug } = await params;
   const business = await getPublicAgentBusiness(slug);
 
-  if (!business || !business.aiAgentEnabled) {
+  // The Agent needs Pro+. A downgrade leaves `ai_agent_enabled` set, so the
+  // plan gate is the other half of the condition: without it the route
+  // stays discoverable and the visitor gets a chat whose first send fails.
+  if (
+    !business ||
+    !business.aiAgentEnabled ||
+    !hasFeatureAccess(business.plan, "aiAgent")
+  ) {
     notFound();
   }
 

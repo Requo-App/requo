@@ -4,7 +4,8 @@
  * Detects and redacts system prompt leakage, internal instruction disclosure,
  * and sensitive configuration details from AI-generated responses.
  *
- * Fail-open on error: returns original output unchanged if processing fails.
+ * Fail-closed on error: the output is redacted rather than returned
+ * uninspected, because callers persist what this returns.
  */
 
 export interface OutputFilterResult {

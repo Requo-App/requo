@@ -3,7 +3,7 @@ import "server-only";
 import { and, eq, gte, lt, sql } from "drizzle-orm";
 
 import { renderAnalyticsDigestEmail } from "@/emails/templates/analytics-digest";
-import { generateWithFallback, isAiConfigured } from "@/lib/ai";
+import { generateWithFallback, isAiConfigured, logAiInvocation } from "@/lib/ai";
 import { db } from "@/lib/db/client";
 import {
   analyticsDailyRollups,
@@ -66,6 +66,7 @@ async function generateRecommendations(
   businessName: string,
   current: WeekMetrics,
   prior: WeekMetrics,
+  usage: { businessId: string; userId: string },
 ): Promise<string[]> {
   if (!isAiConfigured()) {
     return [];
@@ -85,6 +86,8 @@ async function generateRecommendations(
     "Respond with 1-3 recommendations, one per line. No bullet points, no numbering, no labels. Just the recommendation sentences.",
   ].join("\n");
 
+  const startedAt = Date.now();
+
   try {
     const response = await generateWithFallback({
       model: "",
@@ -94,6 +97,24 @@ async function generateRecommendations(
       qualityTier: "cheap",
       routingProfile: "short_text",
       estimatedTokens: prompt.length / 4 + 300,
+    });
+
+    // The digest is a platform-provided feature for entitled businesses, so
+    // it does not charge their credit pool — but the spend still has to be
+    // visible in the admin console and the token logs.
+    await logAiInvocation({
+      userId: usage.userId,
+      businessId: usage.businessId,
+      taskType: "follow_up_message",
+      model: response.model,
+      provider: response.provider,
+      inputTokens: response.usage?.promptTokens ?? 0,
+      outputTokens: response.usage?.completionTokens ?? 0,
+      cacheHit: false,
+      latencyMs: Date.now() - startedAt,
+      status: "success",
+    }).catch((logError) => {
+      console.warn("[analytics-digest] Failed to log invocation:", logError);
     });
 
     return response.text
@@ -107,6 +128,21 @@ async function generateRecommendations(
       "[analytics-digest] AI recommendation generation failed:",
       error,
     );
+
+    await logAiInvocation({
+      userId: usage.userId,
+      businessId: usage.businessId,
+      taskType: "follow_up_message",
+      model: "unknown",
+      provider: "unknown",
+      inputTokens: 0,
+      outputTokens: 0,
+      cacheHit: false,
+      latencyMs: Date.now() - startedAt,
+      status: "error",
+      errorMessage: error instanceof Error ? error.message : "Unknown error",
+    }).catch(() => {});
+
     return [];
   }
 }
@@ -134,6 +170,7 @@ export async function sendAnalyticsDigestEmails(): Promise<AnalyticsDigestSummar
       name: businesses.name,
       slug: businesses.slug,
       plan: businesses.plan,
+      ownerUserId: businesses.ownerUserId,
     })
     .from(businesses)
     .where(
@@ -194,6 +231,7 @@ export async function sendAnalyticsDigestEmails(): Promise<AnalyticsDigestSummar
         business.name,
         currentMetrics,
         priorMetrics,
+        { businessId: business.id, userId: business.ownerUserId },
       );
 
       const dashboardUrl = `${appUrl}/${business.slug}/analytics`;

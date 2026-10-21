@@ -80,8 +80,14 @@ export async function POST(request: Request) {
     if (!decoded.ok) return decoded.response;
     const rawAttachments = decoded.rawAttachments;
 
-    // Validate business access (authoritative source of truth for identity)
-    const result = await getBusinessActionContext({ businessSlug });
+    // Validate business access (authoritative source of truth for identity).
+    // `requireActiveBusiness` keeps a plan-locked or archived business out of
+    // every operational write the Assistant can perform, exactly like the
+    // dashboard actions.
+    const result = await getBusinessActionContext({
+      businessSlug,
+      requireActiveBusiness: true,
+    });
 
     if (!result.ok) {
       return NextResponse.json({ error: result.error }, { status: 403 });

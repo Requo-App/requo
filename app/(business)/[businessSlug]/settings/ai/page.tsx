@@ -16,11 +16,6 @@ import {
   uploadKnowledgeFileAction,
 } from "@/features/memory/actions";
 import { KnowledgeManager } from "@/features/memory/components/knowledge-manager";
-import {
-  getBusinessKnowledgeSummary,
-  listBusinessKnowledgeFiles,
-  listBusinessMemories,
-} from "@/features/memory/queries";
 import { updateBusinessAiAgentSettingsAction } from "@/features/settings/actions";
 import { AssistantSettingsTabs } from "@/features/settings/components/assistant-settings-tabs";
 import { BusinessAiAgentSettingsForm } from "@/features/settings/components/business-ai-agent-settings-form";
@@ -86,7 +81,7 @@ async function AssistantTab({ params }: AiSettingsPageProps) {
 
   return (
     <BusinessAiAgentSettingsForm
-      action={updateBusinessAiAgentSettingsAction}
+      action={updateBusinessAiAgentSettingsAction.bind(null, slug)}
       chatPath={getBusinessPublicChatPath(slug)}
       key={`assistant-settings-${settings.updatedAt.getTime()}`}
       settings={settings}
@@ -99,15 +94,7 @@ async function KnowledgeTab({ params }: AiSettingsPageProps) {
   const { businessContext } =
     await getBusinessOperationalPageContext(businessSlug);
   const { business } = businessContext;
-  const businessId = business.id;
-  const plan = business.plan;
   const slug = business.slug;
-
-  const [memories, knowledgeFiles, summary] = await Promise.all([
-    listBusinessMemories(businessId),
-    listBusinessKnowledgeFiles(businessId),
-    getBusinessKnowledgeSummary(businessId, plan),
-  ]);
 
   // Bind slug into server actions so components only receive (prevState, formData)
   const boundCreateEntry = createMemoryEntryAction.bind(null, slug);
@@ -117,16 +104,16 @@ async function KnowledgeTab({ params }: AiSettingsPageProps) {
   const boundDeleteFile = deleteKnowledgeFileAction.bind(null, slug);
   const boundRetryFile = retryKnowledgeFileAction.bind(null, slug);
 
+  // The knowledge data is loaded by the tab itself when it is opened. It used
+  // to be rendered with the rest of the page, so its three queries ran on
+  // every visit — even for owners who only ever looked at the Assistant tab.
   return (
     <KnowledgeManager
+      businessSlug={slug}
       createEntryAction={boundCreateEntry}
       deleteEntryAction={boundDeleteEntry}
       deleteFileAction={boundDeleteFile}
-      knowledgeFiles={knowledgeFiles}
-      memories={memories}
       retryFileAction={boundRetryFile}
-      sourceCount={summary.sourceCount}
-      sourceLimit={summary.sourceLimit}
       updateEntryAction={boundUpdateEntry}
       uploadFileAction={boundUploadFile}
     />

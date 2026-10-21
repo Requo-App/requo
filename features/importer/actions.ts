@@ -5,6 +5,12 @@ import { updateTag } from "next/cache";
 import { getBusinessProductCacheTags, uniqueCacheTags } from "@/lib/cache/business-tags";
 import { getOperationalBusinessActionContext } from "@/lib/db/business-access";
 import { getUsageLimit, hasFeatureAccess } from "@/lib/plans";
+import {
+  computeUsageWeight,
+  releaseUsageReservation,
+  reserveUsage,
+  settleUsageReservation,
+} from "@/lib/ai";
 import { assertPublicActionRateLimit } from "@/lib/rate-limit/redis-rate-limiter";
 import { aiExtractFromFile } from "@/features/importer/ai-extractor";
 import { extractFile } from "@/features/importer/extractors";
@@ -140,11 +146,34 @@ export async function analyzeImportAction(
     };
   }
 
+  // The extraction is a metered AI invocation: it draws on the same monthly
+  // credit pool as every other AI surface. The importer used to consume
+  // provider spend that no allowance ever saw.
+  const usageCheck = await reserveUsage({
+    userId: user.id,
+    businessId: businessContext.business.id,
+    taskType: "quote_draft",
+    plan,
+  });
+
+  if (!usageCheck.allowed) {
+    return { ok: false, error: usageCheck.message };
+  }
+
   const aiResult = await aiExtractFromFile({ destination: "pricing", payload });
 
   if (!aiResult.ok) {
+    await releaseUsageReservation(usageCheck.reservation).catch(() => {});
+
     return { ok: false, error: aiResult.error };
   }
+
+  // The extraction spent tokens, so the reserved credit settles at the
+  // per-invocation weight.
+  await settleUsageReservation(
+    usageCheck.reservation,
+    computeUsageWeight("quote_draft"),
+  ).catch(() => {});
 
   // Tell the user when the document was too big and we had to crop it.
   if (payload.kind === "text" && payload.truncated) {

@@ -363,9 +363,9 @@ export function ChatInterface({
 
     void (async () => {
       try {
-        const response = await fetch(
-          `/api/ai/agent/session?token=${encodeURIComponent(stored)}`,
-        );
+        const response = await fetch("/api/ai/agent/session", {
+          headers: { Authorization: `Bearer ${stored}` },
+        });
         if (!response.ok) {
           // Expired or unknown — start clean rather than stranding the visitor.
           if (!cancelled) forgetSession();
@@ -792,7 +792,14 @@ export function ChatInterface({
                     ) : null}
                     <Button
                       aria-label="Retry response"
-                      onClick={() => void regenerate()}
+                      onClick={() =>
+                        void regenerate({
+                          // The session token travels with the retry. Without
+                          // it the request had no token and the server
+                          // answered 400, so the button could never work.
+                          body: { sessionToken: tokenRef.current ?? "" },
+                        })
+                      }
                       size="icon-xs"
                       type="button"
                       variant="ghost"

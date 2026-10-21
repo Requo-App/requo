@@ -29,6 +29,7 @@ import { quoteAcceptanceValidationMessages } from "@/features/quotes/schemas";
 import type { AiQuoteMissingInfoItem } from "@/lib/db/schema/quotes";
 import type { QuoteDeliveryMethod, QuoteStatus } from "@/features/quotes/types";
 import {
+  computeQuoteAiReadiness,
   getTodayUtcDateString,
 } from "@/features/quotes/utils";
 import { insertBusinessNotification } from "@/features/notifications/mutations";
@@ -493,6 +494,7 @@ export async function createQuoteForBusiness({
 }: CreateQuoteForBusinessInput) {
   const quoteId = newEntityId();
   const totals = calculateQuoteTotals(quote);
+  const resolvedMissingInfo = resolveQuoteAiMissingInfo(quote);
 
   for (let attempt = 0; attempt < 5; attempt += 1) {
     try {
@@ -561,8 +563,11 @@ export async function createQuoteForBusiness({
           taxLabel: quote.taxLabel?.trim() || null,
           totalInCents: totals.totalInCents,
           validUntil: quote.validUntil,
-          aiReadiness: quote.aiReadiness ?? null,
-          aiMissingInfo: resolveQuoteAiMissingInfo(quote),
+          aiReadiness: computeQuoteAiReadiness({
+            items: totals.items,
+            missingInfo: resolvedMissingInfo,
+          }),
+          aiMissingInfo: resolvedMissingInfo,
           aiGenerationId: quote.aiGenerationId?.trim() || null,
           createdAt: now,
           updatedAt: now,
@@ -701,6 +706,7 @@ export async function updateQuoteForBusiness({
       quote,
       new Set(existingItemRows.map((row) => row.id)),
     );
+    const resolvedMissingInfo = resolveQuoteAiMissingInfo(quote);
 
     await tx
       .update(quotes)
@@ -718,8 +724,11 @@ export async function updateQuoteForBusiness({
         taxLabel: quote.taxLabel?.trim() || null,
         totalInCents: totals.totalInCents,
         validUntil: quote.validUntil,
-        aiReadiness: quote.aiReadiness ?? null,
-        aiMissingInfo: resolveQuoteAiMissingInfo(quote),
+        aiReadiness: computeQuoteAiReadiness({
+          items: totals.items,
+          missingInfo: resolvedMissingInfo,
+        }),
+        aiMissingInfo: resolvedMissingInfo,
         aiGenerationId: quote.aiGenerationId?.trim() || null,
         updatedAt: now,
       })

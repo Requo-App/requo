@@ -8,6 +8,10 @@ import { tool } from "ai";
 import type { ToolExecutionOptions } from "ai";
 import { z } from "zod";
 import { retrieveBusinessKnowledge } from "@/features/memory/retrieval";
+import {
+  UNTRUSTED_KNOWLEDGE_CLOSE,
+  UNTRUSTED_KNOWLEDGE_OPEN,
+} from "@/features/memory/retrieval";
 import { searchKnowledgeParamsSchema } from "@/features/ai-agent/schemas";
 import type { AgentToolContext } from "@/features/ai-agent/tools/types";
 
@@ -42,7 +46,13 @@ export const searchKnowledgeTool = tool<SearchKnowledgeInput, SearchKnowledgeOut
       return {
         found: true,
         results: result.evidence.map((e) => ({
-          content: e.content,
+          // The knowledge content is returned as data, fenced so it cannot
+          // act as an instruction for the tool-calling model.
+          content: [
+            UNTRUSTED_KNOWLEDGE_OPEN,
+            e.content,
+            UNTRUSTED_KNOWLEDGE_CLOSE,
+          ].join("\n"),
           relevance: e.score,
           source: e.title,
         })),

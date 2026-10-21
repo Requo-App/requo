@@ -6,11 +6,39 @@
 
 import "server-only";
 
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import { aiAgentMessages } from "@/lib/db/schema";
 import type { AgentMessage, MessageRole, MessageMetadata } from "@/features/ai-agent/types";
 import { newEntityId } from "@/lib/ids";
+
+/**
+ * Whether a turn with this client-side message id was already persisted.
+ *
+ * A retry reuses the id, so the orchestrator can skip the write and the
+ * second bill for the same turn.
+ */
+export async function hasAgentMessageWithClientId({
+  sessionId,
+  clientMessageId,
+}: {
+  sessionId: string;
+  clientMessageId: string;
+}): Promise<boolean> {
+  const [row] = await db
+    .select({ id: aiAgentMessages.id })
+    .from(aiAgentMessages)
+    .where(
+      and(
+        eq(aiAgentMessages.sessionId, sessionId),
+        eq(aiAgentMessages.role, "user"),
+        sql`${aiAgentMessages.metadata} ->> 'clientMessageId' = ${clientMessageId}`,
+      ),
+    )
+    .limit(1);
+
+  return Boolean(row);
+}
 
 /**
  * Add a message to a session.

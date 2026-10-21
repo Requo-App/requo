@@ -22,7 +22,12 @@ async function requireMember(businessSlug: string) {
   }
 
   const userId: string = session.user.id;
-  const result = await getBusinessActionContext({ businessSlug });
+  // The Assistant performs operational writes (create inquiries, create and
+  // send quotes), so a plan-locked or archived business must not reach them.
+  const result = await getBusinessActionContext({
+    businessSlug,
+    requireActiveBusiness: true,
+  });
   if (!result.ok) {
     return { error: result.error };
   }
@@ -158,7 +163,11 @@ export async function confirmAssistantToolAction({
   sessionId: string;
   confirmationId: string;
   decision: "approved" | "rejected";
-}): Promise<{ ok: true; summary: string } | { error: string }> {
+}): Promise<
+  | { ok: true; summary: string }
+  | { ok: false; error: string; summary: string }
+  | { error: string }
+> {
   const member = await requireMember(businessSlug);
   if ("error" in member) return { error: member.error ?? "Something went wrong." };
 
@@ -201,12 +210,14 @@ export async function confirmAssistantToolAction({
   };
 
   let outcome: { summary: string; output: unknown; toolName: string };
+  let failed = false;
   if (pending.operation === "update_inquiry_status") {
     const parsed = updateInquiryStatusSchema.safeParse(pending.parameters);
     if (!parsed.success) {
       return { error: "The confirmed details were invalid." };
     }
     const result = await executeUpdateInquiryStatus(toolContext, parsed.data);
+    failed = result.type === "error";
     outcome = {
       summary: result.summary,
       output: result,
@@ -218,6 +229,7 @@ export async function confirmAssistantToolAction({
       return { error: "The confirmed details were invalid." };
     }
     const result = await executeSendQuote(toolContext, parsed.data);
+    failed = result.type === "error";
     outcome = {
       summary: result.summary,
       output: result,
@@ -235,6 +247,16 @@ export async function confirmAssistantToolAction({
     toolCallId: `confirmed-${confirmationId}`,
   });
   await addMessage({ sessionId, role: "assistant", content: outcome.summary });
+
+  // A refused operation is not a success. Reporting it as one left every
+  // programmatic caller unable to tell the two apart.
+  if (failed) {
+    return {
+      ok: false,
+      error: outcome.summary,
+      summary: outcome.summary,
+    };
+  }
 
   return { ok: true, summary: outcome.summary };
 }

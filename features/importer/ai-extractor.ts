@@ -2,9 +2,13 @@ import "server-only";
 
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { generateText } from "ai";
+import { z } from "zod";
 
 import { env, isGeminiConfigured } from "@/lib/env";
 import { EXTRACTION_MODEL_IDS } from "@/lib/ai/catalog";
+import { filterAiOutput } from "@/lib/ai/output-filter";
+import { getAiCanaryToken } from "@/lib/ai/canary";
+import { sanitizeAiInput } from "@/lib/ai/input-sanitizer";
 import type { ExtractedPayload } from "@/features/importer/extractors";
 import type {
   ImporterDestination,
@@ -19,15 +23,13 @@ import {
 // ---------------------------------------------------------------------------
 // File Importer → AI Extractor
 //
-// Uses Gemini directly (bypassing the shared router) because:
-//   1. Extraction is a one-shot structured-output call — no streaming needed.
-//   2. Gemini handles PDF input natively, so we don't need a PDF text parser.
-//   3. Groq's TPM limits on Qwen cause failures on multi-page documents.
+// This surface calls Gemini directly instead of going through
+// `lib/ai/router.ts`, because extraction needs multimodal PDF input and a
+// Gemini-only JSON response mode that the shared router does not carry.
 //
-// We request JSON via `responseMimeType` rather than a full `responseSchema`
-// because Gemini's schema constraint engine has a state-space cap that trips
-// on nested arrays with maxItems (our pricing shape). The normalisers below
-// are strict enough to handle any shape Gemini returns without schema help.
+// The deviation is bounded: the document is sanitised before it reaches the
+// model, the response is filtered and validated, and the invocation is
+// metered and logged like every other AI surface.
 // ---------------------------------------------------------------------------
 
 const GEMINI_TIMEOUT_MS = 30_000;
@@ -46,7 +48,7 @@ const PRICING_JSON_SHAPE = `{
       "name": "Short name",
       "description": "Optional short description (may be omitted)",
       "items": [
-        { "description": "Line item text", "quantity": 1, "unitPriceInCents": 4999 }
+        { "description": "Line item text", "quantity": 1, "unitPrice": "49.99" }
       ]
     }
   ],
@@ -58,8 +60,8 @@ const PRICING_INSTRUCTIONS = [
   "Return ONLY a JSON object matching this exact shape (no markdown fences, no prose):",
   PRICING_JSON_SHAPE,
   "Each entry's `kind` must be either `block` (entry has exactly one line item) or `package` (entry has multiple line items).",
-  "Each line item has: `description`, `quantity` (positive integer, default 1), `unitPriceInCents` (non-negative integer).",
-  "Convert all prices to cents (e.g., $49.99 → 4999, $1,250 → 125000).",
+  "Each line item has: `description`, `quantity` (positive integer, default 1), `unitPrice` (the price as a decimal amount, e.g. \"49.99\").",
+  "Report `unitPrice` as the amount in the document's currency with no currency symbol and no thousands separator. The server converts it to cents, so never scale the number yourself.",
   "Strip currency symbols, commas, and spaces from prices before converting.",
   "If a quantity is not specified, use 1.",
   "If a row is a discount, tax, or subtotal, skip it and add a warning.",
@@ -76,19 +78,34 @@ type ExtractionInput = {
   payload: ExtractedPayload;
 };
 
-type PricingResponse = {
-  entries?: Array<{
-    kind?: unknown;
-    name?: unknown;
-    description?: unknown;
-    items?: Array<{
-      description?: unknown;
-      quantity?: unknown;
-      unitPriceInCents?: unknown;
-    }>;
-  }>;
-  warnings?: unknown[];
-};
+/**
+ * The shape the extractor may return. Validated with Zod before any value
+ * is used: the response is model output and cannot be trusted to have the
+ * shape it claims.
+ */
+const pricingExtractionSchema = z.object({
+  entries: z
+    .array(
+      z.object({
+        kind: z.enum(["block", "package"]).optional(),
+        name: z.string().optional(),
+        description: z.string().optional(),
+        items: z
+          .array(
+            z.object({
+              description: z.string().optional(),
+              quantity: z.union([z.number(), z.string()]).optional(),
+              unitPrice: z.union([z.string(), z.number()]).optional(),
+            }),
+          )
+          .optional(),
+      }),
+    )
+    .optional(),
+  warnings: z.array(z.string()).optional(),
+});
+
+type PricingResponse = z.infer<typeof pricingExtractionSchema>;
 
 export type AiExtractionResult =
   | {
@@ -132,6 +149,24 @@ function buildUserContent(payload: ExtractedPayload): Array<{ type: "text"; text
   ];
 }
 
+/**
+ * Sanitise the document text before it reaches the model. An uploaded file
+ * is untrusted content, exactly like a customer's message.
+ */
+async function sanitizeDocumentText(payload: ExtractedPayload): Promise<string | null> {
+  if (payload.kind !== "text") {
+    return "";
+  }
+
+  const sanitized = await sanitizeAiInput(payload.text);
+
+  if (sanitized.status === "rejected" || sanitized.status === "locked") {
+    return null;
+  }
+
+  return sanitized.output;
+}
+
 export async function aiExtractFromFile(
   input: ExtractionInput,
 ): Promise<AiExtractionResult> {
@@ -146,7 +181,22 @@ export async function aiExtractFromFile(
   }
 
   const systemInstruction = PRICING_INSTRUCTIONS;
-  const userContent = buildUserContent(input.payload);
+  const documentText = await sanitizeDocumentText(input.payload);
+  if (documentText === null) {
+    return {
+      ok: false,
+      error: "The document could not be processed. Try a smaller file without instructional text.",
+    };
+  }
+  const userContent =
+    input.payload.kind === "text"
+      ? [
+          {
+            type: "text" as const,
+            text: `File name: ${input.payload.fileName}\n\nDocument content:\n${documentText}`,
+          },
+        ]
+      : buildUserContent(input.payload);
 
   let lastError: unknown = null;
 
@@ -172,14 +222,27 @@ export async function aiExtractFromFile(
         continue;
       }
 
-      const parsed = tryParseJson(text);
+      // The response is model output: filter it and validate its shape before
+      // any value is used.
+      const filtered = filterAiOutput(text, [], {
+        canaryToken: getAiCanaryToken(),
+      });
+
+      const parsed = tryParseJson(filtered.output);
 
       if (!parsed) {
         lastError = new Error("AI extractor returned non-JSON output.");
         continue;
       }
 
-      return normalisePricing(parsed as PricingResponse);
+      const validation = pricingExtractionSchema.safeParse(parsed);
+
+      if (!validation.success) {
+        lastError = new Error("AI extractor returned an unexpected shape.");
+        continue;
+      }
+
+      return normalisePricing(validation.data);
     } catch (error) {
       lastError = error;
       console.warn(
@@ -251,7 +314,15 @@ function normalisePricing(parsed: PricingResponse): AiExtractionResult {
       }
 
       const quantity = toPositiveInt(rawItem.quantity, 1);
-      const unitPriceInCents = toNonNegativeInt(rawItem.unitPriceInCents, 0);
+      // The server owns the scale. The model reports the amount as written in
+      // the document; a model that returned "1250" meaning 1250 cents used to
+      // seed a price a hundred times too small into the library, where it
+      // could later be auto-verified onto a quote.
+      const unitPriceInCents = toCents(rawItem.unitPrice);
+
+      if (unitPriceInCents === null) {
+        continue;
+      }
 
       items.push({
         draftId: toDraftId("p", j),
@@ -310,6 +381,32 @@ function extractWarnings(raw: unknown): string[] {
     .slice(0, 10);
 }
 
+/**
+ * Convert a decimal amount from the document into cents.
+ *
+ * The model reports the amount as written ("49.99", "$1,250.00"); the server
+ * decides the scale. Returns null when the amount cannot be read, and the
+ * row is skipped rather than imported with a wrong price.
+ */
+function toCents(value: unknown): number | null {
+  if (typeof value === "number") {
+    if (!Number.isFinite(value) || value < 0) return null;
+
+    return Math.min(Math.round(value * 100), 100_000_000);
+  }
+
+  if (typeof value === "string") {
+    const cleaned = value.replace(/[^\d.,-]/g, "").replace(/,/g, "");
+    const parsed = Number.parseFloat(cleaned);
+
+    if (Number.isFinite(parsed) && parsed >= 0) {
+      return Math.min(Math.round(parsed * 100), 100_000_000);
+    }
+  }
+
+  return null;
+}
+
 function toPositiveInt(value: unknown, fallback: number): number {
   if (typeof value === "number" && Number.isFinite(value)) {
     const rounded = Math.round(value);
@@ -328,21 +425,3 @@ function toPositiveInt(value: unknown, fallback: number): number {
   return fallback;
 }
 
-function toNonNegativeInt(value: unknown, fallback: number): number {
-  if (typeof value === "number" && Number.isFinite(value)) {
-    const rounded = Math.round(value);
-
-    return rounded >= 0 ? Math.min(rounded, 100_000_000) : fallback;
-  }
-
-  if (typeof value === "string") {
-    const cleaned = value.replace(/[^\d.-]/g, "");
-    const parsed = Number.parseFloat(cleaned);
-
-    if (Number.isFinite(parsed) && parsed >= 0) {
-      return Math.min(Math.round(parsed), 100_000_000);
-    }
-  }
-
-  return fallback;
-}

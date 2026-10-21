@@ -155,16 +155,15 @@ await confirmAssistantToolAction({ businessSlug, sessionId, confirmationId, deci
 
 ## Testing
 
-- Provider seam: `MockLanguageModelV3` at `registry.languageModel`, driven
-  through the route handler (`tests/support/mock-model.ts`,
-  `tests/integration/assistant-chat-route.test.ts`).
-- Unit: title generation, schemas, limit arithmetic.
-- Component: history panel (load-on-open, labelling, rename, two-step delete,
-  mobile sheet) in `tests/components/assistant-history-panel.test.tsx`; tool
-  disclosure, copy button, confirmation callbacks, and card rendering in
-  `tests/components/assistant-reply-chrome.test.tsx`.
+- Provider seam: `MockLanguageModelV3` at `registry.languageModel`, available
+  at `tests/support/mock-model.ts`.
 - E2E: `tests/e2e/assistant-conversation.spec.ts` (dashboard hand-off → minted
   session URL → streamed reply; section root chrome).
+
+There is no route-level, component, or unit coverage of the Assistant yet.
+The behaviours that most need it — the confirmation flow, the role gate on
+`send_quote`, cross-tenant refusal, and the business-state check — are not
+exercised by any test today. Treat the absence as a gap, not as coverage.
 
 ## Related Documentation
 

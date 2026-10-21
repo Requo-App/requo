@@ -111,9 +111,38 @@ function mapQuoteEditorFieldErrors(fieldErrors: Record<string, string[] | undefi
     notes: fieldErrors.notes,
     terms: fieldErrors.terms,
     validUntil: fieldErrors.validUntil,
-    discount: fieldErrors.discountInCents,
-    tax: fieldErrors.taxInCents,
+    // The intent-aware schema reports on `discountValue`/`taxValue` when the
+    // owner expressed a percentage; the absolute paths are the fallback.
+    discount: fieldErrors.discountValue ?? fieldErrors.discountInCents,
+    tax: fieldErrors.taxValue ?? fieldErrors.taxInCents,
     items: fieldErrors.items,
+  };
+}
+
+/**
+ * The discount/tax intent the owner expressed, plus the AI provenance the
+ * editor carries. The browser never dictates a persisted amount: the schema
+ * derives `discountInCents`/`taxInCents` from the submitted line items, and
+ * the readiness string is recomputed server-side from the saved provenance.
+ */
+function buildQuoteEditorPayload(formData: FormData) {
+  return {
+    title: formData.get("title"),
+    customerName: formData.get("customerName"),
+    customerEmail: formData.get("customerEmail"),
+    customerContactMethod: formData.get("customerContactMethod"),
+    customerContactHandle: formData.get("customerContactHandle"),
+    notes: formData.get("notes"),
+    terms: formData.get("terms"),
+    validUntil: formData.get("validUntil"),
+    discountValue: formData.get("discount"),
+    discountType: formData.get("discountType"),
+    taxValue: formData.get("tax"),
+    taxType: formData.get("taxType"),
+    taxLabel: formData.get("taxLabel"),
+    items: formData.get("items"),
+    aiGenerationId: formData.get("aiGenerationId"),
+    aiMissingInfo: formData.get("aiMissingInfo"),
   };
 }
 
@@ -134,20 +163,9 @@ export async function createQuoteAction(
 
   const { user, businessContext } = ownerAccess;
 
-  const validationResult = quoteEditorSchema.safeParse({
-    title: formData.get("title"),
-    customerName: formData.get("customerName"),
-    customerEmail: formData.get("customerEmail"),
-    customerContactMethod: formData.get("customerContactMethod"),
-    customerContactHandle: formData.get("customerContactHandle"),
-    notes: formData.get("notes"),
-    terms: formData.get("terms"),
-    validUntil: formData.get("validUntil"),
-    discountInCents: formData.get("discount"),
-    taxInCents: formData.get("tax"),
-    taxLabel: formData.get("taxLabel"),
-    items: formData.get("items"),
-  });
+  const validationResult = quoteEditorSchema.safeParse(
+    buildQuoteEditorPayload(formData),
+  );
 
   if (!validationResult.success) {
     return getValidationActionState(
@@ -219,20 +237,9 @@ export async function updateQuoteAction(
   }
 
   const { user, businessContext } = ownerAccess;
-  const validationResult = quoteEditorSchema.safeParse({
-    title: formData.get("title"),
-    customerName: formData.get("customerName"),
-    customerEmail: formData.get("customerEmail"),
-    customerContactMethod: formData.get("customerContactMethod"),
-    customerContactHandle: formData.get("customerContactHandle"),
-    notes: formData.get("notes"),
-    terms: formData.get("terms"),
-    validUntil: formData.get("validUntil"),
-    discountInCents: formData.get("discount"),
-    taxInCents: formData.get("tax"),
-    taxLabel: formData.get("taxLabel"),
-    items: formData.get("items"),
-  });
+  const validationResult = quoteEditorSchema.safeParse(
+    buildQuoteEditorPayload(formData),
+  );
 
   if (!validationResult.success) {
     return getValidationActionState(

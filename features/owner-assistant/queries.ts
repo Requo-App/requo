@@ -6,7 +6,7 @@
  */
 
 import { db } from "@/lib/db/client";
-import { eq, and, gte, lte, desc, asc, sql, isNotNull, inArray } from "drizzle-orm";
+import { eq, and, gte, lte, desc, asc, sql, isNotNull, inArray, ilike } from "drizzle-orm";
 import { businessInquiryForms, inquiries, quotes } from "@/lib/db/schema";
 import type {
   SearchInquiriesInput,
@@ -410,6 +410,13 @@ export async function getQuoteStatsQuery(
 }
 
 /**
+ * The most customer rows a single search scans. The search is a lookup, not
+ * an export: the tool returns a page, so scanning the whole customer base on
+ * every call only cost memory and latency.
+ */
+const CUSTOMER_SCAN_LIMIT = 500;
+
+/**
  * Search customers aggregated from inquiries and quotes
  * Customers are not a first-class entity; aggregated by email
  */
@@ -421,7 +428,14 @@ export async function searchCustomersQuery(
   // paginated set below. (Unions keep the working set small; per-email
   // aggregates are computed from the fetched rows.)
 
-  // Get all unique emails present in either table
+  // The scan is bounded and the filters run in SQL. Loading every customer
+  // email in the business on every tool call made this a per-turn memory
+  // spike on the surface with the tightest token budget, and the model can
+  // call the tool on every step of a turn.
+  const emailFilter = params.email ? `%${params.email.toLowerCase()}%` : null;
+  const nameFilter = params.name ? `%${params.name.toLowerCase()}%` : null;
+
+  // Get unique emails present in either table
   const allEmails = await db
     .selectDistinct({
       email: inquiries.customerEmail,
@@ -432,6 +446,8 @@ export async function searchCustomersQuery(
       and(
         eq(inquiries.businessId, businessId),
         isNotNull(inquiries.customerEmail),
+        ...(emailFilter ? [ilike(inquiries.customerEmail, emailFilter)] : []),
+        ...(nameFilter ? [ilike(inquiries.customerName, nameFilter)] : []),
         ...visibleInquiryConditions(),
       )
     )
@@ -446,10 +462,13 @@ export async function searchCustomersQuery(
           and(
             eq(quotes.businessId, businessId),
             isNotNull(quotes.customerEmail),
+            ...(emailFilter ? [ilike(quotes.customerEmail, emailFilter)] : []),
+            ...(nameFilter ? [ilike(quotes.customerName, nameFilter)] : []),
             ...visibleQuoteConditions(),
           )
         )
-    );
+    )
+    .limit(CUSTOMER_SCAN_LIMIT);
 
   // Build a map of unique emails, picking the most recent name
   const emailMap = new Map<string, { email: string; name: string }>();
