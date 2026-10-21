@@ -228,11 +228,14 @@ export function BusinessInquiryPageForm({
     showBusinessContact !== settings.inquiryPageConfig.showBusinessContact ||
     eyebrow !== (settings.inquiryPageConfig.eyebrow ?? "") ||
     brandTagline !== (settings.inquiryPageConfig.brandTagline ?? "") ||
-    headline !== settings.inquiryPageConfig.headline ||
-    description !== (settings.inquiryPageConfig.description ?? "") ||
-    formTitle !== settings.inquiryPageConfig.formTitle ||
-    formDescription !== (settings.inquiryPageConfig.formDescription ?? "") ||
-    thankYouMessage !== (settings.inquiryPageConfig.thankYouMessage ?? "") ||
+    headline.trim() !== settings.inquiryPageConfig.headline ||
+    normalizeOptionalTextDraft(description) !==
+      (settings.inquiryPageConfig.description ?? "") ||
+    formTitle.trim() !== settings.inquiryPageConfig.formTitle ||
+    normalizeOptionalTextDraft(formDescription) !==
+      (settings.inquiryPageConfig.formDescription ?? "") ||
+    normalizeOptionalTextDraft(thankYouMessage) !==
+      (settings.inquiryPageConfig.thankYouMessage ?? "") ||
     businessContactPhone !==
       (settings.inquiryPageConfig.businessContact?.phone ?? "") ||
     businessContactEmail !==
@@ -529,7 +532,6 @@ export function BusinessInquiryPageForm({
       className="form-stack pb-28"
       ref={formRef}
     >
-      <input name="formId" type="hidden" value={settings.formId} />
       {/* The service inherits the business's template; it is not editable
           here. Template changes happen in Settings → Template. */}
       <input

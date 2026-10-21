@@ -234,17 +234,45 @@ function formatPastQuotes(context: InquiryAssistantContext) {
     .join("\n");
 }
 
-function formatInquiryContextLines(
+const UNTRUSTED_CUSTOMER_CONTENT_OPEN = "<untrusted_customer_content>";
+const UNTRUSTED_CUSTOMER_CONTENT_CLOSE = "</untrusted_customer_content>";
+
+/**
+ * Customer-supplied text reaches the model as data, never as instructions.
+ * High-confidence injection attempts are redacted instead of aborting the
+ * quote, so a hostile inquiry cannot steer the draft the owner sends.
+ */
+async function sanitizeCustomerText(value: string | null | undefined) {
+  if (!value) {
+    return "";
+  }
+
+  const sanitized = await sanitizeAiInput(value);
+
+  if (sanitized.status === "rejected" || sanitized.status === "locked") {
+    return "[redacted — content could not be processed]";
+  }
+
+  return sanitized.output || "";
+}
+
+async function formatInquiryContextLines(
   context: InquiryAssistantContext,
 ) {
-  const headerFields: string[] = [
-    `Customer: ${context.inquiry.customerName}`,
-  ];
-  if (context.inquiry.customerEmail) headerFields.push(`email: ${context.inquiry.customerEmail}`);
+  const customerName = await sanitizeCustomerText(context.inquiry.customerName);
+  const customerEmail = await sanitizeCustomerText(context.inquiry.customerEmail);
+  const subject = await sanitizeCustomerText(context.inquiry.subject);
+  const requestedDeadline = await sanitizeCustomerText(
+    context.inquiry.requestedDeadline,
+  );
+  const budgetText = await sanitizeCustomerText(context.inquiry.budgetText);
+
+  const headerFields: string[] = [`Customer: ${customerName}`];
+  if (customerEmail) headerFields.push(`email: ${customerEmail}`);
   if (context.inquiry.inquiryFormName) headerFields.push(`service: ${context.inquiry.inquiryFormName}`);
-  if (context.inquiry.subject) headerFields.push(`subject: ${context.inquiry.subject}`);
-  if (context.inquiry.requestedDeadline) headerFields.push(`deadline: ${context.inquiry.requestedDeadline}`);
-  if (context.inquiry.budgetText) headerFields.push(`budget: ${context.inquiry.budgetText}`);
+  if (subject) headerFields.push(`subject: ${subject}`);
+  if (requestedDeadline) headerFields.push(`deadline: ${requestedDeadline}`);
+  if (budgetText) headerFields.push(`budget: ${budgetText}`);
 
   const sections: string[] = [
     `Inquiry: ${headerFields.join("; ")}`,
@@ -252,13 +280,24 @@ function formatInquiryContextLines(
 
   const snapshot = context.inquiry.submittedFieldSnapshot;
   if (snapshot?.fields.length) {
-    const fieldLines = snapshot.fields
-      .map((field) => `- ${truncate(field.label, 80)}: ${truncate(field.displayValue, 300)}`)
-      .join("\n");
-    sections.push("", "Submitted fields", fieldLines);
+    const fieldLines = await Promise.all(
+      snapshot.fields.map(async (field) => {
+        const displayValue = await sanitizeCustomerText(field.displayValue);
+
+        return `- ${truncate(field.label, 80)}: ${truncate(displayValue, 300)}`;
+      }),
+    );
+    sections.push("", "Submitted fields", fieldLines.join("\n"));
   }
 
-  sections.push("", "Details", truncate(context.inquiry.details, 2000));
+  const details = await sanitizeCustomerText(context.inquiry.details);
+  sections.push(
+    "",
+    "Details",
+    `${UNTRUSTED_CUSTOMER_CONTENT_OPEN}`,
+    truncate(details, 2000),
+    `${UNTRUSTED_CUSTOMER_CONTENT_CLOSE}`,
+  );
 
   if (context.messages.length > 0) {
     const messageLines = context.messages
@@ -1348,7 +1387,7 @@ export async function generateQuoteDraftForBusiness(
   });
 
   const inquiryContextText = inquiryContext
-    ? formatInquiryContextLines(inquiryContext)
+    ? await formatInquiryContextLines(inquiryContext)
     : input.brief?.trim()
       ? `Owner brief:\n${truncate(input.brief, 2000)}`
       : "";
@@ -1697,7 +1736,7 @@ export async function generateQuoteImprovementForBusiness(
     currency,
   });
 
-  const inquiryContextText = formatInquiryContextLines(inquiryContext);
+  const inquiryContextText = await formatInquiryContextLines(inquiryContext);
   const taskType = "quote_improvement" as const;
 
   // AI-01 (a): pack guidance injected into grounded-context assembly.

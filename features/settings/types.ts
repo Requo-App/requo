@@ -167,11 +167,14 @@ export type BusinessInquiryFormsSettingsView = {
   name: string;
   slug: string;
   businessType: BusinessType;
+  /**
+   * The services list only needs identity, visibility, and counts — the full
+   * form and page configs live behind the editor query, so they never travel
+   * to the list client.
+   */
   forms: Array<
     BusinessInquiryFormSummary & {
       submittedInquiryCount: number;
-      inquiryFormConfig: InquiryFormConfig;
-      inquiryPageConfig: InquiryPageConfig;
     }
   >;
 };
@@ -195,12 +198,12 @@ export type BusinessInquiryPageSettingsView = {
 };
 
 export type BusinessInquiryPageFieldName =
-  | "formId"
   | "name"
   | "slug"
   | "businessType"
   | "publicInquiryEnabled"
   | "template"
+  | "mobileLayout"
   | "showSupportingCards"
   | "showShowcaseImage"
   | "showBusinessContact"

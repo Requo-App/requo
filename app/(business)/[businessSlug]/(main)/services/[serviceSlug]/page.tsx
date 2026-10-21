@@ -105,10 +105,12 @@ export function ServiceEditorShellFallback() {
 }
 
 async function ServiceEditorHeaderRegion({ params }: ServicePageProps) {
-  const [session, { businessContext }, { serviceSlug }] = await Promise.all([
+  const { businessSlug, serviceSlug } = await params;
+  // Resolve the business from the route slug, not the active-business cookie,
+  // so the editor always matches the URL it was opened from.
+  const [session, { businessContext }] = await Promise.all([
     requireSession(),
-    getBusinessOperationalPageContext(),
-    params,
+    getBusinessOperationalPageContext(businessSlug),
   ]);
   const formSlug = serviceSlug;
   const header = await getBusinessInquiryFormHeaderForBusiness(
@@ -156,6 +158,7 @@ async function ServiceEditorHeaderRegion({ params }: ServicePageProps) {
           inquiryListHref={inquiryListHref}
           productsHref={getBusinessProductsPath(header.slug)}
           isPublicLive={header.publicInquiryEnabled}
+          canPublish={businessContext.role === "owner"}
         />
       </Suspense>
 
@@ -177,6 +180,7 @@ type ServiceEditorTabsRegionProps = {
   inquiryListHref: string;
   productsHref: string;
   isPublicLive: boolean;
+  canPublish: boolean;
 };
 
 async function ServiceEditorTabsRegion({
@@ -195,7 +199,7 @@ async function ServiceEditorTabsRegion({
 
   return (
     <BusinessInquiryFormEditorTabs
-      key={`${settings.formId}-${settings.updatedAt.getTime()}`}
+      key={settings.formId}
       settings={settings}
       {...frame}
       applyPresetAction={applyBusinessInquiryFormPresetAction.bind(

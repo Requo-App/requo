@@ -9,6 +9,7 @@ import "server-only";
 import { and, eq, isNull, lt } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import { aiAgentSessions, businesses } from "@/lib/db/schema";
+import { getOperationalBusinessCondition } from "@/features/businesses/lifecycle";
 import { newEntityId } from "@/lib/ids";
 import type {
   SessionCreateResult,
@@ -108,7 +109,12 @@ export async function loadSessionByToken(
     })
     .from(aiAgentSessions)
     .innerJoin(businesses, eq(aiAgentSessions.businessId, businesses.id))
-    .where(eq(aiAgentSessions.publicToken, publicToken))
+    .where(
+      and(
+        eq(aiAgentSessions.publicToken, publicToken),
+        getOperationalBusinessCondition(),
+      ),
+    )
     .limit(1);
 
   if (!result[0]) {

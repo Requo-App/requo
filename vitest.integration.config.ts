@@ -14,6 +14,13 @@ export default defineConfig({
     include: ['tests/integration/**/*.test.ts'],
     testTimeout: 30_000,
     hookTimeout: 30_000,
+    // The integration suite shares one database and ends with
+    // `zzz-residue.test.ts`, which asserts that every fixture cleaned up its
+    // rows. Running the files in parallel made that assertion a race: the
+    // residue scan could run while another file was still holding fixture
+    // rows, and it flagged whichever file happened to still be running.
+    // Sequential files make the check deterministic.
+    fileParallelism: false,
     alias: [
       { find: '@', replacement: path.resolve(__dirname, './') },
       {

@@ -324,8 +324,6 @@ export async function getBusinessInquiryFormsSettingsForBusiness(
         createdAt: businessInquiryForms.createdAt,
         updatedAt: businessInquiryForms.updatedAt,
         submittedInquiryCount: submittedInquiryCountSelection,
-        inquiryFormConfig: businessInquiryForms.inquiryFormConfig,
-        inquiryPageConfig: businessInquiryForms.inquiryPageConfig,
       })
       .from(businessInquiryForms)
       .where(eq(businessInquiryForms.businessId, businessId))
@@ -350,26 +348,17 @@ export async function getBusinessInquiryFormsSettingsForBusiness(
     slug: businessRow.slug,
     businessType,
     forms: forms.map((form) => {
-      const formBusinessType = normalizeBusinessType(form.businessType);
-
       return {
         id: form.id,
         name: form.name,
         slug: form.slug,
-        businessType: formBusinessType,
+        businessType: normalizeBusinessType(form.businessType),
         isDefault: form.isDefault,
         publicInquiryEnabled: form.publicInquiryEnabled,
         archivedAt: form.archivedAt,
         createdAt: form.createdAt,
         updatedAt: form.updatedAt,
         submittedInquiryCount: form.submittedInquiryCount,
-        inquiryFormConfig: getNormalizedInquiryFormConfig(form.inquiryFormConfig, {
-          businessType: formBusinessType,
-        }),
-        inquiryPageConfig: getNormalizedInquiryPageConfig(form.inquiryPageConfig, {
-          businessName: businessRow.name,
-          businessType: formBusinessType,
-        }),
       };
     }),
   };
