@@ -24,13 +24,13 @@ import type {
   FollowUpView,
 } from "@/features/follow-ups/types";
 import {
+  addCalendarDays,
   buildFollowUpSuggestedMessage,
   buildQuoteFollowUpWhyNow,
-  compareQuoteFirst,
-  getDateInputValue,
+  getBusinessDayStartInstant,
   getFollowUpDueBucket,
   getFollowUpNextActionLabel,
-  getTodayUtcDateString,
+  getTodayDateStringInTimezone,
 } from "@/features/follow-ups/utils";
 import { getPublicQuoteUrl } from "@/features/quotes/utils";
 import {
@@ -48,6 +48,8 @@ import {
   quotes,
 } from "@/lib/db/schema";
 import { env } from "@/lib/env";
+import type { BusinessPlan } from "@/lib/plans/plans";
+import { likePattern } from "@/lib/sql-patterns";
 
 const followUpOverviewLimit = 4;
 
@@ -56,6 +58,7 @@ type FollowUpRow = {
   businessId: string;
   businessName: string;
   businessTimezone: string;
+  businessPlan: BusinessPlan;
   inquiryId: string | null;
   quoteId: string | null;
   assignedToUserId: string | null;
@@ -103,14 +106,23 @@ type FollowUpRow = {
   autoFollowUpStoppedAt: Date | null;
 };
 
-function getUtcDayStart(value: string) {
-  return new Date(`${value}T00:00:00.000Z`);
-}
+/**
+ * UTC bounds of the business-local "today" and "tomorrow".
+ *
+ * Due dates are stored as instants anchored at 9 AM in the business timezone,
+ * so the day buckets must be cut at business-local midnight — not UTC
+ * midnight, which would shift every bucket by a day east of Greenwich.
+ */
+function getBusinessDayBounds(timezone: string, now = new Date()) {
+  const today = getTodayDateStringInTimezone(timezone, now);
+  const tomorrow = addCalendarDays(today, 1);
 
-function getTomorrowUtcDateString(now = new Date()) {
-  return new Date(now.getTime() + 24 * 60 * 60 * 1000)
-    .toISOString()
-    .slice(0, 10);
+  return {
+    today,
+    tomorrow,
+    todayStart: getBusinessDayStartInstant(today, timezone),
+    tomorrowStart: getBusinessDayStartInstant(tomorrow, timezone),
+  };
 }
 
 function getQuotePublicUrl(publicToken: string | null) {
@@ -149,6 +161,8 @@ function mapFollowUpRow(row: FollowUpRow): FollowUpView {
   return {
     id: row.id,
     businessId: row.businessId,
+    businessTimezone: row.businessTimezone,
+    businessPlan: row.businessPlan as BusinessPlan,
     inquiryId: row.inquiryId,
     quoteId: row.quoteId,
     assignedToUserId: row.assignedToUserId,
@@ -196,7 +210,7 @@ function mapFollowUpRow(row: FollowUpRow): FollowUpView {
     quoteTitle: row.quoteTitle,
     quotePublicUrl,
     quoteViewedAt: row.quoteViewedAt,
-    source: isQuoteFollowUp ? "manual" : "manual",
+    source: row.sendMode === "automatic" ? "automatic_sequence" : "manual",
     whyNow: isQuoteFollowUp
       ? buildQuoteFollowUpWhyNow({
           dueAt: row.dueAt,
@@ -228,6 +242,7 @@ function getFollowUpSelection() {
     businessId: followUps.businessId,
     businessName: businesses.name,
     businessTimezone: businesses.timezone,
+    businessPlan: businesses.plan,
     inquiryId: followUps.inquiryId,
     quoteId: followUps.quoteId,
     assignedToUserId: followUps.assignedToUserId,
@@ -288,39 +303,47 @@ function getFollowUpBaseQuery() {
 function getFollowUpListConditions({
   businessId,
   filters,
+  timezone,
 }: {
   businessId: string;
   filters: FollowUpListQueryFilters;
+  timezone: string;
 }) {
-  const today = getTodayUtcDateString();
-  const tomorrow = getTomorrowUtcDateString();
-  const todayStart = getUtcDayStart(today);
-  const tomorrowStart = getUtcDayStart(tomorrow);
+  const { todayStart, tomorrowStart } = getBusinessDayBounds(timezone);
   const conditions = [eq(followUps.businessId, businessId), isNull(followUps.deletedAt)];
 
   if (filters.status !== "all") {
     conditions.push(eq(followUps.status, filters.status));
   }
 
-  if (filters.due !== "all") {
+  // The due buckets only make sense for open work. Applying them on top of a
+  // terminal status filter would ask for `status = 'completed' AND status =
+  // 'pending'` and silently return nothing.
+  const appliesToPendingOnly =
+    filters.due !== "all" &&
+    (filters.status === "all" || filters.status === "pending");
+
+  if (appliesToPendingOnly) {
     conditions.push(eq(followUps.status, "pending"));
   }
 
-  if (filters.due === "overdue") {
+  if (appliesToPendingOnly && filters.due === "overdue") {
     conditions.push(lt(followUps.dueAt, todayStart));
   }
 
-  if (filters.due === "today") {
+  if (appliesToPendingOnly && filters.due === "today") {
     conditions.push(gte(followUps.dueAt, todayStart));
     conditions.push(lt(followUps.dueAt, tomorrowStart));
   }
 
-  if (filters.due === "upcoming") {
+  if (appliesToPendingOnly && filters.due === "upcoming") {
     conditions.push(gte(followUps.dueAt, tomorrowStart));
   }
 
   if (filters.q) {
-    const pattern = `%${filters.q}%`;
+    // `q` is untrusted text: `%` and `_` are LIKE wildcards and would widen
+    // the search beyond what the owner typed.
+    const pattern = likePattern(filters.q);
 
     conditions.push(
       or(
@@ -413,6 +436,7 @@ export async function getFollowUpsForQuote({
 
 async function _getFollowUpOverviewForBusiness(
   businessId: string,
+  timezone: string,
 ): Promise<FollowUpOverviewData> {
   "use cache";
 
@@ -421,7 +445,7 @@ async function _getFollowUpOverviewForBusiness(
 
   return withCircuitBreaker(
     `dashboard:follow-ups-overview:${businessId}`,
-    () => queryFollowUpOverviewForBusiness(businessId),
+    () => queryFollowUpOverviewForBusiness(businessId, timezone),
   );
 }
 
@@ -436,19 +460,11 @@ export const getFollowUpOverviewForBusiness = cache(
   _getFollowUpOverviewForBusiness,
 );
 
-export async function getFollowUpOverviewForBusinessUncached(
-  businessId: string,
-): Promise<FollowUpOverviewData> {
-  return queryFollowUpOverviewForBusiness(businessId);
-}
-
 async function queryFollowUpOverviewForBusiness(
   businessId: string,
+  timezone: string,
 ): Promise<FollowUpOverviewData> {
-  const today = getTodayUtcDateString();
-  const tomorrow = getTomorrowUtcDateString();
-  const todayStart = getUtcDayStart(today);
-  const tomorrowStart = getUtcDayStart(tomorrow);
+  const { todayStart, tomorrowStart } = getBusinessDayBounds(timezone);
   const totalCount = sql<number>`count(*) over ()`;
 
   const [overdueRows, todayRows, upcomingRows] = await Promise.all([
@@ -527,16 +543,18 @@ async function queryFollowUpOverviewForBusiness(
 export async function getFollowUpListCountForBusiness({
   businessId,
   filters,
+  timezone,
 }: {
   businessId: string;
   filters: FollowUpListQueryFilters;
+  timezone: string;
 }): Promise<number> {
   "use cache";
 
   cacheLife(hotBusinessCacheLife);
   cacheTag(...getBusinessFollowUpListCacheTags(businessId));
 
-  const conditions = getFollowUpListConditions({ businessId, filters });
+  const conditions = getFollowUpListConditions({ businessId, filters, timezone });
   const rows = await db
     .select({ count: count() })
     .from(followUps)
@@ -552,18 +570,20 @@ export async function getFollowUpListPageForBusiness({
   filters,
   page,
   pageSize,
+  timezone,
 }: {
   businessId: string;
   filters: FollowUpListQueryFilters;
   page: number;
   pageSize: number;
+  timezone: string;
 }): Promise<FollowUpView[]> {
   "use cache";
 
   cacheLife(hotBusinessCacheLife);
   cacheTag(...getBusinessFollowUpListCacheTags(businessId));
 
-  const conditions = getFollowUpListConditions({ businessId, filters });
+  const conditions = getFollowUpListConditions({ businessId, filters, timezone });
   const offset = Math.max(0, (page - 1) * pageSize);
 
   const rows = await getFollowUpBaseQuery()
@@ -573,10 +593,6 @@ export async function getFollowUpListPageForBusiness({
     .offset(offset);
 
   return rows.map(mapFollowUpRow);
-}
-
-export function getPendingFollowUpCount(items: FollowUpView[]) {
-  return items.filter((item) => item.status === "pending").length;
 }
 
 /**
@@ -609,18 +625,44 @@ export async function getFollowUpHistoryForBusiness({
   return rows.map(mapFollowUpRow);
 }
 
-export async function getFollowUpForBusiness({
+/**
+ * Context for the AI message generator.
+ *
+ * Everything the model sees is loaded from the tenant's own records — the
+ * client only names the follow-up, never the customer, the business or the
+ * quote link.
+ */
+export async function getFollowUpAiContextForBusiness({
   businessId,
   followUpId,
 }: {
   businessId: string;
   followUpId: string;
-}): Promise<FollowUpView | null> {
-  "use cache";
-  cacheLife("seconds");
-  cacheTag(...getBusinessFollowUpListCacheTags(businessId));
-
-  const rows = await getFollowUpBaseQuery()
+}): Promise<{
+  title: string;
+  reason: string;
+  channel: string;
+  customerName: string;
+  recordKind: "inquiry" | "quote";
+  quoteUrl: string | null;
+  quoteViewed: boolean;
+} | null> {
+  const [row] = await db
+    .select({
+      title: followUps.title,
+      reason: followUps.reason,
+      channel: followUps.channel,
+      inquiryId: followUps.inquiryId,
+      quoteId: followUps.quoteId,
+      inquiryCustomerName: inquiries.customerName,
+      quoteCustomerName: quotes.customerName,
+      quotePublicToken: quotes.publicToken,
+      quoteViewedAt: quotes.publicViewedAt,
+    })
+    .from(followUps)
+    .innerJoin(businesses, eq(followUps.businessId, businesses.id))
+    .leftJoin(inquiries, eq(followUps.inquiryId, inquiries.id))
+    .leftJoin(quotes, eq(followUps.quoteId, quotes.id))
     .where(
       and(
         eq(followUps.id, followUpId),
@@ -630,19 +672,19 @@ export async function getFollowUpForBusiness({
     )
     .limit(1);
 
-  if (!rows.length) {
+  if (!row) {
     return null;
   }
 
-  return mapFollowUpRow(rows[0]);
-}
-
-export function getNextPendingFollowUp(items: FollowUpView[]) {
-  return items
-    .filter((item) => item.status === "pending")
-    .sort((left, right) =>
-      getDateInputValue(left.dueAt).localeCompare(getDateInputValue(right.dueAt)),
-    )[0] ?? null;
+  return {
+    title: row.title,
+    reason: row.reason,
+    channel: row.channel,
+    customerName: row.quoteCustomerName ?? row.inquiryCustomerName ?? "the customer",
+    recordKind: row.quoteId ? "quote" : "inquiry",
+    quoteUrl: getQuotePublicUrl(row.quotePublicToken),
+    quoteViewed: Boolean(row.quoteViewedAt),
+  };
 }
 
 /**
@@ -678,8 +720,10 @@ export async function getActiveAutoFollowUpSequencesForBusiness(
       attempts: quotes.autoFollowUpAttempts,
       lastSentAt: quotes.autoFollowUpLastSentAt,
       stoppedAt: quotes.autoFollowUpStoppedAt,
+      businessTimezone: businesses.timezone,
     })
     .from(quotes)
+    .innerJoin(businesses, eq(quotes.businessId, businesses.id))
     .where(
       and(
         eq(quotes.businessId, businessId),
@@ -709,6 +753,7 @@ export async function getActiveAutoFollowUpSequencesForBusiness(
       quoteTitle: row.quoteTitle,
       customerName: row.customerName,
       customerEmail: row.customerEmail,
+      businessTimezone: row.businessTimezone,
       sequence: {
         enabled: true,
         isActive: !isComplete,
@@ -731,28 +776,6 @@ export async function getActiveAutoFollowUpSequencesForBusiness(
       },
     };
   });
-}
-
-/**
- * Unified workspace read: manual follow-ups (quote-first) plus active
- * automatic sequences. Storage stays split; this adapter is the single place
- * the UI reads the combined model from.
- */
-export async function getUnifiedFollowUpActivityForBusiness(
-  businessId: string,
-  overview: FollowUpOverviewData,
-): Promise<{
-  priorityQueue: FollowUpView[];
-  autoSequences: Extract<FollowUpActivityItem, { kind: "auto_sequence" }>[];
-}> {
-  const [sequences] = await Promise.all([
-    getActiveAutoFollowUpSequencesForBusiness(businessId),
-  ]);
-  const priorityQueue = [...overview.overdue, ...overview.dueToday]
-    .slice()
-    .sort(compareQuoteFirst);
-
-  return { priorityQueue, autoSequences: sequences };
 }
 
 /**

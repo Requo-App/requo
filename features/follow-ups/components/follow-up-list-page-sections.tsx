@@ -84,7 +84,9 @@ export async function FollowUpListContentSection({
             ? "Try another search, status, or due date."
             : filters.status === "pending"
               ? "No action needed today. New quote and inquiry follow-ups will appear in To do."
-              : "Done and dismissed follow-ups will show here as you work the queue."
+              : filters.status === "all"
+                ? "Nothing here yet. Set a follow-up from an inquiry or quote to start the list."
+                : "Done and dismissed follow-ups will show here as you work the queue."
         }
         icon={BellRing}
         title={

@@ -57,11 +57,15 @@ export function FollowUpListFilters({
       const params = new URLSearchParams();
       const trimmedQuery = nextQuery.trim();
 
+      // The list view is marked explicitly so dropping the (default) pending
+      // status filter cannot bounce the owner back to the board.
+      params.set("view", "list");
+
       if (trimmedQuery) {
         params.set("q", trimmedQuery);
       }
 
-      if (nextStatus !== "pending") {
+      if (nextStatus !== "all") {
         params.set("status", nextStatus);
       }
 
@@ -108,7 +112,7 @@ export function FollowUpListFilters({
     <DataListToolbar
       canClear={Boolean(
         query.trim() ||
-          status !== "pending" ||
+          status !== "all" ||
           due !== "all" ||
           sort !== "due_asc",
       )}
@@ -124,10 +128,10 @@ export function FollowUpListFilters({
       isPending={isPending}
       onClear={() => {
         setQuery("");
-        setStatus("pending");
+        setStatus("all");
         setDue("all");
         setSort("due_asc");
-        navigate("", "pending", "all", "due_asc");
+        navigate("", "all", "all", "due_asc");
       }}
       onFilterChange={(value) => {
         const nextStatus = value as FollowUpStatusFilterValue;

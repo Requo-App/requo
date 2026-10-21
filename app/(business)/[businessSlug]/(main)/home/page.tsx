@@ -111,7 +111,10 @@ async function OwnerAssistantWidgetRegion({
 
   const [overview, followUpOverview] = await Promise.all([
     getBusinessOverviewData(businessId),
-    getFollowUpOverviewForBusiness(businessId),
+    getFollowUpOverviewForBusiness(
+      businessId,
+      businessContext.business.timezone,
+    ),
   ]);
 
   return (
@@ -204,7 +207,10 @@ async function NeedsAttentionRegion({
 
   const [overview, followUpOverview] = await Promise.all([
     getBusinessOverviewData(businessId),
-    getFollowUpOverviewForBusiness(businessId),
+    getFollowUpOverviewForBusiness(
+      businessId,
+      businessContext.business.timezone,
+    ),
   ]);
 
   const items = buildNeedsAttentionItems({ businessSlug, overview, followUpOverview });

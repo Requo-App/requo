@@ -24,6 +24,8 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { Spinner } from "@/components/ui/spinner";
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
 import { useProgressRouter } from "@/hooks/use-progress-router";
+import { safeHasFeatureAccess } from "@/features/paywall/lib/utils";
+import type { BusinessPlan } from "@/lib/plans/plans";
 import type {
   FollowUpChannel,
   FollowUpCreateActionState,
@@ -53,6 +55,10 @@ export type QuickCreateRecord = {
 type CreateFollowUpButtonProps = {
   businessSlug: string;
   records?: QuickCreateRecord[];
+  /** Business plan — automatic sending is a paid capability. */
+  plan?: BusinessPlan;
+  /** Business timezone — the default due date is read in it. */
+  timezone?: string;
 };
 
 const channelOptions = followUpChannels.map((channel) => ({
@@ -81,15 +87,23 @@ const terminationConditionOptions = [
 export function CreateFollowUpButton({
   businessSlug: _businessSlug,
   records = [],
+  plan = "free",
+  timezone,
 }: CreateFollowUpButtonProps) {
   const router = useProgressRouter();
+  const canSendAutomatically = safeHasFeatureAccess(plan, "autoFollowUps");
+  const availableSendModeOptions = sendModeOptions.filter(
+    (option) => option.value !== "automatic" || canSendAutomatically,
+  );
   const [open, setOpen] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState("");
   const [title, setTitle] = useState("");
   const [reason, setReason] = useState("");
   const [channel, setChannel] = useState<FollowUpChannel>("email");
   const [sendMode, setSendMode] = useState<FollowUpSendMode>("manual");
-  const [dueDate, setDueDate] = useState(getQuickFollowUpDueDate("3d"));
+  const [dueDate, setDueDate] = useState(
+    getQuickFollowUpDueDate("3d", new Date(), timezone),
+  );
   const [recurrence, setRecurrence] = useState<FollowUpRecurrence>("none");
   const [recurrenceLimit, setRecurrenceLimit] = useState("");
   const [terminationCondition, setTerminationCondition] = useState<FollowUpTerminationCondition | "none">("none");
@@ -131,7 +145,7 @@ export function CreateFollowUpButton({
     setReason("");
     setChannel("email");
     setSendMode("manual");
-    setDueDate(getQuickFollowUpDueDate("3d"));
+    setDueDate(getQuickFollowUpDueDate("3d", new Date(), timezone));
     setRecurrence("none");
     setRecurrenceLimit("");
     setTerminationCondition("none");
@@ -252,7 +266,7 @@ export function CreateFollowUpButton({
                       aria-invalid={Boolean(state.fieldErrors?.sendMode?.[0])}
                       id="quick-create-send-mode"
                       onValueChange={(value) => setSendMode(value as FollowUpSendMode)}
-                      options={sendModeOptions}
+                      options={availableSendModeOptions}
                       placeholder="Choose send mode"
                       value={sendMode}
                     />
@@ -265,6 +279,12 @@ export function CreateFollowUpButton({
                   Automatic sending is only available for the email channel.
                 </p>
               )}
+
+              {!canSendAutomatically ? (
+                <p className="text-sm text-muted-foreground">
+                  Automatic sending is available on the Pro plan and above.
+                </p>
+              ) : null}
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field data-invalid={Boolean(state.fieldErrors?.dueDate?.[0])}>
@@ -286,7 +306,7 @@ export function CreateFollowUpButton({
                 <FieldLabel>Quick dates</FieldLabel>
                 <div className="flex flex-wrap gap-2">
                   <Button
-                    onClick={() => setDueDate(getQuickFollowUpDueDate("tomorrow"))}
+                    onClick={() => setDueDate(getQuickFollowUpDueDate("tomorrow", new Date(), timezone))}
                     size="sm"
                     type="button"
                     variant="outline"
@@ -294,7 +314,7 @@ export function CreateFollowUpButton({
                     Tomorrow
                   </Button>
                   <Button
-                    onClick={() => setDueDate(getQuickFollowUpDueDate("3d"))}
+                    onClick={() => setDueDate(getQuickFollowUpDueDate("3d", new Date(), timezone))}
                     size="sm"
                     type="button"
                     variant="outline"
@@ -302,7 +322,7 @@ export function CreateFollowUpButton({
                     In 3 days
                   </Button>
                   <Button
-                    onClick={() => setDueDate(getQuickFollowUpDueDate("7d"))}
+                    onClick={() => setDueDate(getQuickFollowUpDueDate("7d", new Date(), timezone))}
                     size="sm"
                     type="button"
                     variant="outline"

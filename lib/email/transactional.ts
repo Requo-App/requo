@@ -94,7 +94,8 @@ function hashIdempotencyPart(value: string) {
   return createHash("sha256").update(value).digest("hex").slice(0, 32);
 }
 
-function getRecipientKey(email: string) {
+/** Normalized recipient for an idempotency key. */
+export function getRecipientKey(email: string) {
   return normalizeEmailAddress(email) ?? email.trim().toLowerCase();
 }
 
@@ -552,6 +553,7 @@ export async function sendQuoteAutoFollowUpEmail({
   templateOverrides,
   replyToEmail,
   businessId,
+  idempotencyKey,
 }: {
   quoteId: string;
   businessName: string;
@@ -565,9 +567,19 @@ export async function sendQuoteAutoFollowUpEmail({
   templateOverrides?: QuoteFollowUpTemplateStored;
   replyToEmail?: string;
   businessId?: string | null;
-}) {
+  /**
+   * Overrides the default idempotency key. The default is quote-scoped, so
+   * two different follow-ups on the same quote would otherwise share a key
+   * and the second email would be swallowed by the outbox.
+   */
+  idempotencyKey?: string;
+}): Promise<boolean> {
   if (!isEmailConfigured) {
-    return;
+    logDeliverySkipped(
+      "Email is not configured yet. Quote follow-up email delivery was skipped.",
+      "quote",
+    );
+    return false;
   }
 
   const senderConfigurationError = getConfigurationError("quote");
@@ -598,7 +610,9 @@ export async function sendQuoteAutoFollowUpEmail({
     subject: template.subject,
     html: template.html,
     text: template.text,
-    idempotencyKey: `auto-followup:${quoteId}:attempt:${attemptNumber}:${getRecipientKey(customerEmail)}`,
+    idempotencyKey:
+      idempotencyKey ??
+      `auto-followup:${quoteId}:attempt:${attemptNumber}:${getRecipientKey(customerEmail)}`,
     businessId,
     metadata: {
       quoteId,
@@ -611,6 +625,96 @@ export async function sendQuoteAutoFollowUpEmail({
       event: "auto_follow_up",
     },
   });
+
+  return true;
+}
+
+/**
+ * Branded follow-up email for an unattended customer touchpoint.
+ *
+ * Used by the follow-up auto-send job when the follow-up is not backed by a
+ * quote with a public link (an inquiry follow-up, or a quote follow-up whose
+ * quote cannot be linked). Quote follow-ups with a public URL use
+ * {@link sendQuoteAutoFollowUpEmail} so the business follow-up template and
+ * signature apply.
+ */
+export async function sendFollowUpAutoSendEmail({
+  followUpId,
+  businessId,
+  businessName,
+  customerEmail,
+  customerName,
+  message,
+  ctaLabel,
+  ctaUrl,
+  emailSignature,
+  subject,
+  replyToEmail,
+  emailType = "inquiry",
+}: {
+  followUpId: string;
+  businessId?: string | null;
+  businessName: string;
+  customerEmail: string;
+  customerName: string;
+  message: string;
+  ctaLabel?: string | null;
+  ctaUrl?: string | null;
+  emailSignature?: string | null;
+  subject?: string | null;
+  replyToEmail?: string;
+  emailType?: EmailType;
+}): Promise<boolean> {
+  if (!isEmailConfigured) {
+    logDeliverySkipped(
+      "Email is not configured yet. Follow-up email delivery was skipped.",
+      emailType,
+    );
+    return false;
+  }
+
+  const senderConfigurationError = getConfigurationError(emailType);
+
+  if (senderConfigurationError) {
+    // The caller must be able to tell that nothing was delivered, so the
+    // row is not closed and the allowance is not charged.
+    throw new Error(senderConfigurationError);
+  }
+
+  const { renderFollowUpEmail } = await import(
+    "@/emails/templates/follow-up-email"
+  );
+
+  const template = renderFollowUpEmail({
+    businessName,
+    customerName,
+    message,
+    ctaLabel,
+    ctaUrl,
+    emailSignature,
+    subject,
+  });
+
+  await sendBrandedEmail({
+    emailType,
+    to: customerEmail,
+    replyTo: getFallbackReplyTo(replyToEmail),
+    subject: template.subject,
+    html: template.html,
+    text: template.text,
+    idempotencyKey: `follow-up-auto-send:${followUpId}:${getRecipientKey(customerEmail)}`,
+    businessId,
+    metadata: {
+      followUpId,
+      businessId,
+    },
+    tags: {
+      type: emailType,
+      event: "auto_follow_up",
+    },
+  });
+
+  return true;
 }
 
 export async function sendInquiryAcknowledgmentEmail({

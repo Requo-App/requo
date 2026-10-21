@@ -267,6 +267,13 @@
       "when": 1792514131017,
       "tag": "0037_inquiries_active_submitted_at_index",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1792538469711,
+      "tag": "0038_follow_up_overdue_notified_at",
+      "breakpoints": true
     }
   ]
 }

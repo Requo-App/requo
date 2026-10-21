@@ -411,6 +411,7 @@ async function QuoteDetailRegion({ params }: QuoteDetailPageProps) {
                       businessId={businessId}
                       businessPlan={businessContext.business.plan}
                       businessSlug={businessSlug}
+                      businessTimezone={businessContext.business.timezone}
                       createFollowUpAction={createFollowUpAction}
                       mode="draft"
                       quote={quote}
@@ -487,6 +488,7 @@ async function QuoteDetailRegion({ params }: QuoteDetailPageProps) {
                     businessId={businessId}
                     businessPlan={businessContext.business.plan}
                     businessSlug={businessSlug}
+                    businessTimezone={businessContext.business.timezone}
                     createFollowUpAction={createFollowUpAction}
                     mode="published"
                     quote={quote}
@@ -754,6 +756,7 @@ async function QuoteFollowUpsRegion({
   businessId,
   businessPlan,
   businessSlug,
+  businessTimezone,
   createFollowUpAction,
   mode,
   quote,
@@ -763,6 +766,7 @@ async function QuoteFollowUpsRegion({
   businessId: string;
   businessPlan: Parameters<typeof hasFeatureAccess>[0];
   businessSlug: string;
+  businessTimezone: string;
   createFollowUpAction: React.ComponentProps<typeof FollowUpPanel>["createAction"];
   mode: "draft" | "published";
   quote: DashboardQuoteDetailCore;
@@ -808,6 +812,8 @@ async function QuoteFollowUpsRegion({
         }
         defaultTitle={`Follow up on quote ${quote.quoteNumber}`}
         followUps={followUps}
+        plan={businessPlan}
+        timezone={businessTimezone}
         sharedQuoteWithoutFollowUp={
           mode === "published" && quote.status === "sent" && !hasPendingFollowUp
         }

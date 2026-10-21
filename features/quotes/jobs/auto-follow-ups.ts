@@ -172,7 +172,7 @@ export async function processQuoteAutoFollowUps(): Promise<AutoFollowUpsSummary>
         env.BETTER_AUTH_URL,
       ).toString();
 
-      await sendQuoteAutoFollowUpEmail({
+      const delivered = await sendQuoteAutoFollowUpEmail({
         quoteId: row.quoteId,
         businessName: row.businessName,
         customerName: row.customerName,
@@ -190,6 +190,14 @@ export async function processQuoteAutoFollowUps(): Promise<AutoFollowUpsSummary>
         replyToEmail: row.businessContactEmail ?? undefined,
         businessId: row.businessId,
       });
+
+      // Nothing reached the customer (the provider is not configured): leave
+      // the sequence pending and do not advance the attempt counter, so it
+      // resumes when the deployment can send again.
+      if (!delivered) {
+        skipped++;
+        continue;
+      }
 
       await db
         .update(quotes)

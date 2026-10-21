@@ -29,12 +29,33 @@ import { createNoIndexMetadata } from "@/lib/seo/site";
 import { FirstVisitTip } from "@/features/onboarding/components/first-visit-tip";
 import { featureTips } from "@/features/onboarding/feature-tips";
 import { getBusinessFollowUpsPath } from "@/features/businesses/routes";
-import { parseFollowUpListFilters } from "@/features/follow-ups/utils";
+import { followUpListFiltersSchema } from "@/features/follow-ups/schemas";
+import type { FollowUpListFilters } from "@/features/follow-ups/types";
 
 type FollowUpsPageProps = {
   params: Promise<{ businessSlug: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
+
+const defaultListFilters: FollowUpListFilters = {
+  q: undefined,
+  status: "all",
+  due: "all",
+  sort: "due_asc",
+  page: 1,
+};
+
+/**
+ * Parse the list view's URL filters through the shared schema so a malformed
+ * `?page=` falls back to page 1 instead of turning into `offset(NaN)`.
+ */
+function resolveFollowUpListFilters(
+  searchParams: Record<string, string | string[] | undefined>,
+): FollowUpListFilters {
+  const parsed = followUpListFiltersSchema.safeParse(searchParams);
+
+  return parsed.success ? parsed.data : defaultListFilters;
+}
 
 export const metadata: Metadata = createNoIndexMetadata({
   title: "Follow-ups",
@@ -83,13 +104,16 @@ async function FollowUpsContentRegion({
     searchParams,
   ]);
 
-  // If a status filter is present (e.g. from the All follow-ups tab),
-  // show the filterable list view instead of the board.
-  const hasStatusFilter =
-    resolvedSearchParams.status &&
-    resolvedSearchParams.status !== "pending";
+  // The board is the default workspace. The filterable list is reached
+  // explicitly (`?view=list`) or through a status deep link (e.g. the
+  // Analytics drill-downs), so every status-filtered link lands on the list.
+  const requestedView = resolvedSearchParams.view;
+  const hasStatusFilter = Boolean(resolvedSearchParams.status);
+  const wantsList =
+    requestedView === "list" ||
+    (requestedView !== "board" && hasStatusFilter);
 
-  if (hasStatusFilter) {
+  if (wantsList) {
     return (
       <StreamedFollowUpList
         businessSlug={businessSlug}
@@ -104,7 +128,10 @@ async function FollowUpsContentRegion({
 async function StreamedFollowUpBoard({ businessSlug }: { businessSlug: string }) {
   const { businessContext } = await getAppShellContext(businessSlug);
   const [overview, recentRecords] = await Promise.all([
-    getFollowUpOverviewForBusiness(businessContext.business.id),
+    getFollowUpOverviewForBusiness(
+      businessContext.business.id,
+      businessContext.business.timezone,
+    ),
     getRecentRecordsForFollowUpCreate(businessContext.business.id),
   ]);
   const [summaryCounts, autoSequences, history] = await Promise.all([
@@ -126,7 +153,12 @@ async function StreamedFollowUpBoard({ businessSlug }: { businessSlug: string })
         createButton={
           <MobileHeaderSlot desktopClassName="flex items-center gap-2">
             <LockedAction feature="followUps" plan={businessContext.business.plan}>
-              <CreateFollowUpButton businessSlug={businessSlug} records={recentRecords} />
+              <CreateFollowUpButton
+                businessSlug={businessSlug}
+                plan={businessContext.business.plan}
+                records={recentRecords}
+                timezone={businessContext.business.timezone}
+              />
             </LockedAction>
           </MobileHeaderSlot>
         }
@@ -146,14 +178,18 @@ async function StreamedFollowUpList({
 }) {
   const { businessContext } = await getAppShellContext(businessSlug);
   const businessId = businessContext.business.id;
-  const filters = parseFollowUpListFilters(searchParams);
+  const timezone = businessContext.business.timezone;
+  const filters = resolveFollowUpListFilters(searchParams);
   const page = filters.page;
 
-  const hasFilters = filters.q !== "" || filters.due !== "all" || filters.status !== "all";
-  const clearFiltersPath = getBusinessFollowUpsPath(businessSlug);
+  const hasFilters =
+    Boolean(filters.q?.trim()) ||
+    filters.due !== "all" ||
+    filters.status !== "all";
+  const clearFiltersPath = `${getBusinessFollowUpsPath(businessSlug)}?view=list`;
 
   const [totalItems, members] = await Promise.all([
-    getFollowUpListCountForBusiness({ businessId, filters }),
+    getFollowUpListCountForBusiness({ businessId, filters, timezone }),
     getBusinessMembersForReassign(businessId),
   ]);
 
@@ -163,6 +199,7 @@ async function StreamedFollowUpList({
     filters,
     page,
     pageSize: PAGE_SIZE,
+    timezone,
   });
   const totalItemsPromise = Promise.resolve(totalItems);
 

@@ -17,6 +17,7 @@ import {
   inquiryNotes,
 } from "@/lib/db/schema";
 import { insertBusinessNotification } from "@/features/notifications/mutations";
+import { terminateRecurringFollowUpsForRecords } from "@/features/follow-ups/mutations";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { resolveInquiryAttachmentContentType } from "@/features/inquiries/attachment-content";
 import {
@@ -579,7 +580,7 @@ export async function changeInquiryStatusForBusiness({
   const activityId = newEntityId();
   const now = new Date();
 
-  return db.transaction(async (tx) => {
+  const result = await db.transaction(async (tx) => {
     const [existingInquiry] = await tx
       .select({
         id: inquiries.id,
@@ -671,6 +672,17 @@ export async function changeInquiryStatusForBusiness({
       effectiveStatus: updatedInquiry?.effectiveStatus ?? nextStatus,
     };
   });
+
+  // A won/lost inquiry is terminal: stop any recurring follow-up series that
+  // was set to end when the linked item reaches a terminal status.
+  if (result?.changed) {
+    await terminateRecurringFollowUpsForRecords({
+      businessId,
+      records: [{ inquiryId, newStatus: nextStatus }],
+    });
+  }
+
+  return result;
 }
 
 type UpdateInquiryFieldsForBusinessInput = {
@@ -906,6 +918,15 @@ export async function archiveInquiryForBusiness({
     };
   });
 
+  // Archiving is terminal for the inquiry, so recurring follow-up series
+  // linked to it stop instead of resurfacing as overdue work.
+  if (result?.changed) {
+    await terminateRecurringFollowUpsForRecords({
+      businessId,
+      records: [{ inquiryId, newStatus: "archived" }],
+    });
+  }
+
   return result;
 }
 
@@ -1072,7 +1093,7 @@ export async function bulkArchiveInquiriesForBusiness({
 }): Promise<{ affected: number; skipped: number }> {
   const now = new Date();
 
-  return db.transaction(async (tx) => {
+  const result = await db.transaction(async (tx) => {
     const result = await tx
       .update(inquiries)
       .set({
@@ -1129,8 +1150,20 @@ export async function bulkArchiveInquiriesForBusiness({
     return {
       affected: result.length,
       skipped: inquiryIds.length - result.length,
+      archivedIds: result.map((row) => row.id),
     };
   });
+
+  // Archiving is terminal: stop the recurring series linked to those inquiries.
+  await terminateRecurringFollowUpsForRecords({
+    businessId,
+    records: result.archivedIds.map((id) => ({
+      inquiryId: id,
+      newStatus: "archived",
+    })),
+  });
+
+  return { affected: result.affected, skipped: result.skipped };
 }
 
 export async function bulkDeleteInquiriesForBusiness({
@@ -1217,7 +1250,7 @@ export async function bulkChangeInquiryStatusForBusiness({
 }): Promise<{ affected: number; skipped: number }> {
   const now = new Date();
 
-  return db.transaction(async (tx) => {
+  const result = await db.transaction(async (tx) => {
     const previousRows = await tx
       .select({ id: inquiries.id, status: inquiries.status })
       .from(inquiries)
@@ -1281,8 +1314,20 @@ export async function bulkChangeInquiryStatusForBusiness({
     return {
       affected: result.length,
       skipped: inquiryIds.length - result.length,
+      changedIds: changed.map((row) => row.id),
     };
   });
+
+  // Stop the recurring series of every inquiry that just became terminal.
+  await terminateRecurringFollowUpsForRecords({
+    businessId,
+    records: result.changedIds.map((id) => ({
+      inquiryId: id,
+      newStatus: targetStatus,
+    })),
+  });
+
+  return { affected: result.affected, skipped: result.skipped };
 }
 
 export async function bulkUnarchiveInquiriesForBusiness({

@@ -253,6 +253,7 @@ async function getCachedQuoteListPageForBusiness({
             where ${followUps.businessId} = ${quotes.businessId}
               and ${followUps.quoteId} = ${quotes.id}
               and ${followUps.status} = 'pending'
+              and ${followUps.deletedAt} is null
           )`,
           nextFollowUpDueAt: sql<Date | null>`(
             select min(${followUps.dueAt})
@@ -260,6 +261,7 @@ async function getCachedQuoteListPageForBusiness({
             where ${followUps.businessId} = ${quotes.businessId}
               and ${followUps.quoteId} = ${quotes.id}
               and ${followUps.status} = 'pending'
+              and ${followUps.deletedAt} is null
           )`,
         })
         .from(quotes)

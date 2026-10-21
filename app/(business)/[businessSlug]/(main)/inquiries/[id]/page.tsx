@@ -115,6 +115,7 @@ import {
 } from "@/features/inquiries/components/inquiry-detail-sections";
 import { getAppShellContext } from "@/lib/app-shell/context";
 import { hasFeatureAccess } from "@/lib/plans";
+import type { BusinessPlan } from "@/lib/plans/plans";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 import type { Metadata } from "next";
 
@@ -379,7 +380,9 @@ async function InquiryDetailRegion({
               <Suspense fallback={<FollowUpPanelFallback />}>
                 <InquiryFollowUpsRegion
                   businessId={businessId}
+                  businessPlan={businessContext.business.plan}
                   businessSlug={businessSlug}
+                  businessTimezone={businessContext.business.timezone}
                   createAction={createFollowUpAction}
                   inquiryId={inquiry.id}
                   customerContactMethod={inquiry.customerContactMethod}
@@ -603,14 +606,18 @@ async function InquiryCustomerHistoryRegion({
 
 async function InquiryFollowUpsRegion({
   businessId,
+  businessPlan,
   businessSlug,
+  businessTimezone,
   createAction,
   inquiryId,
   customerContactMethod,
   customerName,
 }: {
   businessId: string;
+  businessPlan: BusinessPlan;
   businessSlug: string;
+  businessTimezone: string;
   createAction: React.ComponentProps<typeof FollowUpPanel>["createAction"];
   inquiryId: string;
   customerContactMethod: string;
@@ -627,6 +634,8 @@ async function InquiryFollowUpsRegion({
       defaultReason="Follow up with the customer to keep this inquiry moving."
       defaultTitle={`Follow up with ${customerName}`}
       followUps={followUps}
+      plan={businessPlan}
+      timezone={businessTimezone}
     />
   );
 }

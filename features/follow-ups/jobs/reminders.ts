@@ -3,6 +3,12 @@ import "server-only";
 import { and, eq, gt, isNotNull, isNull, lt, lte, or } from "drizzle-orm";
 
 import { insertBusinessNotification } from "@/features/notifications/mutations";
+import { getTodayDateStringInTimezone, getBusinessDayStartInstant } from "@/features/follow-ups/utils";
+import {
+  getBusinessHomePath,
+  getBusinessInquiryPath,
+  getBusinessQuotePath,
+} from "@/features/businesses/routes";
 import { sendEmailWithFallback } from "@/lib/email";
 import { db } from "@/lib/db/client";
 import { businesses, followUps, inquiries, quotes } from "@/lib/db/schema";
@@ -193,9 +199,11 @@ export async function processFollowUpReminders(): Promise<FollowUpRemindersSumma
         followUpId: followUps.id,
         followUpTitle: followUps.title,
         businessId: followUps.businessId,
+        timezone: businesses.timezone,
         dueAt: followUps.dueAt,
         quoteId: followUps.quoteId,
         inquiryId: followUps.inquiryId,
+        overdueNotifiedAt: followUps.overdueNotifiedAt,
         notifyInApp: businesses.notifyInAppOnFollowUpReminder,
       })
       .from(followUps)
@@ -213,8 +221,42 @@ export async function processFollowUpReminders(): Promise<FollowUpRemindersSumma
         (now.getTime() - overdue.dueAt.getTime()) / (1000 * 60 * 60 * 24),
       );
 
-      if (overdueBy >= 1 && overdue.notifyInApp) {
-        await db.transaction(async (tx) => {
+      // Raise the "still overdue" notice at most once per business-local day.
+      // Without this marker a follow-up left open would push a fresh
+      // notification into the inbox every single day.
+      const today = getTodayDateStringInTimezone(overdue.timezone, now);
+      const lastNotifiedDay = overdue.overdueNotifiedAt
+        ? getTodayDateStringInTimezone(overdue.timezone, overdue.overdueNotifiedAt)
+        : null;
+
+      if (overdueBy >= 1 && overdue.notifyInApp && lastNotifiedDay !== today) {
+        // The claim itself is day-scoped: a second worker blocked on the row
+        // lock re-evaluates this predicate against the new row version, so
+        // the marker alone would not stop a second notification.
+        const dayStart = getBusinessDayStartInstant(today, overdue.timezone);
+
+        const claimed = await db.transaction(async (tx) => {
+          const [row] = await tx
+            .update(followUps)
+            .set({ overdueNotifiedAt: now, updatedAt: now })
+            .where(
+              and(
+                eq(followUps.id, overdue.followUpId),
+                eq(followUps.businessId, overdue.businessId),
+                eq(followUps.status, "pending"),
+                isNull(followUps.deletedAt),
+                or(
+                  isNull(followUps.overdueNotifiedAt),
+                  lt(followUps.overdueNotifiedAt, dayStart),
+                )!,
+              ),
+            )
+            .returning({ id: followUps.id });
+
+          if (!row) {
+            return false;
+          }
+
           await insertBusinessNotification(tx, {
             businessId: overdue.businessId,
             inquiryId: overdue.inquiryId,
@@ -223,12 +265,19 @@ export async function processFollowUpReminders(): Promise<FollowUpRemindersSumma
             title: `Follow-up overdue: ${overdue.followUpTitle}`,
             summary: `This follow-up was due ${overdueBy} day${overdueBy > 1 ? "s" : ""} ago and still needs attention.`,
             metadata: {
+              followUpId: overdue.followUpId,
               overdueBy,
               dueAt: overdue.dueAt.toISOString(),
             },
             now,
           });
+
+          return true;
         });
+
+        if (claimed) {
+          inAppCreated++;
+        }
       }
 
       lastOverdueId = overdue.followUpId;
@@ -254,12 +303,14 @@ function buildReminderEmailHtml(input: {
 }) {
   const appUrl = env.BETTER_AUTH_URL;
 
+  // Dashboard routes live under `/{slug}/…`. Building the path by hand used
+  // to produce `/b/{slug}/…`, which does not exist and 404s every reminder.
   const linkPath = input.quoteId
-    ? `/b/${input.businessSlug}/quotes/${input.quoteId}`
+    ? getBusinessQuotePath(input.businessSlug, input.quoteId)
     : input.inquiryId
-      ? `/b/${input.businessSlug}/inquiries/${input.inquiryId}`
-      : `/b/${input.businessSlug}`;
-  
+      ? getBusinessInquiryPath(input.businessSlug, input.inquiryId)
+      : getBusinessHomePath(input.businessSlug);
+
   const fullLink = `${appUrl}${linkPath}`;
 
   return `

@@ -71,7 +71,7 @@ export function FollowUpReassignDialog({
       }}
     >
       <ResponsiveOverlayTrigger asChild>
-        <Button disabled={disabled} size="sm" type="button" variant="ghost">
+        <Button disabled={disabled} size="sm" tabIndex={-1} type="button" variant="ghost">
           <UserRoundCog data-icon="inline-start" />
           Reassign
         </Button>
