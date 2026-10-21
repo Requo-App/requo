@@ -363,9 +363,9 @@ export function ChatInterface({
 
     void (async () => {
       try {
-        const response = await fetch(
-          `/api/ai/agent/session?token=${encodeURIComponent(stored)}`,
-        );
+        const response = await fetch("/api/ai/agent/session", {
+          headers: { Authorization: `Bearer ${stored}` },
+        });
         if (!response.ok) {
           // Expired or unknown — start clean rather than stranding the visitor.
           if (!cancelled) forgetSession();
@@ -506,10 +506,9 @@ export function ChatInterface({
         }
       }
 
-      // The token is read here rather than captured in the transport, so the
-      // one minted just above is attached to this very first send.
+      // The transport carries the session token, so it is always the current
+      // one — including the token minted just above for this very first send.
       const baseBody = {
-        sessionToken: tokenRef.current,
         ...(ridingValues ? { proposedInquiryValues: ridingValues } : {}),
       };
       if (attached.length === 0) {
@@ -792,7 +791,14 @@ export function ChatInterface({
                     ) : null}
                     <Button
                       aria-label="Retry response"
-                      onClick={() => void regenerate()}
+                      onClick={() =>
+                        void regenerate({
+                          // The session token travels with the retry. Without
+                          // it the request had no token and the server
+                          // answered 400, so the button could never work.
+                          body: { sessionToken: tokenRef.current ?? "" },
+                        })
+                      }
                       size="icon-xs"
                       type="button"
                       variant="ghost"

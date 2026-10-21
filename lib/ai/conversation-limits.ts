@@ -123,9 +123,17 @@ export async function checkAgentSessionLimit({
   }
 
   const monthStart = startOfMonthUtc();
+  // Only sessions that produced a message count. An empty session is a
+  // caller that opened a chat and left: counting it let ten scripted
+  // requests exhaust a Pro business's daily ceiling without a single
+  // conversation ever happening.
   const [{ monthCount }] = await db
-    .select({ monthCount: sql<number>`count(*)` })
+    .select({ monthCount: sql<number>`count(distinct ${aiAgentSessions.id})` })
     .from(aiAgentSessions)
+    .innerJoin(
+      aiAgentMessages,
+      eq(aiAgentMessages.sessionId, aiAgentSessions.id),
+    )
     .where(
       and(
         eq(aiAgentSessions.businessId, businessId),
@@ -144,8 +152,12 @@ export async function checkAgentSessionLimit({
 
   const dailyCeiling = AGENT_SESSIONS_PER_BUSINESS_PER_DAY[plan];
   const [{ dayCount }] = await db
-    .select({ dayCount: sql<number>`count(*)` })
+    .select({ dayCount: sql<number>`count(distinct ${aiAgentSessions.id})` })
     .from(aiAgentSessions)
+    .innerJoin(
+      aiAgentMessages,
+      eq(aiAgentMessages.sessionId, aiAgentSessions.id),
+    )
     .where(
       and(
         eq(aiAgentSessions.businessId, businessId),

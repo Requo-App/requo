@@ -17,15 +17,37 @@ import {
  * and orchestrators.
  */
 
+/**
+ * The maximum characters of a single chat turn.
+ *
+ * The cap has to sit on the transport the clients actually use (`messages`
+ * with `content`/`parts`), not only on the legacy `content` field: an
+ * unbounded turn is an unbounded database row, an unbounded sanitizer pass,
+ * and a turn that the token budget silently drops from the prompt.
+ */
+export const MAX_CHAT_MESSAGE_CHARS = 20_000;
+
 export const uiTextPartSchema = z.object({
   type: z.string(),
-  text: z.string().optional(),
+  text: z
+    .string()
+    .max(
+      MAX_CHAT_MESSAGE_CHARS,
+      `Messages must be ${MAX_CHAT_MESSAGE_CHARS.toLocaleString()} characters or fewer.`,
+    )
+    .optional(),
 });
 
 export const uiMessageSchema = z.object({
   id: z.string().optional(),
   role: z.enum(["user", "assistant", "system", "tool"]),
-  content: z.string().optional(),
+  content: z
+    .string()
+    .max(
+      MAX_CHAT_MESSAGE_CHARS,
+      `Messages must be ${MAX_CHAT_MESSAGE_CHARS.toLocaleString()} characters or fewer.`,
+    )
+    .optional(),
   parts: z.array(uiTextPartSchema).optional(),
 });
 

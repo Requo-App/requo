@@ -121,7 +121,10 @@ export function compactMessages<T extends { role: string; content: string }>(
   } as T;
 
   const compacted = [head[0], summary, ...tail];
-  while (compacted.length > 2 && estimateMessageTokens(compacted) > maxTokens) {
+  // Trim the tail from its oldest end, but never drop the latest turn: the
+  // current user message has to reach the model even when the budget is
+  // tight. Removing it left the model answering a prompt it never received.
+  while (compacted.length > 3 && estimateMessageTokens(compacted) > maxTokens) {
     compacted.splice(2, 1);
   }
   return compacted;

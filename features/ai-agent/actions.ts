@@ -19,7 +19,7 @@ import {
   assertPublicActionRateLimit,
   getPublicActionClientIpAddress,
 } from "@/lib/public-action-rate-limit";
-import { createInquiryParamsSchema } from "@/features/ai-agent/schemas";
+import { createInquiryParamsSchema, sessionMetadataSchema } from "@/features/ai-agent/schemas";
 import { getOperationalBusinessCondition } from "@/features/businesses/lifecycle";
 import type {
   AgentSessionState,
@@ -90,12 +90,17 @@ export async function createAgentSessionAction({
 
     // Anonymous session creation is rate-limited per IP so an
     // unauthenticated caller cannot mint sessions without bound.
+    //
+    // The User-Agent is client-controlled, so the fingerprint bucket alone
+    // does not bound a sender that rotates it: `ipLimit` is the bucket that
+    // actually bounds one address.
     const headerStore = await headers();
     const clientIp = getPublicActionClientIpAddress(headerStore);
     const creationAllowed = await assertPublicActionRateLimit({
       action: "public-inquiry-submit",
       scope: `ai-agent-create:${clientIp}`,
       limit: 20,
+      ipLimit: 20,
       windowMs: 60 * 60 * 1000,
     });
 
@@ -119,9 +124,14 @@ export async function createAgentSessionAction({
     }
 
     // Create session
+    // The metadata comes from a public, unauthenticated action, so it is
+    // parsed and bounded before it is persisted: unknown keys and oversized
+    // values must not reach the metadata column.
+    const parsedMetadata = sessionMetadataSchema.safeParse(metadata ?? {});
+
     const result = await createAgentSession({
       businessId: business.id,
-      metadata,
+      metadata: parsedMetadata.success ? parsedMetadata.data : {},
     });
 
     return {

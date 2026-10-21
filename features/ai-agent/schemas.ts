@@ -63,13 +63,18 @@ export const agentSessionStateSchema = qualificationStateSchema.extend({
 });
 
 // Session metadata schema
+/**
+ * Session metadata. The schema is strict and bounded: the metadata column is
+ * written from a public, unauthenticated action, so unknown keys and
+ * oversized values must not reach the database.
+ */
 export const sessionMetadataSchema = z.object({
-  userAgent: z.string().optional(),
-  ipAddress: z.string().optional(),
-  handoffReason: z.string().optional(),
-  handoffRecommendation: z.string().optional(),
-  searchAttempts: z.number().int().min(0).optional(),
-}).passthrough();
+  userAgent: z.string().max(512).optional(),
+  ipAddress: z.string().max(64).optional(),
+  handoffReason: z.string().max(500).optional(),
+  handoffRecommendation: z.string().max(500).optional(),
+  searchAttempts: z.number().int().min(0).max(1000).optional(),
+});
 
 // Message metadata schema
 export const messageMetadataSchema = z.object({

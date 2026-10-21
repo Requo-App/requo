@@ -55,6 +55,7 @@ import {
 import {
   addAgentMessage,
   buildAiSdkMessages,
+  hasAgentMessageWithClientId,
 } from "@/features/ai-agent/message-service";
 import {
   startAgentRun,
@@ -192,6 +193,7 @@ export async function runAgent({
   proposedInquiryValues,
   attachments = [],
   abortSignal,
+  clientMessageId,
 }: {
   sessionToken: string;
   userMessage?: string;
@@ -206,6 +208,11 @@ export async function runAgent({
    * never saw.
    */
   abortSignal?: AbortSignal;
+  /**
+   * The client-side id of this turn. A retry reuses it, so the turn is not
+   * persisted (and not billed) twice.
+   */
+  clientMessageId?: string | null;
 }): Promise<Response> {
   // Load session and business context (includes the stored agent config)
   const sessionData = await loadSessionByToken(sessionToken);
@@ -357,15 +364,28 @@ export async function runAgent({
     ? `${safeUserMessage}\n\n${attachmentBlock}`
     : safeUserMessage;
 
-  // Persist user message
-  await addAgentMessage({
-    sessionId,
-    role: "user",
-    content: fullUserMessage,
-    ...(attachmentCount > 0
-      ? { metadata: { [ATTACHMENT_METADATA_KEY]: attachmentCount } }
-      : {}),
-  });
+  // Persist the user message. A retry carries the same client message id,
+  // so the turn is not written (and not billed) twice.
+  const isRetry = clientMessageId
+    ? await hasAgentMessageWithClientId({
+        sessionId,
+        clientMessageId,
+      })
+    : false;
+
+  if (!isRetry) {
+    await addAgentMessage({
+      sessionId,
+      role: "user",
+      content: fullUserMessage,
+      metadata: {
+        ...(attachmentCount > 0
+          ? { [ATTACHMENT_METADATA_KEY]: attachmentCount }
+          : {}),
+        ...(clientMessageId ? { clientMessageId } : {}),
+      },
+    });
+  }
 
   // Advance qualification state as the conversation progresses.
   const advancedState = advanceQualificationFromMessage(
