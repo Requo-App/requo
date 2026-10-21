@@ -26,6 +26,8 @@ import { env } from "@/lib/env";
 export interface CacheLayer {
   get<T>(key: string): Promise<T | null>;
   set<T>(key: string, value: T, ttlSeconds: number): Promise<void>;
+  /** Set a value only when the key is absent. Returns false when it existed. */
+  setIfAbsent<T>(key: string, value: T, ttlSeconds: number): Promise<boolean>;
   delete(key: string): Promise<void>;
   increment(key: string, ttlSeconds: number): Promise<number>;
   incrementBy(key: string, amount: number, ttlSeconds: number): Promise<number>;
@@ -41,6 +43,32 @@ type InMemoryEntry = {
 };
 
 const inMemoryStore = new Map<string, InMemoryEntry>();
+
+/**
+ * The in-memory fallback is a hard cap on memory: keys such as
+ * `embed:<sha256>` and `dedup:<sha256>` are one per distinct input, so a
+ * long-lived process would otherwise accumulate every value it ever wrote.
+ */
+const IN_MEMORY_MAX_ENTRIES = 2_000;
+
+/** Drop expired entries, then the oldest ones, when the store is over cap. */
+function evictInMemory(): void {
+  if (inMemoryStore.size <= IN_MEMORY_MAX_ENTRIES) return;
+
+  const now = Date.now();
+  for (const [key, entry] of inMemoryStore) {
+    if (now > entry.expiresAt) {
+      inMemoryStore.delete(key);
+    }
+  }
+
+  // Still over cap: drop the oldest entries (Map preserves insertion order).
+  while (inMemoryStore.size > IN_MEMORY_MAX_ENTRIES) {
+    const oldest = inMemoryStore.keys().next();
+    if (oldest.done) break;
+    inMemoryStore.delete(oldest.value);
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Redis client initialization
@@ -133,6 +161,7 @@ function getFromMemory<T>(key: string): T | null {
 function setInMemory(key: string, value: unknown, ttlSeconds: number): void {
   const expiresAt = Date.now() + ttlSeconds * 1000;
   inMemoryStore.set(key, { value, expiresAt });
+  evictInMemory();
 }
 
 function deleteFromMemory(key: string): void {
@@ -193,6 +222,52 @@ class DistributedCacheLayer implements CacheLayer {
         );
       }
     }
+  }
+
+  /**
+   * Sets a value only when the key is absent. Redis `SET NX EX` is atomic,
+   * so two concurrent callers cannot both observe "absent" and both write —
+   * the get-then-set pattern was a race that let duplicate work through.
+   */
+  async setIfAbsent<T>(
+    key: string,
+    value: T,
+    ttlSeconds: number,
+  ): Promise<boolean> {
+    const redis = getRedis();
+
+    if (redis) {
+      try {
+        const result = await withTimeout(
+          redis.set(key, value, { ex: ttlSeconds, nx: true }) as Promise<
+            string | null
+          >,
+          OPERATION_TIMEOUT_MS,
+        );
+
+        if (result !== null && result !== undefined) {
+          setInMemory(key, value, ttlSeconds);
+          return true;
+        }
+
+        return false;
+      } catch (error) {
+        console.warn(
+          "[cache-layer] Redis SET NX failed, falling back to in-memory:",
+          error instanceof Error ? error.message : error,
+        );
+      }
+    }
+
+    // In-memory fallback: the check and the write happen in one tick, so
+    // concurrent callers in the same process cannot both win.
+    const existing = getFromMemory<T>(key);
+    if (existing !== null) {
+      return false;
+    }
+
+    setInMemory(key, value, ttlSeconds);
+    return true;
   }
 
   /**

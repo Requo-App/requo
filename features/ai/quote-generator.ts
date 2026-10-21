@@ -51,11 +51,14 @@ import {
   generateWithFallback,
   logAiInvocation,
   recordUsage,
+  releaseUsageReservation,
+  settleUsageReservation,
   startCooldown,
   computeUsageWeight,
   setCachedOutput,
   getCachedOutput,
 } from "@/lib/ai";
+import type { UsageReservation } from "@/lib/ai/usage-limiter";
 import type {
   AiCompletionRequest,
   AiQualityTier,
@@ -1074,6 +1077,11 @@ async function finalizeDraft(input: {
   /** Cache hits skip usage deduction and cooldown. */
   fromCache?: boolean;
   /**
+   * The reserved credit for this invocation. When present the reserved row
+   * settles with the real weight instead of a second row being written.
+   */
+  usageReservation?: UsageReservation;
+  /**
    * AI-01 (b): pack for missing-information criticality overlay. Applied to
    * fresh generations only — cached outputs keep the attribution of the
    * version under which they were generated.
@@ -1185,6 +1193,14 @@ async function finalizeDraft(input: {
   }
 
   if (input.fromCache) {
+    // A cached draft spent no tokens: release the reserved credit so the
+    // cache hit is free, exactly like the usage recording below skips it.
+    if (input.usageReservation) {
+      await releaseUsageReservation(input.usageReservation).catch((error) => {
+        console.warn("[quote-generator] Failed to release AI credit:", error);
+      });
+    }
+
     return draft;
   }
 
@@ -1194,13 +1210,22 @@ async function finalizeDraft(input: {
     inputTokens: input.responseUsage?.promptTokens,
     outputTokens: input.responseUsage?.outputTokens,
   });
-  await recordUsage(
-    input.userId,
-    input.businessId,
-    input.taskType,
-    weight,
-    input.plan,
-  );
+
+  if (input.usageReservation) {
+    // The reservation row IS the usage event — settle it rather than adding
+    // a second row for the same invocation.
+    await settleUsageReservation(input.usageReservation, weight).catch((error) => {
+      console.warn("[quote-generator] Failed to settle AI credit:", error);
+    });
+  } else {
+    await recordUsage(
+      input.userId,
+      input.businessId,
+      input.taskType,
+      weight,
+      input.plan,
+    );
+  }
   await startCooldown(input.userId, input.taskType);
 
   await logAiInvocation({
@@ -1270,6 +1295,11 @@ type GenerateQuoteDraftInput = {
     quantity: number;
     unitPriceInCents: number;
   }> | null;
+  /**
+   * The reserved credit for this invocation. The reserved row settles with
+   * the real token weight instead of a second usage row being written.
+   */
+  usageReservation?: UsageReservation;
 };
 
 type GenerateQuoteDraftResult =
@@ -1309,7 +1339,7 @@ export async function generateQuoteDraftForBusiness(
     const sanitization = await sanitizeAiInput(userInputText);
 
     if (sanitization.status === "rejected") {
-      logAiSecurityEvent({
+      await logAiSecurityEvent({
         eventType: "injection_rejected",
         patternMatched: sanitization.patterns.join(", "),
         userId: input.userId,
@@ -1323,7 +1353,7 @@ export async function generateQuoteDraftForBusiness(
     }
 
     if (sanitization.status === "sanitized") {
-      logAiSecurityEvent({
+      await logAiSecurityEvent({
         eventType: "injection_detected",
         patternMatched: sanitization.patterns.join(", "),
         userId: input.userId,
@@ -1494,6 +1524,7 @@ export async function generateQuoteDraftForBusiness(
             responseProvider: cachedOutput.provider,
             startTime: Date.now(),
             fromCache: true,
+            usageReservation: input.usageReservation,
           });
 
           if (cachedDraft) {
@@ -1543,7 +1574,7 @@ export async function generateQuoteDraftForBusiness(
       { canaryToken: getAiCanaryToken() },
     );
     if (outputFilterResult.status === "redacted") {
-      logAiSecurityEvent({
+      await logAiSecurityEvent({
         eventType: "output_redacted",
         patternMatched: outputFilterResult.redactedPatterns.join(", "),
         userId: input.userId,
@@ -1588,6 +1619,7 @@ export async function generateQuoteDraftForBusiness(
       startTime,
       pack: packGuidance.pack,
       packGuidanceRecipeConfig: packGuidance.recipeConfig,
+      usageReservation: input.usageReservation,
     });
 
     if (!draft) {
@@ -1639,6 +1671,11 @@ type GenerateQuoteImprovementInput = {
   plan: BusinessPlan;
   inquiryId: string;
   existingQuoteDraft: string;
+  /**
+   * The reserved credit for this invocation. The reserved row settles with
+   * the real token weight instead of a second usage row being written.
+   */
+  usageReservation?: UsageReservation;
 };
 
 type GenerateQuoteImprovementResult =
@@ -1674,7 +1711,7 @@ export async function generateQuoteImprovementForBusiness(
     const sanitization = await sanitizeAiInput(input.existingQuoteDraft);
 
     if (sanitization.status === "rejected") {
-      logAiSecurityEvent({
+      await logAiSecurityEvent({
         eventType: "injection_rejected",
         patternMatched: sanitization.patterns.join(", "),
         userId: input.userId,
@@ -1688,7 +1725,7 @@ export async function generateQuoteImprovementForBusiness(
     }
 
     if (sanitization.status === "sanitized") {
-      logAiSecurityEvent({
+      await logAiSecurityEvent({
         eventType: "injection_detected",
         patternMatched: sanitization.patterns.join(", "),
         userId: input.userId,
@@ -1830,6 +1867,7 @@ export async function generateQuoteImprovementForBusiness(
             responseProvider: cachedOutput.provider,
             startTime: Date.now(),
             fromCache: true,
+            usageReservation: input.usageReservation,
           });
 
           if (cachedDraft) {
@@ -1873,7 +1911,7 @@ export async function generateQuoteImprovementForBusiness(
       { canaryToken: getAiCanaryToken() },
     );
     if (outputFilterResult.status === "redacted") {
-      logAiSecurityEvent({
+      await logAiSecurityEvent({
         eventType: "output_redacted",
         patternMatched: outputFilterResult.redactedPatterns.join(", "),
         userId: input.userId,
@@ -1918,6 +1956,7 @@ export async function generateQuoteImprovementForBusiness(
       startTime,
       pack: packGuidance.pack,
       packGuidanceRecipeConfig: packGuidance.recipeConfig,
+      usageReservation: input.usageReservation,
     });
 
     if (!draft) {

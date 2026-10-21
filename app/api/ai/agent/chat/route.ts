@@ -101,6 +101,9 @@ export async function POST(request: Request) {
       sessionToken,
       attachments: rawAttachments,
       userMessage: content,
+      // The request's signal reaches the provider call, so a visitor who
+      // stops generating actually cancels the turn.
+      abortSignal: request.signal,
       uiMessages: uiMessages?.map((message) => ({
         role: message.role,
         content: extractUiMessageText(message),

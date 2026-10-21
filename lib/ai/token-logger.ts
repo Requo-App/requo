@@ -101,13 +101,36 @@ export function computeEstimatedCostCents(
   return inputCost + outputCost;
 }
 
+/** The maximum length of a persisted provider error message. */
+const ERROR_MESSAGE_MAX_LENGTH = 300;
+
+/**
+ * Scrub a provider error before it is persisted.
+ *
+ * Provider SDK errors embed the failed request body, which can echo the
+ * customer's own text back. The raw message is kept in the server log; the
+ * database row — and the admin console that renders it — keeps a redacted
+ * summary only.
+ */
+function scrubProviderErrorMessage(message: string): string {
+  const firstLine = message.split("\n")[0] ?? "";
+
+  return firstLine
+    // Long quoted spans are usually the provider echoing the request body.
+    .replace(/["'][^"']{20,}["']/g, '"[redacted]"')
+    // Contact details echoed in the provider body.
+    .replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, "[redacted-email]")
+    .replace(/\+?\d[\d\s().-]{9,}\d/g, "[redacted-number]")
+    .slice(0, ERROR_MESSAGE_MAX_LENGTH);
+}
+
 /**
  * Logs an AI invocation to the database and writes a structured JSON line
  * to the server console for log aggregation.
  *
  * - Cache hits are logged with inputTokens: 0, outputTokens: 0, cacheHit: true
  * - If model/provider not in cost table, records null cost and unpriced: true
- * - Error messages are truncated to 1024 characters
+ * - Error messages are scrubbed and truncated before they are persisted
  */
 export async function logAiInvocation(
   params: LogAiInvocationParams,
@@ -135,7 +158,7 @@ export async function logAiInvocation(
   );
   const unpriced = estimatedCostCents === null;
   const truncatedErrorMessage = errorMessage
-    ? errorMessage.slice(0, 1024)
+    ? scrubProviderErrorMessage(errorMessage)
     : null;
 
   const id = newEntityId();
@@ -183,24 +206,34 @@ export async function logAiInvocation(
     }),
   );
 
-  // Database insert
-  await db.insert(aiTokenLogs).values({
-    id,
-    userId,
-    businessId,
-    taskType,
-    model,
-    provider,
-    inputTokens,
-    outputTokens,
-    totalTokens,
-    estimatedCostCents: estimatedCostCents !== null ? Math.round(estimatedCostCents) : null,
-    cacheHit,
-    latencyMs,
-    status,
-    errorMessage: truncatedErrorMessage,
-    unpriced,
-  });
+  // Database insert.
+  //
+  // The console line above is the fallback, so a failed insert must not
+  // reject: several callers fire this without awaiting, and an unhandled
+  // rejection would take the turn down with it — losing the invocation from
+  // both sinks at once.
+  try {
+    await db.insert(aiTokenLogs).values({
+      id,
+      userId,
+      businessId,
+      taskType,
+      model,
+      provider,
+      inputTokens,
+      outputTokens,
+      totalTokens,
+      estimatedCostCents:
+        estimatedCostCents !== null ? Math.round(estimatedCostCents) : null,
+      cacheHit,
+      latencyMs,
+      status,
+      errorMessage: truncatedErrorMessage,
+      unpriced,
+    });
+  } catch (error) {
+    console.error("[ai-token-logger] Failed to persist invocation log:", error);
+  }
 
   return entry;
 }

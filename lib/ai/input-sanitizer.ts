@@ -46,6 +46,13 @@ export interface SanitizationResult {
 const ZERO_WIDTH_REGEX = /[\u200B\u200C\u200D\uFEFF\u00AD]/g;
 
 /**
+ * The maximum number of characters the sanitizer inspects. The output path
+ * caps its inspection for the same reason: the rejection patterns are the
+ * request path's cost, and an unbounded body makes that cost unbounded too.
+ */
+export const MAX_SANITIZE_INPUT_CHARS = 20_000;
+
+/**
  * Normalizes input by stripping zero-width characters and applying NFKC
  * normalization. NFKC maps Cyrillic homoglyphs and other compatibility
  * characters to their canonical ASCII equivalents.
@@ -201,8 +208,13 @@ const SANITIZATION_PATTERNS: Array<{ pattern: RegExp; name: string }> = [
     name: "heading_injection",
   },
   // Separator-based injection (----, ====, etc. followed by instruction keywords)
+  //
+  // The separator run is bounded and anchored to a line start: an unbounded
+  // `[-=]{4,}` retries the tail of the pattern at every position, so a long
+  // run of dashes made the match quadratic — attacker-controlled work with
+  // no bound, on the request path.
   {
-    pattern: /(?:[-=]{4,})\s*\n\s*(?:new\s+)?(?:system|instructions?|rules?|prompt)\s*(?::|\n)/gim,
+    pattern: /(?:^|\n)[-=]{4,16}[ \t]*\n[ \t]*(?:new\s+)?(?:system|instructions?|rules?|prompt)\s*(?::|\n)/gim,
     name: "separator_injection",
   },
 ];
@@ -352,8 +364,15 @@ export async function sanitizeAiInput(
       };
     }
 
+    // Bound the inspection. The patterns run over the whole string, so an
+    // unbounded body made the sanitizer's cost attacker-controlled.
+    const truncated = input.length > MAX_SANITIZE_INPUT_CHARS;
+    const inspected = truncated
+      ? input.slice(0, MAX_SANITIZE_INPUT_CHARS)
+      : input;
+
     // Normalize input: strip zero-width chars + NFKC normalization
-    const normalized = normalizeInput(input);
+    const normalized = normalizeInput(inspected);
 
     const matchedPatterns: string[] = [];
 
@@ -414,7 +433,7 @@ export async function sanitizeAiInput(
       output: normalized,
       title: "",
       content: normalized,
-      patterns: [],
+      patterns: truncated ? ["input_truncated"] : [],
     };
   } catch {
     // Catch unexpected errors (e.g., catastrophic backtracking)
@@ -448,7 +467,7 @@ async function incrementLockoutCounter(conversationId: string): Promise<void> {
     );
 
     if (newCount >= LOCKOUT_THRESHOLD) {
-      logAiSecurityEvent({
+      await logAiSecurityEvent({
         eventType: "conversation_locked",
         patternMatched: "lockout_threshold_reached",
         rawInput: `conversationId:${conversationId}`,

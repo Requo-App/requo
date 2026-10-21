@@ -1,12 +1,13 @@
 import { eq } from "drizzle-orm";
 
 import { generateQuoteDraftForBusiness } from "@/features/ai/quote-generator";
+import { createAutoDraftQuote } from "@/features/ai/auto-draft";
 import { enableAutoFollowUpForQuote } from "@/features/quotes/mutations";
 import { getBusinessInquiryPath, getBusinessInvoicePath, getBusinessQuotePath } from "@/features/businesses/routes";
 import { getBusinessMessagingSettings } from "@/lib/db/business-access";
 import { db } from "@/lib/db/client";
 import { businesses } from "@/lib/db/schema";
-import { checkUsageLimit } from "@/lib/ai";
+import { releaseUsageReservation, reserveUsage } from "@/lib/ai";
 import { inngest } from "@/lib/inngest/client";
 import {
   inngestEvents,
@@ -344,6 +345,7 @@ export const inquiryQualifiedAiDraft = inngest.createFunction(
           autoDraftQuoteOnQualify: businesses.autoDraftQuoteOnQualify,
           ownerUserId: businesses.ownerUserId,
           plan: businesses.plan,
+          currency: businesses.defaultCurrency,
         })
         .from(businesses)
         .where(eq(businesses.id, data.businessId))
@@ -353,7 +355,7 @@ export const inquiryQualifiedAiDraft = inngest.createFunction(
         return { skipped: true };
       }
 
-      const usage = await checkUsageLimit({
+      const usage = await reserveUsage({
         userId: business.ownerUserId,
         businessId: data.businessId,
         taskType: "quote_draft",
@@ -370,13 +372,31 @@ export const inquiryQualifiedAiDraft = inngest.createFunction(
         userId: business.ownerUserId,
         plan: business.plan,
         inquiryId: data.inquiryId,
+        usageReservation: usage.reservation,
       });
 
       if (!result.ok) {
+        await releaseUsageReservation(usage.reservation).catch(() => {});
+
         return { skipped: true, reason: result.error };
       }
 
-      return { drafted: true };
+      // Persist the draft. Generating it and throwing it away burned the
+      // business's AI credits on every qualified inquiry and produced
+      // nothing the owner could open.
+      const created = await createAutoDraftQuote({
+        businessId: data.businessId,
+        inquiryId: data.inquiryId,
+        actorUserId: business.ownerUserId,
+        currency: business.currency,
+        draft: result.draft,
+      });
+
+      if (!created) {
+        return { drafted: false, reason: "The draft could not be saved." };
+      }
+
+      return { drafted: true, quoteId: created.quoteId };
     });
   },
 );

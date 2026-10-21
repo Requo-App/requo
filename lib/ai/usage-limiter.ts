@@ -277,7 +277,7 @@ async function checkCooldown(
   return null;
 }
 
-type UsageReservation = {
+export type UsageReservation = {
   id: string;
   businessId: string;
   plan: BusinessPlan;
@@ -370,6 +370,53 @@ async function invalidateUsageCache(reservation: UsageReservation): Promise<void
     // Reservations always enforce quota from the DB; display caches expire.
     console.warn("[usage-limiter] Failed to invalidate usage cache");
   }
+
+  // Re-prime from the DB. Deleting the key without re-priming it left the
+  // next `recordUsage` incrementing a counter that started at zero, so the
+  // cached total under-reported the month and a business that was over its
+  // allowance passed the quota check.
+  await refreshUsageCache(reservation.businessId, reservation.plan);
+}
+
+/** Recompute the cached monthly total from the authoritative DB rows. */
+async function refreshUsageCache(
+  businessId: string,
+  plan: BusinessPlan,
+): Promise<void> {
+  try {
+    const total = await getBusinessUsageTotal(businessId, plan);
+    await cacheLayer.set<number>(
+      getBusinessUsageCacheKey(businessId, plan),
+      total,
+      USAGE_CACHE_TTL_SECONDS,
+    );
+  } catch (error) {
+    console.warn(
+      "[usage-limiter] Failed to refresh usage cache:",
+      error instanceof Error ? error.message : error,
+    );
+  }
+}
+
+/** The authoritative monthly weighted usage for a business under a plan. */
+async function getBusinessUsageTotal(
+  businessId: string,
+  plan: BusinessPlan,
+): Promise<number> {
+  const monthStart = getStartOfCurrentMonthUTC();
+
+  const [usageRow] = await db
+    .select({ businessTotal: sum(aiUsageEvents.weight) })
+    .from(aiUsageEvents)
+    .where(
+      and(
+        eq(aiUsageEvents.businessId, businessId),
+        gte(aiUsageEvents.createdAt, monthStart),
+        planScope(plan),
+      ),
+    );
+
+  return Number(usageRow?.businessTotal ?? 0);
 }
 
 /**
@@ -403,20 +450,7 @@ async function getCachedOrDbBusinessUsage(
   }
 
   // Cache miss — query DB for the missing value
-  const monthStart = getStartOfCurrentMonthUTC();
-
-  const [usageRow] = await db
-    .select({ businessTotal: sum(aiUsageEvents.weight) })
-    .from(aiUsageEvents)
-    .where(
-      and(
-        eq(aiUsageEvents.businessId, businessId),
-        gte(aiUsageEvents.createdAt, monthStart),
-        planScope(plan),
-      ),
-    );
-
-  const businessUsage = Number(usageRow?.businessTotal ?? 0);
+  const businessUsage = await getBusinessUsageTotal(businessId, plan);
 
   // Cache the value we fetched from DB (non-blocking, ignore failures)
   try {
@@ -465,10 +499,9 @@ export async function recordUsage(
     plan,
   });
 
-  // Atomically increment the cached counter (non-blocking, never interrupts caller)
-  const businessCacheKey = getBusinessUsageCacheKey(businessId, plan);
-
-  await safeIncrementCache(businessCacheKey, weight);
+  // Keep the cached counter an absolute total so it can never under-report
+  // the month after an invalidation.
+  await safeAddToUsageCache(businessId, plan, weight);
 }
 
 /**
@@ -522,29 +555,44 @@ export async function getMonthlyUsageSummary(
  * On failure: deletes the cache key and logs a warning.
  * Never throws — failures must not interrupt the caller.
  */
-async function safeIncrementCache(
-  cacheKey: string,
+/**
+ * Add a weight to the cached monthly total.
+ *
+ * The cached value has to be an absolute total. A bare increment on a key
+ * that was just invalidated starts from zero, so the cache under-reported
+ * the month and an over-quota business passed the check until the TTL
+ * expired. When the key is missing the DB total is used as the base.
+ */
+async function safeAddToUsageCache(
+  businessId: string,
+  plan: BusinessPlan,
   weight: number,
 ): Promise<void> {
+  const cacheKey = getBusinessUsageCacheKey(businessId, plan);
+
+  let base: number | null = null;
   try {
-    await cacheLayer.incrementBy(cacheKey, weight, USAGE_CACHE_TTL_SECONDS);
+    base = await cacheLayer.get<number>(cacheKey);
+  } catch {
+    // Cache read failed — fall back to the DB total below.
+  }
+
+  if (base === null) {
+    base = await getBusinessUsageTotal(businessId, plan);
+  }
+
+  try {
+    await cacheLayer.set<number>(
+      cacheKey,
+      base + weight,
+      USAGE_CACHE_TTL_SECONDS,
+    );
   } catch (error) {
-    // On increment failure: delete the cache key so the next check
-    // falls through to the DB aggregate for a fresh value.
     console.warn(
-      "[usage-limiter] Cache increment failed, invalidating key:",
+      "[usage-limiter] Failed to update usage cache:",
       cacheKey,
       error instanceof Error ? error.message : error,
     );
-    try {
-      await cacheLayer.delete(cacheKey);
-    } catch {
-      // Delete failure is non-critical — key will expire via TTL
-      console.warn(
-        "[usage-limiter] Failed to delete cache key after increment failure:",
-        cacheKey,
-      );
-    }
   }
 }
 

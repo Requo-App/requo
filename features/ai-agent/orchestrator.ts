@@ -17,9 +17,10 @@ import {
 } from "@/lib/ai/token-budget";
 import { truncateToolOutput } from "@/lib/ai/tool-truncator";
 import {
-  checkUsageLimit,
   computeUsageWeight,
-  recordUsage,
+  releaseUsageReservation,
+  reserveUsage,
+  settleUsageReservation,
 } from "@/lib/ai/usage-limiter";
 import {
   checkAgentFileUploadLimit,
@@ -189,6 +190,7 @@ export async function runAgent({
   uiMessages,
   proposedInquiryValues,
   attachments = [],
+  abortSignal,
 }: {
   sessionToken: string;
   userMessage?: string;
@@ -196,6 +198,13 @@ export async function runAgent({
   proposedInquiryValues?: Record<string, unknown>;
   /** Decoded attachment bytes for this turn only — parsed to text, never stored. */
   attachments?: RawChatAttachment[];
+  /**
+   * The request's abort signal. Threaded into the provider call so a
+   * visitor who stops generating actually cancels it: without it the turn
+   * ran to completion, was billed, and was persisted as a reply the visitor
+   * never saw.
+   */
+  abortSignal?: AbortSignal;
 }): Promise<Response> {
   // Load session and business context (includes the stored agent config)
   const sessionData = await loadSessionByToken(sessionToken);
@@ -215,8 +224,10 @@ export async function runAgent({
     throw new Error("AI agent is not available on this plan");
   }
 
-  // Hard usage quota check — block requests that exceed the plan's monthly allowance
-  const quotaResult = await checkUsageLimit({
+  // Hard usage quota check — block requests that exceed the plan's monthly
+  // allowance. The credit is reserved (not merely read): a cached read let
+  // every concurrent request pass the same stale total.
+  const quotaResult = await reserveUsage({
     userId: AGENT_SYSTEM_USER_ID,
     businessId: sessionData.business.id,
     taskType: "agent_conversation",
@@ -226,6 +237,34 @@ export async function runAgent({
   if (!quotaResult.allowed) {
     throw new Error(`QUOTA_EXCEEDED: ${quotaResult.message}`);
   }
+
+  const usageReservation = quotaResult.reservation;
+  let usageSettled = false;
+
+  /** Release the reserved credit when the turn produced no billable usage. */
+  const releaseUsage = async () => {
+    if (usageSettled) return;
+    usageSettled = true;
+    try {
+      await releaseUsageReservation(usageReservation);
+    } catch (releaseError) {
+      console.warn("[ai-agent] Failed to release AI credit:", releaseError);
+    }
+  };
+
+  /** Charge the reserved credit with what the turn actually spent. */
+  const settleUsage = async (inputTokens: number, outputTokens: number) => {
+    if (usageSettled) return;
+    usageSettled = true;
+    try {
+      await settleUsageReservation(
+        usageReservation,
+        computeUsageWeight("agent_conversation", { inputTokens, outputTokens }),
+      );
+    } catch (settleError) {
+      console.warn("[ai-agent] Failed to settle AI credit:", settleError);
+    }
+  };
 
   const { id: sessionId, state, metadata } = sessionData;
   const { business } = sessionData;
@@ -421,6 +460,9 @@ export async function runAgent({
       // reply is finished rather than abandoned (pre-content failures are
       // already covered by the fallback wrapper's head-peeking).
       maxRetries: 2,
+      // Cancellation must reach the provider: an aborted turn that keeps
+      // running spends tokens the visitor already walked away from.
+      abortSignal,
       // Retrieval and qualification, not prose.
       temperature: 0.2,
       maxOutputTokens: CHAT_TOKEN_BUDGETS.agent.output,
@@ -475,7 +517,7 @@ export async function runAgent({
         );
 
         if (filtered.status === "redacted") {
-          logAiSecurityEvent({
+          await logAiSecurityEvent({
             eventType: "output_redacted",
             patternMatched: filtered.redactedPatterns.join(",") || "redacted",
             businessId: sessionData.business.id,
@@ -517,20 +559,12 @@ export async function runAgent({
           },
         });
 
-        // Record usage against the business plan (non-blocking), weighted by
-        // the tokens this turn actually spent.
-        recordUsage(
-          AGENT_SYSTEM_USER_ID,
-          business.id,
-          "agent_conversation",
-          computeUsageWeight("agent_conversation", {
-            inputTokens,
-            outputTokens,
-          }),
-          business.plan as BusinessPlan,
-        ).catch((err) => {
-          console.warn("[ai-agent] Failed to record usage:", err);
-        });
+        // Charge the reserved credit with what the turn actually spent. The
+        // reservation row IS the usage event, so it settles the credit
+        // instead of adding a second row. A failed turn is charged too: the
+        // provider was called and the tokens were spent even when no text
+        // came back.
+        await settleUsage(inputTokens, outputTokens);
 
         if (isEmpty) {
           // A zero-text turn is a failure, not a success: skip the empty
@@ -583,8 +617,29 @@ export async function runAgent({
           console.warn("[ai-agent] Failed to log invocation:", err);
         });
       },
+      onAbort: async () => {
+        // The visitor stopped generating. The provider call was cancelled, so
+        // the reserved credit settles at its minimum and the run is closed
+        // instead of being left "running".
+        await settleUsage(0, 0);
+        await failAgentRun({
+          runId: run.id,
+          error: "aborted",
+        });
+        await updateAgentRun({
+          runId: run.id,
+          metadata: {
+            searchAttempts,
+            servingModelId: serving.modelId,
+            attemptTrail,
+          },
+        }).catch(() => {});
+      },
       onError: async ({ error }) => {
         console.error("Agent stream error:", error);
+        // The turn failed after the provider was called: the reserved credit
+        // is charged for what was spent rather than released.
+        await settleUsage(0, 0);
         await failAgentRun({
           runId: run.id,
           error: error instanceof Error ? error.message : "Unknown error",
@@ -622,6 +677,9 @@ export async function runAgent({
       runId: run.id,
       error: error instanceof Error ? error.message : "Unknown error",
     });
+
+    // The turn never reached the provider: release the reserved credit.
+    await releaseUsage();
 
     throw error;
   }

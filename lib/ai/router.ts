@@ -8,10 +8,12 @@ import {
   getSanitizedErrorInfo,
   isModelNotFoundError,
   isOversizedError,
+  wrapProviderError,
 } from "@/lib/ai/errors";
 import { getModelsForProvider } from "@/lib/ai/model-options";
 import {
   NON_CHAT_MAX_ATTEMPTS,
+  CHAT_MAX_ATTEMPTS,
   correctTokenUsage,
   markModelDead,
   recordModelTokenUsageDetailed,
@@ -19,6 +21,7 @@ import {
   markModelExhausted,
   selectModels,
 } from "@/lib/ai/capacity-selector";
+import { createFallbackLanguageModel } from "@/lib/ai/fallback-model";
 import { getCatalogEntry } from "@/lib/ai/catalog";
 import type { AiRoutingProfile } from "@/lib/ai/routing-profiles";
 // Re-exported so feature orchestrators route model selection through the
@@ -91,6 +94,22 @@ function getModelCandidates(
 function getRegistryModelId(providerName: AiProviderName, model: string): `${string}:${string}` {
   const registryPrefix = providerName === "gemini" ? "google" : providerName;
   return `${registryPrefix}:${model}` as `${string}:${string}`;
+}
+
+/** The registry prefixes `google` for Gemini; the rest of the code uses `gemini`. */
+function normalizeProviderName(providerPrefix: string): AiProviderName {
+  return (providerPrefix === "google" ? "gemini" : providerPrefix) as AiProviderName;
+}
+
+function parseServingModel(modelId: string): {
+  provider: AiProviderName;
+  model: string;
+} {
+  const [providerPrefix, ...modelParts] = modelId.split(":");
+  return {
+    provider: normalizeProviderName(providerPrefix),
+    model: modelParts.join(":"),
+  };
 }
 
 function sleep(ms: number): Promise<void> {
@@ -213,10 +232,15 @@ export async function generateWithFallback(
       const inputTokens = result.usage?.inputTokens ?? 0;
       const outputTokens = result.usage?.outputTokens ?? 0;
       if (inputTokens > 0 || outputTokens > 0) {
+        // Charge the estimate first and correct it with the real usage, the
+        // same sequence the chat path uses. Recording the actual and then
+        // applying the correction on top counted the correction twice and
+        // drove the per-minute counter negative, which made a saturated
+        // provider look idle to the capacity selector.
         await safeSettle(
           recordModelTokenUsageDetailed(modelId, {
-            inputTokens,
-            outputTokens,
+            inputTokens: estimatedTokens,
+            outputTokens: 0,
           }),
         );
         await safeSettle(
@@ -249,8 +273,13 @@ export async function generateWithFallback(
         raw: result,
       };
     } catch (error) {
-      lastError = error;
-      const errorInfo = getSanitizedErrorInfo(error);
+      // Wrap the raw provider error so the retry-after back-off and the
+      // typed error the callers map to a user-facing message both work. The
+      // wrapper keeps the original message and status, so the not-found and
+      // oversized checks below still classify it correctly.
+      const providerError = wrapProviderError(providerName, error);
+      lastError = providerError;
+      const errorInfo = getSanitizedErrorInfo(providerError);
       const reason = `status=${errorInfo.statusCode ?? "N/A"} ${errorInfo.message}`.slice(0, 200);
       trail.push({ modelId, reason });
 
@@ -258,15 +287,15 @@ export async function generateWithFallback(
         `[ai-router] Failed (advancing): model="${modelId}" status=${errorInfo.statusCode ?? "N/A"} retryable=${errorInfo.retryable} message="${errorInfo.message}"`,
       );
 
-      if (isModelNotFoundError(error)) {
+      if (isModelNotFoundError(providerError)) {
         await safeSettle(markModelDead(modelId));
         // Dead identifiers cost no attempt.
         continue;
       }
       attemptsUsed += 1;
-      await safeSettle(markModelExhausted(modelId, error));
+      await safeSettle(markModelExhausted(modelId, providerError));
 
-      if (isOversizedError(error)) {
+      if (isOversizedError(providerError)) {
         const failedContext = contextWindowOf(modelId);
         remaining = [
           ...remaining.filter((id) => contextWindowOf(id) > failedContext),
@@ -274,8 +303,8 @@ export async function generateWithFallback(
         ];
       }
 
-      if (error instanceof AiProviderError && error.retryAfterMs) {
-        const waitMs = Math.min(error.retryAfterMs, MAX_RETRY_AFTER_MS);
+      if (providerError.retryAfterMs) {
+        const waitMs = Math.min(providerError.retryAfterMs, MAX_RETRY_AFTER_MS);
         await sleep(waitMs);
       }
     }
@@ -392,73 +421,74 @@ export async function streamWithFallback(
     );
   }
 
-  let lastError: unknown;
-  let attemptCount = 0;
   const { system, messages } = buildMessages(request);
-
-  for (const modelId of modelIds) {
-    const [providerPrefix, ...modelParts] = modelId.split(":");
-    const providerName = (providerPrefix === "google" ? "gemini" : providerPrefix) as AiProviderName;
-    const model = modelParts.join(":");
-    const timeout = PROVIDER_TIMEOUTS[providerName] ?? 25_000;
-
-    try {
-      const result = streamText({
-        model: registry.languageModel(modelId),
-        system,
-        messages,
-        temperature: request.temperature,
-        maxOutputTokens: request.maxOutputTokens,
-        abortSignal: AbortSignal.timeout(timeout),
-      });
-
-      const textStream = result.textStream;
-
-      await recordModelUsage(modelId);
-      console.info(`[ai-router] Stream started: model="${modelId}"`);
-
-      async function* chunks(): AsyncGenerator<AiStreamChunk> {
-        for await (const chunk of textStream) {
-          if (chunk) {
-            yield { delta: chunk, finishReason: null };
-          }
-        }
-        yield { delta: "", finishReason: "stop" };
-      }
-
-      return {
-        provider: providerName,
-        model,
-        stream: chunks(),
+  let serving = parseServingModel(modelIds[0]);
+  let servingModelId = modelIds[0];
+  let fallbackReported = false;
+  // The AI SDK's `streamText` is synchronous: it returns a result object and
+  // performs the provider call lazily, when the stream is consumed. A
+  // try/catch around `streamText` therefore never observes a provider
+  // failure, and the chain could not advance. The fallback wrapper is the
+  // seam that keeps the contract: it resolves the candidate inside its own
+  // `doStream`, so a provider error advances to the next candidate before
+  // any chunk reaches the client.
+  const fallbackModel = createFallbackLanguageModel({
+    modelIds,
+    maxAttempts: CHAT_MAX_ATTEMPTS,
+    estimatedTokens,
+    onModelSelected: (selected) => {
+      servingModelId = selected.modelId;
+      serving = {
+        provider: normalizeProviderName(selected.provider),
+        model: selected.model,
       };
-    } catch (error) {
-      lastError = error;
-      attemptCount += 1;
-      const errorInfo = getSanitizedErrorInfo(error);
-
-      console.warn(
-        `[ai-router] Stream failed (advancing): model="${modelId}" status=${errorInfo.statusCode ?? "N/A"} retryable=${errorInfo.retryable}`,
-      );
-
-      if (isModelNotFoundError(error)) {
-        await safeSettle(markModelDead(modelId));
-        continue;
+    },
+    onAttemptFailed: () => {
+      if (!fallbackReported) {
+        fallbackReported = true;
+        options?.onFallback?.();
       }
-      await safeSettle(markModelExhausted(modelId, error));
+    },
+  });
 
-      if (attemptCount === 1 && options?.onFallback) {
-        options.onFallback();
+  const result = streamText({
+    model: fallbackModel,
+    system,
+    messages,
+    temperature: request.temperature,
+    maxOutputTokens: request.maxOutputTokens,
+    abortSignal: AbortSignal.timeout(PROVIDER_TIMEOUTS[serving.provider] ?? 25_000),
+  });
+
+  async function* chunks(): AsyncGenerator<AiStreamChunk> {
+    try {
+      for await (const chunk of result.textStream) {
+        if (chunk) {
+          yield { delta: chunk, finishReason: null };
+        }
       }
-
-      if (error instanceof AiProviderError && error.retryAfterMs) {
-        const waitMs = Math.min(error.retryAfterMs, MAX_RETRY_AFTER_MS);
-        await sleep(waitMs);
+    } finally {
+      // The real token spend is only known once the stream ends. Correct the
+      // estimate charged when the model was selected so the counters
+      // converge on the actual spend.
+      const usage = await Promise.resolve(result.usage).catch(() => null);
+      if (usage) {
+        await safeSettle(
+          correctTokenUsage(servingModelId, estimatedTokens, {
+            inputTokens: usage.inputTokens ?? 0,
+            outputTokens: usage.outputTokens ?? 0,
+          }),
+        );
       }
     }
+    yield { delta: "", finishReason: "stop" };
   }
 
-  if (lastError instanceof AiProviderError) throw lastError;
-  throw new Error(lastError instanceof Error ? lastError.message : "All AI providers failed.");
+  return {
+    provider: serving.provider as AiProviderName,
+    model: serving.model,
+    stream: chunks(),
+  };
 }
 
 /**
@@ -476,9 +506,8 @@ async function streamWithProviderFallback(
     );
   }
 
-  let lastError: unknown;
-  let attemptCount = 0;
   const { system, messages } = buildMessages(request);
+  let fallbackReported = false;
 
   for (const providerName of providers) {
     const models = getModelCandidates(request, providerName);
@@ -487,55 +516,47 @@ async function streamWithProviderFallback(
     for (const model of models) {
       const modelId = getRegistryModelId(providerName, model);
 
-      try {
-        const result = streamText({
-          model: registry.languageModel(modelId),
-          system,
-          messages,
-          temperature: request.temperature,
-          maxOutputTokens: request.maxOutputTokens,
-          abortSignal: AbortSignal.timeout(timeout),
-        });
-
-        const textStream = result.textStream;
-
-        await recordModelUsage(modelId);
-        console.info(
-          `[ai-router] Stream started: provider="${providerName}" model="${model}"`,
-        );
-
-        async function* chunks(): AsyncGenerator<AiStreamChunk> {
-          for await (const chunk of textStream) {
-            if (chunk) {
-              yield { delta: chunk, finishReason: null };
-            }
+      // The fallback wrapper is what makes the chain work: `streamText` is
+      // synchronous and performs the provider call lazily, so only a wrapper
+      // that resolves the candidate inside `doStream` can observe and
+      // recover from a provider failure.
+      const fallbackModel = createFallbackLanguageModel({
+        modelIds: [modelId],
+        maxAttempts: 1,
+        estimatedTokens: request.estimatedTokens ?? estimateRequestTokens(request),
+        onAttemptFailed: () => {
+          if (!fallbackReported) {
+            fallbackReported = true;
+            options?.onFallback?.();
           }
-          yield { delta: "", finishReason: "stop" };
+        },
+      });
+
+      const result = streamText({
+        model: fallbackModel,
+        system,
+        messages,
+        temperature: request.temperature,
+        maxOutputTokens: request.maxOutputTokens,
+        abortSignal: AbortSignal.timeout(timeout),
+      });
+
+      async function* chunks(): AsyncGenerator<AiStreamChunk> {
+        for await (const chunk of result.textStream) {
+          if (chunk) {
+            yield { delta: chunk, finishReason: null };
+          }
         }
-
-        return {
-          provider: providerName,
-          model,
-          stream: chunks(),
-        };
-      } catch (error) {
-        lastError = error;
-        attemptCount += 1;
-        const errorInfo = getSanitizedErrorInfo(error);
-
-        console.warn(
-          `[ai-router] Stream failed (advancing): provider="${providerName}" model="${model}" status=${errorInfo.statusCode ?? "N/A"} retryable=${errorInfo.retryable}`,
-        );
-
-        await safeSettle(markModelExhausted(modelId, error));
-
-        if (attemptCount === 1 && options?.onFallback) {
-          options.onFallback();
-        }
+        yield { delta: "", finishReason: "stop" };
       }
+
+      return {
+        provider: providerName,
+        model,
+        stream: chunks(),
+      };
     }
   }
 
-  if (lastError instanceof AiProviderError) throw lastError;
-  throw new Error(lastError instanceof Error ? lastError.message : "All AI providers failed.");
+  throw new Error("All AI providers failed.");
 }
