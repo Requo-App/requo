@@ -612,10 +612,11 @@ function FormRowActions({
             <>
               <DropdownMenuItem asChild>
                 <Link
-                  href={getBusinessPublicInquiryUrl(
-                    settingsSlug,
-                    form.slug,
-                  )}
+                  href={
+                    form.isDefault
+                      ? getBusinessPublicInquiryUrl(settingsSlug)
+                      : getBusinessPublicInquiryUrl(settingsSlug, form.slug)
+                  }
                   target="_blank"
                   rel="noreferrer"
                 >
@@ -638,6 +639,7 @@ function FormRowActions({
           businessName={businessName}
           formSlug={form.slug}
           formName={form.name}
+          isDefault={form.isDefault}
           open={isShareOpen}
           onOpenChange={setIsShareOpen}
         />
@@ -651,6 +653,7 @@ function FormShareDialog({
   businessName,
   formSlug,
   formName,
+  isDefault,
   open,
   onOpenChange,
 }: {
@@ -658,15 +661,18 @@ function FormShareDialog({
   businessName: string;
   formSlug: string;
   formName: string;
+  isDefault: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
   const isClient = typeof window !== "undefined";
+  // The default service lives at the canonical business URL; the per-service
+  // path only permanent-redirects there, so share the canonical link.
+  const publicPath = isDefault
+    ? getBusinessPublicInquiryUrl(settingsSlug)
+    : getBusinessPublicInquiryUrl(settingsSlug, formSlug);
   const url = isClient
-    ? new URL(
-        getBusinessPublicInquiryUrl(settingsSlug, formSlug),
-        window.location.origin,
-      ).toString()
+    ? new URL(publicPath, window.location.origin).toString()
     : "";
 
   const handleCopy = async () => {

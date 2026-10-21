@@ -46,6 +46,8 @@ type BusinessInquiryFormEditorTabsProps = {
   inquiryListHref: string;
   productsHref?: string;
   isPublicLive: boolean;
+  /** Publishing is an owner-level action on the server. */
+  canPublish?: boolean;
 
   applyPresetAction: (
     state: BusinessInquiryFormActionState,
@@ -106,6 +108,7 @@ export function BusinessInquiryFormEditorTabs({
   inquiryListHref,
   productsHref,
   isPublicLive,
+  canPublish = true,
   applyPresetAction,
   saveFormAction,
   updatePageAction,
@@ -127,6 +130,58 @@ export function BusinessInquiryFormEditorTabs({
   const [pageDraft, setPageDraft] = useState(() =>
     createPagePreviewDraft(settings),
   );
+
+  // The editor keeps local drafts so the preview can show unsaved edits.
+  // Those drafts have to follow the server when the server changes them —
+  // applying template defaults replaces the stored form and page config, and
+  // the editor must not keep showing (or re-saving) the old values.
+  //
+  // The two tabs are tracked separately so saving one tab never discards
+  // unsaved work in the other.
+  const formServerSignature = useMemo(
+    () =>
+      JSON.stringify({
+        inquiryFormConfig: settings.inquiryFormConfig,
+        businessType: settings.businessType,
+      }),
+    [settings.inquiryFormConfig, settings.businessType],
+  );
+  const pageServerSignature = useMemo(
+    () =>
+      JSON.stringify({
+        inquiryPageConfig: settings.inquiryPageConfig,
+        businessType: settings.businessType,
+        formName: settings.formName,
+        formSlug: settings.formSlug,
+        publicInquiryEnabled: settings.publicInquiryEnabled,
+      }),
+    [
+      settings.inquiryPageConfig,
+      settings.businessType,
+      settings.formName,
+      settings.formSlug,
+      settings.publicInquiryEnabled,
+    ],
+  );
+  const [seenFormSignature, setSeenFormSignature] = useState(
+    formServerSignature,
+  );
+  const [seenPageSignature, setSeenPageSignature] = useState(
+    pageServerSignature,
+  );
+
+  // Adjust the drafts during render rather than in an effect: React re-runs
+  // the component immediately, so the drafts and the server config land in
+  // the same commit instead of flashing stale values first.
+  if (seenFormSignature !== formServerSignature) {
+    setSeenFormSignature(formServerSignature);
+    setFormDraft(createFormPreviewDraft(settings));
+  }
+
+  if (seenPageSignature !== pageServerSignature) {
+    setSeenPageSignature(pageServerSignature);
+    setPageDraft(createPagePreviewDraft(settings));
+  }
   const previewLogoUrl = useMemo(
     () =>
       settings.logoStoragePath
@@ -256,7 +311,7 @@ export function BusinessInquiryFormEditorTabs({
           <DashboardSidebarStack>
             <div className="flex flex-col gap-5">
                 <BusinessInquiryFormForm
-                  key={`${settings.updatedAt.getTime()}-${settings.formId}-form`}
+                  key={`${settings.formId}-form-${formServerSignature}`}
                   draft={formDraft}
                   isActive={activeSection === "fields"}
                   onDraftChange={handleFormDraftChange}
@@ -275,7 +330,7 @@ export function BusinessInquiryFormEditorTabs({
         >
           <DashboardSidebarStack>
             <BusinessInquiryPageForm
-              key={`${settings.updatedAt.getTime()}-${settings.formId}-page`}
+              key={`${settings.formId}-page-${pageServerSignature}`}
               action={updatePageAction}
               generalSettingsHref={generalSettingsHref}
               logoPreviewUrl={logoPreviewUrl}
@@ -339,6 +394,7 @@ export function BusinessInquiryFormEditorTabs({
               <BusinessInquiryFormManageCard
                 applyPresetAction={applyPresetAction}
                 businessType={pageDraft.businessType}
+                canPublish={canPublish}
                 duplicateAction={duplicateAction}
                 formId={settings.formId}
                 isDefault={settings.isDefault}

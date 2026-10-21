@@ -113,7 +113,6 @@ import {
   getInquiryCustomFieldLimit,
   getPublicInquiryAttachmentHelpText,
 } from "@/features/inquiries/plan-rules";
-import { LockedAction } from "@/features/paywall";
 import { cn } from "@/lib/utils";
 import { prefixedId } from "@/lib/ids";
 
@@ -746,7 +745,6 @@ export function BusinessInquiryFormForm({
         className="form-stack pb-28"
         ref={formRef}
       >
-        <input name="formId" type="hidden" value={settings.formId} />
         <input name="businessType" type="hidden" value={settings.businessType} />
         <input name="inquiryFormConfig" type="hidden" value={serializedConfig} />
 
@@ -804,21 +802,20 @@ export function BusinessInquiryFormForm({
                 <FormSection
                   action={
                     hasReachedCustomFieldLimit ? (
-                      <LockedAction
-                        feature="multipleForms"
-                        plan={settings.plan}
-                        description="Add more custom fields to your inquiry forms."
+                      // The custom-field count is a usage limit, not a plan
+                      // entitlement, so there is no feature to gate on — the
+                      // button stays disabled and the limit is spelled out in
+                      // the "Field limit reached" notice below.
+                      <Button
+                        className="w-full sm:w-auto"
+                        disabled
+                        title={`Your plan supports up to ${customFieldLimit} custom fields per form.`}
+                        type="button"
+                        variant="outline"
                       >
-                        <Button
-                          className="w-full sm:w-auto"
-                          disabled={isFieldInteractionLocked}
-                          type="button"
-                          variant="outline"
-                        >
-                          <Plus data-icon="inline-start" />
-                          Add field
-                        </Button>
-                      </LockedAction>
+                        <Plus data-icon="inline-start" />
+                        Add field
+                      </Button>
                     ) : (
                       <Button
                         className="w-full sm:w-auto"

@@ -22,11 +22,28 @@ type BusinessInquiryFormDangerZoneProps = {
 };
 
 export function BusinessInquiryFormDangerZone({
+  activeFormCount,
   archiveAction,
   deleteAction,
   formId,
   inquiryListHref,
+  isDefault,
+  submittedInquiryCount,
 }: BusinessInquiryFormDangerZoneProps) {
+  // Mirror the server rules so the owner sees why a control is unavailable
+  // instead of hitting an error toast after the fact.
+  const isOnlyActiveService = (activeFormCount ?? 0) <= 1;
+  const archiveBlockedReason = isDefault
+    ? "Set another service as default before archiving this one."
+    : isOnlyActiveService
+      ? "Keep at least one active service."
+      : null;
+  const deleteBlockedReason = isOnlyActiveService
+    ? "Create another service before deleting this one."
+    : (submittedInquiryCount ?? 0) > 0
+      ? "This service still has inquiries. Archive it instead."
+      : null;
+
   return (
     <section className="rounded-xl border border-destructive/25 bg-card/97 shadow-xs">
       <div className="border-b border-border/70 p-4 sm:p-5">
@@ -34,30 +51,37 @@ export function BusinessInquiryFormDangerZone({
           Danger zone
         </h3>
         <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm">
-          Archive or permanently delete this form.
+          Archive or permanently delete this service.
         </p>
       </div>
 
       <div className="divide-y divide-border/60">
         <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-foreground">Archive form</p>
+            <p className="text-sm font-medium text-foreground">Archive service</p>
             <p className="mt-1 text-xs leading-relaxed text-muted-foreground sm:text-sm">
-              Hide this form without deleting previously submitted customer inquiries.
+              Hide this service without deleting previously submitted customer
+              inquiries.
             </p>
+            {archiveBlockedReason ? (
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                {archiveBlockedReason}
+              </p>
+            ) : null}
           </div>
           <div className="shrink-0 self-start sm:self-center">
             <ServerActionConfirmDialog
               action={archiveAction}
-              confirmLabel="Archive form"
+              confirmLabel="Archive service"
               confirmPendingLabel="Archiving..."
               confirmVariant="default"
-              description="Archived forms are hidden from active views but keep all submitted inquiries. You can restore the form later."
+              description="Archived services are hidden from active views but keep all submitted inquiries. You can restore the service later."
+              disabled={Boolean(archiveBlockedReason)}
               formValues={{ targetFormId: formId }}
               icon={Archive}
               redirectHref={inquiryListHref}
-              title="Archive this form?"
-              triggerLabel="Archive form"
+              title="Archive this service?"
+              triggerLabel="Archive service"
               triggerVariant="outline"
             />
           </div>
@@ -65,22 +89,29 @@ export function BusinessInquiryFormDangerZone({
 
         <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-destructive">Delete form</p>
+            <p className="text-sm font-medium text-destructive">Delete service</p>
             <p className="mt-1 text-xs leading-relaxed text-muted-foreground sm:text-sm">
-              Permanently remove this form. Only available when no inquiries are linked.
+              Permanently remove this service. Only available when no inquiries
+              or page-view analytics are linked.
             </p>
+            {deleteBlockedReason ? (
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                {deleteBlockedReason}
+              </p>
+            ) : null}
           </div>
           <div className="shrink-0 self-start sm:self-center">
             <ServerActionConfirmDialog
               action={deleteAction}
-              confirmLabel="Delete form"
+              confirmLabel="Delete service"
               confirmPendingLabel="Deleting..."
-              description="This will permanently delete the form. Forms with linked inquiries must be archived instead."
+              description="This will permanently delete the service. Services with linked inquiries must be archived instead."
+              disabled={Boolean(deleteBlockedReason)}
               formValues={{ targetFormId: formId }}
               icon={Trash2}
               redirectHref={inquiryListHref}
-              title="Delete form?"
-              triggerLabel="Delete form"
+              title="Delete this service?"
+              triggerLabel="Delete service"
               triggerVariant="destructive"
             />
           </div>
