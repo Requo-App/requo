@@ -27,6 +27,7 @@ import { ChatJumpToLatest } from "@/components/shared/chat/chat-jump-to-latest";
 import { ChatMarkdown } from "@/components/shared/chat/chat-markdown";
 import { ChatStatusLine } from "@/components/shared/chat/chat-status-line";
 import { CopyButton } from "@/components/shared/chat/copy-button";
+import { toast } from "@/components/shared/notify";
 import { useChatScroll } from "@/components/shared/chat/use-chat-scroll";
 import {
   ToolProcessDisclosure,
@@ -504,7 +505,7 @@ export function OwnerAssistantChat({
       const id = activeSessionId;
       if (!id) return;
       setConfirmingId(confirmationId);
-      await confirmAssistantToolAction({
+      const result = await confirmAssistantToolAction({
         businessSlug,
         sessionId: id,
         confirmationId,
@@ -512,6 +513,13 @@ export function OwnerAssistantChat({
       });
       setConfirmingId(null);
       await refreshFromSession();
+
+      // A refused operation comes back as `ok: false` with the reason. The
+      // transcript shows it, but the owner also needs to see why nothing
+      // happened.
+      if ("ok" in result && result.ok === false) {
+        toast.error(result.error);
+      }
     },
     [activeSessionId, businessSlug, refreshFromSession],
   );
@@ -547,6 +555,7 @@ export function OwnerAssistantChat({
         <AssistantHistoryPanel
           activeSessionId={activeSessionId}
           businessSlug={businessSlug}
+          userId={userId}
         />
       </MobileHeaderSlot>
 
@@ -581,7 +590,7 @@ export function OwnerAssistantChat({
                     value={input}
                   />
                 </div>
-                <RecentConversations businessSlug={businessSlug} />
+                <RecentConversations businessSlug={businessSlug} userId={userId} />
               </div>
             ) : null}
 
@@ -678,10 +687,16 @@ type RecentHistoryItem = {
  * page loads — and nothing at all for a brand-new account — so the empty
  * state keeps fitting the viewport.
  */
-function RecentConversations({ businessSlug }: { businessSlug: string }) {
+function RecentConversations({
+  businessSlug,
+  userId,
+}: {
+  businessSlug: string;
+  userId: string;
+}) {
   const [items, setItems] = useState<RecentHistoryItem[] | null>(
     () =>
-      getCachedAssistantHistory(businessSlug)?.items.slice(0, 5).map(
+      getCachedAssistantHistory(userId, businessSlug)?.items.slice(0, 5).map(
         (session) => ({
           id: session.id,
           title: session.title,

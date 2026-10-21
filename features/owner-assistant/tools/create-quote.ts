@@ -120,11 +120,17 @@ export const createQuoteTool = tool<CreateQuoteInput, CreateQuoteOutput>({
         contactHandle = customerEmail;
       }
 
-      const validUntil = params.validUntil ?? (() => {
-        const d = new Date();
-        d.setUTCDate(d.getUTCDate() + 30);
-        return d.toISOString().slice(0, 10);
-      })();
+      // The tool schema asks for a full UTC timestamp; the quote schema
+      // wants a plain calendar date. Without the normalisation the two are
+      // mutually unsatisfiable and "create a quote valid until X" always
+      // failed.
+      const validUntil = params.validUntil
+        ? params.validUntil.slice(0, 10)
+        : (() => {
+            const d = new Date();
+            d.setUTCDate(d.getUTCDate() + 30);
+            return d.toISOString().slice(0, 10);
+          })();
 
       const parsed = quoteEditorSchema.safeParse({
         title: `Quote for ${customerName}`,

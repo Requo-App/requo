@@ -31,6 +31,7 @@ import {
 } from "@/lib/cache/business-tags";
 import { hasFeatureAccess } from "@/lib/plans";
 import { checkUsageAllowance } from "@/lib/plans/usage";
+import type { BusinessPlan } from "@/lib/plans/plans";
 import { env, isEmailConfigured } from "@/lib/env";
 import {
   getResendFromEmailConfigurationError,
@@ -172,6 +173,12 @@ export async function executeSendQuote(
 
   const deliveryMethod = params.deliveryMethod === "email" ? "requo" : "manual";
 
+  // The effective plan, resolved through the subscription, scopes the
+  // allowance and the entitlements. `businesses.plan` is a denormalized cache
+  // that can be stale after a missed cancel/expire webhook, and the codebase
+  // documents exactly that risk.
+  const effectivePlan = context.plan as BusinessPlan;
+
   const [business] = await db
     .select({
       id: businesses.id,
@@ -272,8 +279,8 @@ export async function executeSendQuote(
 
     if (deliveryMethod === "requo") {
       const [dailyAllowance, monthlyAllowance] = await Promise.all([
-        checkUsageAllowance(business.id, business.plan, "requoDocumentEmailsPerDay"),
-        checkUsageAllowance(business.id, business.plan, "requoDocumentEmailsPerMonth"),
+        checkUsageAllowance(business.id, effectivePlan, "requoDocumentEmailsPerDay"),
+        checkUsageAllowance(business.id, effectivePlan, "requoDocumentEmailsPerMonth"),
       ]);
 
       if (!dailyAllowance.allowed || !monthlyAllowance.allowed)
@@ -325,7 +332,7 @@ export async function executeSendQuote(
           notes: quote.notes,
           emailSignature: businessSettings.defaultEmailSignature,
           items: quote.items,
-          templateOverrides: hasFeatureAccess(business.plan, "emailTemplates")
+          templateOverrides: hasFeatureAccess(effectivePlan, "emailTemplates")
             ? businessSettings.quoteEmailTemplate
             : null,
           replyToEmail: businessSettings.contactEmail ?? ownerEmails[0],
@@ -348,8 +355,35 @@ export async function executeSendQuote(
     });
 
     if (!result) return fail("That quote could not be found.", "Quote not found");
-    if (!result.changed)
-      return fail("Only active draft quotes can be sent.", `Quote ${result.quoteNumber} is ${result.status}`);
+
+    if (!result.changed) {
+      // The email has already gone out, so this is not a failed send — it is
+      // a quote that changed state underneath us. Reporting a plain failure
+      // told the owner nothing was sent while the customer was holding the
+      // quote, and left the quote in "draft" so a retry mailed it twice.
+      if (result.status === "sent") {
+        return {
+          type: "quote_sent" as const,
+          data: {
+            id: quote.id,
+            quoteNumber: result.quoteNumber,
+            deliveryMethod: params.deliveryMethod,
+            sentAt: new Date().toISOString(),
+            publicLink: publicQuoteUrl,
+          },
+          summary: `Quote ${result.quoteNumber} sent to ${quote.customerEmail}`,
+          metadata: { businessId: business.id },
+        };
+      }
+
+      return {
+        type: "error" as const,
+        error: "VALIDATION_ERROR" as const,
+        message: `The quote was emailed to the customer, but it is now ${result.status} in Requo. Review it before sending anything else.`,
+        summary: "Quote email sent; quote state changed",
+        retryable: false,
+      };
+    }
 
     invalidateCacheTags([
       ...getBusinessQuoteListCacheTags(business.id),

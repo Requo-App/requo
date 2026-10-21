@@ -93,19 +93,28 @@ export const updateInquiryStatusTool = tool<
         };
       }
 
+      // The staged payload freezes the state the owner was shown, so the
+      // approval cannot be applied to an inquiry that moved on in between.
+      const frozenParams = {
+        ...params,
+        expectedStatus: inquiry.status,
+      };
+
+      const confirmationPrompt = `Change inquiry for ${inquiry.customerName} from ${inquiry.status} to ${params.newStatus}?`;
+
       const confirmationId = await requestToolConfirmation({
         sessionId: context.session.sessionId,
         operation: "update_inquiry_status",
-        parameters: { ...params },
-        confirmationPrompt: `Change inquiry for ${inquiry.customerName} from ${inquiry.status} to ${params.newStatus}?`,
+        parameters: frozenParams,
+        confirmationPrompt,
       });
 
       return {
         type: "confirmation_required",
         confirmationId,
         operation: "update_inquiry_status",
-        parameters: { ...params },
-        confirmationPrompt: `Change inquiry for ${inquiry.customerName} from ${inquiry.status} to ${params.newStatus}?`,
+        parameters: frozenParams,
+        confirmationPrompt,
         riskLevel: "high",
         summary: "Confirmation required to change inquiry status",
         metadata: { businessId: context.businessId },
@@ -133,6 +142,32 @@ export async function executeUpdateInquiryStatus(
 ) {
   const refusal = requireToolRole(context.userRole, "update_inquiry_status");
   if (refusal) return refusal;
+
+  // The staged confirmation froze the status the owner approved. If the
+  // inquiry moved on in between, the approval no longer describes what
+  // would happen — refuse instead of overwriting the newer state.
+  if (params.expectedStatus) {
+    const [current] = await db
+      .select({ status: inquiries.status })
+      .from(inquiries)
+      .where(
+        and(
+          eq(inquiries.id, params.inquiryId),
+          eq(inquiries.businessId, context.businessId),
+        ),
+      )
+      .limit(1);
+
+    if (current && current.status !== params.expectedStatus) {
+      return {
+        type: "error" as const,
+        error: "VALIDATION_ERROR" as const,
+        message: `This inquiry changed since you approved it — it is now ${current.status}. Review it and confirm again.`,
+        summary: "Inquiry changed before the status update",
+        retryable: false,
+      };
+    }
+  }
 
   const result = await changeInquiryStatusForBusiness({
     businessId: context.businessId,

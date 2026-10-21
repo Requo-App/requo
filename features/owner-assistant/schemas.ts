@@ -147,6 +147,12 @@ export const updateInquiryStatusSchema = z.object({
   inquiryId: z.string().min(1),
   newStatus: z.enum(["quoted", "waiting", "won", "lost"]),
   notes: z.string().optional(),
+  /**
+   * The inquiry state the owner approved. A staged change is refused when the
+   * inquiry moved on in between, so the owner never approves "new → won"
+   * and the tool writes over a colleague's "lost".
+   */
+  expectedStatus: z.string().min(1).optional(),
 });
 
 export const sendQuoteSchema = z.object({

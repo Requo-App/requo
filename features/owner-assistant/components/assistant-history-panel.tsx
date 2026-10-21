@@ -66,9 +66,12 @@ const PAGE_SIZE = 20;
 export function AssistantHistoryPanel({
   businessSlug,
   activeSessionId,
+  userId,
 }: {
   businessSlug: string;
   activeSessionId?: string | null;
+  /** The signed-in member: the cache is scoped per member, not per business. */
+  userId: string;
 }) {
   const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
@@ -85,13 +88,13 @@ export function AssistantHistoryPanel({
         offset: 0,
       });
       if ("error" in result) return;
-      setCachedAssistantHistory(businessSlug, result.sessions, result.total);
+      setCachedAssistantHistory(userId, businessSlug, result.sessions, result.total);
     };
     window.addEventListener(ASSISTANT_HISTORY_CHANGED_EVENT, warm);
     return () => {
       window.removeEventListener(ASSISTANT_HISTORY_CHANGED_EVENT, warm);
     };
-  }, [businessSlug, open]);
+  }, [businessSlug, open, userId]);
 
   const trigger = (
     <Button
@@ -108,6 +111,7 @@ export function AssistantHistoryPanel({
     <HistoryList
       businessSlug={businessSlug}
       activeSessionId={activeSessionId}
+      userId={userId}
       open={open}
       onNavigate={() => setOpen(false)}
     />
@@ -153,23 +157,25 @@ function HistoryList({
   activeSessionId,
   open,
   onNavigate,
+  userId,
 }: {
   businessSlug: string;
   activeSessionId?: string | null;
   open: boolean;
   onNavigate: () => void;
+  userId: string;
 }) {
   const router = useRouter();
   // Seed from the module cache so a reopen paints instantly; the skeleton
   // only shows on a cold first open with nothing cached.
   const [items, setItems] = useState<HistoryItem[]>(
-    () => getCachedAssistantHistory(businessSlug)?.items ?? [],
+    () => getCachedAssistantHistory(userId, businessSlug)?.items ?? [],
   );
   const [total, setTotal] = useState(
-    () => getCachedAssistantHistory(businessSlug)?.total ?? 0,
+    () => getCachedAssistantHistory(userId, businessSlug)?.total ?? 0,
   );
   const [loading, setLoading] = useState(
-    () => getCachedAssistantHistory(businessSlug) == null,
+    () => getCachedAssistantHistory(userId, businessSlug) == null,
   );
   const [loadingMore, setLoadingMore] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -188,6 +194,7 @@ function HistoryList({
         setError(null);
         if (append) {
           appendCachedAssistantHistory(
+            userId,
             businessSlug,
             result.sessions,
             result.total,
@@ -201,6 +208,7 @@ function HistoryList({
           });
         } else {
           setCachedAssistantHistory(
+            userId,
             businessSlug,
             result.sessions,
             result.total,
@@ -218,7 +226,7 @@ function HistoryList({
       setLoading(false);
       setLoadingMore(false);
     },
-    [businessSlug],
+    [businessSlug, userId],
   );
 
   const loadMore = useCallback(async () => {
@@ -271,7 +279,7 @@ function HistoryList({
       title: value,
     });
     if (!("error" in result)) {
-      patchCachedAssistantHistoryTitle(businessSlug, id, value);
+      patchCachedAssistantHistoryTitle(userId, businessSlug, id, value);
       setItems((prev) =>
         prev.map((item) => (item.id === id ? { ...item, title: value } : item)),
       );
@@ -286,7 +294,7 @@ function HistoryList({
     });
     setDeletingId(null);
     if (!("error" in result)) {
-      removeCachedAssistantHistory(businessSlug, id);
+      removeCachedAssistantHistory(userId, businessSlug, id);
       setItems((prev) => prev.filter((item) => item.id !== id));
       setTotal((prev) => Math.max(0, prev - 1));
       // Drop the live copy too, or the deleted conversation would come straight

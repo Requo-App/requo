@@ -545,6 +545,12 @@ type AssistantSessionState = {
 };
 
 /**
+ * How long a staged confirmation stays approvable. An approval the owner
+ * days later would be applied against state they never saw.
+ */
+const PENDING_CONFIRMATION_TTL_MS = 30 * 60 * 1000;
+
+/**
  * Stage a high-risk operation for explicit confirmation. The Tool itself must
  * not execute until `consumeToolConfirmation` returns the pending operation
  * with an approval decision.
@@ -628,6 +634,31 @@ export async function consumeToolConfirmation({
     const state = ((row?.state as AssistantSessionState | null) ?? {}) as AssistantSessionState;
     const pending = state.pendingConfirmations?.[confirmationId] ?? null;
     if (!pending) return null;
+
+    // A staged confirmation expires. Without a bound, an approval could be
+    // applied days later, against state the owner never saw.
+    const createdAt = Date.parse(pending.createdAt);
+    if (
+      Number.isFinite(createdAt) &&
+      Date.now() - createdAt > PENDING_CONFIRMATION_TTL_MS
+    ) {
+      const { [confirmationId]: _expired, ...rest } = state.pendingConfirmations ?? {};
+      await tx
+        .update(ownerAssistantSessions)
+        .set({
+          state: { ...state, pendingConfirmations: rest },
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(ownerAssistantSessions.id, sessionId),
+            eq(ownerAssistantSessions.businessId, businessId),
+            eq(ownerAssistantSessions.userId, userId),
+          ),
+        );
+
+      return null;
+    }
 
     const { [confirmationId]: _consumed, ...rest } = state.pendingConfirmations ?? {};
     await tx
