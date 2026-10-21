@@ -11,6 +11,8 @@ import { z } from "zod";
 import { searchKnowledgeSchema } from "../schemas";
 import {
   retrieveBusinessKnowledge,
+  UNTRUSTED_KNOWLEDGE_CLOSE,
+  UNTRUSTED_KNOWLEDGE_OPEN,
 } from "@/features/memory/retrieval";
 import type { BusinessMemoryCategory } from "@/lib/db/schema/memories";
 import type { ErrorResult, ToolExecutionContext } from "../types";
@@ -55,7 +57,13 @@ export const searchKnowledgeTool = tool<
 
       const chunks = result.evidence.map((item) => ({
         id: item.chunkId,
-        content: `${item.title}\n${item.content}`,
+        // The knowledge content is returned as data, fenced so it cannot act
+        // as an instruction for the tool-calling model.
+        content: [
+          UNTRUSTED_KNOWLEDGE_OPEN,
+          `${item.title}\n${item.content}`,
+          UNTRUSTED_KNOWLEDGE_CLOSE,
+        ].join("\n"),
         category: item.sourceType === "manual_memory" ? "business_rules" : null,
         relevanceScore: item.score,
         fileName: item.sourceType === "uploaded_file" ? item.title : null,

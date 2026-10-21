@@ -271,8 +271,27 @@ export async function retrieveBusinessKnowledge(input: {
 }
 
 /**
+ * The fence that wraps retrieved knowledge in a prompt. Knowledge content is
+ * business-authored, but it is not an instruction channel: a prompt that
+ * treats it as one lets a knowledge entry steer the model.
+ */
+export const UNTRUSTED_KNOWLEDGE_OPEN = "<untrusted_business_knowledge>";
+export const UNTRUSTED_KNOWLEDGE_CLOSE = "</untrusted_business_knowledge>";
+
+/** Remove the knowledge fence tags from retrieved content. */
+function stripKnowledgeFenceTags(value: string): string {
+  return value.replace(
+    /<\s*\/?\s*untrusted[_\s-]*(business[_\s-]*knowledge|knowledge|customer[_\s-]*content)\s*>/gi,
+    "",
+  );
+}
+
+/**
  * Formats retrieved evidence for a prompt, keeping source/chunk IDs attached
  * so the final draft can cite the exact evidence used.
+ *
+ * The content is fenced: it is data the model may draw scope and wording
+ * from, never an instruction it may follow.
  */
 export function formatKnowledgeEvidence(
   evidence: KnowledgeEvidence[],
@@ -281,10 +300,16 @@ export function formatKnowledgeEvidence(
     return "- No saved business knowledge.";
   }
 
-  return evidence
+  const entries = evidence
     .map(
       (entry) =>
-        `- [${entry.sourceType === "manual_memory" ? "Memory" : "File"}: "${entry.title}" (source:${entry.sourceId}, chunk:${entry.chunkId}, confidence:${entry.confidence})]\n  ${entry.content.slice(0, 1200)}`,
+        `- [${entry.sourceType === "manual_memory" ? "Memory" : "File"}: "${entry.title}" (source:${entry.sourceId}, chunk:${entry.chunkId}, confidence:${entry.confidence})]\n  ${stripKnowledgeFenceTags(entry.content).slice(0, 1200)}`,
     )
     .join("\n\n");
+
+  return [
+    UNTRUSTED_KNOWLEDGE_OPEN,
+    entries,
+    UNTRUSTED_KNOWLEDGE_CLOSE,
+  ].join("\n");
 }

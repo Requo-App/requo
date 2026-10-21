@@ -253,6 +253,26 @@ export async function runOwnerAssistant({
       throw error;
     }
   }
+
+  // The parsed attachment text is untrusted content too: a document the
+  // owner re-uploaded is usually one a customer sent them. It is sanitised
+  // before it reaches a model that holds write tools.
+  if (attachmentBlock) {
+    const attachmentSanitization = await sanitizeAiInput(
+      attachmentBlock,
+      `owner-assistant:${session.sessionId}`,
+    );
+    if (
+      attachmentSanitization.status === "rejected" ||
+      attachmentSanitization.status === "locked"
+    ) {
+      throw new Error(
+        "ATTACHMENT_REJECTED: That file couldn't be processed. Try removing any instructional text and upload again.",
+      );
+    }
+    attachmentBlock = attachmentSanitization.output || attachmentBlock;
+  }
+
   const fullUserText = attachmentBlock
     ? `${safeUserText}\n\n${attachmentBlock}`
     : safeUserText;

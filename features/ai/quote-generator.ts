@@ -241,6 +241,34 @@ const UNTRUSTED_CUSTOMER_CONTENT_OPEN = "<untrusted_customer_content>";
 const UNTRUSTED_CUSTOMER_CONTENT_CLOSE = "</untrusted_customer_content>";
 
 /**
+ * Removes the fence tags (and near-variants) from untrusted text.
+ *
+ * Without this a customer could write `</untrusted_customer_content>` and
+ * everything after it would sit outside the region the prompt defines as
+ * data — the fence has to be unclosable from the inside.
+ */
+function stripFenceTags(value: string): string {
+  return value
+    .replace(/<\s*\/?\s*untrusted_customer_content\s*>/gi, "")
+    .replace(/<\s*\/?\s*untrusted[_\s-]*(customer|business|knowledge)[_\s-]*content\s*>/gi, "");
+}
+
+/**
+ * Wraps untrusted text in the customer-content fence.
+ *
+ * Every customer-controlled value goes through here: the fence is only a
+ * boundary if it wraps everything the customer wrote, not just the message
+ * body.
+ */
+function fenceUntrusted(value: string): string {
+  return [
+    UNTRUSTED_CUSTOMER_CONTENT_OPEN,
+    stripFenceTags(value),
+    UNTRUSTED_CUSTOMER_CONTENT_CLOSE,
+  ].join("\n");
+}
+
+/**
  * Customer-supplied text reaches the model as data, never as instructions.
  * High-confidence injection attempts are redacted instead of aborting the
  * quote, so a hostile inquiry cannot steer the draft the owner sends.
@@ -256,7 +284,7 @@ async function sanitizeCustomerText(value: string | null | undefined) {
     return "[redacted — content could not be processed]";
   }
 
-  return sanitized.output || "";
+  return stripFenceTags(sanitized.output || "");
 }
 
 async function formatInquiryContextLines(
@@ -270,6 +298,9 @@ async function formatInquiryContextLines(
   );
   const budgetText = await sanitizeCustomerText(context.inquiry.budgetText);
 
+  // Every field the customer controls is inside the fence. The form name is
+  // business-authored, but it shares the block so no customer-controlled
+  // value can sit next to the fence boundary.
   const headerFields: string[] = [`Customer: ${customerName}`];
   if (customerEmail) headerFields.push(`email: ${customerEmail}`);
   if (context.inquiry.inquiryFormName) headerFields.push(`service: ${context.inquiry.inquiryFormName}`);
@@ -278,7 +309,8 @@ async function formatInquiryContextLines(
   if (budgetText) headerFields.push(`budget: ${budgetText}`);
 
   const sections: string[] = [
-    `Inquiry: ${headerFields.join("; ")}`,
+    "Inquiry:",
+    fenceUntrusted(headerFields.join("; ")),
   ];
 
   const snapshot = context.inquiry.submittedFieldSnapshot;
@@ -290,24 +322,22 @@ async function formatInquiryContextLines(
         return `- ${truncate(field.label, 80)}: ${truncate(displayValue, 300)}`;
       }),
     );
-    sections.push("", "Submitted fields", fieldLines.join("\n"));
+    sections.push(
+      "",
+      "Submitted fields",
+      fenceUntrusted(fieldLines.join("\n")),
+    );
   }
 
   const details = await sanitizeCustomerText(context.inquiry.details);
-  sections.push(
-    "",
-    "Details",
-    `${UNTRUSTED_CUSTOMER_CONTENT_OPEN}`,
-    truncate(details, 2000),
-    `${UNTRUSTED_CUSTOMER_CONTENT_CLOSE}`,
-  );
+  sections.push("", "Details", fenceUntrusted(truncate(details, 2000)));
 
   if (context.messages.length > 0) {
     const messageLines = context.messages
       .slice(0, 10)
       .map((msg) => `[${msg.role}]: ${truncate(msg.content, 400)}`)
       .join("\n");
-    sections.push("", "Conversation", messageLines);
+    sections.push("", "Conversation", fenceUntrusted(messageLines));
   }
 
   if (context.notes.length) {
@@ -452,7 +482,7 @@ function hydrateDraftItem(
     raw.name?.trim() ? raw.name : fallbackNameFromDescription(description),
     MAX_NAME_LENGTH,
   );
-  const quantity = clampQuantity(raw.quantity);
+  let quantity = clampQuantity(raw.quantity);
   const reason =
     truncate(raw.reason, MAX_REASON_LENGTH) ||
     "No reason provided by the assistant.";
@@ -503,6 +533,13 @@ function hydrateDraftItem(
       unitPriceInCents = clampPrice(resolution.item?.unitPriceInCents ?? 0);
       reviewStatus = "matched";
       aiProductStatus = "verified";
+      // The saved price belongs to the quantity it was authored for. The
+      // model chose the quantity, and the quantity multiplies the DB unit
+      // price — so an exact match takes the quantity from the priced item
+      // instead of from the model.
+      if (resolution.item) {
+        quantity = clampQuantity(resolution.item.quantity);
+      }
       aiEvidence = {
         entryId: resolution.entry.entryId,
         itemId: resolution.item?.itemId ?? null,
@@ -834,7 +871,13 @@ function buildGroundedContext(input: {
   );
 
   if (input.revisionContext) {
-    contextParts.push(`\nREVISION REQUEST:\n${truncate(input.revisionContext, 1000)}`);
+    // The revision request is written by the customer, so it is fenced like
+    // every other customer-controlled value. The prompt gives it no special
+    // standing: a customer could otherwise use it to steer which candidate the
+    // model picks.
+    contextParts.push(
+      `\nREVISION REQUEST (customer-written, untrusted):\n${fenceUntrusted(truncate(input.revisionContext, 1000))}`,
+    );
   }
 
   if (input.currentItemsText) {
