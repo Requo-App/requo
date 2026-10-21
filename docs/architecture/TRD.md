@@ -273,6 +273,32 @@ completing it, a bulk completion, or the automatic send. Automatic sends skip
 missed recurrence slots so the next occurrence is strictly in the future,
 while keeping the business-local cadence.
 
+A Service is an offering with a public page and an intake form; the table
+keeps its historic `business_inquiry_forms` name. Three invariants hold on
+every write path in
+[`features/settings/mutations.ts`](../../features/settings/mutations.ts):
+
+- The business default service stays published. It backs the shared
+  `/inquire/<business>` URL, so unpublishing it — or promoting an unpublished
+  service to default — would take the business's public inquiry page down.
+- At most one service per business is the default. The application unsets the
+  outgoing default before setting the incoming one, and a partial unique index
+  (`business_inquiry_forms_one_default_per_business`) makes the invariant a
+  database fact.
+- A business always keeps one active service. The last active service cannot
+  be archived or deleted, and deleting the default promotes another published
+  service.
+
+The plan's live-service allowance is checked inside the write transaction
+under a per-business advisory lock, and resolves the effective plan from the
+subscription rather than the denormalized `businesses.plan` cache — the same
+plan the public inquiry pages resolve, so the two surfaces cannot disagree.
+The plan's custom-field allowance is applied when the intake form is saved,
+so a crafted request cannot persist fields the plan does not include. Public
+surfaces for a business — the inquiry pages and the public AI agent — all
+apply the same business-lifecycle filter, so an archived, locked, or trashed
+business keeps no public intake or chat surface.
+
 ## Caching, client state, and observability
 
 Server data uses Next.js Cache Components and tagged invalidation for business,

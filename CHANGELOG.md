@@ -12,6 +12,10 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ### Changed
 
+- The service editor surfaces the server's rules before the owner submits: publishing is owner-only, an unpublished service cannot be made the default, and the danger zone disables archiving and deleting with the reason. The two public `public_inquiry_enabled` flags (business-level and service-level) are now enforced consistently on the public inquiry pages.
+- The database now enforces at most one default service per business with a partial unique index, and the plan's custom-field allowance is applied when a service's intake form is saved, so a crafted request cannot persist fields the plan does not include.
+- The integration test suite runs its files sequentially so the end-of-run residue check is deterministic instead of flagging whichever file happened to still be running.
+
 - Quote money is now derived on the server. The editor sends the owner's raw discount and tax intent (value plus amount/percentage) and the server computes the amounts from the submitted line items, instead of the browser shipping cents it calculated itself.
 - The Owner Assistant's `create_quote` tool no longer accepts a price. It creates the line items unpriced and the owner prices them from the saved library or by hand; sending a quote with unpriced lines is still refused. The `send_quote` confirmation now shows the amount and is bound to the quote it approved, so a quote edited after you approve it is not sent silently.
 - Quote cache invalidation now pairs `updateTag` with `revalidateTag` on every write, so a quote that the customer just accepted stops showing as "sent" on the dashboard.
@@ -40,6 +44,19 @@ All notable changes to this project are documented here. Format follows [Keep a 
 - Removed the analytics AI narrative summary card; the rebuilt tabs present the same period data directly.
 
 ### Fixed
+
+- The Services feature no longer loses the owner's work or breaks its own public page. Saving a service page with a new slug, and deleting a service, ran their `redirect()` inside the action's own `try`, so the redirect was swallowed and the owner was told the save failed even though it had already been written. Both redirects now run outside the `try`, like the intake-form save already did.
+- "Apply defaults" in the service editor now takes effect. The editor kept its drafts in local state and never re-read them from the server, so applying a business-type template replaced the stored form and page config while the editor kept showing — and the next save kept re-writing — the old values. The editor now re-seeds each tab's draft from the server when that tab's stored config changes, and tracks the two tabs separately so saving one never discards unsaved work in the other.
+- The business default service can no longer be unpublished. The rule was only enforced by the publish toggle, so saving the service page could unpublish the default and 404 the business's shared `/inquire/<business>` link. Every write path now keeps the default published, and an unpublished service can no longer be promoted to default.
+- The live-service plan limit is now enforced atomically and against the authoritative plan. The count-then-insert could be raced by two concurrent creates, and it read the denormalized `businesses.plan` cache while the limit message read the effective plan. The count now runs inside the write transaction under a per-business advisory lock and resolves the effective plan from the subscription.
+- The service editor resolves the business from the route slug instead of the active-business cookie, so it cannot open another business's service under the current URL.
+- Deleting the last active service is refused instead of leaving the business without a default and a working public inquiry page. Deleting a service that collected page-view analytics is refused too, so the history is not silently dropped.
+- Slug allocation now retries on a unique-slug conflict instead of failing with a generic error, and the service editor resolves its target by the slug the action was bound to rather than a client-supplied id.
+- Archived, locked, and trashed businesses no longer keep a working public AI chat and service hub — the public agent surfaces now apply the same business-lifecycle filter as the public inquiry pages.
+- Customer-supplied inquiry text no longer reaches the quote-draft system prompt as instructions. It is sanitized and fenced as untrusted customer data, and the prompt states that instructions inside it must not be followed.
+- The inquiry attachment bucket now has a storage-layer size and MIME limit, so an anonymous caller cannot use a signed upload URL to push an unbounded file into a private bucket.
+- The services list no longer ships every service's full form and page configuration to the browser; the list payload carries only identity, visibility, and counts.
+- The "Add field" control no longer dead-ends at the plan's custom-field limit, the danger zone explains up front why archiving or deleting is unavailable, and the service editor's "unsaved changes" bar no longer stays lit after a save that only trimmed whitespace.
 
 - A draft invoice converted from an accepted quote can be edited again. The edit form submitted a placeholder line item while the discount came from the quote, so the "discount cannot exceed the subtotal" rule rejected every save and the invoice could never leave draft. A quote-linked invoice now keeps the quote's line items and totals — the server decides which rule applies, the form submits the stored snapshot, and only the customer-facing fields and the date order are validated for it.
 - Requo email sends are counted for invoices, not just quotes. The invoice send activity row recorded no delivery method, so the shared send allowance never saw invoice emails and the server-side plan gate was inert for them. Both send paths now record the delivery method and the counter covers quotes and invoices; the allowance is renamed `requoDocumentEmailsPerDay` / `requoDocumentEmailsPerMonth` to match.
