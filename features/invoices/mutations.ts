@@ -161,7 +161,9 @@ export async function createInvoiceForBusiness(input: CreateInvoiceInput) {
               metadata: { scheduleId: prefill.scheduleId, actor: "user" },
             }).catch(() => undefined);
           }
-        }        const discountInCents = input.quoteId && sourceQuote ? sourceQuote.discountInCents : input.discountInCents;
+        }
+
+        const discountInCents = input.quoteId && sourceQuote ? sourceQuote.discountInCents : input.discountInCents;
         const taxInCents = input.quoteId && sourceQuote ? sourceQuote.taxInCents : input.taxInCents;
         const taxLabel = input.quoteId && sourceQuote ? sourceQuote.taxLabel : (input.taxLabel ?? null);
         const totals = calculateTotals(items, discountInCents, taxInCents);
@@ -211,7 +213,7 @@ export async function createInvoiceForBusiness(input: CreateInvoiceInput) {
   throw new Error("Failed to allocate a unique invoice number.");
 }
 
-export async function markInvoiceSentForBusiness({ businessId, invoiceId, actorUserId }: { businessId: string; invoiceId: string; actorUserId: string }) {
+export async function markInvoiceSentForBusiness({ businessId, invoiceId, actorUserId, sendMethod }: { businessId: string; invoiceId: string; actorUserId: string; sendMethod: "requo" | "manual" }) {
   return db.transaction(async (tx) => {
     const [invoice] = await tx.select().from(invoices).where(and(eq(invoices.id, invoiceId), eq(invoices.businessId, businessId), isNull(invoices.deletedAt))).for("update");
     if (!invoice) return null;
@@ -219,8 +221,10 @@ export async function markInvoiceSentForBusiness({ businessId, invoiceId, actorU
     if (invoice.status !== "draft") return { changed: false, status: invoice.status };
     const now = new Date();
     await tx.update(invoices).set({ status: "sent", sentAt: now, updatedAt: now }).where(and(eq(invoices.id, invoiceId), eq(invoices.businessId, businessId)));
-    await insertInvoiceActivity(tx, { businessId, invoiceId, actorUserId, type: "invoice.sent", summary: `Invoice ${invoice.invoiceNumber} marked as sent.`, metadata: { invoiceNumber: invoice.invoiceNumber } });
-    await writeAuditLog(tx, { businessId, actorUserId, entityType: "invoice", entityId: invoiceId, action: "invoice.sent", metadata: { invoiceNumber: invoice.invoiceNumber }, createdAt: now });
+    // `sendMethod` mirrors the quote send activity so the Requo email
+    // budget can count both document types against the same allowance.
+    await insertInvoiceActivity(tx, { businessId, invoiceId, actorUserId, type: "invoice.sent", summary: sendMethod === "manual" ? `Invoice ${invoice.invoiceNumber} marked as sent after manual delivery.` : `Invoice ${invoice.invoiceNumber} sent with Requo email.`, metadata: { invoiceNumber: invoice.invoiceNumber, sendMethod } });
+    await writeAuditLog(tx, { businessId, actorUserId, entityType: "invoice", entityId: invoiceId, action: "invoice.sent", metadata: { invoiceNumber: invoice.invoiceNumber, sendMethod }, createdAt: now });
     return { changed: true, status: "sent" as const };
   });
 }
@@ -256,7 +260,7 @@ export async function recordPaymentForBusiness({ businessId, invoiceId, actorUse
     const current = calculateInvoicePaymentState({ totalInCents: invoice.totalInCents, paidInCents: Number(paid?.total ?? 0), dueDate: invoice.dueDate, lifecycleStatus: invoice.status });
     if (amountInCents > current.balanceInCents) {
       return {
-        error: `Payment exceeds the remaining invoice balance. Remaining balance: ${formatQuoteMoney(current.balanceInCents, invoice.currency)}. Payment entered: ${formatQuoteMoney(amountInCents, invoice.currency)}.`,
+        error: `Payment exceeds the invoice balance due. Balance due: ${formatQuoteMoney(current.balanceInCents, invoice.currency)}. Payment entered: ${formatQuoteMoney(amountInCents, invoice.currency)}.`,
       } as const;
     }
 
@@ -326,15 +330,18 @@ export async function voidPaymentForBusiness({ businessId, paymentId, actorUserI
   });
 }
 
-export async function voidInvoiceForBusiness({ businessId, invoiceId, actorUserId, reason }: { businessId: string; invoiceId: string; actorUserId: string; reason?: string | null }) {  return db.transaction(async (tx) => {
+export async function voidInvoiceForBusiness({ businessId, invoiceId, actorUserId, reason }: { businessId: string; invoiceId: string; actorUserId: string; reason?: string | null }) {
+  const normalized = normalizeVoidReason(reason);
+  if (!normalized) return { error: "A void reason is required." } as const;
+  return db.transaction(async (tx) => {
     const [invoice] = await tx.select().from(invoices).where(and(eq(invoices.id, invoiceId), eq(invoices.businessId, businessId), isNull(invoices.deletedAt))).for("update");
     if (!invoice || invoice.status === "voided") return null;
     const [paid] = await tx.select({ total: sql<number>`coalesce(sum(${payments.amountInCents}), 0)` }).from(payments).where(and(eq(payments.invoiceId, invoiceId), eq(payments.businessId, businessId), isNull(payments.voidedAt)));
     if (Number(paid?.total ?? 0) > 0) return { error: "Void all recorded payments before voiding this invoice." } as const;
     const now = new Date();
-    await tx.update(invoices).set({ status: "voided", voidedAt: now, voidedBy: actorUserId, voidReason: reason?.trim() || null, updatedAt: now }).where(and(eq(invoices.id, invoiceId), eq(invoices.businessId, businessId)));
-    await insertInvoiceActivity(tx, { businessId, invoiceId, actorUserId, type: "invoice.voided", summary: `Invoice ${invoice.invoiceNumber} voided.`, metadata: { reason: reason?.trim() || null } });
-    await writeAuditLog(tx, { businessId, actorUserId, entityType: "invoice", entityId: invoiceId, action: "invoice.voided", metadata: { invoiceNumber: invoice.invoiceNumber, reason: reason?.trim() || null }, createdAt: now });
+    await tx.update(invoices).set({ status: "voided", voidedAt: now, voidedBy: actorUserId, voidReason: normalized, updatedAt: now }).where(and(eq(invoices.id, invoiceId), eq(invoices.businessId, businessId)));
+    await insertInvoiceActivity(tx, { businessId, invoiceId, actorUserId, type: "invoice.voided", summary: `Invoice ${invoice.invoiceNumber} voided. Reason: ${getVoidReasonLabel(normalized)}.`, metadata: { reason: normalized } });
+    await writeAuditLog(tx, { businessId, actorUserId, entityType: "invoice", entityId: invoiceId, action: "invoice.voided", metadata: { invoiceNumber: invoice.invoiceNumber, reason: normalized }, createdAt: now });
     return { changed: true } as const;
   });
 }
@@ -435,66 +442,90 @@ export async function bulkVoidInvoicesForBusiness({
   businessId,
   invoiceIds,
   actorUserId,
+  reason,
 }: {
   businessId: string;
   invoiceIds: string[];
   actorUserId: string;
+  reason?: string | null;
 }): Promise<{ affected: number; skipped: number }> {
-  const candidates = await db
-    .select({ id: invoices.id, status: invoices.status })
-    .from(invoices)
-    .where(
-      and(
-        eq(invoices.businessId, businessId),
-        inArray(invoices.id, invoiceIds),
-        isNull(invoices.deletedAt),
-      ),
-    );
-
-  const voidableIds = candidates
-    .filter((invoice) => invoice.status !== "voided")
-    .map((invoice) => invoice.id);
-
-  if (voidableIds.length === 0) {
-    return { affected: 0, skipped: invoiceIds.length };
-  }
-
-  // Voiding requires zero recorded (non-voided) payments, mirroring
-  // `voidInvoiceForBusiness`. Skip invoices that carry a balance.
-  const paidTotals = await db
-    .select({
-      invoiceId: payments.invoiceId,
-      total: sql<number>`coalesce(sum(${payments.amountInCents}), 0)`,
-    })
-    .from(payments)
-    .where(
-      and(
-        eq(payments.businessId, businessId),
-        inArray(payments.invoiceId, voidableIds),
-        isNull(payments.voidedAt),
-      ),
-    )
-    .groupBy(payments.invoiceId);
-
-  const paidByInvoiceId = new Map(
-    paidTotals.map((row) => [row.invoiceId, Number(row.total ?? 0)]),
-  );
-  const eligibleIds = voidableIds.filter(
-    (id) => (paidByInvoiceId.get(id) ?? 0) <= 0,
-  );
-
-  if (eligibleIds.length === 0) {
+  const normalized = normalizeVoidReason(reason);
+  if (!normalized || invoiceIds.length === 0) {
     return { affected: 0, skipped: invoiceIds.length };
   }
 
   const now = new Date();
-  const result = await db.transaction(async (tx) => {
+
+  // One transaction, invoice rows locked `FOR UPDATE`.
+  //
+  // `recordPaymentForBusiness` takes the same invoice lock before it checks
+  // the invoice status and before it inserts the payment, so the two paths
+  // serialize: either the payment commits first and this void skips the
+  // invoice because it carries a balance, or this void commits first and the
+  // payment path then sees a voided invoice and refuses the payment.
+  // Voiding an invoice that carries a recorded payment would strand that
+  // payment, because a voided invoice's payments can no longer be voided.
+  const affected = await db.transaction(async (tx) => {
+    const candidates = await tx
+      .select({
+        id: invoices.id,
+        invoiceNumber: invoices.invoiceNumber,
+        status: invoices.status,
+      })
+      .from(invoices)
+      .where(
+        and(
+          eq(invoices.businessId, businessId),
+          inArray(invoices.id, invoiceIds),
+          isNull(invoices.deletedAt),
+        ),
+      )
+      .for("update");
+
+    const voidableIds = candidates
+      .filter((invoice) => invoice.status !== "voided")
+      .map((invoice) => invoice.id);
+
+    if (voidableIds.length === 0) {
+      return 0;
+    }
+
+    // Voiding requires zero recorded (non-voided) payments, mirroring
+    // `voidInvoiceForBusiness`. Re-read inside the lock so a payment that
+    // committed while the selection was running is still counted.
+    const paidTotals = await tx
+      .select({
+        invoiceId: payments.invoiceId,
+        total: sql<number>`coalesce(sum(${payments.amountInCents}), 0)`,
+      })
+      .from(payments)
+      .where(
+        and(
+          eq(payments.businessId, businessId),
+          inArray(payments.invoiceId, voidableIds),
+          isNull(payments.voidedAt),
+        ),
+      )
+      .groupBy(payments.invoiceId);
+
+    const paidByInvoiceId = new Map(
+      paidTotals.map((row) => [row.invoiceId, Number(row.total ?? 0)]),
+    );
+    const eligibleIds = voidableIds.filter(
+      (id) => (paidByInvoiceId.get(id) ?? 0) <= 0,
+    );
+
+    if (eligibleIds.length === 0) {
+      return 0;
+    }
+
     const updated = await tx
       .update(invoices)
       .set({
         status: "voided",
         voidedAt: now,
         voidedBy: actorUserId,
+        voidReason: normalized,
         updatedAt: now,
       })
       .where(
@@ -513,8 +544,8 @@ export async function bulkVoidInvoicesForBusiness({
           businessId,
           actorUserId,
           type: "invoice.voided",
-          summary: `Invoice ${row.invoiceNumber} voided.`,
-          metadata: { invoiceId: row.id, reason: null },
+          summary: `Invoice ${row.invoiceNumber} voided. Reason: ${getVoidReasonLabel(normalized)}.`,
+          metadata: { invoiceId: row.id, reason: normalized },
           createdAt: now,
           updatedAt: now,
         })),
@@ -527,17 +558,17 @@ export async function bulkVoidInvoicesForBusiness({
           entityType: "invoice",
           entityId: row.id,
           action: "invoice.voided",
-          metadata: { invoiceNumber: row.invoiceNumber, reason: null },
+          metadata: { invoiceNumber: row.invoiceNumber, reason: normalized },
           createdAt: now,
         });
       }
     }
 
-    return updated;
+    return updated.length;
   });
 
   return {
-    affected: result.length,
-    skipped: invoiceIds.length - result.length,
+    affected,
+    skipped: invoiceIds.length - affected,
   };
 }

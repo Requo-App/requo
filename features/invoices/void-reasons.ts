@@ -9,11 +9,16 @@ export const voidReasonValues = [
 
 export type VoidReasonValue = (typeof voidReasonValues)[number];
 
-const voidReasonLabels: Record<VoidReasonValue, string> = {
+/**
+ * Display labels — single home so the void dialogs, the activity feed, and
+ * the receipts agree. `not_received` reads for both a payment that never
+ * arrived and an invoice the customer never received.
+ */
+export const voidReasonLabels: Record<VoidReasonValue, string> = {
   duplicate_entry: "Duplicate entry",
   wrong_amount: "Wrong amount",
   wrong_invoice: "Wrong invoice",
-  not_received: "Payment was not actually received",
+  not_received: "Not received",
   entered_by_mistake: "Entered by mistake",
   other: "Other",
 };

@@ -50,7 +50,7 @@ import { getUsageLimit } from "@/lib/plans/usage-limits";
 
 export type BillingPlanUsage = {
   aiCredits: { used: number; limit: number };
-  /** Requo quote emails sent in the current month. */
+  /** Requo quote and invoice emails sent in the current month. */
   emailsSent: number;
   /** Automatic follow-up emails sent in the current month. */
   autoFollowUpEmailsSent: number;
@@ -84,7 +84,7 @@ export function BillingStatusCard({
   const priceLabel = isFreePlan
     ? "Free"
     : getPlanPriceLabel(currentPlan as PaidPlan, currency, "monthly");
-  const emailsLimit = getUsageLimit(currentPlan, "requoQuoteEmailsPerMonth");
+  const emailsLimit = getUsageLimit(currentPlan, "requoDocumentEmailsPerMonth");
   const autoFollowUpEmailsLimit = getUsageLimit(
     currentPlan,
     "autoFollowUpEmailsPerMonth",

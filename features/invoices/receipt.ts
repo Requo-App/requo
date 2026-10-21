@@ -110,7 +110,7 @@ export async function createPaymentReceiptPdf(data: PaymentReceiptData) {
   row("Customer:", data.customerName);
   row("Invoice total:", formatQuoteMoney(data.invoiceTotalInCents, data.currency));
   row("Amount paid:", formatQuoteMoney(data.invoicePaidInCents, data.currency));
-  row("Remaining balance:", formatQuoteMoney(data.invoiceBalanceInCents, data.currency), true);
+  row("Balance due:", formatQuoteMoney(data.invoiceBalanceInCents, data.currency), true);
 
   if (data.notes?.trim()) {
     report.y -= 8;

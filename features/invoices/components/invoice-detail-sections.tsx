@@ -85,11 +85,15 @@ export function InvoiceLineItemsSection({
       <div className="soft-panel flex w-full flex-col gap-3 shadow-none">
         <p className="meta-label">Summary</p>
         <InvoiceSummaryRow label="Subtotal" value={money(subtotalInCents, currency)} />
-        <InvoiceSummaryRow label="Discount" value={`-${money(discountInCents, currency)}`} />
-        <InvoiceSummaryRow
-          label={taxLabel ? `Tax (${taxLabel})` : "Tax"}
-          value={money(taxInCents, currency)}
-        />
+        {discountInCents > 0 ? (
+          <InvoiceSummaryRow label="Discount" value={`-${money(discountInCents, currency)}`} />
+        ) : null}
+        {taxInCents > 0 ? (
+          <InvoiceSummaryRow
+            label={taxLabel ? `Tax (${taxLabel})` : "Tax"}
+            value={money(taxInCents, currency)}
+          />
+        ) : null}
         <div className="border-t pt-3">
           <InvoiceSummaryRow label="Total" value={money(totalInCents, currency)} strong />
         </div>

@@ -18,9 +18,8 @@ import { getResendFromEmailConfigurationError } from "@/lib/email/transactional"
  * delivery skips the quota and configuration gates but still loads the
  * messaging context, so each gate stays independently callable.
  *
- * Quota keys are explicit per call site and intentionally untouched —
- * invoices currently share the `requoQuoteEmails*` pool with quotes
- * (see the billing-policy question in the Task 32 report).
+ * Quota keys are explicit per call site — quotes and invoices share the
+ * `requoDocumentEmails*` pool, and both send paths count against it.
  */
 
 export async function checkDocumentSendQuota(input: {

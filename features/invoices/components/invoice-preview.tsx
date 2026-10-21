@@ -196,17 +196,21 @@ export function InvoicePreview({
             label="Subtotal"
             value={formatQuoteMoney(subtotalInCents, currency)}
           />
-          <SummaryRow
-            label="Discount"
-            value={`-${formatQuoteMoney(discountInCents, currency)}`}
-          />
-          <SummaryRow
-            label={taxLabel ? `Tax (${taxLabel})` : "Tax"}
-            value={formatQuoteMoney(taxInCents, currency)}
-          />
+          {discountInCents > 0 ? (
+            <SummaryRow
+              label="Discount"
+              value={`-${formatQuoteMoney(discountInCents, currency)}`}
+            />
+          ) : null}
+          {taxInCents > 0 ? (
+            <SummaryRow
+              label={taxLabel ? `Tax (${taxLabel})` : "Tax"}
+              value={formatQuoteMoney(taxInCents, currency)}
+            />
+          ) : null}
           <div className="border-t pt-3">
             <SummaryRow
-              label="Balance due"
+              label="Total"
               value={formatQuoteMoney(totalInCents, currency)}
               strong
             />

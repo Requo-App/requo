@@ -45,7 +45,15 @@ function getCurrentDayBounds() {
   return { start, end };
 }
 
-async function getBusinessQuoteSendCountByMethod(
+/**
+ * Counts Requo-delivered document emails sent in a window for a business.
+ *
+ * Quotes and invoices share one sending allowance, so both activity types
+ * count toward it. The `sendMethod` recorded on the activity row decides
+ * whether a send used a Requo email — a manual delivery never did, so it
+ * never consumes the allowance.
+ */
+async function getBusinessDocumentSendCountByMethod(
   businessId: string,
   {
     end,
@@ -63,7 +71,7 @@ async function getBusinessQuoteSendCountByMethod(
     .where(
       and(
         eq(activityLogs.businessId, businessId),
-        eq(activityLogs.type, "quote.sent"),
+        inArray(activityLogs.type, ["quote.sent", "invoice.sent"]),
         gte(activityLogs.createdAt, start),
         lt(activityLogs.createdAt, end),
         sql`${activityLogs.metadata} ->> 'sendMethod' = ${method}`,
@@ -73,19 +81,19 @@ async function getBusinessQuoteSendCountByMethod(
   return Number(row?.value ?? 0);
 }
 
-export async function getDailyRequoQuoteSendCount(
+export async function getDailyRequoDocumentSendCount(
   businessId: string,
 ): Promise<number> {
-  return getBusinessQuoteSendCountByMethod(businessId, {
+  return getBusinessDocumentSendCountByMethod(businessId, {
     ...getCurrentDayBounds(),
     method: "requo",
   });
 }
 
-export async function getMonthlyRequoQuoteSendCount(
+export async function getMonthlyRequoDocumentSendCount(
   businessId: string,
 ): Promise<number> {
-  return getBusinessQuoteSendCountByMethod(businessId, {
+  return getBusinessDocumentSendCountByMethod(businessId, {
     ...getCurrentMonthBounds(),
     method: "requo",
   });
@@ -230,11 +238,11 @@ export async function checkUsageAllowance(
   let current: number;
 
   switch (key) {
-    case "requoQuoteEmailsPerDay":
-      current = await getDailyRequoQuoteSendCount(businessId);
+    case "requoDocumentEmailsPerDay":
+      current = await getDailyRequoDocumentSendCount(businessId);
       break;
-    case "requoQuoteEmailsPerMonth":
-      current = await getMonthlyRequoQuoteSendCount(businessId);
+    case "requoDocumentEmailsPerMonth":
+      current = await getMonthlyRequoDocumentSendCount(businessId);
       break;
     case "autoFollowUpEmailsPerDay":
       current = await getDailyAutoFollowUpSendCount(businessId);

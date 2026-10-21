@@ -31,7 +31,7 @@ type EditableLineItem = {
 const initialState: InvoiceActionState = {};
 
 function centsToInput(cents: number) {
-  return (cents / 100).toFixed(2).replace(/\.00$/, ".00");
+  return (cents / 100).toFixed(2);
 }
 
 export function EditInvoiceForm({ action, businessSlug, currency, invoice }: EditInvoiceFormProps) {
@@ -55,15 +55,24 @@ export function EditInvoiceForm({ action, businessSlug, currency, invoice }: Edi
   }, [businessSlug, router, state.invoiceId, state.success]);
 
   const itemsError = state.fieldErrors?.items?.[0];
-  const itemsJson = isQuoteSourced
-    ? JSON.stringify([{ description: "locked", quantity: 1, unitPriceInCents: "0.00" }])
-    : JSON.stringify(
-        rows.map((row) => ({
+  const discountError = state.fieldErrors?.discountInCents?.[0];
+  const taxError = state.fieldErrors?.taxInCents?.[0];
+  // A quote-linked invoice keeps the quote's line items — submit the stored
+  // snapshot rather than a placeholder, so the payload matches the invoice
+  // the server will keep.
+  const itemsJson = JSON.stringify(
+    isQuoteSourced
+      ? invoice.items.map((item) => ({
+          description: item.description,
+          quantity: item.quantity,
+          unitPriceInCents: item.unitPriceInCents,
+        }))
+      : rows.map((row) => ({
           description: row.description,
           quantity: row.quantity,
           unitPriceInCents: row.unitPrice,
         })),
-      );
+  );
 
   function updateRow(index: number, patch: Partial<EditableLineItem>) {
     setRows((current) => current.map((row, rowIndex) => (rowIndex === index ? { ...row, ...patch } : row)));
@@ -265,6 +274,11 @@ export function EditInvoiceForm({ action, businessSlug, currency, invoice }: Edi
           <>
             <input type="hidden" name="discount" value={centsToInput(invoice.discountInCents)} />
             <input type="hidden" name="tax" value={centsToInput(invoice.taxInCents)} />
+            {discountError || taxError ? (
+              <p className="text-sm text-destructive" role="alert">
+                {discountError ?? taxError}
+              </p>
+            ) : null}
           </>
         )}
       </DashboardSection>

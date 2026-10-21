@@ -10,16 +10,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { ResponsiveOverlay, ResponsiveOverlayBody, ResponsiveOverlayContent, ResponsiveOverlayFooter, ResponsiveOverlayHeader, ResponsiveOverlayTitle } from "@/components/ui/responsive-overlay";
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
 import { useDeferredRefresh } from "@/hooks/use-deferred-refresh";
-import { voidReasonValues, type PaymentActionState } from "@/features/invoices/types";
-
-const reasonLabels: Record<(typeof voidReasonValues)[number], string> = {
-  duplicate_entry: "Duplicate entry",
-  wrong_amount: "Wrong amount",
-  wrong_invoice: "Wrong invoice",
-  not_received: "Payment was not actually received",
-  entered_by_mistake: "Entered by mistake",
-  other: "Other",
-};
+import { voidReasonLabels, voidReasonValues } from "@/features/invoices/void-reasons";
+import type { PaymentActionState } from "@/features/invoices/types";
 
 export function VoidPaymentDialog({ paymentNumber, action, onOptimisticVoid, onOptimisticRevertVoid }: { paymentNumber: string; action: (state: PaymentActionState, formData: FormData) => Promise<PaymentActionState>; onOptimisticVoid?: () => void; onOptimisticRevertVoid?: () => void }) {
   const [open, setOpen] = useState(false);
@@ -58,7 +50,7 @@ export function VoidPaymentDialog({ paymentNumber, action, onOptimisticVoid, onO
                 id={`void-reason-${paymentNumber}`}
                 value={reason}
                 onValueChange={(value) => setReason(value as typeof reason)}
-                options={voidReasonValues.map((value) => ({ value, label: reasonLabels[value] }))}
+                options={voidReasonValues.map((value) => ({ value, label: voidReasonLabels[value] }))}
                 placeholder="Choose reason"
               />
             </div>

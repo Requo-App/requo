@@ -41,7 +41,7 @@ import { getUsageLimit } from "@/lib/plans/usage-limits";
 import {
   getActiveAutoFollowUpCount,
   getMonthlyAutoFollowUpSendCount,
-  getMonthlyRequoQuoteSendCount,
+  getMonthlyRequoDocumentSendCount,
 } from "@/lib/plans/usage";
 import { getMonthlyUsageSummary } from "@/lib/ai/usage-limiter";
 import {
@@ -972,7 +972,7 @@ async function getOverviewUsageMeters(
   const [ai, quoteEmails, autoFollowUpActive, autoFollowUpEmails, agentSessions] =
     await Promise.all([
       getMonthlyUsageSummary(businessId, plan),
-      getMonthlyRequoQuoteSendCount(businessId),
+      getMonthlyRequoDocumentSendCount(businessId),
       getActiveAutoFollowUpCount(businessId),
       getMonthlyAutoFollowUpSendCount(businessId),
       db
@@ -989,7 +989,7 @@ async function getOverviewUsageMeters(
         ),
     ]);
 
-  const quoteEmailLimit = getUsageLimit(plan, "requoQuoteEmailsPerMonth");
+  const quoteEmailLimit = getUsageLimit(plan, "requoDocumentEmailsPerMonth");
   const activeLimit = getUsageLimit(plan, "activeAutoFollowUpsPerBusiness");
   const agentLimit = getUsageLimit(plan, "agentSessionsPerMonth");
 
@@ -1006,11 +1006,11 @@ async function getOverviewUsageMeters(
     },
     {
       key: "quote-emails",
-      label: "Requo quote emails",
+      label: "Requo email sends",
       used: quoteEmails,
       limit: quoteEmailLimit,
       unit: "sends",
-      hint: "Quote emails sent through Requo this month.",
+      hint: "Quote and invoice emails sent through Requo this month.",
       href: null,
       upgradeFeature: null,
     },

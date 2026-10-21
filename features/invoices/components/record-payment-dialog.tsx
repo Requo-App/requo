@@ -15,10 +15,8 @@ import { ResponsiveOverlay, ResponsiveOverlayBody, ResponsiveOverlayContent, Res
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
 import { useDeferredRefresh } from "@/hooks/use-deferred-refresh";
 import { paymentMethods, type OptimisticPayment, type PaymentActionState } from "@/features/invoices/types";
-import { parseMoneyToCents } from "@/features/invoices/utils";
+import { parseMoneyToCents, paymentMethodLabels } from "@/features/invoices/utils";
 import type { PaymentMethod } from "@/lib/db/schema/invoices";
-
-const labels: Record<PaymentMethod, string> = { cash: "Cash", bank_transfer: "Bank transfer", gcash: "GCash", maya: "Maya", check: "Check", other: "Other" };
 
 export function RecordPaymentDialog({ balanceInCents, currency, invoiceNumber, customerName, action, onOptimisticRecord, onOptimisticRevert, compactOnMobile = false }: { balanceInCents: number; currency: string; invoiceNumber: string; customerName: string; action: (state: PaymentActionState, formData: FormData) => Promise<PaymentActionState>; onOptimisticRecord?: (payment: OptimisticPayment) => void; onOptimisticRevert?: (key: string) => void; /**
    * Collapse the trigger to an icon-only navbar button below `lg`
@@ -95,7 +93,7 @@ export function RecordPaymentDialog({ balanceInCents, currency, invoiceNumber, c
         <ResponsiveOverlayHeader><ResponsiveOverlayTitle>Record payment</ResponsiveOverlayTitle><ResponsiveOverlayDescription>{invoiceNumber} · {customerName}</ResponsiveOverlayDescription></ResponsiveOverlayHeader>
         <form action={formAction} key={open ? idempotencyKey : "closed"} onSubmit={handleSubmit}>
           <ResponsiveOverlayBody className="gap-3">
-            <p className="flex items-center justify-between gap-3 rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">Remaining balance: <span className="font-semibold text-foreground">{balanceLabel}</span></p>
+            <p className="flex items-center justify-between gap-3 rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">Balance due: <span className="font-semibold text-foreground">{balanceLabel}</span></p>
             <input type="hidden" name="idempotencyKey" value={idempotencyKey} />
             <input type="hidden" name="currency" value={currency} />
             <div className="grid gap-3 sm:grid-cols-2">
@@ -103,7 +101,7 @@ export function RecordPaymentDialog({ balanceInCents, currency, invoiceNumber, c
               <div className="grid gap-2"><Label htmlFor="payment-date">Payment date</Label><Input id="payment-date" name="paymentDate" type="date" defaultValue={defaultDate} required /></div>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
-              <div className="grid gap-2"><Label htmlFor="payment-method">Method</Label><input name="method" type="hidden" value={method} /><Combobox id="payment-method" value={method} onValueChange={(value) => setMethod(value as PaymentMethod)} options={paymentMethods.map((value) => ({ value, label: labels[value] }))} placeholder="Choose method" /></div>
+              <div className="grid gap-2"><Label htmlFor="payment-method">Method</Label><input name="method" type="hidden" value={method} /><Combobox id="payment-method" value={method} onValueChange={(value) => setMethod(value as PaymentMethod)} options={paymentMethods.map((value) => ({ value, label: paymentMethodLabels[value] }))} placeholder="Choose method" /></div>
               <div className="grid gap-2"><Label htmlFor="payment-reference">Reference <span className="text-muted-foreground">(optional)</span></Label><Input id="payment-reference" name="reference" placeholder={method === "cash" ? "Optional" : "E.g. BDO-829183"} /></div>
             </div>
             <div className="grid gap-2"><Label htmlFor="payment-notes">Notes {notesRequired ? null : <span className="text-muted-foreground">(optional)</span>}</Label><Textarea id="payment-notes" name="notes" rows={2} required={notesRequired} placeholder={notesRequired ? "Describe how this payment was received." : undefined} aria-invalid={Boolean(state.fieldErrors?.notes)} /></div>
