@@ -779,6 +779,7 @@ export async function updateBusinessInquiryPageSettings({
         id: businessInquiryForms.id,
         slug: businessInquiryForms.slug,
         isDefault: businessInquiryForms.isDefault,
+        publicInquiryEnabled: businessInquiryForms.publicInquiryEnabled,
         inquiryFormConfig: businessInquiryForms.inquiryFormConfig,
         inquiryPageConfig: businessInquiryForms.inquiryPageConfig,
       })
@@ -893,6 +894,7 @@ export async function updateBusinessInquiryPageSettings({
 
       if (
         values.publicInquiryEnabled &&
+        !form.publicInquiryEnabled &&
         !(await hasLiveServiceSlot(tx, businessId, plan, form.id))
       ) {
         limitExceeded = true;
@@ -1355,7 +1357,7 @@ export async function duplicateBusinessInquiryForm({
 
         if (
           sourceForm.publicInquiryEnabled &&
-          !(await hasLiveServiceSlot(tx, businessId, plan, targetFormId))
+          !(await hasLiveServiceSlot(tx, businessId, plan))
         ) {
           limitExceeded = true;
           return;
@@ -1646,6 +1648,7 @@ export async function deleteBusinessInquiryForm({
         id: businessInquiryForms.id,
         slug: businessInquiryForms.slug,
         isDefault: businessInquiryForms.isDefault,
+        archivedAt: businessInquiryForms.archivedAt,
       })
       .from(businessInquiryForms)
       .where(
@@ -1678,7 +1681,7 @@ export async function deleteBusinessInquiryForm({
 
   // The business always needs one active service — it backs the shared
   // `/inquire/<business>` URL and the "public inquiry" indicator.
-  if (activeFormRows.length <= 1) {
+  if (!targetForm.archivedAt && activeFormRows.length <= 1) {
     return {
       ok: false,
       reason: "last-active",
@@ -1717,22 +1720,10 @@ export async function deleteBusinessInquiryForm({
 
   const now = new Date();
 
-  await db.transaction(async (tx) => {
+  const deleted = await db.transaction(async (tx) => {
     // If deleting the default form, promote another published active form to
     // default so the shared public URL keeps resolving.
     if (targetForm.isDefault) {
-      // Clear the outgoing default first: the database enforces at most one
-      // default per business, so the two updates cannot overlap.
-      await tx
-        .update(businessInquiryForms)
-        .set({ isDefault: false, updatedAt: now })
-        .where(
-          and(
-            eq(businessInquiryForms.businessId, businessId),
-            eq(businessInquiryForms.id, targetFormId),
-          ),
-        );
-
       const [nextDefault] = await tx
         .select({ id: businessInquiryForms.id })
         .from(businessInquiryForms)
@@ -1747,12 +1738,26 @@ export async function deleteBusinessInquiryForm({
         .orderBy(asc(businessInquiryForms.name))
         .limit(1);
 
-      if (nextDefault) {
-        await tx
-          .update(businessInquiryForms)
-          .set({ isDefault: true, updatedAt: now })
-          .where(eq(businessInquiryForms.id, nextDefault.id));
+      if (!nextDefault) {
+        return false;
       }
+
+      // Clear the outgoing default first: the database enforces at most one
+      // default per business, so the two updates cannot overlap.
+      await tx
+        .update(businessInquiryForms)
+        .set({ isDefault: false, updatedAt: now })
+        .where(
+          and(
+            eq(businessInquiryForms.businessId, businessId),
+            eq(businessInquiryForms.id, targetFormId),
+          ),
+        );
+
+      await tx
+        .update(businessInquiryForms)
+        .set({ isDefault: true, updatedAt: now })
+        .where(eq(businessInquiryForms.id, nextDefault.id));
     }
 
     await tx
@@ -1777,7 +1782,12 @@ export async function deleteBusinessInquiryForm({
       createdAt: now,
       updatedAt: now,
     });
+    return true;
   });
+
+  if (!deleted) {
+    return { ok: false, reason: "invalid-target" };
+  }
 
   return {
     ok: true,

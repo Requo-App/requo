@@ -70,7 +70,10 @@ import {
   getBusinessSettingsPath,
 } from "@/features/businesses/routes";
 import { getBusinessPublicInquiryUrl } from "@/features/settings/utils";
-import { getBusinessInquiryFormsSettingsForBusiness } from "@/features/settings/queries";
+import {
+  getBusinessInquiryFormsSettingsForBusiness,
+  getBusinessInquiryPageSettingsForBusiness,
+} from "@/features/settings/queries";
 import type { BusinessPlan } from "@/lib/plans/plans";
 import { getUsageLimit } from "@/lib/plans/usage-limits";
 import { hasFeatureAccess } from "@/lib/plans/entitlements";
@@ -580,11 +583,26 @@ export async function updateBusinessInquiryPageAction(
   let nextEditorPath: string | null = null;
 
   try {
+    const values = validationResult.data;
+
+    if (businessContext.role !== "owner") {
+      const settings = await getBusinessInquiryPageSettingsForBusiness(
+        businessContext.business.id,
+        formSlug,
+      );
+
+      if (!settings) {
+        return { error: "That service could not be found." };
+      }
+
+      values.publicInquiryEnabled = settings.publicInquiryEnabled;
+    }
+
     const result = await updateBusinessInquiryPageSettings({
       businessId: businessContext.business.id,
       actorUserId: user.id,
       formSlug,
-      values: validationResult.data,
+      values,
     });
 
     if (!result.ok) {
@@ -1232,6 +1250,12 @@ export async function deleteBusinessInquiryFormAction(
         return {
           error:
             "This is the last active service. Create another service before deleting this one.",
+        };
+      }
+
+      if (result.reason === "invalid-target") {
+        return {
+          error: "Publish another service before deleting the default service.",
         };
       }
 

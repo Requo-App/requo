@@ -153,14 +153,12 @@ export function BusinessInquiryFormEditorTabs({
         businessType: settings.businessType,
         formName: settings.formName,
         formSlug: settings.formSlug,
-        publicInquiryEnabled: settings.publicInquiryEnabled,
       }),
     [
       settings.inquiryPageConfig,
       settings.businessType,
       settings.formName,
       settings.formSlug,
-      settings.publicInquiryEnabled,
     ],
   );
   const [seenFormSignature, setSeenFormSignature] = useState(

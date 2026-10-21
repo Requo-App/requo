@@ -99,9 +99,21 @@ export async function hasLiveServiceSlot(
  * different candidate instead of surfacing as a generic failure.
  */
 export function isUniqueViolation(error: unknown): boolean {
-  if (typeof error !== "object" || error === null) {
-    return false;
+  let current = error;
+
+  for (let depth = 0; depth < 5; depth += 1) {
+    if (typeof current !== "object" || current === null) {
+      return false;
+    }
+
+    const candidate = current as { code?: unknown; cause?: unknown };
+
+    if (candidate.code === "23505") {
+      return true;
+    }
+
+    current = candidate.cause;
   }
 
-  return (error as { code?: unknown }).code === "23505";
+  return false;
 }
