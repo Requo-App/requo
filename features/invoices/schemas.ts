@@ -96,7 +96,11 @@ export const invoiceSchema = invoiceFieldsSchema.superRefine((value, ctx) => {
  * discarded totals against each other would reject a legitimate edit of the
  * customer-facing fields, so only the date order is checked here.
  */
-export const invoiceQuoteLinkedSchema = invoiceFieldsSchema.superRefine((value, ctx) => {
+const quoteLinkedItemsSchema = z.array(z.any()).min(1, "Add at least one line item.").max(100);
+
+export const invoiceQuoteLinkedSchema = invoiceFieldsSchema.extend({
+  items: quoteLinkedItemsSchema,
+}).superRefine((value, ctx) => {
   addInvoiceDateRule(value, ctx);
 });
 

@@ -46,6 +46,28 @@ describe("features/invoices/schemas — quote-linked drafts", () => {
     expect(result.success).toBe(true);
   });
 
+  it.each([
+    { items: [null] },
+    { items: ["ignored", 123, false] },
+    { items: [{ description: "", quantity: -1, unitPriceInCents: "invalid" }] },
+    { items: [{ description: "Bulk", quantity: 1_000_000, unitPriceInCents: "20000.00" }] },
+  ])("accepts discarded item values only for quote-linked drafts: $items", ({ items }) => {
+    const payload = validInvoice({ items });
+
+    expect(invoiceQuoteLinkedSchema.safeParse(payload).success).toBe(true);
+    expect(invoiceSchema.safeParse(payload).success).toBe(false);
+  });
+
+  it.each([0, 1, 100, 101])("retains the item count limits for %i quote-linked items", (count) => {
+    const result = invoiceQuoteLinkedSchema.safeParse(validInvoice({ items: Array(count).fill(null) }));
+
+    expect(result.success).toBe(count >= 1 && count <= 100);
+  });
+
+  it("requires an items array for quote-linked drafts", () => {
+    expect(invoiceQuoteLinkedSchema.safeParse(validInvoice({ items: null })).success).toBe(false);
+  });
+
   it("still enforces the date order on a quote-linked draft", () => {
     const result = invoiceQuoteLinkedSchema.safeParse(validInvoice({ dueDate: "2025-12-31" }));
 

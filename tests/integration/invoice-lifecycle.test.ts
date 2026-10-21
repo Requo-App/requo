@@ -14,6 +14,16 @@ vi.mock("next/cache", () => ({
   updateTag: vi.fn(),
 }));
 
+vi.mock("@/lib/db/business-access", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/lib/db/business-access")>(),
+  getOperationalBusinessActionContext: async () => ({
+    ok: true,
+    user: { id: ids.ownerUserId },
+    businessContext: { business: { id: ids.businessId } },
+  }),
+}));
+
+import { updateInvoiceDraftAction } from "@/features/invoices/actions";
 import {
   bulkVoidInvoicesForBusiness,
   createInvoiceForBusiness,
@@ -179,10 +189,8 @@ describe("invoice lifecycle", () => {
     // deliberately differ from the quote's, so the assertion can tell the
     // quote-linked branch apart from the branch that applies the submitted
     // totals.
-    const result = await updateInvoiceDraftForBusiness({
-      businessId: ids.businessId,
-      invoiceId: created.id,
-      actorUserId: ids.ownerUserId,
+    const formData = new FormData();
+    for (const [key, value] of Object.entries({
       title: "Roof repair - February",
       customerName: "Maria Santos",
       customerEmail: "maria@example.com",
@@ -190,13 +198,15 @@ describe("invoice lifecycle", () => {
       dueDate: "2026-03-01",
       notes: "Work scheduled.",
       paymentTerms: "Due within 14 days.",
-      discountInCents: 999999,
-      taxInCents: 12345,
+      discount: "9999.99",
+      tax: "123.45",
       taxLabel: "Tampered",
-      items: [{ description: "Tampered", quantity: 7, unitPriceInCents: 1 }],
-    });
+      items: JSON.stringify([null, { description: "", quantity: -1, unitPriceInCents: "invalid" }]),
+    })) formData.set(key, value);
 
-    expect(result).toEqual(expect.objectContaining({ changed: true }));
+    const result = await updateInvoiceDraftAction(created.id, {}, formData);
+
+    expect(result).toEqual({ success: "Invoice updated.", invoiceId: created.id, invoiceNumber: created.invoiceNumber });
 
     const [updated] = await testDb.select().from(invoices).where(eq(invoices.id, created.id));
     expect(updated.title).toBe("Roof repair - February");
@@ -209,6 +219,26 @@ describe("invoice lifecycle", () => {
     expect(items).toHaveLength(1);
     expect(items[0].description).toBe("Roof repair");
     expect(items[0].lineTotalInCents).toBe(500000);
+  });
+
+  it("returns the safe update fallback when the invoice read fails", async () => {
+    const select = vi.spyOn(testDb, "select").mockImplementationOnce(() => {
+      throw new Error("Failed to query private database details.");
+    });
+
+    try {
+      await expect(updateInvoiceDraftAction("missing_invoice", {}, new FormData())).resolves.toEqual({
+        error: "Unable to update invoice. Please try again.",
+      });
+    } finally {
+      select.mockRestore();
+    }
+  });
+
+  it("preserves the missing invoice response", async () => {
+    await expect(updateInvoiceDraftAction("missing_invoice", {}, new FormData())).resolves.toEqual({
+      error: "Invoice not found.",
+    });
   });
 
   it("counts a Requo invoice send against the shared email allowance", async () => {

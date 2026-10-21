@@ -59,19 +59,19 @@ export async function updateInvoiceDraftAction(invoiceId: string, _prev: Invoice
   if (!access.ok) return { error: access.error };
   const businessId = access.businessContext.business.id;
 
-  const invoice = await getInvoiceForBusiness({ businessId, invoiceId });
-  if (!invoice) return { error: "Invoice not found." };
-
-  // A quote-linked invoice keeps the quote's line items and totals, so the
-  // server discards the submitted ones — validating them against each other
-  // would reject a legitimate edit of the customer-facing fields. The
-  // persisted invoice decides which rule applies, never the client.
-  const schema = getInvoiceDraftSchema(invoice);
-  const parsed = schema.safeParse({
-    title: text(formData, "title"), customerName: text(formData, "customerName"), customerEmail: text(formData, "customerEmail"), customerContactMethod: text(formData, "customerContactMethod") || "email", customerContactHandle: text(formData, "customerContactHandle"), issueDate: text(formData, "issueDate"), dueDate: text(formData, "dueDate"), discountInCents: text(formData, "discount"), taxInCents: text(formData, "tax"), taxLabel: text(formData, "taxLabel"), notes: text(formData, "notes"), paymentTerms: text(formData, "paymentTerms"), items: (() => { try { return JSON.parse(text(formData, "items")); } catch { return []; } })(),
-  });
-  if (!parsed.success) return getValidationActionState(parsed.error, "Check the highlighted fields and try again.");
   try {
+    const invoice = await getInvoiceForBusiness({ businessId, invoiceId });
+    if (!invoice) return { error: "Invoice not found." };
+
+    // A quote-linked invoice keeps the quote's line items and totals, so the
+    // server discards the submitted ones — validating them against each other
+    // would reject a legitimate edit of the customer-facing fields. The
+    // persisted invoice decides which rule applies, never the client.
+    const schema = getInvoiceDraftSchema(invoice);
+    const parsed = schema.safeParse({
+      title: text(formData, "title"), customerName: text(formData, "customerName"), customerEmail: text(formData, "customerEmail"), customerContactMethod: text(formData, "customerContactMethod") || "email", customerContactHandle: text(formData, "customerContactHandle"), issueDate: text(formData, "issueDate"), dueDate: text(formData, "dueDate"), discountInCents: text(formData, "discount"), taxInCents: text(formData, "tax"), taxLabel: text(formData, "taxLabel"), notes: text(formData, "notes"), paymentTerms: text(formData, "paymentTerms"), items: (() => { try { return JSON.parse(text(formData, "items")); } catch { return []; } })(),
+    });
+    if (!parsed.success) return getValidationActionState(parsed.error, "Check the highlighted fields and try again.");
     const result = await updateInvoiceDraftForBusiness({ ...parsed.data, invoiceId, businessId, actorUserId: access.user.id });
     if (!result) return { error: "Invoice not found." };
     if ("error" in result) return { error: result.error };
