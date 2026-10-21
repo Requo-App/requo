@@ -22,7 +22,12 @@ async function requireMember(businessSlug: string) {
   }
 
   const userId: string = session.user.id;
-  const result = await getBusinessActionContext({ businessSlug });
+  // The Assistant performs operational writes (create inquiries, create and
+  // send quotes), so a plan-locked or archived business must not reach them.
+  const result = await getBusinessActionContext({
+    businessSlug,
+    requireActiveBusiness: true,
+  });
   if (!result.ok) {
     return { error: result.error };
   }

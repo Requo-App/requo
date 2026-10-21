@@ -52,15 +52,22 @@ export async function GET(request: Request) {
         id: string;
         values: Record<string, unknown>;
         proposedAt: string;
-        status: "pending" | "approved" | "discarded";
+        status: "pending" | "sending" | "approved" | "discarded";
         inquiryId?: string;
+        sendingAt?: string;
       } | null;
     };
     const staged = state.proposedInquiry;
+    // A proposal that was consumed for sending but never produced an Inquiry
+    // comes back as editable so the visitor can retry it. The server still
+    // refuses a duplicate send, so this only restores the affordance.
     const proposedInquiry =
-      staged && (staged.status === "pending" || staged.status === "approved")
-        ? staged
-        : null;
+      staged && staged.status === "sending"
+        ? { ...staged, status: "pending" as const }
+        : staged &&
+            (staged.status === "pending" || staged.status === "approved")
+          ? staged
+          : null;
 
     return NextResponse.json(
       {

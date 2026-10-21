@@ -59,6 +59,7 @@ import {
   updateBusinessSettings,
 } from "@/features/settings/mutations";
 import {
+  getBusinessActionContext,
   getOperationalBusinessActionContext,
   getOwnerBusinessActionContext,
 } from "@/lib/db/business-access";
@@ -291,10 +292,19 @@ export async function updateBusinessNotificationSettingsAction(
 }
 
 export async function updateBusinessAiAgentSettingsAction(
+  businessSlug: string,
   _prevState: BusinessAiAgentSettingsActionState,
   formData: FormData,
 ): Promise<BusinessAiAgentSettingsActionState> {
-  const ownerAccess = await getOperationalBusinessActionContext();
+  // The business comes from the route slug, never from the active-business
+  // cookie: the cookie is rewritten on every navigation, so a form rendered
+  // for one business could otherwise save onto another.
+  const ownerAccess = await getBusinessActionContext({
+    businessSlug,
+    minimumRole: "manager",
+    requireActiveBusiness: true,
+    unauthorizedMessage: "Only an owner or manager can do that.",
+  });
 
   if (!ownerAccess.ok) {
     return {

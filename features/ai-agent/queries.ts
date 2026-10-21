@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, desc, eq, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { cache } from "react";
 
 import { getOperationalBusinessCondition } from "@/features/businesses/lifecycle";
@@ -152,13 +152,22 @@ export const getAgentTranscriptForInquiry = cache(
 
     if (!inquiry) return null;
 
+    // A session can produce more than one inquiry. The session row keeps the
+    // newest one in `inquiry_id` and every one it produced in
+    // `metadata.createdInquiryIds`, so an earlier inquiry must still resolve
+    // to its transcript.
     const [session] = await db
       .select({ id: aiAgentSessions.id })
       .from(aiAgentSessions)
       .where(
         and(
-          eq(aiAgentSessions.inquiryId, inquiryId),
           eq(aiAgentSessions.businessId, businessId),
+          or(
+            eq(aiAgentSessions.inquiryId, inquiryId),
+            sql`${aiAgentSessions.metadata} -> 'createdInquiryIds' @> ${JSON.stringify(
+              [inquiryId],
+            )}::jsonb`,
+          ),
         ),
       )
       .limit(1);
@@ -173,12 +182,19 @@ export const getAgentTranscriptForInquiry = cache(
         createdAt: aiAgentMessages.createdAt,
       })
       .from(aiAgentMessages)
-      .where(eq(aiAgentMessages.sessionId, session.id))
-      .orderBy(asc(aiAgentMessages.createdAt))
+      .where(
+        and(
+          eq(aiAgentMessages.sessionId, session.id),
+          inArray(aiAgentMessages.role, ["user", "assistant"]),
+        ),
+      )
+      // Newest first, so the limit keeps the turns that carry the inquiry
+      // details rather than the oldest ones. The array is reversed below.
+      .orderBy(desc(aiAgentMessages.createdAt))
       .limit(100);
 
     return rows
-      .filter((row) => row.role === "user" || row.role === "assistant")
+      .reverse()
       .map((row) => ({
         id: row.id,
         role: row.role as "user" | "assistant",

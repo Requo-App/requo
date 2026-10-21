@@ -86,7 +86,7 @@ async function AssistantTab({ params }: AiSettingsPageProps) {
 
   return (
     <BusinessAiAgentSettingsForm
-      action={updateBusinessAiAgentSettingsAction}
+      action={updateBusinessAiAgentSettingsAction.bind(null, slug)}
       chatPath={getBusinessPublicChatPath(slug)}
       key={`assistant-settings-${settings.updatedAt.getTime()}`}
       settings={settings}

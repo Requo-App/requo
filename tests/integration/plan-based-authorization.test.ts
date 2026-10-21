@@ -125,7 +125,13 @@ function aiAgentFormData() {
 }
 
 function updateAiAgentSettings() {
-  return updateBusinessAiAgentSettingsAction({ error: "" }, aiAgentFormData());
+  // The action is bound to the business slug so it always writes to the
+  // business whose settings page rendered the form.
+  return updateBusinessAiAgentSettingsAction(
+    ids.otherBusinessSlug,
+    { error: "" },
+    aiAgentFormData(),
+  );
 }
 
 describe("Plan-based authorization — server-side enforcement", () => {
