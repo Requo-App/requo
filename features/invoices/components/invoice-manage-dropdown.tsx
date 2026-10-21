@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 
 import { OptimisticPendingIndicator } from "@/components/shared/optimistic-pending-indicator";
-import { ConfirmationDialog } from "@/components/shared/confirmation-dialog";
+import { VoidInvoiceDialog } from "@/features/invoices/components/void-invoice-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -54,11 +54,11 @@ export function InvoiceManageDropdown({
   const { runMutation, isPendingKey } = useOptimisticMutation();
   const [confirmVoid, setConfirmVoid] = useState(false);
 
-  function submitVoid() {
+  function submitVoid(formData: FormData) {
     runMutation({
       applyOptimistic: () => {},
       revertOptimistic: () => {},
-      mutation: () => voidAction(initialState, new FormData()),
+      mutation: () => voidAction(initialState, formData),
       pendingKey: "void",
       refreshOnSuccess: true,
     });
@@ -144,19 +144,17 @@ export function InvoiceManageDropdown({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <ConfirmationDialog
+      <VoidInvoiceDialog
         open={confirmVoid}
         onOpenChange={setConfirmVoid}
         title="Void this invoice?"
         description="Voiding keeps the record for audit history but removes it from balances. Void all recorded payments first."
         confirmLabel="Void invoice"
-        onConfirm={() => {
-          void submitVoid();
+        onConfirm={(formData) => {
+          submitVoid(formData);
           setConfirmVoid(false);
         }}
         isPending={isPending}
-        tone="destructive"
-        icon={Ban}
       />
     </>
   );

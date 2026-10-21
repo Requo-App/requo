@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 
 import { getPaymentDetailForBusiness } from "@/features/invoices/queries";
 import { createPaymentReceiptPdf, getPaymentReceiptData, getPaymentReceiptFileName } from "@/features/invoices/receipt";
+import { getPaymentMethodLabel } from "@/features/invoices/utils";
 import { getBusinessRequestContextForSlug } from "@/lib/db/business-access";
 import { buildContentDisposition } from "@/lib/files";
 
@@ -11,15 +12,6 @@ import { slugParamSchema } from "@/lib/api/params";
 const routeParamsSchema = slugParamSchema.extend({
   paymentId: z.string().trim().min(1).max(128),
 });
-
-const methodLabels = {
-  cash: "Cash",
-  bank_transfer: "Bank Transfer",
-  gcash: "GCash",
-  maya: "Maya",
-  check: "Check",
-  other: "Other",
-} as const;
 
 export async function GET(
   _request: Request,
@@ -49,7 +41,7 @@ export async function GET(
   const documentData = getPaymentReceiptData({
     businessName: requestContext.businessContext.business.name,
     payment,
-    methodLabel: methodLabels[payment.method] ?? payment.method,
+    methodLabel: getPaymentMethodLabel(payment.method),
   });
   const pdf = await createPaymentReceiptPdf(documentData);
   const pdfBytes = Uint8Array.from(pdf);

@@ -1,5 +1,6 @@
 import { BusinessAvatar } from "@/components/shared/business-avatar";
 import { formatQuoteDate, formatQuoteMoney } from "@/features/quotes/utils";
+import { getInvoiceStatusLabel } from "@/features/invoices/utils";
 import type { InvoiceDetail } from "@/features/invoices/types";
 
 type InvoicePrintDocumentProps = {
@@ -135,14 +136,18 @@ export function InvoicePrintDocument({ businessName, businessLogoStoragePath, bu
                 label="Subtotal"
                 value={formatQuoteMoney(invoice.subtotalInCents, invoice.currency)}
               />
-              <SummaryRow
-                label="Discount"
-                value={`-${formatQuoteMoney(invoice.discountInCents, invoice.currency)}`}
-              />
-              <SummaryRow
-                label={invoice.taxLabel ? `Tax (${invoice.taxLabel})` : "Tax"}
-                value={formatQuoteMoney(invoice.taxInCents, invoice.currency)}
-              />
+              {invoice.discountInCents > 0 ? (
+                <SummaryRow
+                  label="Discount"
+                  value={`-${formatQuoteMoney(invoice.discountInCents, invoice.currency)}`}
+                />
+              ) : null}
+              {invoice.taxInCents > 0 ? (
+                <SummaryRow
+                  label={invoice.taxLabel ? `Tax (${invoice.taxLabel})` : "Tax"}
+                  value={formatQuoteMoney(invoice.taxInCents, invoice.currency)}
+                />
+              ) : null}
               <div className="border-t border-border/70 pt-3">
                 <SummaryRow
                   label="Total"
@@ -169,7 +174,7 @@ export function InvoicePrintDocument({ businessName, businessLogoStoragePath, bu
               <DetailRow label="Customer" value={invoice.customerName} />
               <DetailRow label="Issued" value={formatQuoteDate(invoice.issueDate)} />
               <DetailRow label="Due" value={formatQuoteDate(invoice.dueDate)} />
-              <DetailRow label="Status" value={invoice.status} />
+              <DetailRow label="Status" value={getInvoiceStatusLabel(invoice.status)} />
             </div>
           </section>
         </aside>

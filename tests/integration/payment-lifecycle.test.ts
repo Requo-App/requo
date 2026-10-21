@@ -69,7 +69,7 @@ function invoiceInput(totalInCents: number) {
 
 async function createSentInvoice(totalInCents = 50000) {
   const created = (await createInvoiceForBusiness(invoiceInput(totalInCents))) as { id: string };
-  await markInvoiceSentForBusiness({ businessId: ids.businessId, invoiceId: created.id, actorUserId: ids.ownerUserId });
+  await markInvoiceSentForBusiness({ businessId: ids.businessId, invoiceId: created.id, actorUserId: ids.ownerUserId, sendMethod: "manual" });
   return created.id;
 }
 
@@ -232,7 +232,7 @@ describe("manual payment lifecycle", () => {
       method: "cash",
     });
     expect(result).toEqual({
-      error: expect.stringContaining("remaining invoice balance"),
+      error: expect.stringContaining("invoice balance due"),
     });
   });
 
@@ -262,7 +262,7 @@ describe("manual payment lifecycle", () => {
     expect(onDraft).toEqual({ error: "Mark the invoice as sent before recording a payment." });
 
     const sentId = await createSentInvoice(5000);
-    await voidInvoiceForBusiness({ businessId: ids.businessId, invoiceId: sentId, actorUserId: ids.ownerUserId });
+    await voidInvoiceForBusiness({ businessId: ids.businessId, invoiceId: sentId, actorUserId: ids.ownerUserId, reason: "entered_by_mistake" });
     const onVoided = await recordPaymentForBusiness({
       businessId: ids.businessId,
       invoiceId: sentId,

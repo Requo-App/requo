@@ -477,8 +477,8 @@ export async function sendQuoteAction(
       const quotaAllowed = await checkDocumentSendQuota({
         businessId: businessContext.business.id,
         plan: businessContext.business.plan,
-        dailyKey: "requoQuoteEmailsPerDay",
-        monthlyKey: "requoQuoteEmailsPerMonth",
+        dailyKey: "requoDocumentEmailsPerDay",
+        monthlyKey: "requoDocumentEmailsPerMonth",
       });
 
       if (!quotaAllowed) {

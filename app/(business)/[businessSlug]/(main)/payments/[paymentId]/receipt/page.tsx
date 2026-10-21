@@ -118,7 +118,7 @@ async function ReceiptDetailRegion({ params }: PaymentReceiptPageProps) {
         </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <InfoTile
-            label="Remaining balance"
+            label="Balance due"
             value={<span className="font-semibold tabular-nums">{amount(payment.invoiceBalanceInCents)}</span>}
           />
         </div>

@@ -192,9 +192,9 @@ export const pricingComparison: PricingComparisonCategory[] = [
       { label: "AI quote drafting", free: aiDraftCell("free"), pro: aiDraftCell("pro"), business: aiDraftCell("business") },
       {
         label: "Requo email sends per month",
-        free: limitCell("free", "requoQuoteEmailsPerMonth"),
-        pro: limitCell("pro", "requoQuoteEmailsPerMonth"),
-        business: limitCell("business", "requoQuoteEmailsPerMonth"),
+        free: limitCell("free", "requoDocumentEmailsPerMonth"),
+        pro: limitCell("pro", "requoDocumentEmailsPerMonth"),
+        business: limitCell("business", "requoDocumentEmailsPerMonth"),
       },
       { label: "Automatic follow-ups", free: false, pro: true, business: true },
       {

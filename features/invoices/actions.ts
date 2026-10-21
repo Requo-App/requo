@@ -13,7 +13,7 @@ import {
 import { getBusinessInvoiceDetailCacheTags, getBusinessInvoiceListCacheTags, getBusinessOverviewCacheTags, uniqueCacheTags } from "@/lib/cache/business-tags";
 import { createInvoiceForBusiness, markInvoiceSentForBusiness, recordPaymentForBusiness, updateInvoiceDraftForBusiness, voidInvoiceForBusiness, voidPaymentForBusiness, bulkVoidInvoicesForBusiness } from "@/features/invoices/mutations";
 import { getInvoiceForBusiness } from "@/features/invoices/queries";
-import { invoiceSchema, paymentSchema, voidPaymentSchema } from "@/features/invoices/schemas";
+import { getInvoiceDraftSchema, invoiceSchema, paymentSchema, voidInvoiceSchema, voidPaymentSchema } from "@/features/invoices/schemas";
 import type { InvoiceActionState, InvoiceBulkActionState, PaymentActionState } from "@/features/invoices/types";
 import { sendPushInvoicePaidEvent, sendPushInvoiceSentEvent } from "@/lib/inngest/send";
 import { hasFeatureAccess } from "@/lib/plans/entitlements";
@@ -57,15 +57,25 @@ export async function createInvoiceAction(quoteId: string | null, _prev: Invoice
 export async function updateInvoiceDraftAction(invoiceId: string, _prev: InvoiceActionState, formData: FormData): Promise<InvoiceActionState> {
   const access = await getOperationalBusinessActionContext();
   if (!access.ok) return { error: access.error };
-  const parsed = invoiceSchema.safeParse({
-    title: text(formData, "title"), customerName: text(formData, "customerName"), customerEmail: text(formData, "customerEmail"), customerContactMethod: text(formData, "customerContactMethod") || "email", customerContactHandle: text(formData, "customerContactHandle"), issueDate: text(formData, "issueDate"), dueDate: text(formData, "dueDate"), discountInCents: text(formData, "discount"), taxInCents: text(formData, "tax"), taxLabel: text(formData, "taxLabel"), notes: text(formData, "notes"), paymentTerms: text(formData, "paymentTerms"), items: (() => { try { return JSON.parse(text(formData, "items")); } catch { return []; } })(),
-  });
-  if (!parsed.success) return getValidationActionState(parsed.error, "Check the highlighted fields and try again.");
+  const businessId = access.businessContext.business.id;
+
   try {
-    const result = await updateInvoiceDraftForBusiness({ ...parsed.data, invoiceId, businessId: access.businessContext.business.id, actorUserId: access.user.id });
+    const invoice = await getInvoiceForBusiness({ businessId, invoiceId });
+    if (!invoice) return { error: "Invoice not found." };
+
+    // A quote-linked invoice keeps the quote's line items and totals, so the
+    // server discards the submitted ones — validating them against each other
+    // would reject a legitimate edit of the customer-facing fields. The
+    // persisted invoice decides which rule applies, never the client.
+    const schema = getInvoiceDraftSchema(invoice);
+    const parsed = schema.safeParse({
+      title: text(formData, "title"), customerName: text(formData, "customerName"), customerEmail: text(formData, "customerEmail"), customerContactMethod: text(formData, "customerContactMethod") || "email", customerContactHandle: text(formData, "customerContactHandle"), issueDate: text(formData, "issueDate"), dueDate: text(formData, "dueDate"), discountInCents: text(formData, "discount"), taxInCents: text(formData, "tax"), taxLabel: text(formData, "taxLabel"), notes: text(formData, "notes"), paymentTerms: text(formData, "paymentTerms"), items: (() => { try { return JSON.parse(text(formData, "items")); } catch { return []; } })(),
+    });
+    if (!parsed.success) return getValidationActionState(parsed.error, "Check the highlighted fields and try again.");
+    const result = await updateInvoiceDraftForBusiness({ ...parsed.data, invoiceId, businessId, actorUserId: access.user.id });
     if (!result) return { error: "Invoice not found." };
     if ("error" in result) return { error: result.error };
-    invalidate(access.businessContext.business.id, invoiceId);
+    invalidate(businessId, invoiceId);
     return { success: "Invoice updated.", invoiceId, invoiceNumber: result.invoiceNumber };
   } catch (error) {
     return { error: getUserSafeErrorMessage(error, "Unable to update invoice. Please try again.") };
@@ -89,8 +99,8 @@ export async function sendInvoiceAction(invoiceId: string, _prev: InvoiceActionS
       const quotaAllowed = await checkDocumentSendQuota({
         businessId: access.businessContext.business.id,
         plan: access.businessContext.business.plan,
-        dailyKey: "requoQuoteEmailsPerDay",
-        monthlyKey: "requoQuoteEmailsPerMonth",
+        dailyKey: "requoDocumentEmailsPerDay",
+        monthlyKey: "requoDocumentEmailsPerMonth",
       });
       if (!quotaAllowed) {
         return { error: "You've reached this month's Requo email limit. You can still mark the invoice as sent after manual delivery." };
@@ -143,6 +153,7 @@ export async function sendInvoiceAction(invoiceId: string, _prev: InvoiceActionS
       businessId: access.businessContext.business.id,
       invoiceId,
       actorUserId: access.user.id,
+      sendMethod: deliveryMethod,
     });
     if (!result) return { error: "Invoice not found." };
     if (!result.changed) return { error: "Only draft invoices can be sent." };
@@ -171,7 +182,7 @@ export async function markInvoiceSentAction(invoiceId: string, _prev: InvoiceAct
   const access = await getOperationalBusinessActionContext();
   if (!access.ok) return { error: access.error };
   try {
-    const result = await markInvoiceSentForBusiness({ businessId: access.businessContext.business.id, invoiceId, actorUserId: access.user.id });
+    const result = await markInvoiceSentForBusiness({ businessId: access.businessContext.business.id, invoiceId, actorUserId: access.user.id, sendMethod: "manual" });
     if (!result) return { error: "Invoice not found." };
     invalidate(access.businessContext.business.id, invoiceId);
     return { success: result.changed ? "Invoice marked as sent." : "Invoice is already sent." };
@@ -203,7 +214,7 @@ export async function recordPaymentAction(invoiceId: string, _prev: PaymentActio
     invalidate(access.businessContext.business.id, invoiceId);
     return { success: "duplicate" in result && result.duplicate ? `Payment ${result.paymentNumber} already recorded.` : `Payment ${result.paymentNumber} recorded.` };
   } catch (error) {
-    return { error: getUserSafeErrorMessage(error, "This payment could not be recorded because the invoice balance has changed. Please review the remaining balance and try again.") };
+    return { error: getUserSafeErrorMessage(error, "This payment could not be recorded because the invoice balance has changed. Please review the balance due and try again.") };
   }
 }
 
@@ -227,11 +238,18 @@ export async function voidPaymentAction(paymentId: string, invoiceId: string, _p
 export async function voidInvoiceAction(invoiceId: string, _prev: InvoiceActionState, formData: FormData): Promise<InvoiceActionState> {
   const access = await getOperationalBusinessActionContext();
   if (!access.ok) return { error: access.error };
-  const result = await voidInvoiceForBusiness({ businessId: access.businessContext.business.id, invoiceId, actorUserId: access.user.id, reason: text(formData, "reason") });
-  if (!result) return { error: "Invoice not found." };
-  if ("error" in result) return { error: result.error };
-  invalidate(access.businessContext.business.id, invoiceId);
-  return { success: "Invoice voided." };
+  const parsed = voidInvoiceSchema.safeParse({ reason: text(formData, "reason"), reasonDetail: text(formData, "reasonDetail") });
+  if (!parsed.success) return getValidationActionState(parsed.error, "Choose a reason for voiding this invoice.");
+  const reason = parsed.data.reasonDetail ? `${parsed.data.reason}|${parsed.data.reasonDetail}` : parsed.data.reason;
+  try {
+    const result = await voidInvoiceForBusiness({ businessId: access.businessContext.business.id, invoiceId, actorUserId: access.user.id, reason });
+    if (!result) return { error: "Invoice not found." };
+    if ("error" in result) return { error: result.error };
+    invalidate(access.businessContext.business.id, invoiceId);
+    return { success: "Invoice voided." };
+  } catch (error) {
+    return { error: getUserSafeErrorMessage(error, "Unable to void invoice. Please try again.") };
+  }
 }
 
 // --- Bulk Action Server Actions ---
@@ -259,11 +277,25 @@ export async function bulkVoidInvoicesAction(
     return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
 
+  const parsedReason = voidInvoiceSchema.safeParse({
+    reason: text(formData, "reason"),
+    reasonDetail: text(formData, "reasonDetail"),
+  });
+
+  if (!parsedReason.success) {
+    return { error: "Choose a reason for voiding these invoices." };
+  }
+
+  const reason = parsedReason.data.reasonDetail
+    ? `${parsedReason.data.reason}|${parsedReason.data.reasonDetail}`
+    : parsedReason.data.reason;
+
   try {
     const result = await bulkVoidInvoicesForBusiness({
       businessId: access.businessContext.business.id,
       invoiceIds: parsed.data.invoiceIds,
       actorUserId: access.user.id,
+      reason,
     });
 
     invalidate(access.businessContext.business.id);

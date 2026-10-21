@@ -272,8 +272,8 @@ export async function executeSendQuote(
 
     if (deliveryMethod === "requo") {
       const [dailyAllowance, monthlyAllowance] = await Promise.all([
-        checkUsageAllowance(business.id, business.plan, "requoQuoteEmailsPerDay"),
-        checkUsageAllowance(business.id, business.plan, "requoQuoteEmailsPerMonth"),
+        checkUsageAllowance(business.id, business.plan, "requoDocumentEmailsPerDay"),
+        checkUsageAllowance(business.id, business.plan, "requoDocumentEmailsPerMonth"),
       ]);
 
       if (!dailyAllowance.allowed || !monthlyAllowance.allowed)

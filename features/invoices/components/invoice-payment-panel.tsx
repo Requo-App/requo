@@ -11,8 +11,8 @@ import { RecordPaymentDialog } from "@/features/invoices/components/record-payme
 import { VoidPaymentDialog } from "@/features/invoices/components/void-payment-dialog";
 import { voidPaymentAction } from "@/features/invoices/actions";
 import { getVoidReasonLabel } from "@/features/invoices/void-reasons";
-import { calculateInvoicePaymentState, formatQuoteMoney } from "@/features/invoices/utils";
-import type { InvoiceStatus, OptimisticPayment, PaymentActionState, PaymentMethod, PaymentView } from "@/features/invoices/types";
+import { calculateInvoicePaymentState, formatQuoteMoney, getPaymentMethodLabel } from "@/features/invoices/utils";
+import type { InvoiceStatus, OptimisticPayment, PaymentActionState, PaymentView } from "@/features/invoices/types";
 
 type PanelAction =
   | { type: "add"; payment: OptimisticPayment }
@@ -36,15 +36,6 @@ function panelReducer(state: OptimisticPayment[], action: PanelAction): Optimist
       );
   }
 }
-
-const paymentMethodLabels: Record<PaymentMethod, string> = {
-  cash: "Cash",
-  bank_transfer: "Bank transfer",
-  gcash: "GCash",
-  maya: "Maya",
-  check: "Check",
-  other: "Other",
-};
 
 export function InvoicePaymentPanel({
   businessSlug,
@@ -136,7 +127,7 @@ export function InvoicePaymentPanel({
                       )}
                     </TableCell>
                     <TableCell>{payment.paymentDate}</TableCell>
-                    <TableCell>{paymentMethodLabels[payment.method]}</TableCell>
+                    <TableCell>{getPaymentMethodLabel(payment.method)}</TableCell>
                     <TableCell className="text-right font-medium tabular-nums">
                       {amount(payment.amountInCents)}
                     </TableCell>
@@ -183,7 +174,7 @@ export function InvoicePaymentPanel({
                     </Link>{" "}
                   </>
                 )}
-                · {amount(payment.amountInCents)} · {paymentMethodLabels[payment.method]} · {payment.paymentDate} · voided
+                · {amount(payment.amountInCents)} · {getPaymentMethodLabel(payment.method)} · {payment.paymentDate} · voided
                 {payment.voidReason ? ` · ${getVoidReasonLabel(payment.voidReason)}` : null}
               </p>
             ))}

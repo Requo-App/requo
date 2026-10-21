@@ -2,9 +2,15 @@ import type { InvoiceStatus, PaymentMethod } from "@/lib/db/schema/invoices";
 
 export type { InvoiceStatus, PaymentMethod };
 
+/**
+ * Invoice filter vocabulary — the derived states an invoice can be shown in.
+ *
+ * The stored lifecycle value `sent` is deliberately absent: the effective
+ * status rewrites a sent invoice to `unpaid` once a payment or a due date
+ * applies, so filtering on `sent` would always return zero rows.
+ */
 export const invoiceStatuses = [
   "draft",
-  "sent",
   "unpaid",
   "partially_paid",
   "paid",
@@ -14,14 +20,8 @@ export const invoiceStatuses = [
 
 export const paymentMethods = ["cash", "bank_transfer", "gcash", "maya", "check", "other"] as const;
 
-export const voidReasonValues = [
-  "duplicate_entry",
-  "wrong_amount",
-  "wrong_invoice",
-  "not_received",
-  "entered_by_mistake",
-  "other",
-] as const;
+/** Single home for the void reason vocabulary — see `features/invoices/void-reasons.ts`. */
+export { voidReasonValues, type VoidReasonValue } from "@/features/invoices/void-reasons";
 
 export const invoiceStatusFilterValues = ["all", ...invoiceStatuses] as const;
 

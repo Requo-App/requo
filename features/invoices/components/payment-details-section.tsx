@@ -115,7 +115,7 @@ export function PaymentBalanceSection({
         <InfoTile label="Invoice total" value={<span className="tabular-nums">{amount(payment.invoiceTotalInCents)}</span>} />
         <InfoTile label="Amount paid" value={<span className="tabular-nums">{amount(payment.invoicePaidInCents)}</span>} />
         <InfoTile
-          label="Remaining balance"
+          label="Balance due"
           value={<span className="font-semibold tabular-nums">{amount(payment.invoiceBalanceInCents)}</span>}
         />
       </div>

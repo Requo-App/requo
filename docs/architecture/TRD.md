@@ -90,6 +90,17 @@ manually recorded and voided rather than edited/deleted; non-void entries
 determine invoice balances. See [`features/`](../../features/), the schema
 modules, and integration tests for exact lifecycle transitions.
 
+A quote-linked invoice keeps the quote's line items and totals: the server
+discards the submitted ones, so only the customer-facing fields and the date
+order are validated for it. The invoice status a filter matches is the derived
+effective status, not the stored lifecycle value, and the SQL expression and
+the TypeScript derivation are kept in lockstep so no filter option can be a
+permanent no-op. Voiding an invoice or a payment requires a reason, and a bulk
+void re-checks recorded payments under the same row lock the payment path
+uses, so a payment can never be stranded on a voided invoice. Requo-delivered
+quote and invoice emails share one allowance, and both send paths record the
+delivery method so the counter sees them.
+
 The server owns quote money. The editor submits the owner's raw discount and
 tax intent (value plus amount/percentage) and the server derives the amounts
 from the submitted line items; the persisted absolute amounts are re-read as

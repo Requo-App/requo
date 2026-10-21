@@ -1,16 +1,19 @@
 import { NextResponse } from "next/server";
 
 import { getInvoiceExportRowsForBusiness } from "@/features/invoices/queries";
-import type { InvoiceStatus } from "@/features/invoices/types";
+import { invoiceStatusFilterValues, type InvoiceStatusFilterValue } from "@/features/invoices/types";
 import { formatCentsForExport } from "@/lib/csv";
 import { buildListCsvResponse, requireExportContext } from "@/lib/api/exports";
 import { slugParamSchema } from "@/lib/api/params";
 import { z } from "zod";
 
+// Each field tolerates its own bad value, so one unusable parameter — a
+// bookmarked `status=sent` from before the filter vocabulary changed — does
+// not discard the rest of the query with it.
 const invoiceExportQuerySchema = z.object({
-  q: z.string().optional(),
-  status: z.enum(["all", "draft", "sent", "unpaid", "partially_paid", "paid", "overdue", "voided"]).optional(),
-  sort: z.enum(["newest", "oldest"]).optional(),
+  q: z.string().optional().catch(undefined),
+  status: z.enum(invoiceStatusFilterValues).optional().catch(undefined),
+  sort: z.enum(["newest", "oldest"]).optional().catch(undefined),
 });
 
 export async function GET(request: Request, context: { params: Promise<{ slug: string }> }) {
@@ -29,7 +32,7 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
     Object.fromEntries(searchParams.entries()),
   );
   const q = parsedQuery.success ? parsedQuery.data.q : undefined;
-  const status: "all" | InvoiceStatus =
+  const status: InvoiceStatusFilterValue =
     parsedQuery.success && parsedQuery.data.status
       ? parsedQuery.data.status
       : "all";

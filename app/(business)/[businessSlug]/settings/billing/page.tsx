@@ -6,7 +6,7 @@ import { BillingStatusCard } from "@/features/billing/components/billing-status-
 import { getBusinessBillingOverview } from "@/features/billing/queries";
 import {
   getMonthlyAutoFollowUpSendCount,
-  getMonthlyRequoQuoteSendCount,
+  getMonthlyRequoDocumentSendCount,
 } from "@/lib/plans/usage";
 import { getMonthlyUsageSummary } from "@/lib/ai/usage-limiter";
 import { createNoIndexMetadata } from "@/lib/seo/site";
@@ -42,10 +42,10 @@ async function BillingStatusSection() {
   if (!billingOverview) return null;
 
   const plan = billingOverview.currentPlan;
-  const [aiUsage, requoQuoteEmailsThisMonth, autoFollowUpEmailsThisMonth] =
+  const [aiUsage, requoDocumentEmailsThisMonth, autoFollowUpEmailsThisMonth] =
     await Promise.all([
       getMonthlyUsageSummary(businessId, plan),
-      getMonthlyRequoQuoteSendCount(businessId),
+      getMonthlyRequoDocumentSendCount(businessId),
       getMonthlyAutoFollowUpSendCount(businessId),
     ]);
 
@@ -54,7 +54,7 @@ async function BillingStatusSection() {
       billing={billingOverview}
       planUsage={{
         aiCredits: { used: aiUsage.used, limit: aiUsage.limit },
-        emailsSent: requoQuoteEmailsThisMonth,
+        emailsSent: requoDocumentEmailsThisMonth,
         autoFollowUpEmailsSent: autoFollowUpEmailsThisMonth,
       }}
     />
