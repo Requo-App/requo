@@ -189,6 +189,17 @@ Additional scheduled tasks are exposed as Vercel Cron routes in
 assume every scheduled job uses the same scheduler. Check registrations and
 provider dashboards for operational state.
 
+Unattended customer emails are a paid capability. Both automatic follow-up
+paths — the quote sequence in
+[`features/quotes/jobs/auto-follow-ups.ts`](../../features/quotes/jobs/auto-follow-ups.ts)
+and the follow-up send mode in
+[`features/follow-ups/jobs/auto-send.ts`](../../features/follow-ups/jobs/auto-send.ts)
+— require the `autoFollowUps` plan entitlement and draw on the shared
+`autoFollowUpEmailsPerDay` / `autoFollowUpEmailsPerMonth` allowance, counted
+from `quote.auto_follow_up_sent` and `follow_up.auto_sent` activity rows. The
+entitlement is re-checked at send time, so a downgrade pauses the sequence
+instead of leaking sends.
+
 ## AI and model integrations
 
 There are two chat products: the anonymous customer-facing Agent in
@@ -232,6 +243,20 @@ are voided rather than edited or deleted. See
 [`lib/db/schema/`](../../lib/db/schema/),
 [`features/invoices/`](../../features/invoices/), and related integration
 tests for exact behavior.
+
+Follow-up due dates are instants anchored at 9 AM in the owning business's
+IANA timezone, and every read of a due date — day buckets, list filters, the
+board, the pickers, the jobs — resolves the calendar day in that same
+timezone. A recurring follow-up advances by calendar days at the same local
+wall clock, so a weekly series stays at 9 AM across a DST change instead of
+drifting an hour. A follow-up row is also the lock for its own lifecycle: the
+interactive transitions in
+[`features/follow-ups/mutations.ts`](../../features/follow-ups/mutations.ts)
+select the row `FOR UPDATE` and write only while it is still `pending`, so a
+double submit or a race with the auto-send job cannot both clear the task or
+both spawn the next occurrence of a recurring series. The next occurrence is
+created by the same helper whichever path cleared the current one — the owner
+completing it, a bulk completion, or the automatic send.
 
 ## Caching, client state, and observability
 
