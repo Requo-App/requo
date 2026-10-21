@@ -525,7 +525,7 @@ export async function updateBusinessEmailTemplateSettingsAction(
 }
 
 export async function updateBusinessInquiryPageAction(
-  _formSlug: string,
+  formSlug: string,
   _prevState: BusinessInquiryPageActionState,
   formData: FormData,
 ): Promise<BusinessInquiryPageActionState> {
@@ -540,7 +540,6 @@ export async function updateBusinessInquiryPageAction(
   const { user, businessContext } = ownerAccess;
 
   const validationResult = businessInquiryPageSettingsSchema.safeParse({
-    formId: formData.get("formId"),
     name: formData.get("name"),
     slug: formData.get("slug"),
     businessType: formData.get("businessType"),
@@ -578,10 +577,13 @@ export async function updateBusinessInquiryPageAction(
     );
   }
 
+  let nextEditorPath: string | null = null;
+
   try {
     const result = await updateBusinessInquiryPageSettings({
       businessId: businessContext.business.id,
       actorUserId: user.id,
+      formSlug,
       values: validationResult.data,
     });
 
@@ -598,6 +600,12 @@ export async function updateBusinessInquiryPageAction(
       if (result.reason === "live-form-limit") {
         return {
           error: getLiveFormLimitMessage(businessContext.business.plan),
+        };
+      }
+
+      if (result.reason === "invalid-target") {
+        return {
+          error: "The default service must stay published.",
         };
       }
 
@@ -630,17 +638,11 @@ export async function updateBusinessInquiryPageAction(
       revalidateBusinessInquiryFormPaths(result.nextSlug, result.previousFormSlug);
       revalidateBusinessDefaultInquiryPaths(result.nextSlug);
 
-      redirect(
-        `${getBusinessServicePath(
-          result.nextSlug,
-          result.nextFormSlug,
-        )}?section=page`,
-      );
+      nextEditorPath = `${getBusinessServicePath(
+        result.nextSlug,
+        result.nextFormSlug,
+      )}?section=page`;
     }
-
-    return {
-      success: "Service page saved.",
-    };
   } catch (error) {
     console.error("Failed to update business inquiry page settings.", error);
 
@@ -648,10 +650,18 @@ export async function updateBusinessInquiryPageAction(
       error: "We couldn't save the service page right now.",
     };
   }
+
+  if (nextEditorPath) {
+    redirect(nextEditorPath);
+  }
+
+  return {
+    success: "Service page saved.",
+  };
 }
 
 export async function updateBusinessInquiryFormAction(
-  _formSlug: string,
+  formSlug: string,
   _prevState: BusinessInquiryFormActionState,
   formData: FormData,
 ): Promise<BusinessInquiryFormActionState> {
@@ -666,7 +676,6 @@ export async function updateBusinessInquiryFormAction(
   const { user, businessContext } = ownerAccess;
 
   const validationResult = businessInquiryFormSettingsSchema.safeParse({
-    formId: formData.get("formId"),
     businessType: formData.get("businessType"),
     inquiryFormConfig: formData.get("inquiryFormConfig"),
   });
@@ -684,6 +693,7 @@ export async function updateBusinessInquiryFormAction(
     const result = await updateBusinessInquiryFormSettings({
       businessId: businessContext.business.id,
       actorUserId: user.id,
+      formSlug,
       values: validationResult.data,
     });
 
@@ -755,7 +765,6 @@ export async function applyBusinessInquiryFormPresetAction(
   const { user, businessContext } = ownerAccess;
 
   const validationResult = businessInquiryFormPresetSchema.safeParse({
-    formId: formData.get("formId"),
     businessType: formData.get("businessType"),
   });
 
@@ -770,6 +779,7 @@ export async function applyBusinessInquiryFormPresetAction(
     const result = await applyBusinessInquiryFormPreset({
       businessId: businessContext.business.id,
       actorUserId: user.id,
+      formSlug,
       values: validationResult.data,
     });
 
@@ -859,6 +869,7 @@ export async function createBusinessInquiryFormAction(
     );
     after(() => {
       revalidateBusinessInquiryFormPaths(result.businessSlug, result.formSlug);
+      revalidateBusinessDefaultInquiryPaths(result.businessSlug);
     });
     editorPath = getBusinessServicePath(
       result.businessSlug,
@@ -912,12 +923,6 @@ export async function duplicateBusinessInquiryFormAction(
     });
 
     if (!result.ok) {
-      if (result.reason === "invalid-target") {
-        return {
-          error: "Default forms must stay published.",
-        };
-      }
-
       if (result.reason === "live-form-limit") {
         return {
           error: getLiveFormLimitMessage(businessContext.business.plan),
@@ -940,6 +945,7 @@ export async function duplicateBusinessInquiryFormAction(
     );
     after(() => {
       revalidateBusinessInquiryFormPaths(result.businessSlug, result.formSlug);
+      revalidateBusinessDefaultInquiryPaths(result.businessSlug);
     });
     editorPath = getBusinessServicePath(
       result.businessSlug,
@@ -991,6 +997,12 @@ export async function setDefaultBusinessInquiryFormAction(
     });
 
     if (!result.ok) {
+      if (result.reason === "invalid-target") {
+        return {
+          error: "Publish the service before making it the default.",
+        };
+      }
+
       return {
         error: "That service could not be found.",
       };
@@ -1079,6 +1091,7 @@ export async function archiveBusinessInquiryFormAction(
     );
     after(() => {
       revalidateBusinessInquiryFormPaths(result.businessSlug, result.formSlug);
+      revalidateBusinessDefaultInquiryPaths(result.businessSlug);
     });
 
     return {
@@ -1152,6 +1165,7 @@ export async function archiveBusinessInquiryFormFromDetailAction(
     );
     after(() => {
       revalidateBusinessInquiryFormPaths(result.businessSlug, result.formSlug);
+      revalidateBusinessDefaultInquiryPaths(result.businessSlug);
     });
 
     return {
@@ -1207,6 +1221,20 @@ export async function deleteBusinessInquiryFormAction(
         };
       }
 
+      if (result.reason === "has-analytics") {
+        return {
+          error:
+            "This service still has page-view analytics. Archive the service instead to keep its history.",
+        };
+      }
+
+      if (result.reason === "last-active") {
+        return {
+          error:
+            "This is the last active service. Create another service before deleting this one.",
+        };
+      }
+
       return {
         error: "That service could not be found.",
       };
@@ -1223,15 +1251,8 @@ export async function deleteBusinessInquiryFormAction(
     );
     after(() => {
       revalidateBusinessInquiryFormPaths(result.businessSlug, result.formSlug);
+      revalidateBusinessDefaultInquiryPaths(result.businessSlug);
     });
-
-    if (redirectHref) {
-      redirect(redirectHref);
-    }
-
-    return {
-      success: "Service deleted.",
-    };
   } catch (error) {
     console.error("Failed to delete inquiry form.", error);
 
@@ -1239,6 +1260,14 @@ export async function deleteBusinessInquiryFormAction(
       error: "We couldn't delete the service right now.",
     };
   }
+
+  if (redirectHref) {
+    redirect(redirectHref);
+  }
+
+  return {
+    success: "Service deleted.",
+  };
 }
 
 export async function toggleBusinessInquiryFormPublicAction(
@@ -1363,6 +1392,7 @@ export async function unarchiveBusinessInquiryFormAction(
     );
     after(() => {
       revalidateBusinessInquiryFormPaths(result.businessSlug, result.formSlug);
+      revalidateBusinessDefaultInquiryPaths(result.businessSlug);
     });
 
     return {

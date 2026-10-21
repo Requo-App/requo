@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, count, eq, isNull, ne } from "drizzle-orm";
+import { and, asc, eq, isNull, ne } from "drizzle-orm";
 
 import {
   normalizeBusinessType,
@@ -34,17 +34,23 @@ import {
   businessLogoBucket,
   businessLogoExtensionToMimeType,
 } from "@/features/settings/utils";
+import {
+  hasLiveServiceSlot,
+  isUniqueViolation,
+  lockServiceLimitEnforcement,
+  resolveServicePlan,
+} from "@/features/settings/service-limits";
+import { resolveInquiryFormConfigForPlan } from "@/features/inquiries/plan-rules";
 import { db } from "@/lib/db/client";
 import {
   activityLogs,
+  analyticsEvents,
   inquiries,
   businessInquiryForms,
   businesses,
 } from "@/lib/db/schema";
 import { appendRandomSlugSuffix } from "@/lib/slugs";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import type { BusinessPlan } from "@/lib/plans/plans";
-import { getUsageLimit } from "@/lib/plans/usage-limits";
 import { newEntityId, prefixedId } from "@/lib/ids";
 
 type UpdateBusinessGeneralSettingsInput = {
@@ -87,18 +93,24 @@ type DeleteBusinessInput = {
 type UpdateBusinessInquiryPageInput = {
   businessId: string;
   actorUserId: string;
+  /** The service slug the action was bound to — the lookup key. */
+  formSlug: string;
   values: BusinessInquiryPageSettingsInput;
 };
 
 type UpdateBusinessInquiryFormInput = {
   businessId: string;
   actorUserId: string;
+  /** The service slug the action was bound to — the lookup key. */
+  formSlug: string;
   values: BusinessInquiryFormSettingsInput;
 };
 
 type ApplyBusinessInquiryFormPresetInput = {
   businessId: string;
   actorUserId: string;
+  /** The service slug the action was bound to — the lookup key. */
+  formSlug: string;
   values: BusinessInquiryFormPresetInput;
 };
 
@@ -146,7 +158,14 @@ type UpdateBusinessInquiryPageSettingsResult =
       previousFormSlug: string;
       nextFormSlug: string;
     }
-  | { ok: false; reason: "not-found" | "slug-taken" | "live-form-limit" };
+  | {
+      ok: false;
+      reason:
+        | "not-found"
+        | "slug-taken"
+        | "live-form-limit"
+        | "invalid-target";
+    };
 
 type BusinessInquiryFormMutationResult =
   | { ok: true; businessSlug: string; formSlug: string }
@@ -157,54 +176,16 @@ type BusinessInquiryFormMutationResult =
         | "invalid-target"
         | "last-active"
         | "has-inquiries"
+        | "has-analytics"
         | "live-form-limit";
     };
 
 /**
- * Returns the number of live (non-archived, public-enabled) inquiry forms,
- * optionally excluding one form (the one being published/edited).
+ * Picks a slug that is free within the business. The lookup is a best-effort
+ * reservation only — the `(business_id, slug)` unique index is the real
+ * guarantee, so callers must retry with a fresh candidate on a unique
+ * violation.
  */
-async function getLiveFormCount(
-  businessId: string,
-  excludeFormId?: string,
-): Promise<number> {
-  const [row] = await db
-    .select({ value: count() })
-    .from(businessInquiryForms)
-    .where(
-      and(
-        eq(businessInquiryForms.businessId, businessId),
-        eq(businessInquiryForms.publicInquiryEnabled, true),
-        isNull(businessInquiryForms.archivedAt),
-        excludeFormId
-          ? ne(businessInquiryForms.id, excludeFormId)
-          : undefined,
-      ),
-    );
-
-  return Number(row?.value ?? 0);
-}
-
-/**
- * Returns `true` when the business still has a free live-form slot for the
- * given plan, accounting for the form that is being published/edited.
- */
-async function hasLiveFormSlot(
-  businessId: string,
-  plan: BusinessPlan,
-  excludeFormId?: string,
-): Promise<boolean> {
-  const limit = getUsageLimit(plan, "liveFormsPerBusiness");
-
-  if (limit === null) {
-    return true;
-  }
-
-  const current = await getLiveFormCount(businessId, excludeFormId);
-
-  return current < limit;
-}
-
 async function getAvailableBusinessInquiryFormSlug({
   businessId,
   baseSlug,
@@ -779,6 +760,7 @@ export async function deleteBusiness({
 export async function updateBusinessInquiryPageSettings({
   businessId,
   actorUserId,
+  formSlug,
   values,
 }: UpdateBusinessInquiryPageInput): Promise<UpdateBusinessInquiryPageSettingsResult> {
   const [currentBusiness, currentForm] = await Promise.all([
@@ -788,7 +770,6 @@ export async function updateBusinessInquiryPageSettings({
         slug: businesses.slug,
         name: businesses.name,
         shortDescription: businesses.shortDescription,
-        plan: businesses.plan,
       })
       .from(businesses)
       .where(eq(businesses.id, businessId))
@@ -797,6 +778,7 @@ export async function updateBusinessInquiryPageSettings({
       .select({
         id: businessInquiryForms.id,
         slug: businessInquiryForms.slug,
+        isDefault: businessInquiryForms.isDefault,
         inquiryFormConfig: businessInquiryForms.inquiryFormConfig,
         inquiryPageConfig: businessInquiryForms.inquiryPageConfig,
       })
@@ -804,7 +786,7 @@ export async function updateBusinessInquiryPageSettings({
       .where(
         and(
           eq(businessInquiryForms.businessId, businessId),
-          eq(businessInquiryForms.id, values.formId),
+          eq(businessInquiryForms.slug, formSlug),
           isNull(businessInquiryForms.archivedAt),
         ),
       )
@@ -821,13 +803,12 @@ export async function updateBusinessInquiryPageSettings({
     };
   }
 
-  if (
-    values.publicInquiryEnabled &&
-    !(await hasLiveFormSlot(businessId, business.plan, values.formId))
-  ) {
+  // The business default backs the shared `/inquire/<business>` URL. It has to
+  // stay published, otherwise the business loses its public inquiry page.
+  if (!values.publicInquiryEnabled && form.isDefault) {
     return {
       ok: false,
-      reason: "live-form-limit",
+      reason: "invalid-target",
     };
   }
 
@@ -839,7 +820,7 @@ export async function updateBusinessInquiryPageSettings({
         and(
           eq(businessInquiryForms.businessId, businessId),
           eq(businessInquiryForms.slug, values.slug),
-          ne(businessInquiryForms.id, values.formId),
+          ne(businessInquiryForms.id, form.id),
         ),
       )
       .limit(1);
@@ -903,49 +884,82 @@ export async function updateBusinessInquiryPageSettings({
     },
   );
 
-  await db.transaction(async (tx) => {
-    await tx
-      .update(businessInquiryForms)
-      .set({
-        name: values.name,
-        slug: values.slug,
-        businessType: values.businessType,
-        publicInquiryEnabled: values.publicInquiryEnabled,
-        inquiryFormConfig,
-        inquiryPageConfig,
-        updatedAt: now,
-      })
-      .where(
-        and(
-          eq(businessInquiryForms.businessId, businessId),
-          eq(businessInquiryForms.id, values.formId),
-        ),
-      );
+  const plan = await resolveServicePlan(businessId);
+  let limitExceeded = false;
 
-    await tx.insert(activityLogs).values({
-      id: newEntityId(),
-      businessId,
-      actorUserId,
-      type: "business.inquiry_form_page_updated",
-      summary: `Inquiry page updated for ${values.slug}.`,
-      metadata: {
-        inquiryFormId: values.formId,
-        inquiryFormSlug: values.slug,
-        previousInquiryFormSlug: form.slug,
-        businessType: values.businessType,
-        publicInquiryEnabled: values.publicInquiryEnabled,
-        template: values.template,
-        showSupportingCards: values.showSupportingCards,
-        showShowcaseImage: values.showShowcaseImage,
-        showBusinessContact: values.showBusinessContact,
-        cardCount: values.cards.length,
-        hasBusinessContact: Boolean(businessContact),
-        hasShowcaseImage: Boolean(values.showcaseImageUrl),
-      },
-      createdAt: now,
-      updatedAt: now,
+  try {
+    await db.transaction(async (tx) => {
+      await lockServiceLimitEnforcement(tx, businessId);
+
+      if (
+        values.publicInquiryEnabled &&
+        !(await hasLiveServiceSlot(tx, businessId, plan, form.id))
+      ) {
+        limitExceeded = true;
+        return;
+      }
+
+      await tx
+        .update(businessInquiryForms)
+        .set({
+          name: values.name,
+          slug: values.slug,
+          businessType: values.businessType,
+          publicInquiryEnabled: values.publicInquiryEnabled,
+          inquiryFormConfig,
+          inquiryPageConfig,
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(businessInquiryForms.businessId, businessId),
+            eq(businessInquiryForms.id, form.id),
+          ),
+        );
+
+      await tx.insert(activityLogs).values({
+        id: newEntityId(),
+        businessId,
+        actorUserId,
+        type: "business.inquiry_form_page_updated",
+        summary: `Inquiry page updated for ${values.slug}.`,
+        metadata: {
+          inquiryFormId: form.id,
+          inquiryFormSlug: values.slug,
+          previousInquiryFormSlug: form.slug,
+          businessType: values.businessType,
+          publicInquiryEnabled: values.publicInquiryEnabled,
+          template: values.template,
+          showSupportingCards: values.showSupportingCards,
+          showShowcaseImage: values.showShowcaseImage,
+          showBusinessContact: values.showBusinessContact,
+          cardCount: values.cards.length,
+          hasBusinessContact: Boolean(businessContact),
+          hasShowcaseImage: Boolean(values.showcaseImageUrl),
+        },
+        createdAt: now,
+        updatedAt: now,
+      });
     });
-  });
+  } catch (error) {
+    // A concurrent rename can claim the slug between the pre-check and the
+    // write; the unique index is the real arbiter.
+    if (isUniqueViolation(error)) {
+      return {
+        ok: false,
+        reason: "slug-taken",
+      };
+    }
+
+    throw error;
+  }
+
+  if (limitExceeded) {
+    return {
+      ok: false,
+      reason: "live-form-limit",
+    };
+  }
 
   return {
     ok: true,
@@ -959,6 +973,7 @@ export async function updateBusinessInquiryPageSettings({
 export async function updateBusinessInquiryFormSettings({
   businessId,
   actorUserId,
+  formSlug,
   values,
 }: UpdateBusinessInquiryFormInput): Promise<UpdateBusinessInquiryFormSettingsResult> {
   const [currentBusiness, currentForm] = await Promise.all([
@@ -980,7 +995,7 @@ export async function updateBusinessInquiryFormSettings({
       .where(
         and(
           eq(businessInquiryForms.businessId, businessId),
-          eq(businessInquiryForms.id, values.formId),
+          eq(businessInquiryForms.slug, formSlug),
           isNull(businessInquiryForms.archivedAt),
         ),
       )
@@ -998,12 +1013,23 @@ export async function updateBusinessInquiryFormSettings({
   }
 
   const now = new Date();
-  const inquiryFormConfig = getNormalizedInquiryFormConfig(
+  const plan = await resolveServicePlan(businessId);
+  const normalizedInquiryFormConfig = getNormalizedInquiryFormConfig(
     values.inquiryFormConfig,
     {
       businessType: normalizeBusinessType(form.businessType),
     },
   );
+  // Apply the plan's custom-field allowance at write time so a crafted
+  // request cannot persist fields the plan does not include. The render path
+  // applies the same rule, so stored and rendered state stay in sync.
+  const inquiryFormConfig = resolveInquiryFormConfigForPlan(
+    normalizedInquiryFormConfig,
+    plan,
+  );
+  const droppedCustomFieldCount =
+    normalizedInquiryFormConfig.projectFields.length -
+    inquiryFormConfig.projectFields.length;
 
   await db.transaction(async (tx) => {
     await tx
@@ -1015,7 +1041,7 @@ export async function updateBusinessInquiryFormSettings({
       .where(
         and(
           eq(businessInquiryForms.businessId, businessId),
-          eq(businessInquiryForms.id, values.formId),
+          eq(businessInquiryForms.id, form.id),
         ),
       );
 
@@ -1026,10 +1052,11 @@ export async function updateBusinessInquiryFormSettings({
       type: "business.inquiry_form_updated",
       summary: `Inquiry form updated for ${form.slug}.`,
       metadata: {
-        inquiryFormId: values.formId,
+        inquiryFormId: form.id,
         inquiryFormSlug: form.slug,
         businessType: normalizeBusinessType(form.businessType),
         projectFieldCount: inquiryFormConfig.projectFields.length,
+        droppedCustomFieldCount,
       },
       createdAt: now,
       updatedAt: now,
@@ -1048,6 +1075,7 @@ export async function updateBusinessInquiryFormSettings({
 export async function applyBusinessInquiryFormPreset({
   businessId,
   actorUserId,
+  formSlug,
   values,
 }: ApplyBusinessInquiryFormPresetInput): Promise<UpdateBusinessSettingsResult> {
   const [currentBusiness, currentForm] = await Promise.all([
@@ -1073,7 +1101,7 @@ export async function applyBusinessInquiryFormPreset({
       .where(
         and(
           eq(businessInquiryForms.businessId, businessId),
-          eq(businessInquiryForms.id, values.formId),
+          eq(businessInquiryForms.slug, formSlug),
           isNull(businessInquiryForms.archivedAt),
         ),
       )
@@ -1115,7 +1143,7 @@ export async function applyBusinessInquiryFormPreset({
       .where(
         and(
           eq(businessInquiryForms.businessId, businessId),
-          eq(businessInquiryForms.id, values.formId),
+          eq(businessInquiryForms.id, form.id),
         ),
       );
 
@@ -1126,7 +1154,7 @@ export async function applyBusinessInquiryFormPreset({
       type: "business.inquiry_form_preset_applied",
       summary: `Inquiry preset applied to ${form.slug}.`,
       metadata: {
-        inquiryFormId: values.formId,
+        inquiryFormId: form.id,
         inquiryFormSlug: form.slug,
         businessType: values.businessType,
       },
@@ -1153,7 +1181,6 @@ export async function createBusinessInquiryForm({
       slug: businesses.slug,
       name: businesses.name,
       shortDescription: businesses.shortDescription,
-      plan: businesses.plan,
     })
     .from(businesses)
     .where(eq(businesses.id, businessId))
@@ -1166,13 +1193,6 @@ export async function createBusinessInquiryForm({
     };
   }
 
-  if (!(await hasLiveFormSlot(businessId, business.plan))) {
-    return {
-      ok: false,
-      reason: "live-form-limit",
-    };
-  }
-
   const now = new Date();
   const formId = newEntityId();
   const formSeed = createInquiryFormSeedValues({
@@ -1181,41 +1201,81 @@ export async function createBusinessInquiryForm({
     businessName: business.name,
     businessShortDescription: business.shortDescription,
   });
-  const formSlug = await getAvailableBusinessInquiryFormSlug({
-    businessId,
-    baseSlug: values.name,
-  });
+  const plan = await resolveServicePlan(businessId);
+  let limitExceeded = false;
+  let formSlug = "";
 
-  await db.transaction(async (tx) => {
-    await tx.insert(businessInquiryForms).values({
-      id: formId,
+  // The slug lookup is a best-effort reservation; the unique index is the
+  // arbiter, so a lost race retries with a fresh candidate.
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const candidateSlug = await getAvailableBusinessInquiryFormSlug({
       businessId,
-      name: formSeed.name,
-      slug: formSlug,
-      businessType: formSeed.businessType,
-      isDefault: false,
-      publicInquiryEnabled: formSeed.publicInquiryEnabled,
-      inquiryFormConfig: formSeed.inquiryFormConfig,
-      inquiryPageConfig: formSeed.inquiryPageConfig,
-      createdAt: now,
-      updatedAt: now,
+      baseSlug: values.name,
     });
 
-    await tx.insert(activityLogs).values({
-      id: newEntityId(),
-      businessId,
-      actorUserId,
-      type: "business.inquiry_form_created",
-      summary: `Inquiry form created: ${formSeed.name}.`,
-      metadata: {
-        inquiryFormId: formId,
-        inquiryFormSlug: formSlug,
-        businessType: formSeed.businessType,
-      },
-      createdAt: now,
-      updatedAt: now,
-    });
-  });
+    try {
+      await db.transaction(async (tx) => {
+        await lockServiceLimitEnforcement(tx, businessId);
+
+        if (!(await hasLiveServiceSlot(tx, businessId, plan))) {
+          limitExceeded = true;
+          return;
+        }
+
+        await tx.insert(businessInquiryForms).values({
+          id: formId,
+          businessId,
+          name: formSeed.name,
+          slug: candidateSlug,
+          businessType: formSeed.businessType,
+          isDefault: false,
+          publicInquiryEnabled: formSeed.publicInquiryEnabled,
+          inquiryFormConfig: formSeed.inquiryFormConfig,
+          inquiryPageConfig: formSeed.inquiryPageConfig,
+          createdAt: now,
+          updatedAt: now,
+        });
+
+        await tx.insert(activityLogs).values({
+          id: newEntityId(),
+          businessId,
+          actorUserId,
+          type: "business.inquiry_form_created",
+          summary: `Inquiry form created: ${formSeed.name}.`,
+          metadata: {
+            inquiryFormId: formId,
+            inquiryFormSlug: candidateSlug,
+            businessType: formSeed.businessType,
+          },
+          createdAt: now,
+          updatedAt: now,
+        });
+      });
+
+      formSlug = candidateSlug;
+      break;
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        continue;
+      }
+
+      throw error;
+    }
+  }
+
+  if (limitExceeded) {
+    return {
+      ok: false,
+      reason: "live-form-limit",
+    };
+  }
+
+  if (!formSlug) {
+    return {
+      ok: false,
+      reason: "not-found",
+    };
+  }
 
   return {
     ok: true,
@@ -1269,16 +1329,6 @@ export async function duplicateBusinessInquiryForm({
     };
   }
 
-  if (
-    sourceForm.publicInquiryEnabled &&
-    !(await hasLiveFormSlot(businessId, business.plan, targetFormId))
-  ) {
-    return {
-      ok: false,
-      reason: "live-form-limit",
-    };
-  }
-
   const now = new Date();
   const nextName = createDuplicateInquiryFormName(sourceForm.name);
   const formId = newEntityId();
@@ -1289,44 +1339,85 @@ export async function duplicateBusinessInquiryForm({
       businessType: sourceFormBusinessType,
     },
   );
-  const formSlug = await getAvailableBusinessInquiryFormSlug({
-    businessId,
-    baseSlug: nextName,
-  });
+  const plan = await resolveServicePlan(businessId);
+  let limitExceeded = false;
+  let formSlug = "";
 
-  await db.transaction(async (tx) => {
-    await tx.insert(businessInquiryForms).values({
-      id: formId,
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const candidateSlug = await getAvailableBusinessInquiryFormSlug({
       businessId,
-      name: nextName,
-      slug: formSlug,
-      businessType: sourceFormBusinessType,
-      isDefault: false,
-      publicInquiryEnabled: sourceForm.publicInquiryEnabled,
-      inquiryFormConfig: sourceInquiryFormConfig,
-      inquiryPageConfig: {
-        ...sourceForm.inquiryPageConfig,
-        formTitle: nextName,
-      },
-      createdAt: now,
-      updatedAt: now,
+      baseSlug: nextName,
     });
 
-    await tx.insert(activityLogs).values({
-      id: newEntityId(),
-      businessId,
-      actorUserId,
-      type: "business.inquiry_form_duplicated",
-      summary: `Inquiry form duplicated: ${nextName}.`,
-      metadata: {
-        inquiryFormId: formId,
-        inquiryFormSlug: formSlug,
-        sourceInquiryFormId: targetFormId,
-      },
-      createdAt: now,
-      updatedAt: now,
-    });
-  });
+    try {
+      await db.transaction(async (tx) => {
+        await lockServiceLimitEnforcement(tx, businessId);
+
+        if (
+          sourceForm.publicInquiryEnabled &&
+          !(await hasLiveServiceSlot(tx, businessId, plan, targetFormId))
+        ) {
+          limitExceeded = true;
+          return;
+        }
+
+        await tx.insert(businessInquiryForms).values({
+          id: formId,
+          businessId,
+          name: nextName,
+          slug: candidateSlug,
+          businessType: sourceFormBusinessType,
+          isDefault: false,
+          publicInquiryEnabled: sourceForm.publicInquiryEnabled,
+          inquiryFormConfig: sourceInquiryFormConfig,
+          inquiryPageConfig: {
+            ...sourceForm.inquiryPageConfig,
+            formTitle: nextName,
+          },
+          createdAt: now,
+          updatedAt: now,
+        });
+
+        await tx.insert(activityLogs).values({
+          id: newEntityId(),
+          businessId,
+          actorUserId,
+          type: "business.inquiry_form_duplicated",
+          summary: `Inquiry form duplicated: ${nextName}.`,
+          metadata: {
+            inquiryFormId: formId,
+            inquiryFormSlug: candidateSlug,
+            sourceInquiryFormId: targetFormId,
+          },
+          createdAt: now,
+          updatedAt: now,
+        });
+      });
+
+      formSlug = candidateSlug;
+      break;
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        continue;
+      }
+
+      throw error;
+    }
+  }
+
+  if (limitExceeded) {
+    return {
+      ok: false,
+      reason: "live-form-limit",
+    };
+  }
+
+  if (!formSlug) {
+    return {
+      ok: false,
+      reason: "not-found",
+    };
+  }
 
   return {
     ok: true,
@@ -1353,6 +1444,7 @@ export async function setDefaultBusinessInquiryForm({
       .select({
         id: businessInquiryForms.id,
         slug: businessInquiryForms.slug,
+        publicInquiryEnabled: businessInquiryForms.publicInquiryEnabled,
       })
       .from(businessInquiryForms)
       .where(
@@ -1372,6 +1464,15 @@ export async function setDefaultBusinessInquiryForm({
     return {
       ok: false,
       reason: "not-found",
+    };
+  }
+
+  // The default service backs the shared `/inquire/<business>` URL, so it has
+  // to be published.
+  if (!targetForm.publicInquiryEnabled) {
+    return {
+      ok: false,
+      reason: "invalid-target",
     };
   }
 
@@ -1531,7 +1632,7 @@ export async function deleteBusinessInquiryForm({
   actorUserId,
   targetFormId,
 }: TargetBusinessInquiryFormInput): Promise<BusinessInquiryFormMutationResult> {
-  const [businessRows, targetFormRows] = await Promise.all([
+  const [businessRows, targetFormRows, activeFormRows] = await Promise.all([
     db
       .select({
         id: businesses.id,
@@ -1551,10 +1652,18 @@ export async function deleteBusinessInquiryForm({
         and(
           eq(businessInquiryForms.businessId, businessId),
           eq(businessInquiryForms.id, targetFormId),
-          isNull(businessInquiryForms.archivedAt),
         ),
       )
       .limit(1),
+    db
+      .select({ id: businessInquiryForms.id })
+      .from(businessInquiryForms)
+      .where(
+        and(
+          eq(businessInquiryForms.businessId, businessId),
+          isNull(businessInquiryForms.archivedAt),
+        ),
+      ),
   ]);
 
   const business = businessRows[0];
@@ -1564,6 +1673,15 @@ export async function deleteBusinessInquiryForm({
     return {
       ok: false,
       reason: "not-found",
+    };
+  }
+
+  // The business always needs one active service — it backs the shared
+  // `/inquire/<business>` URL and the "public inquiry" indicator.
+  if (activeFormRows.length <= 1) {
+    return {
+      ok: false,
+      reason: "last-active",
     };
   }
 
@@ -1581,11 +1699,40 @@ export async function deleteBusinessInquiryForm({
     };
   }
 
+  // The analytics foreign key is `ON DELETE SET NULL`, so deleting a service
+  // that collected page views would silently drop that history from the
+  // per-service report. Archive it instead.
+  const [linkedAnalyticsEvent] = await db
+    .select({ id: analyticsEvents.id })
+    .from(analyticsEvents)
+    .where(eq(analyticsEvents.businessInquiryFormId, targetFormId))
+    .limit(1);
+
+  if (linkedAnalyticsEvent) {
+    return {
+      ok: false,
+      reason: "has-analytics",
+    };
+  }
+
   const now = new Date();
 
   await db.transaction(async (tx) => {
-    // If deleting the default form, promote another active form to default.
+    // If deleting the default form, promote another published active form to
+    // default so the shared public URL keeps resolving.
     if (targetForm.isDefault) {
+      // Clear the outgoing default first: the database enforces at most one
+      // default per business, so the two updates cannot overlap.
+      await tx
+        .update(businessInquiryForms)
+        .set({ isDefault: false, updatedAt: now })
+        .where(
+          and(
+            eq(businessInquiryForms.businessId, businessId),
+            eq(businessInquiryForms.id, targetFormId),
+          ),
+        );
+
       const [nextDefault] = await tx
         .select({ id: businessInquiryForms.id })
         .from(businessInquiryForms)
@@ -1593,9 +1740,11 @@ export async function deleteBusinessInquiryForm({
           and(
             eq(businessInquiryForms.businessId, businessId),
             isNull(businessInquiryForms.archivedAt),
+            eq(businessInquiryForms.publicInquiryEnabled, true),
             ne(businessInquiryForms.id, targetFormId),
           ),
         )
+        .orderBy(asc(businessInquiryForms.name))
         .limit(1);
 
       if (nextDefault) {
@@ -1687,19 +1836,21 @@ export async function setBusinessInquiryFormPublicState({
     };
   }
 
-  if (
-    publicInquiryEnabled &&
-    !(await hasLiveFormSlot(businessId, business.plan, targetFormId))
-  ) {
-    return {
-      ok: false,
-      reason: "live-form-limit",
-    };
-  }
-
+  const plan = await resolveServicePlan(businessId);
   const now = new Date();
+  let limitExceeded = false;
 
   await db.transaction(async (tx) => {
+    await lockServiceLimitEnforcement(tx, businessId);
+
+    if (
+      publicInquiryEnabled &&
+      !(await hasLiveServiceSlot(tx, businessId, plan, targetFormId))
+    ) {
+      limitExceeded = true;
+      return;
+    }
+
     await tx
       .update(businessInquiryForms)
       .set({
@@ -1730,6 +1881,13 @@ export async function setBusinessInquiryFormPublicState({
       updatedAt: now,
     });
   });
+
+  if (limitExceeded) {
+    return {
+      ok: false,
+      reason: "live-form-limit",
+    };
+  }
 
   return {
     ok: true,
@@ -1779,19 +1937,21 @@ export async function unarchiveBusinessInquiryForm({
     };
   }
 
-  if (
-    targetForm.publicInquiryEnabled &&
-    !(await hasLiveFormSlot(businessId, business.plan))
-  ) {
-    return {
-      ok: false,
-      reason: "live-form-limit",
-    };
-  }
-
+  const plan = await resolveServicePlan(businessId);
   const now = new Date();
+  let limitExceeded = false;
 
   await db.transaction(async (tx) => {
+    await lockServiceLimitEnforcement(tx, businessId);
+
+    if (
+      targetForm.publicInquiryEnabled &&
+      !(await hasLiveServiceSlot(tx, businessId, plan))
+    ) {
+      limitExceeded = true;
+      return;
+    }
+
     await tx
       .update(businessInquiryForms)
       .set({
@@ -1819,6 +1979,13 @@ export async function unarchiveBusinessInquiryForm({
       updatedAt: now,
     });
   });
+
+  if (limitExceeded) {
+    return {
+      ok: false,
+      reason: "live-form-limit",
+    };
+  }
 
   return {
     ok: true,

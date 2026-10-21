@@ -37,6 +37,11 @@ type BusinessInquiryFormManageCardProps = {
     formData: FormData,
   ) => Promise<BusinessInquiryFormActionState>;
   businessType?: BusinessType;
+  /**
+   * Publishing a service is an owner-level action on the server. Managers see
+   * the control but it stays disabled with the reason spelled out.
+   */
+  canPublish?: boolean;
   duplicateAction: (
     state: BusinessInquiryFormsActionState,
     formData: FormData,
@@ -63,6 +68,7 @@ const noopPresetAction = async (
 export function BusinessInquiryFormManageCard({
   applyPresetAction,
   businessType,
+  canPublish = true,
   duplicateAction,
   formId,
   isDefault,
@@ -134,6 +140,14 @@ export function BusinessInquiryFormManageCard({
                     The default service stays live. Set another default before unpublishing.
                   </span>
                 </div>
+              ) : !canPublish ? (
+                <div className="flex max-w-[16rem] items-center gap-1.5 rounded-lg border border-border/60 bg-muted/30 px-2.5 py-1.5 text-xs leading-normal text-muted-foreground">
+                  <Info
+                    aria-hidden="true"
+                    className="size-3.5 shrink-0 text-muted-foreground"
+                  />
+                  <span>Only the business owner can publish a service.</span>
+                </div>
               ) : (
                 <form action={publicFormAction}>
                   <input name="targetFormId" type="hidden" value={formId} />
@@ -184,6 +198,14 @@ export function BusinessInquiryFormManageCard({
                 <span className="text-xs font-medium text-muted-foreground">
                   Active default
                 </span>
+              ) : !isPublicInquiryEnabled ? (
+                <div className="flex max-w-[16rem] items-center gap-1.5 rounded-lg border border-border/60 bg-muted/30 px-2.5 py-1.5 text-xs leading-normal text-muted-foreground">
+                  <Info
+                    aria-hidden="true"
+                    className="size-3.5 shrink-0 text-muted-foreground"
+                  />
+                  <span>Publish this service before making it the default.</span>
+                </div>
               ) : (
                 <form action={defaultFormAction}>
                   <input name="targetFormId" type="hidden" value={formId} />
@@ -307,7 +329,6 @@ export function BusinessInquiryFormManageCard({
                 Cancel
               </Button>
               <form action={presetFormAction}>
-                <input name="formId" type="hidden" value={formId} />
                 <input name="businessType" type="hidden" value={businessType} />
                 <Button
                   disabled={isPresetPending}

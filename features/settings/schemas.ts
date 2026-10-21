@@ -583,11 +583,6 @@ export const businessDeleteSchema = z.object({
 export type BusinessDeleteInput = z.infer<typeof businessDeleteSchema>;
 
 export const businessInquiryPageSettingsSchema = z.object({
-  formId: z
-    .string()
-    .trim()
-    .min(1, "Choose a form.")
-    .max(128, "Form id is too long."),
   name: z
     .string()
     .trim()
@@ -602,6 +597,13 @@ export const businessInquiryPageSettingsSchema = z.object({
     .refine(
       (value) => publicSlugRegex.test(value),
       "Use lowercase letters, numbers, and hyphens only.",
+    )
+    .refine(
+      (value) =>
+        !value.startsWith("-") &&
+        !value.endsWith("-") &&
+        !/^-+$/.test(value),
+      "Start and end with a letter or number.",
     ),
   businessType: z.enum(businessTypes),
   publicInquiryEnabled: formBoolean(),
@@ -665,11 +667,6 @@ export type BusinessInquiryPageSettingsInput = z.infer<
 >;
 
 export const businessInquiryFormSettingsSchema = z.object({
-  formId: z
-    .string()
-    .trim()
-    .min(1, "Form id is required.")
-    .max(128, "Form id is too long."),
   businessType: z.enum(businessTypes),
   inquiryFormConfig: jsonField(inquiryFormConfigSchema, Symbol.for("invalid-json-field")),
 });
@@ -679,11 +676,6 @@ export type BusinessInquiryFormSettingsInput = z.infer<
 >;
 
 export const businessInquiryFormPresetSchema = z.object({
-  formId: z
-    .string()
-    .trim()
-    .min(1, "Form id is required.")
-    .max(128, "Form id is too long."),
   businessType: z.enum(businessTypes),
 });
 
