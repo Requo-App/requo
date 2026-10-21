@@ -43,7 +43,7 @@ import {
   retrieveBusinessKnowledge,
   type KnowledgeEvidence,
 } from "@/features/memory/retrieval";
-import { formatQuoteMoney } from "@/features/quotes/utils";
+import { computeQuoteAiReadiness, formatQuoteMoney } from "@/features/quotes/utils";
 import { db } from "@/lib/db/client";
 import { businesses } from "@/lib/db/schema";
 import {
@@ -713,27 +713,20 @@ function repairGroundedDraft(items: AiQuoteDraftItem[]) {
 }
 
 /**
- * Server-computed readiness. Never trusted from the model.
+ * Server-computed readiness. Never trusted from the model, and never trusted
+ * from the browser: the quote mutations recompute it with the same helper
+ * from the provenance that is actually persisted.
  */
 function computeQuoteReadiness(
   items: AiQuoteDraftItem[],
   missingInfo: AiQuoteMissingInfoItem[],
 ): AiQuoteReadiness {
-  const hasUnpriced = items.some(
-    (item) => item.aiProductStatus === "unpriced" || item.aiProductStatus === null,
+  return (
+    computeQuoteAiReadiness({ items, missingInfo }) ??
+    // Every draft item carries a server-assigned status, so the fallback is
+    // unreachable in practice. It keeps the return type non-nullable.
+    "ready"
   );
-  const hasSuggested = items.some((item) => item.aiProductStatus === "suggested");
-  const hasCriticalQuestions = missingInfo.some((item) => item.critical === true);
-
-  if (hasUnpriced) {
-    return "scope_only";
-  }
-
-  if (hasSuggested || hasCriticalQuestions) {
-    return "needs_confirmation";
-  }
-
-  return "ready";
 }
 
 // ---------------------------------------------------------------------------

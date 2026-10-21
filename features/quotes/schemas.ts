@@ -259,7 +259,10 @@ export const quoteEditorSchema = z
         .max(40, "Discount is too large.")
         .optional(),
     ),
-    discountType: z.enum(["amount", "percentage"]).optional(),
+    discountType: z.preprocess(
+      emptyToUndefined,
+      z.enum(["amount", "percentage"]).optional(),
+    ),
     taxValue: z.preprocess(
       emptyToUndefined,
       z
@@ -268,7 +271,10 @@ export const quoteEditorSchema = z
         .max(40, "Tax is too large.")
         .optional(),
     ),
-    taxType: z.enum(["amount", "percentage"]).optional(),
+    taxType: z.preprocess(
+      emptyToUndefined,
+      z.enum(["amount", "percentage"]).optional(),
+    ),
     discountInCents: z.preprocess(
       (value) => {
         const normalized = emptyToUndefined(value);
@@ -307,7 +313,18 @@ export const quoteEditorSchema = z
     ),
     items: quoteItemsFieldSchema,
     aiReadiness: z.enum(aiQuoteReadinessValues).optional(),
-    aiGenerationId: z.string().trim().max(64).optional(),
+    aiGenerationId: z.preprocess(
+      emptyToUndefined,
+      z
+        .string()
+        .trim()
+        .max(64)
+        .regex(
+          /^qgen_[a-f0-9]{32}$/,
+          "The generation reference is not a valid draft reference.",
+        )
+        .optional(),
+    ),
     aiMissingInfo: quoteAiMissingInfoFieldSchema,
   })
       .superRefine((value, ctx) => {

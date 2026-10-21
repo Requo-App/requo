@@ -10,6 +10,11 @@ import {
 
 import type { StatusTone } from "@/components/shared/status-badge";
 import type {
+  AiQuoteMissingInfoItem,
+  AiQuoteProductStatus,
+  AiQuoteReadiness,
+} from "@/features/ai/types";
+import type {
   DashboardQuoteLibraryItem,
   DashboardQuoteDetailCore,
   DashboardQuoteItem,
@@ -22,6 +27,58 @@ import type {
 } from "@/features/quotes/types";
 import type { BusinessPlan } from "@/lib/plans/plans";
 import { prefixedId } from "@/lib/ids";
+
+/**
+ * Server-side readiness for a quote that carries AI pricing provenance.
+ *
+ * The readiness string is never taken from the browser. It is recomputed from
+ * the provenance the hydration step attached to each line, so the
+ * "suggested pricing needs your confirmation" gate cannot be cleared by
+ * editing the form or by posting a hand-crafted payload.
+ *
+ * A quote with no AI provenance at all is not an AI-drafted quote, so it
+ * returns `null` and never blocks delivery.
+ */
+export function computeQuoteAiReadiness(input: {
+  items: Array<{
+    aiProductStatus?: AiQuoteProductStatus | null;
+    aiEvidence?: { matchType?: "exact" | "suggested" | "none" | null } | null;
+  }>;
+  missingInfo?: AiQuoteMissingInfoItem[] | null;
+}): AiQuoteReadiness | null {
+  const { items, missingInfo } = input;
+
+  const hasProvenance = items.some(
+    (item) => item.aiProductStatus != null || item.aiEvidence != null,
+  );
+
+  if (!hasProvenance) {
+    return null;
+  }
+
+  const hasUnpriced = items.some(
+    (item) =>
+      item.aiProductStatus === "unpriced" ||
+      (item.aiProductStatus == null && item.aiEvidence?.matchType === "none"),
+  );
+  const hasSuggested = items.some(
+    (item) =>
+      item.aiProductStatus === "suggested" ||
+      item.aiEvidence?.matchType === "suggested",
+  );
+  const hasCriticalQuestions =
+    missingInfo?.some((item) => item.critical === true) ?? false;
+
+  if (hasUnpriced) {
+    return "scope_only";
+  }
+
+  if (hasSuggested || hasCriticalQuestions) {
+    return "needs_confirmation";
+  }
+
+  return "ready";
+}
 
 export const quoteStatusLabels: Record<QuoteStatus, string> = {
   draft: "Draft",

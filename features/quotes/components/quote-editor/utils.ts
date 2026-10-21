@@ -75,6 +75,14 @@ export function getVisibleEditorItems(items: EditorLineItem[]): QuoteEditorLineI
     quantity: item.quantity,
     unitPrice: item.unitPrice,
     aiReview: item.aiReview,
+    // The AI provenance travels with the row so a save can persist it.
+    // Dropping it here left every saved quote with a null `ai_product_status`
+    // and null `ai_evidence`, which silently disarmed the server-side
+    // "suggested pricing needs confirmation" gate.
+    aiProductStatus: item.aiProductStatus,
+    aiProductLibraryEntryId: item.aiProductLibraryEntryId,
+    aiProductLibraryItemId: item.aiProductLibraryItemId,
+    aiEvidence: item.aiEvidence,
   }));
 }
 
