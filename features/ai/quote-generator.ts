@@ -1295,14 +1295,20 @@ async function parseModelDraftResponse(
   const rawJson = extractJsonObject(responseText);
 
   if (!rawJson) {
-    console.error("[quote-generator] No JSON found in response. Raw text:", responseText.slice(0, 500));
+    // The raw text can echo the customer's own message, so it is not logged
+    // verbatim — only its length and a short prefix.
+    console.error(
+      `[quote-generator] No JSON found in response. Length=${responseText.length} Preview=${responseText.slice(0, 120)}`,
+    );
     return null;
   }
 
   const parsedJson = parseJsonSafe(rawJson);
 
   if (parsedJson === null) {
-    console.error("[quote-generator] JSON parse failed. Extracted JSON:", rawJson.slice(0, 500));
+    console.error(
+      `[quote-generator] JSON parse failed. Length=${rawJson.length} Preview=${rawJson.slice(0, 120)}`,
+    );
     return null;
   }
 

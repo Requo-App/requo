@@ -1,6 +1,6 @@
 import "server-only";
 
-import { asc, count, desc, eq } from "drizzle-orm";
+import { and, asc, count, desc, eq, isNotNull } from "drizzle-orm";
 import { cache } from "react";
 
 import { db } from "@/lib/db/client";
@@ -26,7 +26,6 @@ export const listBusinessMemories = cache(async (
       content: businessMemories.content,
       category: businessMemories.category,
       position: businessMemories.position,
-      embedding: businessMemories.embedding,
       createdAt: businessMemories.createdAt,
       updatedAt: businessMemories.updatedAt,
     })
@@ -37,9 +36,24 @@ export const listBusinessMemories = cache(async (
       asc(businessMemories.createdAt),
     );
 
+  // Whether a row is embedded is computed in SQL. Selecting the vector
+  // itself shipped ~768 floats per row into the client payload, which the
+  // knowledge manager never reads.
+  const embeddingRows = await db
+    .select({ id: businessMemories.id })
+    .from(businessMemories)
+    .where(
+      and(
+        eq(businessMemories.businessId, businessId),
+        isNotNull(businessMemories.embedding),
+      ),
+    );
+
+  const embeddedIds = new Set(embeddingRows.map((row) => row.id));
+
   return rows.map((row) => ({
     ...row,
-    hasEmbedding: Array.isArray(row.embedding) && row.embedding.length > 0,
+    hasEmbedding: embeddedIds.has(row.id),
   }));
 });
 

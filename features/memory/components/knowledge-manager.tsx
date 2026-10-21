@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   BookOpen,
@@ -97,10 +97,13 @@ type MemoryEntryUpdateFormAction = (
 ) => Promise<MemoryEntryActionState>;
 
 export type KnowledgeManagerProps = {
-  memories: MemoryRow[];
-  knowledgeFiles: KnowledgeFileRow[];
-  sourceLimit: number | null;
-  sourceCount: number;
+  /**
+   * The business whose knowledge base this is. The data is fetched when the
+   * tab is opened: rendering the tab with the rest of the settings page ran
+   * its three queries on every visit, even for owners who only ever looked
+   * at the Assistant tab.
+   */
+  businessSlug: string;
   createEntryAction: MemoryEntryFormAction;
   updateEntryAction: MemoryEntryUpdateFormAction;
   deleteEntryAction: MemoryEntryDeleteAction;
@@ -134,6 +137,14 @@ export type UnifiedKnowledgeEntry =
 
 type FilterTab = "all" | "memory" | "file";
 
+/** The knowledge payload the tab loads from its route. */
+type KnowledgePayload = {
+  memories: MemoryRow[];
+  knowledgeFiles: KnowledgeFileRow[];
+  sourceCount: number;
+  sourceLimit: number | null;
+};
+
 /* -------------------------------------------------------------------------- */
 /*  Helpers                                                                   */
 /* -------------------------------------------------------------------------- */
@@ -142,6 +153,17 @@ function formatBytes(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/**
+ * Whether the file can be processed again.
+ *
+ * A file stuck in "processing" — its background step killed by a deploy or a
+ * timeout — was permanently unindexed and un-actionable: the retry affordance
+ * was only offered for "failed".
+ */
+function canRetryFile(status: KnowledgeFileStatus): boolean {
+  return status === "failed" || status === "processing";
 }
 
 const fileStatusConfig = {
@@ -176,10 +198,7 @@ const fileStatusConfig = {
 /* -------------------------------------------------------------------------- */
 
 export function KnowledgeManager({
-  memories,
-  knowledgeFiles,
-  sourceLimit,
-  sourceCount,
+  businessSlug,
   createEntryAction,
   updateEntryAction,
   deleteEntryAction,
@@ -192,6 +211,44 @@ export function KnowledgeManager({
   const [editingMemory, setEditingMemory] = useState<MemoryRow | null>(null);
   const [deleteTarget, setDeleteTarget] =
     useState<UnifiedKnowledgeEntry | null>(null);
+  const [data, setData] = useState<KnowledgePayload | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const reload = useCallback(async () => {
+    try {
+      const response = await fetch(
+        `/api/business/knowledge?businessSlug=${encodeURIComponent(businessSlug)}`,
+      );
+
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        setLoadError(body?.error ?? "Could not load the knowledge base.");
+        return;
+      }
+
+      const body = (await response.json()) as KnowledgePayload;
+      setData(body);
+      setLoadError(null);
+    } catch {
+      setLoadError("Could not load the knowledge base.");
+    }
+  }, [businessSlug]);
+
+  useEffect(() => {
+    // Loading the tab's data when it is opened.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void reload();
+  }, [reload]);
+
+  const memories = useMemo(() => data?.memories ?? [], [data]);
+  const knowledgeFiles = useMemo(
+    () => data?.knowledgeFiles ?? [],
+    [data],
+  );
+  const sourceLimit = data?.sourceLimit ?? null;
+  const sourceCount = data?.sourceCount ?? 0;
 
   const atLimit = sourceLimit !== null && sourceCount >= sourceLimit;
   const memoryCount = memories.length;
@@ -237,6 +294,15 @@ export function KnowledgeManager({
 
   return (
     <div className="mx-auto flex w-full max-w-xl min-w-0 flex-col gap-10">
+      {loadError ? (
+        <div
+          className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive"
+          role="alert"
+        >
+          {loadError}
+        </div>
+      ) : null}
+
       {/* Stats summary matching products page */}
       <div className="grid gap-3 sm:grid-cols-3">
         <StatCard
@@ -281,6 +347,7 @@ export function KnowledgeManager({
         <div className="flex flex-wrap items-center gap-2">
           <UploadFileButton
             disabled={atLimit}
+            onChanged={() => void reload()}
             uploadFileAction={uploadFileAction}
           />
           <Button
@@ -311,6 +378,7 @@ export function KnowledgeManager({
                     setEditingMemory(entry.data);
                   }
                 }}
+                onChanged={() => void reload()}
                 retryAction={retryFileAction}
               />
             ))}
@@ -340,6 +408,7 @@ export function KnowledgeManager({
       {/* Add entry dialog */}
       <AddMemoryEntryDialog
         createAction={createEntryAction}
+        onChanged={() => void reload()}
         onOpenChange={setAddEntryOpen}
         open={addEntryOpen}
       />
@@ -348,6 +417,7 @@ export function KnowledgeManager({
       {editingMemory ? (
         <EditMemoryEntryDialog
           memory={editingMemory}
+          onChanged={() => void reload()}
           onOpenChange={(open) => {
             if (!open) setEditingMemory(null);
           }}
@@ -361,6 +431,7 @@ export function KnowledgeManager({
         deleteEntryAction={deleteEntryAction}
         deleteFileAction={deleteFileAction}
         entry={deleteTarget}
+        onChanged={() => void reload()}
         onClose={() => setDeleteTarget(null)}
         onOptimisticRemove={removeItem}
       />
@@ -411,6 +482,7 @@ function KnowledgeEntryRow({
   itemRef,
   onDelete,
   onEdit,
+  onChanged,
   retryAction,
 }: {
   entry: UnifiedKnowledgeEntry;
@@ -418,6 +490,8 @@ function KnowledgeEntryRow({
   itemRef?: (node: HTMLElement | null) => void;
   onDelete: () => void;
   onEdit: () => void;
+  /** Called after a mutation so the tab reloads its data. */
+  onChanged: () => void;
   retryAction: (fileId: string) => Promise<KnowledgeFileActionState>;
 }) {
   const [isRetrying, setIsRetrying] = useState(false);
@@ -432,6 +506,7 @@ function KnowledgeEntryRow({
     try {
       await retryAction(entry.data.id);
       scheduleRefresh();
+      onChanged();
     } finally {
       setIsRetrying(false);
     }
@@ -492,7 +567,7 @@ function KnowledgeEntryRow({
       </div>
 
       <div className="flex items-center gap-1 shrink-0">
-        {entry.kind === "file" && entry.status === "failed" ? (
+        {entry.kind === "file" && canRetryFile(entry.status) ? (
           <Button
             aria-label="Retry processing"
             disabled={isRetrying}
@@ -525,7 +600,7 @@ function KnowledgeEntryRow({
                 Edit
               </DropdownMenuItem>
             ) : null}
-            {entry.kind === "file" && entry.status === "failed" ? (
+            {entry.kind === "file" && canRetryFile(entry.status) ? (
               <DropdownMenuItem onSelect={handleRetry}>
                 <RefreshCw />
                 Retry processing
@@ -548,9 +623,12 @@ function KnowledgeEntryRow({
 
 function UploadFileButton({
   disabled,
+  onChanged,
   uploadFileAction,
 }: {
   disabled: boolean;
+  /** Called after a mutation so the tab reloads its data. */
+  onChanged: () => void;
   uploadFileAction: KnowledgeFileUploadAction;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -560,6 +638,7 @@ function UploadFileButton({
       const result = await uploadFileAction(prevState, formData);
       if (result.success) {
         scheduleRefresh();
+        onChanged();
       }
       return result;
     },
@@ -612,10 +691,13 @@ function UploadFileButton({
 function AddMemoryEntryDialog({
   open,
   onOpenChange,
+  onChanged,
   createAction,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Called after a mutation so the tab reloads its data. */
+  onChanged: () => void;
   createAction: MemoryEntryFormAction;
 }) {
   const { scheduleRefresh } = useDeferredRefresh();
@@ -627,6 +709,7 @@ function AddMemoryEntryDialog({
       if (result.success) {
         onOpenChange(false);
         scheduleRefresh();
+        onChanged();
       }
       return result;
     },
@@ -746,11 +829,14 @@ function EditMemoryEntryDialog({
   memory,
   open,
   onOpenChange,
+  onChanged,
   updateAction,
 }: {
   memory: MemoryRow;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Called after a mutation so the tab reloads its data. */
+  onChanged: () => void;
   updateAction: MemoryEntryUpdateFormAction;
 }) {
   const { scheduleRefresh } = useDeferredRefresh();
@@ -763,6 +849,7 @@ function EditMemoryEntryDialog({
       if (result.success) {
         onOpenChange(false);
         scheduleRefresh();
+        onChanged();
       }
       return result;
     },
@@ -881,12 +968,15 @@ function DeleteConfirmDialog({
   deleteEntryAction,
   deleteFileAction,
   entry,
+  onChanged,
   onClose,
   onOptimisticRemove,
 }: {
   deleteEntryAction: MemoryEntryDeleteAction;
   deleteFileAction: KnowledgeFileDeleteAction;
   entry: UnifiedKnowledgeEntry | null;
+  /** Called after a mutation so the tab reloads its data. */
+  onChanged: () => void;
   onClose: () => void;
   onOptimisticRemove: (
     id: string,
@@ -904,18 +994,22 @@ function DeleteConfirmDialog({
     onClose();
 
     onOptimisticRemove(target.id, async () => {
-      if (target.kind === "memory") {
-        const result = await deleteEntryAction(target.data.id);
-        return {
-          error: result.error,
-          success: result.success,
-        };
-      } else {
-        const result = await deleteFileAction(target.data.id);
-        return {
-          error: result.error,
-          success: result.success ? "File deleted" : undefined,
-        };
+      try {
+        if (target.kind === "memory") {
+          const result = await deleteEntryAction(target.data.id);
+          return {
+            error: result.error,
+            success: result.success,
+          };
+        } else {
+          const result = await deleteFileAction(target.data.id);
+          return {
+            error: result.error,
+            success: result.success ? "File deleted" : undefined,
+          };
+        }
+      } finally {
+        onChanged();
       }
     });
   }

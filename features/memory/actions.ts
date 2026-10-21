@@ -459,6 +459,25 @@ export async function uploadKnowledgeFileAction(
       // Ignore cleanup failures.
     }
 
+    // The row has to go too. Leaving it behind left a "pending" file whose
+    // object was gone: it could never process, the UI offered no retry, and
+    // it permanently consumed one of the plan's knowledge-source slots.
+    try {
+      await db
+        .delete(businessKnowledgeFiles)
+        .where(
+          and(
+            eq(businessKnowledgeFiles.id, fileId),
+            eq(businessKnowledgeFiles.businessId, businessId),
+          ),
+        );
+    } catch (cleanupError) {
+      console.error(
+        "Failed to remove the orphaned knowledge file row.",
+        cleanupError,
+      );
+    }
+
     return { error: "We couldn't upload that file right now." };
   }
 
