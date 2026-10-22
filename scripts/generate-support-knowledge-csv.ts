@@ -8,7 +8,7 @@ const outputDirectory = path.join(process.cwd(), "support", "knowledge");
 const faqRows: CsvRow[] = [
   {
     category: "Onboarding",
-    question: "How do I create my first business business?",
+    question: "How do I create my first business?",
     answer:
       "After signup, complete onboarding to create your first business. You can rename it any time in Settings > General.",
     tags: "onboarding,business-setup,business",
