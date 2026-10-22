@@ -1,4 +1,4 @@
-import type { BusinessPlan } from "@/lib/plans/plans";
+import type { PlanTier } from "@/lib/plans/plans";
 import type { OnboardingDraft } from "@/features/onboarding/helpers";
 import type {
   OnboardingActionState,
@@ -17,7 +17,7 @@ export type OnboardingFormProps = {
   ) => Promise<OnboardingActionState>;
   detectedCountryCode?: string;
   /** Resolved plan for the business being created; drives the service cap UI. */
-  plan?: BusinessPlan;
+  plan?: PlanTier;
   initialProfile?: {
     firstName: string;
     lastName: string;

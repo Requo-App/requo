@@ -17,7 +17,7 @@ import {
   isEmailConfigured,
 } from "@/lib/env";
 import { hasFeatureAccess } from "@/lib/plans/entitlements";
-import type { BusinessPlan } from "@/lib/plans/plans";
+import type { PlanTier } from "@/lib/plans/plans";
 
 export type AnalyticsScheduledReportsSummary = {
   skipped?: boolean;
@@ -144,7 +144,7 @@ export async function sendAnalyticsScheduledReports(): Promise<AnalyticsSchedule
     );
 
   const entitled = reports.filter((row) =>
-    hasFeatureAccess(row.business.plan as BusinessPlan, "analyticsOperations"),
+    hasFeatureAccess(row.business.plan as PlanTier, "analyticsOperations"),
   );
 
   const dueReports = entitled.filter((row) =>

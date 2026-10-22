@@ -41,13 +41,13 @@ import type {
   InquiryRecordState,
   InquiryStatus,
 } from "@/features/inquiries/types";
-import type { BusinessPlan } from "@/lib/plans/plans";
+import type { PlanTier } from "@/lib/plans/plans";
 import type {
   AiQuoteDraftItem,
   AiQuoteMissingInfoItem,
   AiQuoteProductStatus,
   AiQuoteReadiness,
-} from "@/features/ai/types";
+} from "@/features/quote-drafting/types";
 
 export type QuoteListFilters = {
   q?: string;
@@ -259,7 +259,7 @@ export type PublicQuoteView = {
   title: string;
   businessName: string;
   businessSlug: string;
-  businessPlan: BusinessPlan;
+  businessPlan: PlanTier;
   businessShortDescription: string | null;
   businessContactEmail: string | null;
   businessLogoStoragePath: string | null;
@@ -327,7 +327,7 @@ export type QuoteEditorLineItemValue = {
    * from the model or the client as authoritative for a changed line.
    */
   aiProductStatus?: AiQuoteProductStatus;
-  /** Product library entry/item behind a generated price (null once owner-edited). */
+  /** Quote library entry/item behind a generated price (null once owner-edited). */
   aiProductLibraryEntryId?: string | null;
   aiProductLibraryItemId?: string | null;
   /** Grounded pricing evidence set by server-side hydration/verification. */

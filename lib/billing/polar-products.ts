@@ -9,7 +9,7 @@ import type { BillingInterval, PaidPlan } from "@/lib/billing/types";
  * env vars — there is no I/O and no module state beyond the env read.
  *
  * Used by both the redirect route in
- * `app/api/account/billing/checkout/route.ts` (forward lookup, picks
+ * `app/api/billing/checkout/route.ts` (forward lookup, picks
  * the product id to hand to the canonical `Checkout` adapter) and the
  * subscription webhook handler (reverse lookup, recovers the plan
  * from a `subscription.*` event payload).

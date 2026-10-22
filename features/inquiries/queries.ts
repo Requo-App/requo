@@ -43,8 +43,8 @@ import { isInquirySitemapSlugExcluded } from "@/lib/seo/inquiry-slugs";
 import { isValidDateInput } from "@/lib/zod-helpers";
 import {
   getBusinessInquiryDetailCacheTags,
-  getBusinessInquiryFormCacheTags,
-  getBusinessInquiryFormsCacheTags,
+  getServiceCacheTags,
+  getServicesCacheTags,
   getBusinessInquiryListCacheTags,
   hotBusinessCacheLife,
 } from "@/lib/cache/business-tags";
@@ -60,7 +60,7 @@ import {
   inquiryNotes,
   quotes,
   user,
-  businessInquiryForms,
+  services,
   businesses,
   } from "@/lib/db/schema";
 import type {
@@ -71,7 +71,7 @@ import type {
   DashboardInquiryListItem,
   DashboardInquiryNote,
   DashboardInquiryRelatedQuotes,
-  InquiryEditorForm,
+  InquiryEditorService,
   InquiryListQueryFilters,
   PublicInquiryBusiness,
 } from "@/features/inquiries/types";
@@ -97,8 +97,8 @@ async function getCachedPublicInquiryBusinessBySlug(
 
   if (business) {
     cacheTag(
-      ...getBusinessInquiryFormsCacheTags(business.id),
-      ...getBusinessInquiryFormCacheTags(business.id, business.form.slug),
+      ...getServicesCacheTags(business.id),
+      ...getServiceCacheTags(business.id, business.form.slug),
     );
   }
 
@@ -122,23 +122,23 @@ async function getInquiryBusinessBySlug({
       logoStoragePath: businesses.logoStoragePath,
       updatedAt: businesses.updatedAt,
       inquiryHeadline: businesses.inquiryHeadline,
-      formId: businessInquiryForms.id,
-      formName: businessInquiryForms.name,
-      formSlug: businessInquiryForms.slug,
-      formBusinessType: businessInquiryForms.businessType,
-      formIsDefault: businessInquiryForms.isDefault,
-      formPublicInquiryEnabled: businessInquiryForms.publicInquiryEnabled,
+      serviceId: services.id,
+      serviceName: services.name,
+      serviceSlug: services.slug,
+      formBusinessType: services.businessType,
+      formIsDefault: services.isDefault,
+      formPublicInquiryEnabled: services.publicInquiryEnabled,
       businessPublicInquiryEnabled: businesses.publicInquiryEnabled,
-      inquiryFormConfig: businessInquiryForms.inquiryFormConfig,
-      inquiryPageConfig: businessInquiryForms.inquiryPageConfig,
+      inquiryFormConfig: services.inquiryFormConfig,
+      inquiryPageConfig: services.inquiryPageConfig,
     })
     .from(businesses)
     .innerJoin(
-      businessInquiryForms,
+      services,
       and(
-        eq(businessInquiryForms.businessId, businesses.id),
-        eq(businessInquiryForms.isDefault, true),
-        isNull(businessInquiryForms.archivedAt),
+        eq(services.businessId, businesses.id),
+        eq(services.isDefault, true),
+        isNull(services.archivedAt),
       ),
     )
     .where(
@@ -198,9 +198,9 @@ async function getInquiryBusinessBySlug({
       ? `/api/public/businesses/${business.slug}/logo?v=${business.updatedAt.getTime()}`
       : null,
     form: {
-      id: business.formId,
-      name: business.formName,
-      slug: business.formSlug,
+      id: business.serviceId,
+      name: business.serviceName,
+      slug: business.serviceSlug,
       businessType: formBusinessType,
       isDefault: business.formIsDefault,
       publicInquiryEnabled: business.formPublicInquiryEnabled,
@@ -216,93 +216,93 @@ async function getInquiryBusinessBySlug({
   };
 }
 
-export async function getPublicInquiryBusinessByFormSlug({
+export async function getPublicInquiryBusinessByServiceSlug({
   businessSlug,
-  formSlug,
+  serviceSlug,
 }: {
   businessSlug: string;
-  formSlug: string;
+  serviceSlug: string;
 }): Promise<PublicInquiryBusiness | null> {
-  return getCachedPublicInquiryBusinessByFormSlug({
+  return getCachedPublicInquiryBusinessByServiceSlug({
     businessSlug,
-    formSlug,
+    serviceSlug,
   });
 }
 
-async function getCachedPublicInquiryBusinessByFormSlug({
+async function getCachedPublicInquiryBusinessByServiceSlug({
   businessSlug,
-  formSlug,
+  serviceSlug,
 }: {
   businessSlug: string;
-  formSlug: string;
+  serviceSlug: string;
 }): Promise<PublicInquiryBusiness | null> {
   "use cache";
 
   cacheLife(hotBusinessCacheLife);
 
-  const business = await getInquiryBusinessByFormSlug({
+  const business = await getInquiryBusinessByServiceSlug({
     businessSlug,
-    formSlug,
+    serviceSlug,
     includeDisabled: false,
   });
 
   if (business) {
     cacheTag(
-      ...getBusinessInquiryFormsCacheTags(business.id),
-      ...getBusinessInquiryFormCacheTags(business.id, business.form.slug),
+      ...getServicesCacheTags(business.id),
+      ...getServiceCacheTags(business.id, business.form.slug),
     );
   }
 
   return business;
 }
 
-export async function getInquiryBusinessPreviewByFormSlug({
+export async function getInquiryBusinessPreviewByServiceSlug({
   businessSlug,
-  formSlug,
+  serviceSlug,
 }: {
   businessSlug: string;
-  formSlug: string;
+  serviceSlug: string;
 }): Promise<PublicInquiryBusiness | null> {
-  return getCachedInquiryBusinessPreviewByFormSlug({
+  return getCachedInquiryBusinessPreviewByServiceSlug({
     businessSlug,
-    formSlug,
+    serviceSlug,
   });
 }
 
-async function getCachedInquiryBusinessPreviewByFormSlug({
+async function getCachedInquiryBusinessPreviewByServiceSlug({
   businessSlug,
-  formSlug,
+  serviceSlug,
 }: {
   businessSlug: string;
-  formSlug: string;
+  serviceSlug: string;
 }): Promise<PublicInquiryBusiness | null> {
   "use cache";
 
   cacheLife(hotBusinessCacheLife);
 
-  const business = await getInquiryBusinessByFormSlug({
+  const business = await getInquiryBusinessByServiceSlug({
     businessSlug,
-    formSlug,
+    serviceSlug,
     includeDisabled: true,
   });
 
   if (business) {
     cacheTag(
-      ...getBusinessInquiryFormsCacheTags(business.id),
-      ...getBusinessInquiryFormCacheTags(business.id, business.form.slug),
+      ...getServicesCacheTags(business.id),
+      ...getServiceCacheTags(business.id, business.form.slug),
     );
   }
 
   return business;
 }
 
-async function getInquiryBusinessByFormSlug({
+async function getInquiryBusinessByServiceSlug({
   businessSlug,
-  formSlug,
+  serviceSlug,
   includeDisabled,
 }: {
   businessSlug: string;
-  formSlug: string;
+  serviceSlug: string;
   includeDisabled: boolean;
 }): Promise<PublicInquiryBusiness | null> {
   const [business] = await db
@@ -315,23 +315,23 @@ async function getInquiryBusinessByFormSlug({
       logoStoragePath: businesses.logoStoragePath,
       updatedAt: businesses.updatedAt,
       inquiryHeadline: businesses.inquiryHeadline,
-      formId: businessInquiryForms.id,
-      formName: businessInquiryForms.name,
-      formSlug: businessInquiryForms.slug,
-      formBusinessType: businessInquiryForms.businessType,
-      formIsDefault: businessInquiryForms.isDefault,
-      formPublicInquiryEnabled: businessInquiryForms.publicInquiryEnabled,
+      serviceId: services.id,
+      serviceName: services.name,
+      serviceSlug: services.slug,
+      formBusinessType: services.businessType,
+      formIsDefault: services.isDefault,
+      formPublicInquiryEnabled: services.publicInquiryEnabled,
       businessPublicInquiryEnabled: businesses.publicInquiryEnabled,
-      inquiryFormConfig: businessInquiryForms.inquiryFormConfig,
-      inquiryPageConfig: businessInquiryForms.inquiryPageConfig,
+      inquiryFormConfig: services.inquiryFormConfig,
+      inquiryPageConfig: services.inquiryPageConfig,
     })
     .from(businesses)
     .innerJoin(
-      businessInquiryForms,
+      services,
       and(
-        eq(businessInquiryForms.businessId, businesses.id),
-        eq(businessInquiryForms.slug, formSlug),
-        isNull(businessInquiryForms.archivedAt),
+        eq(services.businessId, businesses.id),
+        eq(services.slug, serviceSlug),
+        isNull(services.archivedAt),
       ),
     )
     .where(
@@ -391,9 +391,9 @@ async function getInquiryBusinessByFormSlug({
       ? `/api/public/businesses/${business.slug}/logo?v=${business.updatedAt.getTime()}`
       : null,
     form: {
-      id: business.formId,
-      name: business.formName,
-      slug: business.formSlug,
+      id: business.serviceId,
+      name: business.serviceName,
+      slug: business.serviceSlug,
       businessType: formBusinessType,
       isDefault: business.formIsDefault,
       publicInquiryEnabled: business.formPublicInquiryEnabled,
@@ -497,7 +497,7 @@ function getInquiryListConditions({
   }
 
   if (filters.form !== "all") {
-    conditions.push(eq(businessInquiryForms.slug, filters.form));
+    conditions.push(eq(services.slug, filters.form));
   }
 
   if (filters.escalated) {
@@ -534,8 +534,8 @@ export async function getInquiryListCountForBusiness({
         })
         .from(inquiries)
         .leftJoin(
-          businessInquiryForms,
-          eq(inquiries.businessInquiryFormId, businessInquiryForms.id),
+          services,
+          eq(inquiries.serviceId, services.id),
         )
         .where(and(...conditions)),
   );
@@ -612,9 +612,9 @@ export async function getInquiryListPageForBusiness({
       db
         .select({
           id: inquiries.id,
-          businessInquiryFormId: inquiries.businessInquiryFormId,
-          inquiryFormName: businessInquiryForms.name,
-          inquiryFormSlug: businessInquiryForms.slug,
+          serviceId: inquiries.serviceId,
+          serviceName: services.name,
+          serviceSlug: services.slug,
           source: inquiries.source,
           customerName: inquiries.customerName,
           customerEmail: inquiries.customerEmail,
@@ -652,8 +652,8 @@ export async function getInquiryListPageForBusiness({
         })
         .from(inquiries)
         .leftJoin(
-          businessInquiryForms,
-          eq(inquiries.businessInquiryFormId, businessInquiryForms.id),
+          services,
+          eq(inquiries.serviceId, services.id),
         )
         .where(and(...conditions))
         .orderBy(...orderByClause)
@@ -687,8 +687,8 @@ export async function getInquiryIdsMatchingFiltersForBusiness({
     .select({ id: inquiries.id })
     .from(inquiries)
     .leftJoin(
-      businessInquiryForms,
-      eq(inquiries.businessInquiryFormId, businessInquiryForms.id),
+      services,
+      eq(inquiries.serviceId, services.id),
     )
     .where(and(...conditions))
     .orderBy(
@@ -729,8 +729,8 @@ function parseExportBoundary(value: string | undefined, edge: "start" | "end") {
 
 type InquiryExportRow = {
   id: string;
-  inquiryFormName: string | null;
-  inquiryFormSlug: string | null;
+  serviceName: string | null;
+  serviceSlug: string | null;
   source: string | null;
   customerName: string;
   customerEmail: string | null;
@@ -776,8 +776,8 @@ export async function getInquiryExportRowsForBusiness({
   return db
     .select({
       id: inquiries.id,
-      inquiryFormName: businessInquiryForms.name,
-      inquiryFormSlug: businessInquiryForms.slug,
+      serviceName: services.name,
+      serviceSlug: services.slug,
       source: inquiries.source,
       customerName: inquiries.customerName,
       customerEmail: inquiries.customerEmail,
@@ -794,8 +794,8 @@ export async function getInquiryExportRowsForBusiness({
     })
     .from(inquiries)
     .leftJoin(
-      businessInquiryForms,
-      eq(inquiries.businessInquiryFormId, businessInquiryForms.id),
+      services,
+      eq(inquiries.serviceId, services.id),
     )
     .where(and(...conditions))
     .orderBy(submittedAtSort(inquiries.submittedAt), createdAtSort(inquiries.createdAt))
@@ -833,10 +833,10 @@ async function getCachedInquiryDetailCore({
     .select({
       id: inquiries.id,
       businessId: inquiries.businessId,
-      businessInquiryFormId: inquiries.businessInquiryFormId,
-      inquiryFormName: businessInquiryForms.name,
-      inquiryFormSlug: businessInquiryForms.slug,
-      inquiryFormBusinessType: businessInquiryForms.businessType,
+      serviceId: inquiries.serviceId,
+      serviceName: services.name,
+      serviceSlug: services.slug,
+      serviceBusinessType: services.businessType,
       customerName: inquiries.customerName,
       customerEmail: inquiries.customerEmail,
       customerContactMethod: inquiries.customerContactMethod,
@@ -858,8 +858,8 @@ async function getCachedInquiryDetailCore({
     })
     .from(inquiries)
     .leftJoin(
-      businessInquiryForms,
-      eq(inquiries.businessInquiryFormId, businessInquiryForms.id),
+      services,
+      eq(inquiries.serviceId, services.id),
     )
     .where(
       and(
@@ -874,13 +874,13 @@ async function getCachedInquiryDetailCore({
     return null;
   }
 
-  const inquiryFormBusinessType = normalizeBusinessType(
-    inquiry.inquiryFormBusinessType ?? "general_project_services",
+  const serviceBusinessType = normalizeBusinessType(
+    inquiry.serviceBusinessType ?? "general_project_services",
   );
 
   return {
     ...inquiry,
-    inquiryFormBusinessType,
+    serviceBusinessType,
     submittedFieldSnapshot: getNormalizedInquirySubmittedFieldSnapshot(
       inquiry.submittedFieldSnapshot,
     ),
@@ -1078,137 +1078,137 @@ export async function getInquiryRelatedQuotesForBusiness({
   return getCachedInquiryRelatedQuotes({ businessId, inquiryId });
 }
 
-export async function getBusinessInquiryFormOptionsForBusiness(
+export async function getServiceOptionsForBusiness(
   businessId: string,
 ) {
   "use cache";
 
   cacheLife(hotBusinessCacheLife);
-  cacheTag(...getBusinessInquiryFormsCacheTags(businessId));
+  cacheTag(...getServicesCacheTags(businessId));
 
   return db
     .select({
-      id: businessInquiryForms.id,
-      name: businessInquiryForms.name,
-      slug: businessInquiryForms.slug,
-      isDefault: businessInquiryForms.isDefault,
-      archivedAt: businessInquiryForms.archivedAt,
+      id: services.id,
+      name: services.name,
+      slug: services.slug,
+      isDefault: services.isDefault,
+      archivedAt: services.archivedAt,
     })
-    .from(businessInquiryForms)
-    .where(eq(businessInquiryForms.businessId, businessId))
-    .orderBy(desc(businessInquiryForms.isDefault), asc(businessInquiryForms.name));
+    .from(services)
+    .where(eq(services.businessId, businessId))
+    .orderBy(desc(services.isDefault), asc(services.name));
 }
 
-export async function getInquiryEditorFormsForBusiness(
+export async function getInquiryEditorServicesForBusiness(
   businessId: string,
-): Promise<InquiryEditorForm[]> {
+): Promise<InquiryEditorService[]> {
   "use cache";
 
   cacheLife(hotBusinessCacheLife);
-  cacheTag(...getBusinessInquiryFormsCacheTags(businessId));
+  cacheTag(...getServicesCacheTags(businessId));
 
-  const forms = await db
+  const serviceRows = await db
     .select({
-      id: businessInquiryForms.id,
-      name: businessInquiryForms.name,
-      slug: businessInquiryForms.slug,
-      businessType: businessInquiryForms.businessType,
-      isDefault: businessInquiryForms.isDefault,
-      publicInquiryEnabled: businessInquiryForms.publicInquiryEnabled,
-      inquiryFormConfig: businessInquiryForms.inquiryFormConfig,
+      id: services.id,
+      name: services.name,
+      slug: services.slug,
+      businessType: services.businessType,
+      isDefault: services.isDefault,
+      publicInquiryEnabled: services.publicInquiryEnabled,
+      inquiryFormConfig: services.inquiryFormConfig,
     })
-    .from(businessInquiryForms)
+    .from(services)
     .where(
       and(
-        eq(businessInquiryForms.businessId, businessId),
-        isNull(businessInquiryForms.archivedAt),
+        eq(services.businessId, businessId),
+        isNull(services.archivedAt),
       ),
     )
-    .orderBy(desc(businessInquiryForms.isDefault), asc(businessInquiryForms.name));
+    .orderBy(desc(services.isDefault), asc(services.name));
 
   // Same plan source as the public inquiry path — the authoritative
   // subscription, not the denormalized `businesses.plan` read cache.
   const effectivePlan = await getCachedEffectivePlanForBusiness(businessId);
 
-  return forms.map((form) => {
-    const businessType = normalizeBusinessType(form.businessType);
+  return serviceRows.map((service) => {
+    const businessType = normalizeBusinessType(service.businessType);
 
     return {
-      id: form.id,
-      name: form.name,
-      slug: form.slug,
+      id: service.id,
+      name: service.name,
+      slug: service.slug,
       businessType,
-      isDefault: form.isDefault,
-      publicInquiryEnabled: form.publicInquiryEnabled,
+      isDefault: service.isDefault,
+      publicInquiryEnabled: service.publicInquiryEnabled,
       inquiryFormConfig: resolveInquiryFormConfigForPlan(
-        getNormalizedInquiryFormConfig(form.inquiryFormConfig, {
+        getNormalizedInquiryFormConfig(service.inquiryFormConfig, {
           businessType,
         }),
         effectivePlan,
       ),
-    } satisfies InquiryEditorForm;
+    } satisfies InquiryEditorService;
   });
 }
 
-export async function getInquiryEditorFormForBusiness({
+export async function getInquiryEditorServiceForBusiness({
   businessId,
-  formSlug,
+  serviceSlug,
 }: {
   businessId: string;
-  formSlug: string;
-}): Promise<InquiryEditorForm | null> {
+  serviceSlug: string;
+}): Promise<InquiryEditorService | null> {
   "use cache";
 
   cacheLife(hotBusinessCacheLife);
   cacheTag(
-    ...getBusinessInquiryFormsCacheTags(businessId),
-    ...getBusinessInquiryFormCacheTags(businessId, formSlug),
+    ...getServicesCacheTags(businessId),
+    ...getServiceCacheTags(businessId, serviceSlug),
   );
 
-  const [form] = await db
+  const [service] = await db
     .select({
-      id: businessInquiryForms.id,
-      name: businessInquiryForms.name,
-      slug: businessInquiryForms.slug,
-      businessType: businessInquiryForms.businessType,
-      isDefault: businessInquiryForms.isDefault,
-      publicInquiryEnabled: businessInquiryForms.publicInquiryEnabled,
-      inquiryFormConfig: businessInquiryForms.inquiryFormConfig,
+      id: services.id,
+      name: services.name,
+      slug: services.slug,
+      businessType: services.businessType,
+      isDefault: services.isDefault,
+      publicInquiryEnabled: services.publicInquiryEnabled,
+      inquiryFormConfig: services.inquiryFormConfig,
     })
-    .from(businessInquiryForms)
+    .from(services)
     .where(
       and(
-        eq(businessInquiryForms.businessId, businessId),
-        eq(businessInquiryForms.slug, formSlug),
-        isNull(businessInquiryForms.archivedAt),
+        eq(services.businessId, businessId),
+        eq(services.slug, serviceSlug),
+        isNull(services.archivedAt),
       ),
     )
     .limit(1);
 
-  if (!form) {
+  if (!service) {
     return null;
   }
 
-  const businessType = normalizeBusinessType(form.businessType);
+  const businessType = normalizeBusinessType(service.businessType);
 
   // Same plan source as the public inquiry path — the authoritative
   // subscription, not the denormalized `businesses.plan` read cache.
   const effectivePlan = await getCachedEffectivePlanForBusiness(businessId);
 
   return {
-    id: form.id,
-    name: form.name,
-    slug: form.slug,
+    id: service.id,
+    name: service.name,
+    slug: service.slug,
     businessType,
-    isDefault: form.isDefault,
-    publicInquiryEnabled: form.publicInquiryEnabled,
+    isDefault: service.isDefault,
+    publicInquiryEnabled: service.publicInquiryEnabled,
     inquiryFormConfig: resolveInquiryFormConfigForPlan(
-      getNormalizedInquiryFormConfig(form.inquiryFormConfig, {
+      getNormalizedInquiryFormConfig(service.inquiryFormConfig, {
         businessType,
       }),
       effectivePlan,
     ),
-  } satisfies InquiryEditorForm;
+  } satisfies InquiryEditorService;
 }
 
 type GetInquiryAttachmentForBusinessInput = {
@@ -1270,18 +1270,18 @@ export async function listPublicInquirySitemapEntries(): Promise<
   const rows = await db
     .select({
       businessSlug: businesses.slug,
-      formIsDefault: businessInquiryForms.isDefault,
-      formSlug: businessInquiryForms.slug,
+      formIsDefault: services.isDefault,
+      serviceSlug: services.slug,
       businessUpdatedAt: businesses.updatedAt,
-      formUpdatedAt: businessInquiryForms.updatedAt,
+      formUpdatedAt: services.updatedAt,
     })
     .from(businesses)
     .innerJoin(
-      businessInquiryForms,
+      services,
       and(
-        eq(businessInquiryForms.businessId, businesses.id),
-        eq(businessInquiryForms.publicInquiryEnabled, true),
-        isNull(businessInquiryForms.archivedAt),
+        eq(services.businessId, businesses.id),
+        eq(services.publicInquiryEnabled, true),
+        isNull(services.archivedAt),
       ),
     )
     .where(
@@ -1301,7 +1301,7 @@ export async function listPublicInquirySitemapEntries(): Promise<
           : row.businessUpdatedAt,
       pathname: getBusinessPublicInquiryUrl(
         row.businessSlug,
-        row.formIsDefault ? undefined : row.formSlug,
+        row.formIsDefault ? undefined : row.serviceSlug,
       ),
     }));
 }

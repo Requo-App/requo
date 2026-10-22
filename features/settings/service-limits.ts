@@ -4,8 +4,8 @@ import { and, count, eq, isNull, ne, sql } from "drizzle-orm";
 
 import { getEffectivePlanForBusiness } from "@/lib/billing/subscription-service";
 import { db } from "@/lib/db/client";
-import { businessInquiryForms } from "@/lib/db/schema";
-import type { BusinessPlan } from "@/lib/plans/plans";
+import { services } from "@/lib/db/schema";
+import type { PlanTier } from "@/lib/plans/plans";
 import { getUsageLimit } from "@/lib/plans/usage-limits";
 
 type DatabaseClient =
@@ -26,7 +26,7 @@ const serviceLimitLockNamespace = 1_928_406_517;
  */
 export async function resolveServicePlan(
   businessId: string,
-): Promise<BusinessPlan> {
+): Promise<PlanTier> {
   return getEffectivePlanForBusiness(businessId);
 }
 
@@ -50,18 +50,18 @@ export async function lockServiceLimitEnforcement(
 export async function countLiveServices(
   client: DatabaseClient,
   businessId: string,
-  excludeFormId?: string,
+  excludeServiceId?: string,
 ): Promise<number> {
   const [row] = await client
     .select({ value: count() })
-    .from(businessInquiryForms)
+    .from(services)
     .where(
       and(
-        eq(businessInquiryForms.businessId, businessId),
-        eq(businessInquiryForms.publicInquiryEnabled, true),
-        isNull(businessInquiryForms.archivedAt),
-        excludeFormId
-          ? ne(businessInquiryForms.id, excludeFormId)
+        eq(services.businessId, businessId),
+        eq(services.publicInquiryEnabled, true),
+        isNull(services.archivedAt),
+        excludeServiceId
+          ? ne(services.id, excludeServiceId)
           : undefined,
       ),
     );
@@ -80,16 +80,16 @@ export async function countLiveServices(
 export async function hasLiveServiceSlot(
   client: DatabaseClient,
   businessId: string,
-  plan: BusinessPlan,
-  excludeFormId?: string,
+  plan: PlanTier,
+  excludeServiceId?: string,
 ): Promise<boolean> {
-  const limit = getUsageLimit(plan, "liveFormsPerBusiness");
+  const limit = getUsageLimit(plan, "liveServicesPerBusiness");
 
   if (limit === null) {
     return true;
   }
 
-  const current = await countLiveServices(client, businessId, excludeFormId);
+  const current = await countLiveServices(client, businessId, excludeServiceId);
 
   return current < limit;
 }

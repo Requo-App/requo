@@ -6,7 +6,7 @@ import {
 } from "@/lib/db/business-access";
 import { isEmailConfigured } from "@/lib/env";
 import { checkUsageAllowance } from "@/lib/plans/usage";
-import type { BusinessPlan } from "@/lib/plans/plans";
+import type { PlanTier } from "@/lib/plans/plans";
 import type { UsageLimitKey } from "@/lib/plans/usage-limits";
 import { getResendFromEmailConfigurationError } from "@/lib/email/transactional";
 
@@ -24,7 +24,7 @@ import { getResendFromEmailConfigurationError } from "@/lib/email/transactional"
 
 export async function checkDocumentSendQuota(input: {
   businessId: string;
-  plan: BusinessPlan;
+  plan: PlanTier;
   dailyKey: UsageLimitKey;
   monthlyKey: UsageLimitKey;
 }): Promise<boolean> {

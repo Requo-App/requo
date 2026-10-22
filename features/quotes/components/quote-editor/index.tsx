@@ -67,8 +67,8 @@ import { saveQuoteLineItemToPricingLibrary } from "@/features/quotes/quote-libra
 import { AiMissingInfoPanel } from "@/features/quotes/components/ai-missing-info-panel";
 import { AiPricingReviewPanel } from "@/features/quotes/components/ai-pricing-review-panel";
 import { ApplyTemplateConfirmDialog } from "@/features/quotes/components/apply-template-confirm-dialog";
-import { generateQuoteDraftAction } from "@/features/ai/actions";
-import type { AiQuoteDraft, AiQuoteReadiness } from "@/features/ai/types";
+import { generateQuoteDraftAction } from "@/features/quote-drafting/actions";
+import type { AiQuoteDraft, AiQuoteReadiness } from "@/features/quote-drafting/types";
 import { useDeferredRefresh } from "@/hooks/use-deferred-refresh";
 import { getUserSafeErrorMessage } from "@/lib/action-state";
 import { cn } from "@/lib/utils";

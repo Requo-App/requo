@@ -28,7 +28,7 @@ import {
 import { packRecipeKinds } from "@/lib/db/schema/pack-recipes";
 import { newEntityId } from "@/lib/ids";
 import { hasFeatureAccess } from "@/lib/plans";
-import type { BusinessPlan } from "@/lib/plans/plans";
+import type { PlanTier } from "@/lib/plans/plans";
 
 type DatabaseTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -209,7 +209,7 @@ async function assertRecipeCustomizationAllowed(businessId: string) {
     .where(eq(businesses.id, businessId))
     .limit(1);
 
-  if (!business || !hasFeatureAccess(business.plan as BusinessPlan, "customWorkflowRecipes")) {
+  if (!business || !hasFeatureAccess(business.plan as PlanTier, "customWorkflowRecipes")) {
     throw new Error("Recipe customization requires a Pro plan or higher.");
   }
 }

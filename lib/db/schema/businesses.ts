@@ -20,7 +20,7 @@ import type {
   QuoteEmailTemplateStored,
   QuoteFollowUpTemplateStored,
 } from "@/features/settings/email-templates";
-import type { BusinessPlan } from "@/lib/plans/plans";
+import type { PlanTier } from "@/lib/plans/plans";
 import { businessMemberRoles } from "@/lib/business-members";
 import { user } from "@/lib/db/schema/auth";
 
@@ -84,7 +84,7 @@ export const businesses = pgTable(
     name: text("name").notNull(),
     slug: text("slug").notNull(),
     plan: text("plan")
-      .$type<BusinessPlan>()
+      .$type<PlanTier>()
       .notNull()
       .default("free"),
     businessType: text("business_type")
@@ -212,11 +212,11 @@ export const businesses = pgTable(
     quoteViewedFollowUpDelayDays: integer("quote_viewed_follow_up_delay_days")
       .notNull()
       .default(3),
-    /** Enable AI agent for conversational inquiry collection. */
-    aiAgentEnabled: boolean("ai_agent_enabled").notNull().default(false),
-    /** AI agent configuration (tone, handoff triggers, etc.). */
-    aiAgentConfig: jsonb("ai_agent_config").notNull().default("{}"),
-    /** Unused. Predates ADR 003; the Agent is gated by `aiAgentEnabled`. */
+    /** Enable Agent for conversational inquiry collection. */
+    agentEnabled: boolean("ai_agent_enabled").notNull().default(false),
+    /** Agent configuration (tone, handoff triggers, etc.). */
+    agentConfig: jsonb("ai_agent_config").notNull().default("{}"),
+    /** Unused. Predates ADR 003; the Agent is gated by `agentEnabled`. */
     aiAssistantBetaEnabled: boolean("ai_assistant_beta_enabled").notNull().default(false),
     industryCategory: text("industry_category"),
     archivedAt: timestamp("archived_at", { withTimezone: true }),

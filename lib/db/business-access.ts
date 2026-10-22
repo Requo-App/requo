@@ -22,13 +22,12 @@ import {
   getBusinessViewCondition,
 } from "@/features/businesses/lifecycle";
 import type { BusinessType } from "@/features/inquiries/business-types";
-import type { BusinessPlan } from "@/lib/plans/plans";
+import type { PlanTier } from "@/lib/plans/plans";
 import {
   type BusinessMemberRole,
   businessMemberRoleMeta,
   canManageBusinessAdministration,
   canManageBusinessMembers,
-  canManageBusinessWorkspace,
   canManageOperationalBusinessSettings,
   hasBusinessRoleAccess,
 } from "@/lib/business-members";
@@ -41,7 +40,7 @@ import { activeBusinessSlugCookieName } from "@/features/businesses/routes";
 import { db } from "@/lib/db/client";
 import {
   user,
-  businessInquiryForms,
+  services,
   businessMembers,
   businesses,
 } from "@/lib/db/schema";
@@ -52,7 +51,7 @@ export type BusinessContext = {
   memberJoinedAt: Date;
   business: {
     id: string;
-    plan: BusinessPlan;
+    plan: PlanTier;
     name: string;
     slug: string;
     businessType: BusinessType;
@@ -132,11 +131,11 @@ async function getCachedBusinessMemberships(
   cacheTag(...getUserMembershipsCacheTags(userId));
 
   const publicInquiryEnabledSelection = sql<boolean>`coalesce((
-    select ${businessInquiryForms.publicInquiryEnabled}
-    from ${businessInquiryForms}
-    where ${businessInquiryForms.businessId} = ${businesses.id}
-      and ${businessInquiryForms.isDefault} = true
-      and ${businessInquiryForms.archivedAt} is null
+    select ${services.publicInquiryEnabled}
+    from ${services}
+    where ${services.businessId} = ${businesses.id}
+      and ${services.isDefault} = true
+      and ${services.archivedAt} is null
     limit 1
   ), false)`;
 
@@ -184,7 +183,7 @@ async function getCachedBusinessMemberships(
     memberJoinedAt: membership.memberJoinedAt,
     business: {
       id: membership.businessId,
-      plan: membership.businessPlan as BusinessPlan,
+      plan: membership.businessPlan as PlanTier,
       name: membership.businessName,
       slug: membership.businessSlug,
       businessType: membership.businessType,
@@ -207,7 +206,7 @@ export const getBusinessMembershipsForUser = cache(async (
 ) => {
   const memberships = await getCachedBusinessMemberships(userId, view);
 
-  return applyEffectiveBusinessPlans(memberships);
+  return applyEffectivePlanTiers(memberships);
 });
 
 async function getCachedBusinessContextForMembershipSlug(
@@ -221,11 +220,11 @@ async function getCachedBusinessContextForMembershipSlug(
   cacheTag(...getUserBusinessContextCacheTags(userId, businessSlug));
 
   const publicInquiryEnabledSelection = sql<boolean>`coalesce((
-    select ${businessInquiryForms.publicInquiryEnabled}
-    from ${businessInquiryForms}
-    where ${businessInquiryForms.businessId} = ${businesses.id}
-      and ${businessInquiryForms.isDefault} = true
-      and ${businessInquiryForms.archivedAt} is null
+    select ${services.publicInquiryEnabled}
+    from ${services}
+    where ${services.businessId} = ${businesses.id}
+      and ${services.isDefault} = true
+      and ${services.archivedAt} is null
     limit 1
   ), false)`;
 
@@ -274,7 +273,7 @@ async function getCachedBusinessContextForMembershipSlug(
     memberJoinedAt: context.memberJoinedAt,
     business: {
       id: context.businessId,
-      plan: context.businessPlan as BusinessPlan,
+      plan: context.businessPlan as PlanTier,
       name: context.businessName,
       slug: context.businessSlug,
       businessType: context.businessType,
@@ -302,7 +301,7 @@ export const getBusinessContextForMembershipSlug = cache(async (
     includeInactive,
   );
 
-  return applyEffectiveBusinessPlan(context);
+  return applyEffectivePlanTier(context);
 });
 
 /**
@@ -340,7 +339,7 @@ async function getEffectivePlanByBusinessMap(businessIds: string[]) {
   return new Map(entries);
 }
 
-async function applyEffectiveBusinessPlans(
+async function applyEffectivePlanTiers(
   rows: BusinessContext[],
 ): Promise<BusinessContext[]> {
   if (rows.length === 0) {
@@ -374,7 +373,7 @@ async function applyEffectiveBusinessPlans(
   });
 }
 
-async function applyEffectiveBusinessPlan(
+async function applyEffectivePlanTier(
   row: BusinessContext | null,
 ): Promise<BusinessContext | null> {
   if (!row) {
@@ -598,7 +597,7 @@ export async function getOperationalBusinessActionContext() {
   });
 }
 
-export async function getWorkspaceBusinessActionContext() {
+export async function getMemberBusinessActionContext() {
   return getBusinessActionContext({
     minimumRole: "staff",
     requireActiveBusiness: true,
@@ -616,10 +615,6 @@ export async function getOwnerBusinessLifecycleActionContext() {
 
 export function hasOperationalBusinessAccess(role: BusinessMemberRole) {
   return canManageOperationalBusinessSettings(role);
-}
-
-export function hasBusinessWorkspaceAccess(role: BusinessMemberRole) {
-  return canManageBusinessWorkspace(role);
 }
 
 export function hasBusinessMemberManagementAccess(role: BusinessMemberRole) {

@@ -27,8 +27,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useDeferredActionState } from "@/hooks/use-deferred-action-state";
-import { safeHasFeatureAccess } from "@/features/paywall/lib/utils";
-import type { BusinessPlan } from "@/lib/plans/plans";
+import { hasFeatureAccess } from "@/lib/plans/entitlements";
+import type { PlanTier } from "@/lib/plans/plans";
 import type {
   FollowUpCategory,
   FollowUpChannel,
@@ -102,13 +102,13 @@ export function FollowUpCreateDialog({
   hasLinkedItem?: boolean;
   onOptimisticInsert?: () => void;
   /** Business plan — automatic sending is a paid capability. */
-  plan?: BusinessPlan;
+  plan?: PlanTier;
   /** Business timezone — the default due date is read in it. */
   timezone?: string;
   triggerLabel?: string;
   triggerVariant?: React.ComponentProps<typeof Button>["variant"];
 }) {
-  const canSendAutomatically = safeHasFeatureAccess(plan, "autoFollowUps");
+  const canSendAutomatically = hasFeatureAccess(plan, "autoFollowUps");
   const availableSendModeOptions = sendModeOptions.filter(
     (option) => option.value !== "automatic" || canSendAutomatically,
   );

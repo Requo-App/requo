@@ -21,7 +21,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { CustomerHistoryPanel } from "@/features/customers/components/customer-history-panel";
+import { CustomerHistoryPanel } from "@/features/customer-history/components/customer-history-panel";
 import { InquiryRecordStateBadge } from "@/features/inquiries/components/inquiry-record-state-badge";
 import { InquiryStatusBadge } from "@/features/inquiries/components/inquiry-status-badge";
 import {

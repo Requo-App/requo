@@ -4,9 +4,9 @@ import { Plus, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { LockedAction } from "@/features/paywall/components/locked-action";
+import { FeatureGate } from "@/features/entitlements";
 import { hasFeatureAccess } from "@/lib/plans/entitlements";
-import type { BusinessPlan } from "@/lib/plans/plans";
+import type { PlanTier } from "@/lib/plans/plans";
 import { getUsageLimit } from "@/lib/plans/usage-limits";
 
 export type ServiceNameEntry = {
@@ -15,7 +15,7 @@ export type ServiceNameEntry = {
 
 type ServiceNameFieldsProps = {
   services: ServiceNameEntry[];
-  plan: BusinessPlan;
+  plan: PlanTier;
   /** Field-level error shown under the rows. */
   fieldError?: string;
   isPending: boolean;
@@ -32,11 +32,11 @@ type ServiceNameFieldsProps = {
 
 /**
  * Live services allowed by the plan. Extras beyond the cap stay visible but
- * locked for plans without `multipleForms` (entitlement-visibility rule);
+ * locked for plans without `multipleServices` (entitlement-visibility rule);
  * the server trims beyond-limit rows on submit.
  */
-function resolvePlanServiceCap(plan: BusinessPlan) {
-  return getUsageLimit(plan, "liveFormsPerBusiness") ?? 10;
+function resolvePlanServiceCap(plan: PlanTier) {
+  return getUsageLimit(plan, "liveServicesPerBusiness") ?? 10;
 }
 
 /**
@@ -56,7 +56,7 @@ export function ServiceNameFields({
   inputClassName,
 }: ServiceNameFieldsProps) {
   const cap = resolvePlanServiceCap(plan);
-  const hasMultipleServicesFeature = hasFeatureAccess(plan, "multipleForms");
+  const hasMultipleServicesFeature = hasFeatureAccess(plan, "multipleServices");
   const canAddMore = services.length < cap;
   const isAddLocked = !hasMultipleServicesFeature;
   const isAddDisabled = isPending || (!isAddLocked && !canAddMore);
@@ -122,9 +122,9 @@ export function ServiceNameFields({
       ) : null}
 
       {isAddLocked ? (
-        <LockedAction className="w-fit" feature="multipleForms" plan={plan}>
+        <FeatureGate variant="action" className="w-fit" feature="multipleServices" plan={plan}>
           {addButton}
-        </LockedAction>
+        </FeatureGate>
       ) : canAddMore ? (
         addButton
       ) : (

@@ -76,7 +76,7 @@ export function BusinessDeleteZone({
             Danger zone
           </h2>
           <p className="text-sm leading-6 text-muted-foreground">
-            Archive this business or delete your whole workspace.
+            Archive this business or delete your whole business.
           </p>
         </div>
 

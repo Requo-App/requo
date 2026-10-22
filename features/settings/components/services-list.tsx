@@ -57,32 +57,32 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type {
-  BusinessInquiryFormDangerActionState,
-  BusinessInquiryFormsActionState,
-  BusinessInquiryFormsSettingsView,
+  ServiceDangerActionState,
+  ServicesActionState,
+  ServicesSettingsView,
 } from "@/features/settings/types";
 import { getBusinessServicePath } from "@/features/businesses/routes";
 import { getBusinessPublicInquiryUrl } from "@/features/settings/utils";
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
 import { hasFeatureAccess } from "@/lib/plans";
-import type { BusinessPlan as plan } from "@/lib/plans/plans";
-import { LockedAction } from "@/features/paywall";
+import type { PlanTier as plan } from "@/lib/plans/plans";
+import { FeatureGate } from "@/features/entitlements";
 import { useBusinessCheckout } from "@/features/billing/components/business-checkout-provider";
 
 type ServicesListProps = {
-  settings: BusinessInquiryFormsSettingsView;
+  settings: ServicesSettingsView;
   createAction: (
-    state: BusinessInquiryFormsActionState,
+    state: ServicesActionState,
     formData: FormData,
-  ) => Promise<BusinessInquiryFormsActionState>;
+  ) => Promise<ServicesActionState>;
   unarchiveAction: (
-    state: BusinessInquiryFormDangerActionState,
+    state: ServiceDangerActionState,
     formData: FormData,
-  ) => Promise<BusinessInquiryFormDangerActionState>;
+  ) => Promise<ServiceDangerActionState>;
   plan: plan;
 };
 
-const initialState: BusinessInquiryFormsActionState = {};
+const initialState: ServicesActionState = {};
 
 type ServiceStatusFilter = "all" | "active" | "inactive";
 type ServiceSort = "name" | "newest" | "most-inquiries";
@@ -106,38 +106,38 @@ export function ServicesList({
   plan,
 }: ServicesListProps) {
   const businessCheckout = useBusinessCheckout();
-  const [createState, createFormAction, isCreatePending] =
+  const [createState, createServiceFormAction, isCreatePending] =
     useActionStateWithSonner(createAction, initialState);
   const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<ServiceStatusFilter>("all");
   const [sort, setSort] = useState<ServiceSort>("name");
-  const [, unarchiveFormAction, isUnarchivePending] =
+  const [, unarchiveServiceFormAction, isUnarchivePending] =
     useActionStateWithSonner(unarchiveAction, initialState);
-  const effectiveplan = businessCheckout
+  const effectivePlan = businessCheckout
     ? businessCheckout.currentPlan
     : plan;
   const nameError = createState.fieldErrors?.name?.[0];
-  const activeForms = settings.forms.filter((form) => !form.archivedAt);
-  const archivedForms = settings.forms.filter((form) => form.archivedAt);
-  const canCreateAdditionalForms =
-    hasFeatureAccess(effectiveplan, "multipleForms") ||
-    activeForms.length === 0;
+  const activeServices = settings.services.filter((service) => !service.archivedAt);
+  const archivedServices = settings.services.filter((service) => service.archivedAt);
+  const canCreateAdditionalServices =
+    hasFeatureAccess(effectivePlan, "multipleServices") ||
+    activeServices.length === 0;
 
-  const filteredForms = useMemo(() => {
+  const filteredServices = useMemo(() => {
     const trimmedQuery = query.trim().toLowerCase();
     const matches =
       statusFilter === "all"
-        ? activeForms
-        : activeForms.filter((form) =>
+        ? activeServices
+        : activeServices.filter((service) =>
             statusFilter === "active"
-              ? form.publicInquiryEnabled
-              : !form.publicInquiryEnabled,
+              ? service.publicInquiryEnabled
+              : !service.publicInquiryEnabled,
           );
     const searched = trimmedQuery
-      ? matches.filter((form) =>
-          `${form.name} ${form.slug}`.toLowerCase().includes(trimmedQuery),
+      ? matches.filter((service) =>
+          `${service.name} ${service.slug}`.toLowerCase().includes(trimmedQuery),
         )
       : matches;
     return [...searched].sort((a, b) => {
@@ -153,7 +153,7 @@ export function ServicesList({
           return a.name.localeCompare(b.name);
       }
     });
-  }, [activeForms, query, statusFilter, sort]);
+  }, [activeServices, query, statusFilter, sort]);
 
   function clearFilters() {
     setQuery("");
@@ -163,14 +163,14 @@ export function ServicesList({
 
   const canClear =
     query.trim() !== "" || statusFilter !== "all" || sort !== "name";
-  const resultLabel = `${filteredForms.length} of ${activeForms.length} ${activeForms.length === 1 ? "service" : "services"}`;
+  const resultLabel = `${filteredServices.length} of ${activeServices.length} ${activeServices.length === 1 ? "service" : "services"}`;
 
   return (
     <div className="flex flex-col gap-4">
       {/* Actions row */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          {archivedForms.length > 0 ? (
+          {archivedServices.length > 0 ? (
             <ResponsiveOverlay
               open={isArchiveDialogOpen}
               onOpenChange={setIsArchiveDialogOpen}
@@ -178,7 +178,7 @@ export function ServicesList({
               <ResponsiveOverlayTrigger asChild>
                 <Button variant="outline" size="sm">
                   <FileArchive data-icon="inline-start" />
-                  Archived ({archivedForms.length})
+                  Archived ({archivedServices.length})
                 </Button>
               </ResponsiveOverlayTrigger>
               <ResponsiveOverlayContent className="sm:max-w-xl">
@@ -192,24 +192,24 @@ export function ServicesList({
                   </ResponsiveOverlayDescription>
                 </ResponsiveOverlayHeader>
                 <ResponsiveOverlayBody className="gap-4">
-                  {archivedForms.map((form) => (
+                  {archivedServices.map((service) => (
                     <div
                       className="flex items-center justify-between gap-3 rounded-lg border border-border/70 bg-background/75 px-4 py-3"
-                      key={form.id}
+                      key={service.id}
                     >
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium">
-                          {form.name}
+                          {service.name}
                         </p>
                         <p className="truncate font-mono text-xs text-muted-foreground">
-                          {form.slug}
+                          {service.slug}
                         </p>
                       </div>
-                      <form action={unarchiveFormAction}>
+                      <form action={unarchiveServiceFormAction}>
                         <input
                           type="hidden"
-                          name="targetFormId"
-                          value={form.id}
+                          name="targetServiceId"
+                          value={service.id}
                         />
                         <Button
                           size="sm"
@@ -228,15 +228,15 @@ export function ServicesList({
                 </ResponsiveOverlayBody>
               </ResponsiveOverlayContent>
             </ResponsiveOverlay>
-          ) : activeForms.length > 0 ? (
+          ) : activeServices.length > 0 ? (
             <p className="truncate text-xs text-muted-foreground">
-              {activeForms.length}{" "}
-              {activeForms.length === 1 ? "service" : "services"}
+              {activeServices.length}{" "}
+              {activeServices.length === 1 ? "service" : "services"}
             </p>
           ) : null}
         </div>
 
-        {canCreateAdditionalForms ? (
+        {canCreateAdditionalServices ? (
           <MobileHeaderSlot>
           <ResponsiveOverlay
             open={isCreateDialogOpen}
@@ -261,11 +261,11 @@ export function ServicesList({
                 </ResponsiveOverlayDescription>
               </ResponsiveOverlayHeader>
 
-              <form action={createFormAction}>
+              <form action={createServiceFormAction}>
                 <ResponsiveOverlayBody>
                   <FieldGroup>
                     <Field data-invalid={Boolean(nameError) || undefined}>
-                      <FieldLabel htmlFor="business-inquiry-form-create-name">
+                      <FieldLabel htmlFor="service-create-name">
                         Service name
                       </FieldLabel>
                       <FieldContent>
@@ -273,7 +273,7 @@ export function ServicesList({
                           aria-invalid={Boolean(nameError) || undefined}
                           autoComplete="off"
                           disabled={isCreatePending}
-                          id="business-inquiry-form-create-name"
+                          id="service-create-name"
                           maxLength={80}
                           minLength={2}
                           name="name"
@@ -321,9 +321,10 @@ export function ServicesList({
           </MobileHeaderSlot>
         ) : (
           <MobileHeaderSlot>
-          <LockedAction
-            feature="multipleForms"
-            plan={effectiveplan}
+          <FeatureGate
+            variant="action"
+            feature="multipleServices"
+            plan={effectivePlan}
             description="Create additional services for different offerings or audiences."
           >
             <Button
@@ -335,13 +336,13 @@ export function ServicesList({
               <Plus data-icon="inline-start" />
               <span className="hidden lg:inline">Create</span>
             </Button>
-          </LockedAction>
+          </FeatureGate>
           </MobileHeaderSlot>
         )}
       </div>
 
       {/* Results */}
-      {activeForms.length === 0 ? (
+      {activeServices.length === 0 ? (
         <DashboardEmptyState
           description="Create a service to publish a page for incoming inquiries."
           icon={PencilRuler}
@@ -437,16 +438,16 @@ export function ServicesList({
             <p className="data-list-toolbar-count">{resultLabel}</p>
           </div>
 
-          {filteredForms.length > 0 ? (
+          {filteredServices.length > 0 ? (
             <>
               {/* Mobile list */}
               <div className="flex flex-col gap-2 p-3 sm:hidden">
-                {filteredForms.map((form) => (
+                {filteredServices.map((service) => (
                   <Link
-                    key={form.id}
+                    key={service.id}
                     href={getBusinessServicePath(
                       settings.slug,
-                      form.slug,
+                      service.slug,
                     )}
                     className="flex items-center justify-between gap-3 rounded-xl border border-border/80 bg-background px-4 py-3.5 transition-colors hover:bg-muted/40"
                   >
@@ -455,8 +456,8 @@ export function ServicesList({
                     </div>
                     <div className="min-w-0 flex-1 space-y-0.5">
                       <div className="flex items-center gap-2">
-                        <p className="truncate text-sm font-medium">{form.name}</p>
-                        {form.isDefault ? (
+                        <p className="truncate text-sm font-medium">{service.name}</p>
+                        {service.isDefault ? (
                           <Badge
                             variant="secondary"
                             className="px-1.5 py-0 font-normal text-muted-foreground"
@@ -466,16 +467,16 @@ export function ServicesList({
                         ) : null}
                       </div>
                       <p className="truncate text-xs text-muted-foreground">
-                        {form.submittedInquiryCount}{" "}
-                        {form.submittedInquiryCount === 1
+                        {service.submittedInquiryCount}{" "}
+                        {service.submittedInquiryCount === 1
                           ? "inquiry"
                           : "inquiries"}
                       </p>
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
                       <StatusBadge
-                        tone={form.publicInquiryEnabled ? "success" : "neutral"}
-                        label={form.publicInquiryEnabled ? "Active" : "Inactive"}
+                        tone={service.publicInquiryEnabled ? "success" : "neutral"}
+                        label={service.publicInquiryEnabled ? "Active" : "Inactive"}
                       />
                     </div>
                   </Link>
@@ -494,13 +495,13 @@ export function ServicesList({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredForms.map((form) => (
-                      <TableRow key={form.id}>
+                    {filteredServices.map((service) => (
+                      <TableRow key={service.id}>
                         <TableCell>
                           <Link
                             href={getBusinessServicePath(
                               settings.slug,
-                              form.slug,
+                              service.slug,
                             )}
                             className="group flex items-center gap-3 py-0.5"
                           >
@@ -510,9 +511,9 @@ export function ServicesList({
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-2">
                                 <span className="truncate font-medium group-hover:underline">
-                                  {form.name}
+                                  {service.name}
                                 </span>
-                                {form.isDefault ? (
+                                {service.isDefault ? (
                                   <Badge
                                     variant="secondary"
                                     className="px-1.5 py-0 font-normal text-muted-foreground"
@@ -526,18 +527,18 @@ export function ServicesList({
                         </TableCell>
                         <TableCell>
                           <StatusBadge
-                            tone={form.publicInquiryEnabled ? "success" : "neutral"}
-                            label={form.publicInquiryEnabled ? "Active" : "Inactive"}
+                            tone={service.publicInquiryEnabled ? "success" : "neutral"}
+                            label={service.publicInquiryEnabled ? "Active" : "Inactive"}
                           />
                         </TableCell>
                         <TableCell className="text-right tabular-nums">
-                          {form.submittedInquiryCount}
+                          {service.submittedInquiryCount}
                         </TableCell>
                         <TableCell>
-                          <FormRowActions
+                          <ServiceRowActions
                             settingsSlug={settings.slug}
                             businessName={settings.name}
-                            form={form}
+                            service={service}
                           />
                         </TableCell>
                       </TableRow>
@@ -574,17 +575,17 @@ export function ServicesList({
   );
 }
 
-type FormRowActionsProps = {
+type ServiceRowActionsProps = {
   settingsSlug: string;
   businessName: string;
-  form: ServicesListProps["settings"]["forms"][number];
+  service: ServicesListProps["settings"]["services"][number];
 };
 
-function FormRowActions({
+function ServiceRowActions({
   settingsSlug,
   businessName,
-  form,
-}: FormRowActionsProps) {
+  service,
+}: ServiceRowActionsProps) {
   const [isShareOpen, setIsShareOpen] = useState(false);
 
   return (
@@ -601,21 +602,21 @@ function FormRowActions({
             <Link
               href={getBusinessServicePath(
                 settingsSlug,
-                form.slug,
+                service.slug,
               )}
             >
               <PencilLine className="mr-2 size-4" />
               Edit
             </Link>
           </DropdownMenuItem>
-          {form.publicInquiryEnabled && (
+          {service.publicInquiryEnabled && (
             <>
               <DropdownMenuItem asChild>
                 <Link
                   href={
-                    form.isDefault
+                    service.isDefault
                       ? getBusinessPublicInquiryUrl(settingsSlug)
-                      : getBusinessPublicInquiryUrl(settingsSlug, form.slug)
+                      : getBusinessPublicInquiryUrl(settingsSlug, service.slug)
                   }
                   target="_blank"
                   rel="noreferrer"
@@ -633,13 +634,13 @@ function FormRowActions({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {form.publicInquiryEnabled && (
-        <FormShareDialog
+      {service.publicInquiryEnabled && (
+        <ServiceShareDialog
           settingsSlug={settingsSlug}
           businessName={businessName}
-          formSlug={form.slug}
-          formName={form.name}
-          isDefault={form.isDefault}
+          serviceSlug={service.slug}
+          serviceName={service.name}
+          isDefault={service.isDefault}
           open={isShareOpen}
           onOpenChange={setIsShareOpen}
         />
@@ -648,19 +649,19 @@ function FormRowActions({
   );
 }
 
-function FormShareDialog({
+function ServiceShareDialog({
   settingsSlug,
   businessName,
-  formSlug,
-  formName,
+  serviceSlug,
+  serviceName,
   isDefault,
   open,
   onOpenChange,
 }: {
   settingsSlug: string;
   businessName: string;
-  formSlug: string;
-  formName: string;
+  serviceSlug: string;
+  serviceName: string;
   isDefault: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -670,7 +671,7 @@ function FormShareDialog({
   // path only permanent-redirects there, so share the canonical link.
   const publicPath = isDefault
     ? getBusinessPublicInquiryUrl(settingsSlug)
-    : getBusinessPublicInquiryUrl(settingsSlug, formSlug);
+    : getBusinessPublicInquiryUrl(settingsSlug, serviceSlug);
   const url = isClient
     ? new URL(publicPath, window.location.origin).toString()
     : "";
@@ -685,7 +686,7 @@ function FormShareDialog({
   };
 
   const handleDownload = () => {
-    const svgElement = document.getElementById(`qr-svg-${formSlug}`);
+    const svgElement = document.getElementById(`qr-svg-${serviceSlug}`);
     if (!svgElement) return;
 
     const qrSize = 320;
@@ -744,7 +745,7 @@ function FormShareDialog({
     ctx.fillStyle = "#6B7280";
     ctx.font =
       "500 16px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
-    ctx.fillText(formName, centerX, cardStartY + 52);
+    ctx.fillText(serviceName, centerX, cardStartY + 52);
 
     const img = new Image();
     img.onload = () => {
@@ -784,7 +785,7 @@ function FormShareDialog({
 
         const pngFile = canvas.toDataURL("image/png");
         const downloadLink = document.createElement("a");
-        downloadLink.download = `${formName.toLowerCase().replace(/\s+/g, "-")}-qr.png`;
+        downloadLink.download = `${serviceName.toLowerCase().replace(/\s+/g, "-")}-qr.png`;
         downloadLink.href = pngFile;
         downloadLink.click();
       };
@@ -808,7 +809,7 @@ function FormShareDialog({
         <ResponsiveOverlayBody className="items-center gap-6">
           <div className="relative mx-auto flex items-center justify-center rounded-xl border border-border/70 bg-white p-4">
             <QRCodeSVG
-              id={`qr-svg-${formSlug}`}
+              id={`qr-svg-${serviceSlug}`}
               value={url}
               size={200}
               level="H"

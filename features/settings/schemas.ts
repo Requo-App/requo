@@ -562,14 +562,14 @@ export type BusinessEmailTemplateSettingsInput = z.infer<
   typeof businessEmailTemplateSettingsSchema
 >;
 
-export const businessAiAgentSettingsSchema = z.object({
-  aiAgentEnabled: formBoolean().default(false),
+export const businessAgentSettingsSchema = z.object({
+  agentEnabled: formBoolean().default(false),
   tone: z.enum(["friendly", "professional", "casual"]).default("friendly"),
-  aiAgentInstructions: optionalText(businessInstructionsMaxLength),
+  agentInstructions: optionalText(businessInstructionsMaxLength),
 });
 
-export type BusinessAiAgentSettingsInput = z.infer<
-  typeof businessAiAgentSettingsSchema
+export type BusinessAgentSettingsInput = z.infer<
+  typeof businessAgentSettingsSchema
 >;
 
 export const businessDeleteSchema = z.object({
@@ -582,7 +582,7 @@ export const businessDeleteSchema = z.object({
 
 export type BusinessDeleteInput = z.infer<typeof businessDeleteSchema>;
 
-export const businessInquiryPageSettingsSchema = z.object({
+export const servicePageSettingsSchema = z.object({
   name: z
     .string()
     .trim()
@@ -662,28 +662,28 @@ export const businessInquiryPageSettingsSchema = z.object({
   ),
 });
 
-export type BusinessInquiryPageSettingsInput = z.infer<
-  typeof businessInquiryPageSettingsSchema
+export type ServicePageSettingsInput = z.infer<
+  typeof servicePageSettingsSchema
 >;
 
-export const businessInquiryFormSettingsSchema = z.object({
+export const serviceSettingsSchema = z.object({
   businessType: z.enum(businessTypes),
   inquiryFormConfig: jsonField(inquiryFormConfigSchema, Symbol.for("invalid-json-field")),
 });
 
-export type BusinessInquiryFormSettingsInput = z.infer<
-  typeof businessInquiryFormSettingsSchema
+export type ServiceSettingsInput = z.infer<
+  typeof serviceSettingsSchema
 >;
 
-export const businessInquiryFormPresetSchema = z.object({
+export const servicePresetSchema = z.object({
   businessType: z.enum(businessTypes),
 });
 
-export type BusinessInquiryFormPresetInput = z.infer<
-  typeof businessInquiryFormPresetSchema
+export type ServicePresetInput = z.infer<
+  typeof servicePresetSchema
 >;
 
-export const businessInquiryFormCreateSchema = z.object({
+export const serviceCreateSchema = z.object({
   name: z
     .string()
     .trim()
@@ -691,18 +691,18 @@ export const businessInquiryFormCreateSchema = z.object({
     .max(80, "Use 80 characters or fewer."),
 });
 
-export type BusinessInquiryFormCreateInput = z.infer<
-  typeof businessInquiryFormCreateSchema
+export type ServiceCreateInput = z.infer<
+  typeof serviceCreateSchema
 >;
 
-export const businessInquiryFormTargetSchema = z.object({
-  targetFormId: z
+export const serviceTargetSchema = z.object({
+  targetServiceId: z
     .string()
     .trim()
     .min(1, "Target form id is required.")
     .max(128, "Target form id is too long."),
 });
 
-export type BusinessInquiryFormTargetInput = z.infer<
-  typeof businessInquiryFormTargetSchema
+export type ServiceTargetInput = z.infer<
+  typeof serviceTargetSchema
 >;

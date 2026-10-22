@@ -18,12 +18,12 @@ import { sanitizeAiInput } from "@/lib/ai/input-sanitizer";
 import type { ExtractedPayload } from "@/features/importer/extractors";
 import type {
   ImporterDestination,
-  ImporterPricingEntry,
-  ImporterPricingLineItem,
+  ImporterQuoteLibraryEntry,
+  ImporterQuoteLibraryLineItem,
 } from "@/features/importer/types";
 import {
-  importerMaxPricingEntries,
-  importerMaxPricingItemsPerEntry,
+  importerMaxQuoteLibraryEntries,
+  importerMaxQuoteLibraryItemsPerEntry,
 } from "@/features/importer/types";
 
 // ---------------------------------------------------------------------------
@@ -46,7 +46,7 @@ const GEMINI_TIMEOUT_MS = 30_000;
 // client and retry loop (unifying it into the shared router is out of scope),
 // but it still reads and writes the same free-tier capacity counters.
 
-const PRICING_JSON_SHAPE = `{
+const QUOTE_LIBRARY_JSON_SHAPE = `{
   "entries": [
     {
       "kind": "block",
@@ -60,10 +60,10 @@ const PRICING_JSON_SHAPE = `{
   "warnings": ["Optional short warning strings"]
 }`;
 
-const PRICING_INSTRUCTIONS = [
-  "You extract pricing from an uploaded document into reusable library entries.",
+const QUOTE_LIBRARY_INSTRUCTIONS = [
+  "You extract quote library entries from an uploaded document.",
   "Return ONLY a JSON object matching this exact shape (no markdown fences, no prose):",
-  PRICING_JSON_SHAPE,
+  QUOTE_LIBRARY_JSON_SHAPE,
   "Each entry's `kind` must be either `block` (entry has exactly one line item) or `package` (entry has multiple line items).",
   "Each line item has: `description`, `quantity` (positive integer, default 1), `unitPrice` (the price as a decimal amount, e.g. \"49.99\").",
   "Report `unitPrice` as the amount in the document's currency with no currency symbol and no thousands separator. The server converts it to cents, so never scale the number yourself.",
@@ -73,8 +73,8 @@ const PRICING_INSTRUCTIONS = [
   "If prices appear in multiple currencies, add a warning and use the primary currency.",
   "If you cannot determine a price for a row, skip it and add a warning.",
   "Use `package` when multiple items are grouped (e.g., a service tier, a bundle).",
-  "Use `block` for standalone pricing items (e.g., a single service with one price).",
-  `Return at most ${importerMaxPricingEntries} entries, each with at most ${importerMaxPricingItemsPerEntry} items.`,
+  "Use `block` for standalone line items (e.g., a single service with one price).",
+  `Return at most ${importerMaxQuoteLibraryEntries} entries, each with at most ${importerMaxQuoteLibraryItemsPerEntry} items.`,
   "Do not invent prices. Skip rows where the price is unclear.",
 ].join("\n");
 
@@ -88,7 +88,7 @@ type ExtractionInput = {
  * is used: the response is model output and cannot be trusted to have the
  * shape it claims.
  */
-const pricingExtractionSchema = z.object({
+const quoteLibraryExtractionSchema = z.object({
   entries: z
     .array(
       z.object({
@@ -110,13 +110,13 @@ const pricingExtractionSchema = z.object({
   warnings: z.array(z.string()).optional(),
 });
 
-type PricingResponse = z.infer<typeof pricingExtractionSchema>;
+type QuoteLibraryExtractionResponse = z.infer<typeof quoteLibraryExtractionSchema>;
 
 export type AiExtractionResult =
   | {
       ok: true;
       destination: "pricing";
-      entries: ImporterPricingEntry[];
+      entries: ImporterQuoteLibraryEntry[];
       warnings: string[];
     }
   | { ok: false; error: string };
@@ -204,7 +204,7 @@ export async function aiExtractFromFile(
     };
   }
 
-  const systemInstruction = PRICING_INSTRUCTIONS;
+  const systemInstruction = QUOTE_LIBRARY_INSTRUCTIONS;
   const documentText = await sanitizeDocumentText(input.payload);
   if (documentText === null) {
     return {
@@ -276,14 +276,14 @@ export async function aiExtractFromFile(
         continue;
       }
 
-      const validation = pricingExtractionSchema.safeParse(parsed);
+      const validation = quoteLibraryExtractionSchema.safeParse(parsed);
 
       if (!validation.success) {
         lastError = new Error("AI extractor returned an unexpected shape.");
         continue;
       }
 
-      return normalisePricing(validation.data);
+      return normaliseQuoteLibraryEntries(validation.data);
     } catch (error) {
       lastError = error;
       try {
@@ -329,9 +329,9 @@ function toDraftId(prefix: string, index: number): string {
   return `${prefix}_${index}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function normalisePricing(parsed: PricingResponse): AiExtractionResult {
+function normaliseQuoteLibraryEntries(parsed: QuoteLibraryExtractionResponse): AiExtractionResult {
   const rawEntries = Array.isArray(parsed.entries) ? parsed.entries : [];
-  const entries: ImporterPricingEntry[] = [];
+  const entries: ImporterQuoteLibraryEntry[] = [];
   let droppedEntriesForCap = 0;
   let droppedItemsForCap = 0;
 
@@ -345,7 +345,7 @@ function normalisePricing(parsed: PricingResponse): AiExtractionResult {
     if (!name) continue;
 
     const rawItems = Array.isArray(raw.items) ? raw.items : [];
-    const items: ImporterPricingLineItem[] = [];
+    const items: ImporterQuoteLibraryLineItem[] = [];
 
     for (let j = 0; j < rawItems.length; j += 1) {
       const rawItem = rawItems[j];
@@ -354,7 +354,7 @@ function normalisePricing(parsed: PricingResponse): AiExtractionResult {
 
       if (!itemDescription) continue;
 
-      if (items.length >= importerMaxPricingItemsPerEntry) {
+      if (items.length >= importerMaxQuoteLibraryItemsPerEntry) {
         droppedItemsForCap += 1;
         continue;
       }
@@ -380,7 +380,7 @@ function normalisePricing(parsed: PricingResponse): AiExtractionResult {
 
     if (!items.length) continue;
 
-    if (entries.length >= importerMaxPricingEntries) {
+    if (entries.length >= importerMaxQuoteLibraryEntries) {
       droppedEntriesForCap += 1;
       continue;
     }
@@ -400,7 +400,7 @@ function normalisePricing(parsed: PricingResponse): AiExtractionResult {
 
   if (droppedEntriesForCap > 0) {
     warnings.unshift(
-      `The file contained more entries than we can import at once. ${droppedEntriesForCap} additional pricing ${droppedEntriesForCap === 1 ? "entry was" : "entries were"} dropped. You can re-upload the remaining sections or add them manually.`,
+      `The file contained more entries than we can import at once. ${droppedEntriesForCap} additional quote library ${droppedEntriesForCap === 1 ? "entry was" : "entries were"} dropped. You can re-upload the remaining sections or add them manually.`,
     );
   }
 

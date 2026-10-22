@@ -140,7 +140,7 @@ export async function createInvoiceForBusiness(input: CreateInvoiceInput) {
           : input.items;
 
         if (input.quoteId && sourceQuote) {
-          const { resolveSchedulePrefillLines } = await import("@/features/schedules/mutations");
+          const { resolveSchedulePrefillLines } = await import("@/features/payment-schedules/mutations");
           const prefill = await resolveSchedulePrefillLines({
             businessId: input.businessId,
             quoteId: input.quoteId,

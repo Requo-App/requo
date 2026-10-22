@@ -15,7 +15,7 @@ import {
   uniqueCacheTags,
 } from "@/lib/cache/business-tags";
 import {
-  getWorkspaceBusinessActionContext,
+  getMemberBusinessActionContext,
 } from "@/lib/db/business-access";
 import { env } from "@/lib/env";
 import {
@@ -153,15 +153,15 @@ export async function createQuoteAction(
 ): Promise<QuoteEditorActionState> {
   void prevState;
 
-  const ownerAccess = await getWorkspaceBusinessActionContext();
+  const memberAccess = await getMemberBusinessActionContext();
 
-  if (!ownerAccess.ok) {
+  if (!memberAccess.ok) {
     return {
-      error: ownerAccess.error,
+      error: memberAccess.error,
     };
   }
 
-  const { user, businessContext } = ownerAccess;
+  const { user, businessContext } = memberAccess;
 
   const validationResult = quoteEditorSchema.safeParse(
     buildQuoteEditorPayload(formData),
@@ -228,15 +228,15 @@ export async function updateQuoteAction(
 ): Promise<QuoteEditorActionState> {
   void prevState;
 
-  const ownerAccess = await getWorkspaceBusinessActionContext();
+  const memberAccess = await getMemberBusinessActionContext();
 
-  if (!ownerAccess.ok) {
+  if (!memberAccess.ok) {
     return {
-      error: ownerAccess.error,
+      error: memberAccess.error,
     };
   }
 
-  const { user, businessContext } = ownerAccess;
+  const { user, businessContext } = memberAccess;
   const validationResult = quoteEditorSchema.safeParse(
     buildQuoteEditorPayload(formData),
   );
@@ -420,15 +420,15 @@ export async function sendQuoteAction(
 ): Promise<QuoteSendActionState> {
   void prevState;
 
-  const ownerAccess = await getWorkspaceBusinessActionContext();
+  const memberAccess = await getMemberBusinessActionContext();
 
-  if (!ownerAccess.ok) {
+  if (!memberAccess.ok) {
     return {
-      error: ownerAccess.error,
+      error: memberAccess.error,
     };
   }
 
-  const { user, businessContext } = ownerAccess;
+  const { user, businessContext } = memberAccess;
   const deliveryMethod: QuoteDeliveryMethod =
     formData.get("deliveryMethod") === "manual" ? "manual" : "requo";
 
@@ -682,15 +682,15 @@ export async function acknowledgeQuoteUncertaintyAction(
   void _prevState;
   void _formData;
 
-  const ownerAccess = await getWorkspaceBusinessActionContext();
+  const memberAccess = await getMemberBusinessActionContext();
 
-  if (!ownerAccess.ok) {
+  if (!memberAccess.ok) {
     return {
-      error: ownerAccess.error,
+      error: memberAccess.error,
     };
   }
 
-  const { user, businessContext } = ownerAccess;
+  const { user, businessContext } = memberAccess;
 
   try {
     const result = await acknowledgeQuoteUncertaintyForBusiness({
@@ -738,13 +738,13 @@ export async function logQuoteSendEventAction(
   eventType: string,
   channel?: string,
 ): Promise<{ error?: string }> {
-  const ownerAccess = await getWorkspaceBusinessActionContext();
+  const memberAccess = await getMemberBusinessActionContext();
 
-  if (!ownerAccess.ok) {
-    return { error: ownerAccess.error };
+  if (!memberAccess.ok) {
+    return { error: memberAccess.error };
   }
 
-  const { user, businessContext } = ownerAccess;
+  const { user, businessContext } = memberAccess;
 
   try {
     await logQuoteSendEvent({
@@ -771,13 +771,13 @@ export async function logQuoteSendEventAction(
 export async function stopAutoFollowUpAction(
   quoteId: string,
 ): Promise<{ error?: string; success?: string }> {
-  const ownerAccess = await getWorkspaceBusinessActionContext();
+  const memberAccess = await getMemberBusinessActionContext();
 
-  if (!ownerAccess.ok) {
-    return { error: ownerAccess.error };
+  if (!memberAccess.ok) {
+    return { error: memberAccess.error };
   }
 
-  const { businessContext } = ownerAccess;
+  const { businessContext } = memberAccess;
 
   try {
     const { stopAutoFollowUpForQuote } = await import(
@@ -969,15 +969,15 @@ export async function cancelAcceptedQuoteAction(
 ): Promise<QuoteCancellationActionState> {
   void prevState;
 
-  const ownerAccess = await getWorkspaceBusinessActionContext();
+  const memberAccess = await getMemberBusinessActionContext();
 
-  if (!ownerAccess.ok) {
+  if (!memberAccess.ok) {
     return {
-      error: ownerAccess.error,
+      error: memberAccess.error,
     };
   }
 
-  const { user, businessContext } = ownerAccess;
+  const { user, businessContext } = memberAccess;
   const validationResult = quoteCancellationSchema.safeParse({
     cancellationReason: formData.get("cancellationReason"),
     cancellationNote: formData.get("cancellationNote"),
@@ -1045,15 +1045,15 @@ export async function completeAcceptedQuoteAction(
   void prevState;
   void _formData;
 
-  const ownerAccess = await getWorkspaceBusinessActionContext();
+  const memberAccess = await getMemberBusinessActionContext();
 
-  if (!ownerAccess.ok) {
+  if (!memberAccess.ok) {
     return {
-      error: ownerAccess.error,
+      error: memberAccess.error,
     };
   }
 
-  const { user, businessContext } = ownerAccess;
+  const { user, businessContext } = memberAccess;
 
   try {
     const result = await completeAcceptedQuoteForBusiness({
@@ -1209,15 +1209,15 @@ export async function reviseQuoteAction(
   void _prevState;
   void _formData;
 
-  const ownerAccess = await getWorkspaceBusinessActionContext();
+  const memberAccess = await getMemberBusinessActionContext();
 
-  if (!ownerAccess.ok) {
+  if (!memberAccess.ok) {
     return {
-      error: ownerAccess.error,
+      error: memberAccess.error,
     };
   }
 
-  const { user, businessContext } = ownerAccess;
+  const { user, businessContext } = memberAccess;
 
   try {
     const result = await archiveQuoteVersionAndRevise({
@@ -1273,10 +1273,10 @@ export async function bulkArchiveQuotesAction(
   _prevState: QuoteBulkActionState,
   formData: FormData,
 ): Promise<QuoteBulkActionState> {
-  const ownerAccess = await getWorkspaceBusinessActionContext();
-  if (!ownerAccess.ok) return { error: ownerAccess.error };
+  const memberAccess = await getMemberBusinessActionContext();
+  if (!memberAccess.ok) return { error: memberAccess.error };
 
-  const { user, businessContext } = ownerAccess;
+  const { user, businessContext } = memberAccess;
   const rawIds = formData.get("quoteIds") as string;
   const parsed = quoteBulkActionSchema.safeParse({
     quoteIds: rawIds ? rawIds.split(",").filter(Boolean) : [],
@@ -1310,10 +1310,10 @@ export async function bulkVoidQuotesAction(
   _prevState: QuoteBulkActionState,
   formData: FormData,
 ): Promise<QuoteBulkActionState> {
-  const ownerAccess = await getWorkspaceBusinessActionContext();
-  if (!ownerAccess.ok) return { error: ownerAccess.error };
+  const memberAccess = await getMemberBusinessActionContext();
+  if (!memberAccess.ok) return { error: memberAccess.error };
 
-  const { user, businessContext } = ownerAccess;
+  const { user, businessContext } = memberAccess;
   const rawIds = formData.get("quoteIds") as string;
   const parsed = quoteBulkActionSchema.safeParse({
     quoteIds: rawIds ? rawIds.split(",").filter(Boolean) : [],
@@ -1347,10 +1347,10 @@ export async function bulkDeleteQuotesAction(
   _prevState: QuoteBulkActionState,
   formData: FormData,
 ): Promise<QuoteBulkActionState> {
-  const ownerAccess = await getWorkspaceBusinessActionContext();
-  if (!ownerAccess.ok) return { error: ownerAccess.error };
+  const memberAccess = await getMemberBusinessActionContext();
+  if (!memberAccess.ok) return { error: memberAccess.error };
 
-  const { user, businessContext } = ownerAccess;
+  const { user, businessContext } = memberAccess;
   const rawIds = formData.get("quoteIds") as string;
   const confirmed = formData.get("confirmed") as string;
 
@@ -1404,10 +1404,10 @@ export async function bulkRestoreQuotesAction(
   _prevState: QuoteBulkActionState,
   formData: FormData,
 ): Promise<QuoteBulkActionState> {
-  const ownerAccess = await getWorkspaceBusinessActionContext();
-  if (!ownerAccess.ok) return { error: ownerAccess.error };
+  const memberAccess = await getMemberBusinessActionContext();
+  if (!memberAccess.ok) return { error: memberAccess.error };
 
-  const { user, businessContext } = ownerAccess;
+  const { user, businessContext } = memberAccess;
   const rawIds = formData.get("quoteIds") as string;
   const parsed = quoteBulkActionSchema.safeParse({
     quoteIds: rawIds ? rawIds.split(",").filter(Boolean) : [],

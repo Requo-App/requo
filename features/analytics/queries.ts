@@ -11,7 +11,7 @@ import { withCircuitBreaker } from "@/lib/db/circuit-breaker";
 import { db, executeRows } from "@/lib/db/client";
 import {
   activityLogs,
-  aiAgentSessions,
+  agentSessions,
   analyticsAnnotations,
   analyticsBenchmarks,
   analyticsDailyRollups,
@@ -19,14 +19,14 @@ import {
   analyticsGoalThresholds,
   analyticsScheduledReports,
   approvals,
-  businessInquiryForms,
+  services,
   businessKnowledgeFiles,
   businessMembers,
-  businessMemories,
+  knowledgeEntries,
   businesses,
   changeOrders,
-  commercialScheduleItems,
-  commercialSchedules,
+  paymentScheduleItems,
+  paymentSchedules,
   emailOutbox,
   followUps,
   inquiries,
@@ -36,7 +36,7 @@ import {
   quotes,
   user,
 } from "@/lib/db/schema";
-import type { BusinessPlan } from "@/lib/plans/plans";
+import type { PlanTier } from "@/lib/plans/plans";
 import { getUsageLimit } from "@/lib/plans/usage-limits";
 import {
   getActiveAutoFollowUpCount,
@@ -176,7 +176,7 @@ function emptyOverviewPeriod(): OverviewPeriod {
 
 export type AnalyticsBusinessMeta = {
   currency: string;
-  plan: BusinessPlan;
+  plan: PlanTier;
   industryCategory: string | null;
   createdAt: Date;
 };
@@ -197,7 +197,7 @@ async function getAnalyticsBusinessMetaUncached(
 
   return {
     currency: row?.currency ?? "USD",
-    plan: (row?.plan as BusinessPlan | null) ?? "free",
+    plan: (row?.plan as PlanTier | null) ?? "free",
     industryCategory: row?.industryCategory ?? null,
     createdAt: row?.createdAt ?? new Date(),
   };
@@ -314,10 +314,10 @@ async function loadLiveDayDaily(
           from ${analyticsEvents}
           where ${analyticsEvents.businessId} = ${businessId}
             and ${analyticsEvents.eventType} = 'inquiry_form_viewed'
-            and ${analyticsEvents.businessInquiryFormId} is not null
+            and ${analyticsEvents.serviceId} is not null
             and ${analyticsEvents.occurredAt} >= ${dayStartIso}
           group by
-            ${analyticsEvents.businessInquiryFormId},
+            ${analyticsEvents.serviceId},
             ${analyticsEvents.visitorHash},
             date_trunc('second', ${analyticsEvents.occurredAt})
         ) deduped
@@ -382,7 +382,7 @@ async function loadLiveDayDaily(
  * Live per-day metrics for the days the rollup has not covered.
  *
  * `analytics_daily_rollups` only covers the days the nightly rollup job has
- * processed. Anything the job has not reached yet — a workspace seeded with
+ * processed. Anything the job has not reached yet — a business seeded with
  * history, a window that predates the job, a fresh install — would read as a
  * flat zero series. This query mirrors the rollup's definitions and is used
  * to fill the days the rollup is missing, so the trend chart always shows the
@@ -433,7 +433,7 @@ async function loadLiveDailies(
         from ${analyticsEvents}
         where ${analyticsEvents.businessId} = ${businessId}
           and ${analyticsEvents.eventType} = 'inquiry_form_viewed'
-          and ${analyticsEvents.businessInquiryFormId} is not null
+          and ${analyticsEvents.serviceId} is not null
           and ${analyticsEvents.occurredAt} >= ${rangeStart}
           and ${analyticsEvents.occurredAt} < ${rangeEnd}
         group by 1, 2
@@ -688,11 +688,11 @@ export async function getOverviewPeriodRows(
           from ${analyticsEvents}
           where ${analyticsEvents.businessId} = ${businessId}
             and ${analyticsEvents.eventType} = 'inquiry_form_viewed'
-            and ${analyticsEvents.businessInquiryFormId} is not null
+            and ${analyticsEvents.serviceId} is not null
             and ${analyticsEvents.occurredAt} >= ${sinceIso}
             and ${analyticsEvents.occurredAt} < ${untilIso}
           group by
-            ${analyticsEvents.businessInquiryFormId},
+            ${analyticsEvents.serviceId},
             ${analyticsEvents.visitorHash},
             date_trunc('second', ${analyticsEvents.occurredAt})
         ) deduped
@@ -967,9 +967,9 @@ async function getOverviewAttention(
 
 async function getOverviewUsageMeters(
   businessId: string,
-  plan: BusinessPlan,
+  plan: PlanTier,
 ): Promise<AnalyticsUsageMeter[]> {
-  const [ai, quoteEmails, autoFollowUpActive, autoFollowUpEmails, agentSessions] =
+  const [ai, quoteEmails, autoFollowUpActive, autoFollowUpEmails, agentSessionCount] =
     await Promise.all([
       getMonthlyUsageSummary(businessId, plan),
       getMonthlyRequoDocumentSendCount(businessId),
@@ -977,12 +977,12 @@ async function getOverviewUsageMeters(
       getMonthlyAutoFollowUpSendCount(businessId),
       db
         .select({ value: sql<number>`count(*)` })
-        .from(aiAgentSessions)
+        .from(agentSessions)
         .where(
           and(
-            eq(aiAgentSessions.businessId, businessId),
+            eq(agentSessions.businessId, businessId),
             gte(
-              aiAgentSessions.createdAt,
+              agentSessions.createdAt,
               new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1)),
             ),
           ),
@@ -1032,13 +1032,13 @@ async function getOverviewUsageMeters(
   if (agentLimit !== 0) {
     meters.push({
       key: "agent-sessions",
-      label: "AI agent sessions",
-      used: num(agentSessions[0]?.value),
+      label: "Agent sessions",
+      used: num(agentSessionCount[0]?.value),
       limit: agentLimit,
       unit: "sessions",
-      hint: "Public chat sessions handled by your AI agent this month.",
+      hint: "Public chat sessions handled by your Agent this month.",
       href: null,
-      upgradeFeature: agentLimit === 0 ? "aiAgent" : null,
+      upgradeFeature: agentLimit === 0 ? "agent" : null,
     });
   }
 
@@ -1317,16 +1317,16 @@ async function getServiceRows(
   }>(sql`
     with deduped_views as (
       select
-        ${analyticsEvents.businessInquiryFormId} as form_id,
+        ${analyticsEvents.serviceId} as form_id,
         ${analyticsEvents.visitorHash} as visitor_hash
       from ${analyticsEvents}
       where ${analyticsEvents.businessId} = ${businessId}
         and ${analyticsEvents.eventType} = 'inquiry_form_viewed'
-        and ${analyticsEvents.businessInquiryFormId} is not null
+        and ${analyticsEvents.serviceId} is not null
         and ${analyticsEvents.occurredAt} >= ${sinceIso}
         and ${analyticsEvents.occurredAt} < ${untilIso}
       group by
-        ${analyticsEvents.businessInquiryFormId},
+        ${analyticsEvents.serviceId},
         ${analyticsEvents.visitorHash},
         date_trunc('second', ${analyticsEvents.occurredAt})
     ),
@@ -1336,17 +1336,17 @@ async function getServiceRows(
       group by form_id
     ),
     inquiry_stats as (
-      select ${inquiries.businessInquiryFormId} as form_id, count(*)::int as inquiries
+      select ${inquiries.serviceId} as form_id, count(*)::int as inquiries
       from ${inquiries}
       where ${inquiries.businessId} = ${businessId}
         and ${inquiries.deletedAt} is null
         and ${inquiries.submittedAt} >= ${sinceIso}
         and ${inquiries.submittedAt} < ${untilIso}
-      group by ${inquiries.businessInquiryFormId}
+      group by ${inquiries.serviceId}
     ),
     quote_stats as (
       select
-        ${inquiries.businessInquiryFormId} as form_id,
+        ${inquiries.serviceId} as form_id,
         count(*)::int as sent,
         count(*) filter (where ${quotes.status} = 'accepted')::int as accepted,
         coalesce(
@@ -1362,26 +1362,26 @@ async function getServiceRows(
         and ${quotes.sentAt} is not null
         and ${quotes.sentAt} >= ${sinceIso}
         and ${quotes.sentAt} < ${untilIso}
-      group by ${inquiries.businessInquiryFormId}
+      group by ${inquiries.serviceId}
     )
     select
-      ${businessInquiryForms.slug} as form_slug,
-      ${businessInquiryForms.name} as name,
+      ${services.slug} as form_slug,
+      ${services.name} as name,
       coalesce(view_stats.views, 0)::int as views,
       coalesce(view_stats.visitors, 0)::int as visitors,
       coalesce(inquiry_stats.inquiries, 0)::int as inquiries,
       coalesce(quote_stats.sent, 0)::int as sent,
       coalesce(quote_stats.accepted, 0)::int as accepted,
       coalesce(quote_stats.accepted_value, 0)::bigint as accepted_value
-    from ${businessInquiryForms}
-    left join view_stats on view_stats.form_id = ${businessInquiryForms.id}
-    left join inquiry_stats on inquiry_stats.form_id = ${businessInquiryForms.id}
-    left join quote_stats on quote_stats.form_id = ${businessInquiryForms.id}
-    where ${businessInquiryForms.businessId} = ${businessId}
+    from ${services}
+    left join view_stats on view_stats.form_id = ${services.id}
+    left join inquiry_stats on inquiry_stats.form_id = ${services.id}
+    left join quote_stats on quote_stats.form_id = ${services.id}
+    where ${services.businessId} = ${businessId}
     order by
       coalesce(inquiry_stats.inquiries, 0) desc,
       coalesce(view_stats.visitors, 0) desc,
-      ${businessInquiryForms.name} asc
+      ${services.name} asc
     limit 12
   `);
 
@@ -1393,7 +1393,7 @@ async function getServiceRows(
     const acceptedValue = num(row.accepted_value);
 
     return {
-      formSlug: row.form_slug,
+      serviceSlug: row.form_slug,
       name: row.name,
       views: num(row.views),
       visitors,
@@ -2080,7 +2080,7 @@ async function computePerformanceData({
   businessId: string;
   businessSlug: string;
   window: AnalyticsWindow;
-  plan: BusinessPlan;
+  plan: PlanTier;
 }): Promise<PerformanceData> {
   const meta = await getAnalyticsBusinessMetaUncached(businessId);
   const comparison = window.comparison;
@@ -2092,7 +2092,7 @@ async function computePerformanceData({
     series,
     sources,
     campaigns,
-    services,
+    servicePerformance,
     aging,
     arAging,
     collections,
@@ -2198,7 +2198,7 @@ async function computePerformanceData({
       decided: string | number;
     }>(sql`
       select
-        ${businessInquiryForms.name} as label,
+        ${services.name} as label,
         count(*)::int as sent,
         count(*) filter (where ${quotes.status} = 'accepted')::int as accepted,
         count(*) filter (where ${quotes.status} in ('accepted', 'rejected', 'expired'))::int as decided
@@ -2206,15 +2206,15 @@ async function computePerformanceData({
       inner join ${inquiries}
         on ${inquiries.id} = ${quotes.inquiryId}
         and ${inquiries.businessId} = ${quotes.businessId}
-      inner join ${businessInquiryForms}
-        on ${businessInquiryForms.id} = ${inquiries.businessInquiryFormId}
-        and ${businessInquiryForms.businessId} = ${quotes.businessId}
+      inner join ${services}
+        on ${services.id} = ${inquiries.serviceId}
+        and ${services.businessId} = ${quotes.businessId}
       where ${quotes.businessId} = ${businessId}
         and ${quotes.deletedAt} is null
         and ${quotes.sentAt} is not null
         and ${quotes.sentAt} >= ${window.since.toISOString()}
         and ${quotes.sentAt} < ${window.until.toISOString()}
-      group by ${businessInquiryForms.name}
+      group by ${services.name}
       having count(*) filter (where ${quotes.status} in ('accepted', 'rejected', 'expired')) > 0
       order by decided desc
       limit 6
@@ -2349,7 +2349,7 @@ async function computePerformanceData({
     series,
     sources,
     campaigns,
-    services,
+    services: servicePerformance,
     timing,
     quoteFunnel,
     aging,
@@ -2421,7 +2421,7 @@ export async function getPerformanceData({
   businessId: string;
   businessSlug: string;
   window: AnalyticsWindow;
-  plan: BusinessPlan;
+  plan: PlanTier;
 }): Promise<PerformanceData> {
   const suffix = windowCacheSuffix(window);
 
@@ -2445,7 +2445,7 @@ async function getPerformanceDataCached({
   businessId: string;
   businessSlug: string;
   window: AnalyticsWindow;
-  plan: BusinessPlan;
+  plan: PlanTier;
 }): Promise<PerformanceData> {
   "use cache";
 
@@ -2579,7 +2579,7 @@ const AUTOMATION_ATTEMPT_BUCKETS = ["0", "1", "2", "3+"] as const;
 
 async function getAutomationHealth(
   businessId: string,
-  plan: BusinessPlan,
+  plan: PlanTier,
   since: Date,
   until: Date,
 ): Promise<AutomationHealthData> {
@@ -2815,14 +2815,14 @@ async function getAgentFunnel(
   }>(sql`
     select
       count(*)::int as sessions,
-      count(*) filter (where ${aiAgentSessions.inquiryId} is not null)::int as captured,
-      count(*) filter (where ${aiAgentSessions.status} = 'human_handoff')::int as handoffs,
-      count(*) filter (where ${aiAgentSessions.status} = 'abandoned')::int as abandoned,
-      count(*) filter (where ${aiAgentSessions.status} = 'active')::int as active
-    from ${aiAgentSessions}
-    where ${aiAgentSessions.businessId} = ${businessId}
-      and ${aiAgentSessions.createdAt} >= ${since.toISOString()}
-      and ${aiAgentSessions.createdAt} < ${until.toISOString()}
+      count(*) filter (where ${agentSessions.inquiryId} is not null)::int as captured,
+      count(*) filter (where ${agentSessions.status} = 'human_handoff')::int as handoffs,
+      count(*) filter (where ${agentSessions.status} = 'abandoned')::int as abandoned,
+      count(*) filter (where ${agentSessions.status} = 'active')::int as active
+    from ${agentSessions}
+    where ${agentSessions.businessId} = ${businessId}
+      and ${agentSessions.createdAt} >= ${since.toISOString()}
+      and ${agentSessions.createdAt} < ${until.toISOString()}
   `);
 
   const sessions = num(row?.sessions);
@@ -2844,22 +2844,22 @@ type ReadinessSnapshot = {
 
 async function getKnowledgeData(
   businessId: string,
-  plan: BusinessPlan,
+  plan: PlanTier,
   readiness: ReadinessSnapshot,
 ): Promise<KnowledgeData> {
   const [row] = await executeRows<{
     files: string | number;
-    memories: string | number;
+    knowledge_entries: string | number;
   }>(sql`
     select
       (select count(*) from ${businessKnowledgeFiles}
         where ${businessKnowledgeFiles.businessId} = ${businessId})::int as files,
-      (select count(*) from ${businessMemories}
-        where ${businessMemories.businessId} = ${businessId})::int as memories
+      (select count(*) from ${knowledgeEntries}
+        where ${knowledgeEntries.businessId} = ${businessId})::int as knowledge_entries
   `);
 
   return {
-    sources: num(row?.files) + num(row?.memories),
+    sources: num(row?.files) + num(row?.knowledge_entries),
     limit: getUsageLimit(plan, "knowledgeSourcesPerBusiness"),
     missingInfoDetected: readiness.missingInfoDetected,
     readinessBlocked: readiness.readinessBlocked,
@@ -2991,25 +2991,25 @@ async function getVerticalWorkflows(
       }>(sql`
         select
           count(*) filter (
-            where ${commercialSchedules.createdAt} >= ${sinceIso}
-              and ${commercialSchedules.createdAt} < ${untilIso}
+            where ${paymentSchedules.createdAt} >= ${sinceIso}
+              and ${paymentSchedules.createdAt} < ${untilIso}
           )::int as created,
           count(*) filter (
-            where ${commercialSchedules.createdAt} >= ${sinceIso}
-              and ${commercialSchedules.createdAt} < ${untilIso}
-              and ${commercialSchedules.state} = 'accepted'
+            where ${paymentSchedules.createdAt} >= ${sinceIso}
+              and ${paymentSchedules.createdAt} < ${untilIso}
+              and ${paymentSchedules.state} = 'accepted'
           )::int as accepted
-        from ${commercialSchedules}
-        where ${commercialSchedules.businessId} = ${businessId}
+        from ${paymentSchedules}
+        where ${paymentSchedules.businessId} = ${businessId}
       `),
       executeRows<{ value: string | number }>(sql`
-        select coalesce(sum(${commercialScheduleItems.computedAmountCents}), 0)::bigint as value
-        from ${commercialScheduleItems}
-        inner join ${commercialSchedules}
-          on ${commercialSchedules.id} = ${commercialScheduleItems.scheduleId}
-        where ${commercialScheduleItems.businessId} = ${businessId}
-          and ${commercialSchedules.state} = 'accepted'
-          and ${commercialScheduleItems.dueDate} >= ${today}
+        select coalesce(sum(${paymentScheduleItems.computedAmountCents}), 0)::bigint as value
+        from ${paymentScheduleItems}
+        inner join ${paymentSchedules}
+          on ${paymentSchedules.id} = ${paymentScheduleItems.scheduleId}
+        where ${paymentScheduleItems.businessId} = ${businessId}
+          and ${paymentSchedules.state} = 'accepted'
+          and ${paymentScheduleItems.dueDate} >= ${today}
       `),
       executeRows<{
         added: string | number;
@@ -3082,7 +3082,7 @@ async function computeOperationsData({
 }: {
   businessId: string;
   window: AnalyticsWindow;
-  plan: BusinessPlan;
+  plan: PlanTier;
 }): Promise<OperationsData> {
   const meta = await getAnalyticsBusinessMetaUncached(businessId);
   const { since, until } = window;
@@ -3142,7 +3142,7 @@ export async function getOperationsData({
 }: {
   businessId: string;
   window: AnalyticsWindow;
-  plan: BusinessPlan;
+  plan: PlanTier;
 }): Promise<OperationsData> {
   const suffix = windowCacheSuffix(window);
 
@@ -3164,7 +3164,7 @@ async function getOperationsDataCached({
 }: {
   businessId: string;
   window: AnalyticsWindow;
-  plan: BusinessPlan;
+  plan: PlanTier;
 }): Promise<OperationsData> {
   "use cache";
 
@@ -3630,7 +3630,7 @@ async function computeTeamData({
 }: {
   businessId: string;
   window: AnalyticsWindow;
-  plan: BusinessPlan;
+  plan: PlanTier;
 }): Promise<TeamData> {
   const meta = await getAnalyticsBusinessMetaUncached(businessId);
   const { since, until } = window;
@@ -3720,7 +3720,7 @@ export async function getTeamData({
 }: {
   businessId: string;
   window: AnalyticsWindow;
-  plan: BusinessPlan;
+  plan: PlanTier;
 }): Promise<TeamData> {
   const suffix = windowCacheSuffix(window);
 
@@ -3742,7 +3742,7 @@ async function getTeamDataCached({
 }: {
   businessId: string;
   window: AnalyticsWindow;
-  plan: BusinessPlan;
+  plan: PlanTier;
 }): Promise<TeamData> {
   "use cache";
 

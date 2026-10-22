@@ -41,7 +41,7 @@ import {
 } from "@/components/ui/dialog";
 import { UpgradeButton } from "@/features/billing/components/upgrade-button";
 import { PaymentMethodIcon } from "@/features/billing/components/payment-method-icon";
-import type { AccountBillingOverview } from "@/features/billing/types";
+import type { BusinessBillingOverview } from "@/features/billing/types";
 import { getBusinessAnalyticsPath } from "@/features/businesses/routes";
 import { getPlanPriceLabel } from "@/lib/billing/plans";
 import type { PaidPlan } from "@/lib/billing/types";
@@ -57,7 +57,7 @@ export type BillingPlanUsage = {
 };
 
 type BillingStatusCardProps = {
-  billing: AccountBillingOverview;
+  billing: BusinessBillingOverview;
   planUsage: BillingPlanUsage;
 };
 

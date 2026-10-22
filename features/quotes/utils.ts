@@ -13,7 +13,7 @@ import type {
   AiQuoteMissingInfoItem,
   AiQuoteProductStatus,
   AiQuoteReadiness,
-} from "@/features/ai/types";
+} from "@/features/quote-drafting/types";
 import type {
   DashboardQuoteLibraryItem,
   DashboardQuoteDetailCore,
@@ -25,7 +25,7 @@ import type {
   QuoteReminderKind,
   QuoteStatus,
 } from "@/features/quotes/types";
-import type { BusinessPlan } from "@/lib/plans/plans";
+import type { PlanTier } from "@/lib/plans/plans";
 import { prefixedId } from "@/lib/ids";
 
 /**
@@ -797,7 +797,7 @@ export function toPublicQuoteView({
     id: string;
     name: string;
     slug: string;
-    plan: BusinessPlan;
+    plan: PlanTier;
     logoStoragePath: string | null;
   };
   businessContactEmail: string | null;

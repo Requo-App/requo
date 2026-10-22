@@ -11,7 +11,7 @@ import {
   HomeOverviewPreview,
   InquiriesPreview,
   MembersPreview,
-  ProductsPreview,
+  QuoteLibraryPreview,
   QuotesPreview,
   ServicesPreview,
   TourModal,
@@ -46,7 +46,7 @@ const tourSteps: TourModalStep[] = [
   {
     title: "Draft with AI",
     description:
-      "Turn an inquiry into a polished quote in seconds — Requo suggests line items from your Products and business memory, and drafts follow-up messages too.",
+      "Turn an inquiry into a polished quote in seconds — Requo suggests line items from your quote library and business knowledge, and drafts follow-up messages too.",
     preview: <AiDraftingPreview />,
   },
   {
@@ -68,10 +68,10 @@ const tourSteps: TourModalStep[] = [
     preview: <ServicesPreview />,
   },
   {
-    title: "Reuse your Products",
+    title: "Reuse your quote library",
     description:
-      "Save reusable items and pricing in your Products library so every quote comes together faster.",
-    preview: <ProductsPreview />,
+      "Save reusable items and pricing in your quote library so every quote comes together faster.",
+    preview: <QuoteLibraryPreview />,
   },
   {
     title: "Invite your team",

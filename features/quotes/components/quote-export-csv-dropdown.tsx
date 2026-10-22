@@ -3,7 +3,7 @@
 import { ChevronDown, Download } from "lucide-react";
 import { useMemo, useState } from "react";
 
-import { ProFeatureNoticeButton } from "@/components/shared/pro-feature-notice-button";
+import { UpgradeNoticeButton } from "@/features/entitlements/components/upgrade-notice-button";
 import { mobileNavbarIconButtonClassName } from "@/components/shell/mobile-header-slot";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
@@ -75,19 +75,19 @@ export function QuoteExportCsvDropdown({
 
   if (!canExport) {
     return (
-      <ProFeatureNoticeButton
+      <UpgradeNoticeButton
         aria-label="Export CSV"
         title="Export CSV"
         size="sm"
         className={mobileNavbarIconButtonClassName}
-        noticeDescription="Upgrade to Pro to export quote records for reporting, handoff, and backup workflows."
-        noticeTitle="CSV export is a Pro feature."
+        noticeDescription="Upgrade your plan to export quote records for reporting, handoff, and backup workflows."
+        noticeTitle="CSV export requires an upgrade."
         variant="outline"
       >
         <Download data-icon="inline-start" />
         <span className="hidden lg:inline">Export CSV</span>
         <ChevronDown className="opacity-60 max-lg:hidden" data-icon="inline-end" />
-      </ProFeatureNoticeButton>
+      </UpgradeNoticeButton>
     );
   }
 

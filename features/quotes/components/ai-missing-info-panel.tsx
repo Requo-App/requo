@@ -5,7 +5,7 @@ import { Check, Copy, Sparkles } from "lucide-react";
 import { toast } from "@/components/shared/notify";
 
 import { Button } from "@/components/ui/button";
-import type { AiQuoteMissingInfoItem } from "@/features/ai/types";
+import type { AiQuoteMissingInfoItem } from "@/features/quote-drafting/types";
 
 type AiMissingInfoPanelProps = {
   clarificationMessage: string | null;

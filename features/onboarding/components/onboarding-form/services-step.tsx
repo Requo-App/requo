@@ -7,7 +7,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { ServiceNameFields } from "@/features/businesses/components/service-name-fields";
-import type { BusinessPlan } from "@/lib/plans/plans";
+import type { PlanTier } from "@/lib/plans/plans";
 
 import type { OnboardingDraftService } from "@/features/onboarding/helpers";
 import { onboardingInputClassName } from "./types";
@@ -16,7 +16,7 @@ type ServicesStepProps = {
   draft: {
     services: OnboardingDraftService[];
   };
-  plan: BusinessPlan;
+  plan: PlanTier;
   fieldError?: string;
   isPending: boolean;
   onNameChange: (index: number, name: string) => void;

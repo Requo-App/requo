@@ -6,7 +6,7 @@ import {
   normalizeBusinessType,
   type BusinessType,
 } from "@/features/inquiries/business-types";
-import { normalizeInquiryFormSlug } from "@/features/inquiries/inquiry-forms";
+import { normalizeServiceSlug } from "@/features/inquiries/service-presets";
 import {
   createInquiryFormConfigDefaults,
   getNormalizedInquiryFormConfig,
@@ -17,14 +17,14 @@ import {
   getNormalizedInquiryPageConfig,
 } from "@/features/inquiries/page-config";
 import type {
-  BusinessAiAgentSettingsInput,
+  BusinessAgentSettingsInput,
   BusinessDeleteInput,
   BusinessEmailTemplateSettingsInput,
   BusinessGeneralSettingsInput,
-  BusinessInquiryFormCreateInput,
-  BusinessInquiryFormPresetInput,
-  BusinessInquiryFormSettingsInput,
-  BusinessInquiryPageSettingsInput,
+  ServiceCreateInput,
+  ServicePresetInput,
+  ServiceSettingsInput,
+  ServicePageSettingsInput,
   BusinessNotificationSettingsInput,
   BusinessQuoteSettingsInput,
 } from "@/features/settings/schemas";
@@ -46,7 +46,7 @@ import {
   activityLogs,
   analyticsEvents,
   inquiries,
-  businessInquiryForms,
+  services,
   businesses,
 } from "@/lib/db/schema";
 import { appendRandomSlugSuffix } from "@/lib/slugs";
@@ -71,10 +71,10 @@ type UpdateBusinessNotificationSettingsInput = {
   values: BusinessNotificationSettingsInput;
 };
 
-type UpdateBusinessAiAgentSettingsInput = {
+type UpdateBusinessAgentSettingsInput = {
   businessId: string;
   actorUserId: string;
-  values: BusinessAiAgentSettingsInput;
+  values: BusinessAgentSettingsInput;
 };
 
 type UpdateBusinessEmailTemplateSettingsInput = {
@@ -90,45 +90,45 @@ type DeleteBusinessInput = {
   values: BusinessDeleteInput;
 };
 
-type UpdateBusinessInquiryPageInput = {
+type UpdateServicePageInput = {
   businessId: string;
   actorUserId: string;
   /** The service slug the action was bound to — the lookup key. */
-  formSlug: string;
-  values: BusinessInquiryPageSettingsInput;
+  serviceSlug: string;
+  values: ServicePageSettingsInput;
 };
 
-type UpdateBusinessInquiryFormInput = {
+type UpdateServiceInput = {
   businessId: string;
   actorUserId: string;
   /** The service slug the action was bound to — the lookup key. */
-  formSlug: string;
-  values: BusinessInquiryFormSettingsInput;
+  serviceSlug: string;
+  values: ServiceSettingsInput;
 };
 
-type ApplyBusinessInquiryFormPresetInput = {
+type ApplyServicePresetInput = {
   businessId: string;
   actorUserId: string;
   /** The service slug the action was bound to — the lookup key. */
-  formSlug: string;
-  values: BusinessInquiryFormPresetInput;
+  serviceSlug: string;
+  values: ServicePresetInput;
 };
 
-type CreateBusinessInquiryFormInput = {
+type CreateServiceInput = {
   businessId: string;
   actorUserId: string;
-  values: BusinessInquiryFormCreateInput & {
+  values: ServiceCreateInput & {
     /** Starter template the new service inherits from its business. */
     businessType: BusinessType;
   };
 };
 
-type TargetBusinessInquiryFormInput = {
+type TargetServiceInput = {
   businessId: string;
   actorUserId: string;
-  targetFormId: string;
+  targetServiceId: string;
 };
-type SetBusinessInquiryFormPublicStateInput = TargetBusinessInquiryFormInput & {
+type SetServicePublicStateInput = TargetServiceInput & {
   publicInquiryEnabled: boolean;
 };
 
@@ -140,23 +140,23 @@ type DeleteBusinessResult =
   | { ok: true; businessSlug: string }
   | { ok: false; reason: "not-found" | "confirmation-mismatch" };
 
-type UpdateBusinessInquiryFormSettingsResult =
+type UpdateServiceSettingsResult =
   | {
       ok: true;
       previousSlug: string;
       nextSlug: string;
-      previousFormSlug: string;
-      nextFormSlug: string;
+      previousServiceSlug: string;
+      nextServiceSlug: string;
     }
   | { ok: false; reason: "not-found" | "slug-taken" };
 
-type UpdateBusinessInquiryPageSettingsResult =
+type UpdateServicePageSettingsResult =
   | {
       ok: true;
       previousSlug: string;
       nextSlug: string;
-      previousFormSlug: string;
-      nextFormSlug: string;
+      previousServiceSlug: string;
+      nextServiceSlug: string;
     }
   | {
       ok: false;
@@ -167,8 +167,8 @@ type UpdateBusinessInquiryPageSettingsResult =
         | "invalid-target";
     };
 
-type BusinessInquiryFormMutationResult =
-  | { ok: true; businessSlug: string; formSlug: string }
+type ServiceMutationResult =
+  | { ok: true; businessSlug: string; serviceSlug: string }
   | {
       ok: false;
       reason:
@@ -186,31 +186,31 @@ type BusinessInquiryFormMutationResult =
  * guarantee, so callers must retry with a fresh candidate on a unique
  * violation.
  */
-async function getAvailableBusinessInquiryFormSlug({
+async function getAvailableServiceSlug({
   businessId,
   baseSlug,
-  excludeFormId,
+  excludeServiceId,
 }: {
   businessId: string;
   baseSlug: string;
-  excludeFormId?: string;
+  excludeServiceId?: string;
 }) {
-  const normalizedBaseSlug = normalizeInquiryFormSlug(baseSlug);
+  const normalizedBaseSlug = normalizeServiceSlug(baseSlug);
   let candidate = normalizedBaseSlug;
 
   while (true) {
     const conditions = [
-      eq(businessInquiryForms.businessId, businessId),
-      eq(businessInquiryForms.slug, candidate),
+      eq(services.businessId, businessId),
+      eq(services.slug, candidate),
     ];
 
-    if (excludeFormId) {
-      conditions.push(ne(businessInquiryForms.id, excludeFormId));
+    if (excludeServiceId) {
+      conditions.push(ne(services.id, excludeServiceId));
     }
 
     const [existingForm] = await db
-      .select({ id: businessInquiryForms.id })
-      .from(businessInquiryForms)
+      .select({ id: services.id })
+      .from(services)
       .where(and(...conditions))
       .limit(1);
 
@@ -224,13 +224,13 @@ async function getAvailableBusinessInquiryFormSlug({
   }
 }
 
-function createDuplicateInquiryFormName(name: string) {
+function createDuplicateServiceName(name: string) {
   const nextName = `${name} copy`.trim();
 
   return nextName.slice(0, 80).trim() || name;
 }
 
-function createInquiryFormSeedValues({
+function createServiceSeedValues({
   businessType,
   name,
   businessName,
@@ -356,22 +356,22 @@ export async function updateBusinessSettings({
         })
         .where(eq(businesses.id, businessId));
 
-      const inquiryForms = await tx
+      const serviceRows = await tx
         .select({
-          id: businessInquiryForms.id,
-          inquiryPageConfig: businessInquiryForms.inquiryPageConfig,
+          id: services.id,
+          inquiryPageConfig: services.inquiryPageConfig,
         })
-        .from(businessInquiryForms)
+        .from(services)
         .where(
           and(
-            eq(businessInquiryForms.businessId, businessId),
-            isNull(businessInquiryForms.archivedAt),
+            eq(services.businessId, businessId),
+            isNull(services.archivedAt),
           ),
         );
 
-      for (const form of inquiryForms) {
+      for (const service of serviceRows) {
         const currentBrandTagline =
-          form.inquiryPageConfig?.brandTagline?.trim() || undefined;
+          service.inquiryPageConfig?.brandTagline?.trim() || undefined;
         const shouldSyncBrandTagline =
           currentBrandTagline === previousShortDescription ||
           currentBrandTagline === undefined;
@@ -381,15 +381,15 @@ export async function updateBusinessSettings({
         }
 
         await tx
-          .update(businessInquiryForms)
+          .update(services)
           .set({
             inquiryPageConfig: {
-              ...form.inquiryPageConfig,
+              ...service.inquiryPageConfig,
               brandTagline: nextShortDescription,
             },
             updatedAt: now,
           })
-          .where(eq(businessInquiryForms.id, form.id));
+          .where(eq(services.id, service.id));
       }
 
       await tx.insert(activityLogs).values({
@@ -680,11 +680,11 @@ export async function updateBusinessNotificationSettings({
   };
 }
 
-export async function updateBusinessAiAgentSettings({
+export async function updateBusinessAgentSettings({
   businessId,
   actorUserId,
   values,
-}: UpdateBusinessAiAgentSettingsInput): Promise<UpdateBusinessSettingsResult> {
+}: UpdateBusinessAgentSettingsInput): Promise<UpdateBusinessSettingsResult> {
   const [business] = await db
     .select({
       id: businesses.id,
@@ -707,13 +707,13 @@ export async function updateBusinessAiAgentSettings({
     await tx
       .update(businesses)
       .set({
-        aiAgentEnabled: values.aiAgentEnabled,
-        aiAgentConfig: {
+        agentEnabled: values.agentEnabled,
+        agentConfig: {
           tone: values.tone,
           // Omit rather than store an empty string: the prompt builders treat
           // an absent value as "no instructions" and skip the block entirely.
-          ...(values.aiAgentInstructions
-            ? { instructions: values.aiAgentInstructions }
+          ...(values.agentInstructions
+            ? { instructions: values.agentInstructions }
             : {}),
         },
         updatedAt: now,
@@ -725,11 +725,13 @@ export async function updateBusinessAiAgentSettings({
       businessId,
       actorUserId,
       type: "business.ai_agent_settings_updated",
-      summary: "AI agent settings updated.",
+      summary: "Agent settings updated.",
       metadata: {
-        aiAgentEnabled: values.aiAgentEnabled,
+        // Persisted key from the AI-agent naming era. Keep it stable for
+        // historical activity rows and external audit queries.
+        aiAgentEnabled: values.agentEnabled,
         tone: values.tone,
-        hasInstructions: Boolean(values.aiAgentInstructions),
+        hasInstructions: Boolean(values.agentInstructions),
       },
       createdAt: now,
       updatedAt: now,
@@ -757,12 +759,12 @@ export async function deleteBusiness({
   );
 }
 
-export async function updateBusinessInquiryPageSettings({
+export async function updateServicePageSettings({
   businessId,
   actorUserId,
-  formSlug,
+  serviceSlug,
   values,
-}: UpdateBusinessInquiryPageInput): Promise<UpdateBusinessInquiryPageSettingsResult> {
+}: UpdateServicePageInput): Promise<UpdateServicePageSettingsResult> {
   const [currentBusiness, currentForm] = await Promise.all([
     db
       .select({
@@ -776,19 +778,19 @@ export async function updateBusinessInquiryPageSettings({
       .limit(1),
     db
       .select({
-        id: businessInquiryForms.id,
-        slug: businessInquiryForms.slug,
-        isDefault: businessInquiryForms.isDefault,
-        publicInquiryEnabled: businessInquiryForms.publicInquiryEnabled,
-        inquiryFormConfig: businessInquiryForms.inquiryFormConfig,
-        inquiryPageConfig: businessInquiryForms.inquiryPageConfig,
+        id: services.id,
+        slug: services.slug,
+        isDefault: services.isDefault,
+        publicInquiryEnabled: services.publicInquiryEnabled,
+        inquiryFormConfig: services.inquiryFormConfig,
+        inquiryPageConfig: services.inquiryPageConfig,
       })
-      .from(businessInquiryForms)
+      .from(services)
       .where(
         and(
-          eq(businessInquiryForms.businessId, businessId),
-          eq(businessInquiryForms.slug, formSlug),
-          isNull(businessInquiryForms.archivedAt),
+          eq(services.businessId, businessId),
+          eq(services.slug, serviceSlug),
+          isNull(services.archivedAt),
         ),
       )
       .limit(1),
@@ -815,13 +817,13 @@ export async function updateBusinessInquiryPageSettings({
 
   if (values.slug !== form.slug) {
     const [conflictingForm] = await db
-      .select({ id: businessInquiryForms.id })
-      .from(businessInquiryForms)
+      .select({ id: services.id })
+      .from(services)
       .where(
         and(
-          eq(businessInquiryForms.businessId, businessId),
-          eq(businessInquiryForms.slug, values.slug),
-          ne(businessInquiryForms.id, form.id),
+          eq(services.businessId, businessId),
+          eq(services.slug, values.slug),
+          ne(services.id, form.id),
         ),
       )
       .limit(1);
@@ -902,7 +904,7 @@ export async function updateBusinessInquiryPageSettings({
       }
 
       await tx
-        .update(businessInquiryForms)
+        .update(services)
         .set({
           name: values.name,
           slug: values.slug,
@@ -914,8 +916,8 @@ export async function updateBusinessInquiryPageSettings({
         })
         .where(
           and(
-            eq(businessInquiryForms.businessId, businessId),
-            eq(businessInquiryForms.id, form.id),
+            eq(services.businessId, businessId),
+            eq(services.id, form.id),
           ),
         );
 
@@ -967,17 +969,17 @@ export async function updateBusinessInquiryPageSettings({
     ok: true,
     previousSlug: business.slug,
     nextSlug: business.slug,
-    previousFormSlug: form.slug,
-    nextFormSlug: values.slug,
+    previousServiceSlug: form.slug,
+    nextServiceSlug: values.slug,
   };
 }
 
-export async function updateBusinessInquiryFormSettings({
+export async function updateServiceSettings({
   businessId,
   actorUserId,
-  formSlug,
+  serviceSlug,
   values,
-}: UpdateBusinessInquiryFormInput): Promise<UpdateBusinessInquiryFormSettingsResult> {
+}: UpdateServiceInput): Promise<UpdateServiceSettingsResult> {
   const [currentBusiness, currentForm] = await Promise.all([
     db
       .select({
@@ -989,16 +991,16 @@ export async function updateBusinessInquiryFormSettings({
       .limit(1),
     db
       .select({
-        id: businessInquiryForms.id,
-        slug: businessInquiryForms.slug,
-        businessType: businessInquiryForms.businessType,
+        id: services.id,
+        slug: services.slug,
+        businessType: services.businessType,
       })
-      .from(businessInquiryForms)
+      .from(services)
       .where(
         and(
-          eq(businessInquiryForms.businessId, businessId),
-          eq(businessInquiryForms.slug, formSlug),
-          isNull(businessInquiryForms.archivedAt),
+          eq(services.businessId, businessId),
+          eq(services.slug, serviceSlug),
+          isNull(services.archivedAt),
         ),
       )
       .limit(1),
@@ -1035,15 +1037,15 @@ export async function updateBusinessInquiryFormSettings({
 
   await db.transaction(async (tx) => {
     await tx
-      .update(businessInquiryForms)
+      .update(services)
       .set({
         inquiryFormConfig,
         updatedAt: now,
       })
       .where(
         and(
-          eq(businessInquiryForms.businessId, businessId),
-          eq(businessInquiryForms.id, form.id),
+          eq(services.businessId, businessId),
+          eq(services.id, form.id),
         ),
       );
 
@@ -1052,7 +1054,7 @@ export async function updateBusinessInquiryFormSettings({
       businessId,
       actorUserId,
       type: "business.inquiry_form_updated",
-      summary: `Inquiry form updated for ${form.slug}.`,
+      summary: `Service updated for ${form.slug}.`,
       metadata: {
         inquiryFormId: form.id,
         inquiryFormSlug: form.slug,
@@ -1069,17 +1071,17 @@ export async function updateBusinessInquiryFormSettings({
     ok: true,
     previousSlug: business.slug,
     nextSlug: business.slug,
-    previousFormSlug: form.slug,
-    nextFormSlug: form.slug,
+    previousServiceSlug: form.slug,
+    nextServiceSlug: form.slug,
   };
 }
 
-export async function applyBusinessInquiryFormPreset({
+export async function applyServicePreset({
   businessId,
   actorUserId,
-  formSlug,
+  serviceSlug,
   values,
-}: ApplyBusinessInquiryFormPresetInput): Promise<UpdateBusinessSettingsResult> {
+}: ApplyServicePresetInput): Promise<UpdateBusinessSettingsResult> {
   const [currentBusiness, currentForm] = await Promise.all([
     db
       .select({
@@ -1094,17 +1096,17 @@ export async function applyBusinessInquiryFormPreset({
       .limit(1),
     db
       .select({
-        id: businessInquiryForms.id,
-        slug: businessInquiryForms.slug,
-        name: businessInquiryForms.name,
-        publicInquiryEnabled: businessInquiryForms.publicInquiryEnabled,
+        id: services.id,
+        slug: services.slug,
+        name: services.name,
+        publicInquiryEnabled: services.publicInquiryEnabled,
       })
-      .from(businessInquiryForms)
+      .from(services)
       .where(
         and(
-          eq(businessInquiryForms.businessId, businessId),
-          eq(businessInquiryForms.slug, formSlug),
-          isNull(businessInquiryForms.archivedAt),
+          eq(services.businessId, businessId),
+          eq(services.slug, serviceSlug),
+          isNull(services.archivedAt),
         ),
       )
       .limit(1),
@@ -1124,7 +1126,7 @@ export async function applyBusinessInquiryFormPreset({
 
   await db.transaction(async (tx) => {
     await tx
-      .update(businessInquiryForms)
+      .update(services)
       .set({
         businessType: values.businessType,
         inquiryFormConfig: createInquiryFormConfigDefaults({
@@ -1144,8 +1146,8 @@ export async function applyBusinessInquiryFormPreset({
       })
       .where(
         and(
-          eq(businessInquiryForms.businessId, businessId),
-          eq(businessInquiryForms.id, form.id),
+          eq(services.businessId, businessId),
+          eq(services.id, form.id),
         ),
       );
 
@@ -1172,11 +1174,11 @@ export async function applyBusinessInquiryFormPreset({
   };
 }
 
-export async function createBusinessInquiryForm({
+export async function createService({
   businessId,
   actorUserId,
   values,
-}: CreateBusinessInquiryFormInput): Promise<BusinessInquiryFormMutationResult> {
+}: CreateServiceInput): Promise<ServiceMutationResult> {
   const [business] = await db
     .select({
       id: businesses.id,
@@ -1196,8 +1198,8 @@ export async function createBusinessInquiryForm({
   }
 
   const now = new Date();
-  const formId = newEntityId();
-  const formSeed = createInquiryFormSeedValues({
+  const serviceId = newEntityId();
+  const formSeed = createServiceSeedValues({
     businessType: values.businessType,
     name: values.name,
     businessName: business.name,
@@ -1205,12 +1207,12 @@ export async function createBusinessInquiryForm({
   });
   const plan = await resolveServicePlan(businessId);
   let limitExceeded = false;
-  let formSlug = "";
+  let serviceSlug = "";
 
   // The slug lookup is a best-effort reservation; the unique index is the
   // arbiter, so a lost race retries with a fresh candidate.
   for (let attempt = 0; attempt < 5; attempt += 1) {
-    const candidateSlug = await getAvailableBusinessInquiryFormSlug({
+    const candidateSlug = await getAvailableServiceSlug({
       businessId,
       baseSlug: values.name,
     });
@@ -1224,8 +1226,8 @@ export async function createBusinessInquiryForm({
           return;
         }
 
-        await tx.insert(businessInquiryForms).values({
-          id: formId,
+        await tx.insert(services).values({
+          id: serviceId,
           businessId,
           name: formSeed.name,
           slug: candidateSlug,
@@ -1243,9 +1245,9 @@ export async function createBusinessInquiryForm({
           businessId,
           actorUserId,
           type: "business.inquiry_form_created",
-          summary: `Inquiry form created: ${formSeed.name}.`,
+          summary: `Service created: ${formSeed.name}.`,
           metadata: {
-            inquiryFormId: formId,
+            inquiryFormId: serviceId,
             inquiryFormSlug: candidateSlug,
             businessType: formSeed.businessType,
           },
@@ -1254,7 +1256,7 @@ export async function createBusinessInquiryForm({
         });
       });
 
-      formSlug = candidateSlug;
+      serviceSlug = candidateSlug;
       break;
     } catch (error) {
       if (isUniqueViolation(error)) {
@@ -1272,7 +1274,7 @@ export async function createBusinessInquiryForm({
     };
   }
 
-  if (!formSlug) {
+  if (!serviceSlug) {
     return {
       ok: false,
       reason: "not-found",
@@ -1282,15 +1284,15 @@ export async function createBusinessInquiryForm({
   return {
     ok: true,
     businessSlug: business.slug,
-    formSlug,
+    serviceSlug,
   };
 }
 
-export async function duplicateBusinessInquiryForm({
+export async function duplicateService({
   businessId,
   actorUserId,
-  targetFormId,
-}: TargetBusinessInquiryFormInput): Promise<BusinessInquiryFormMutationResult> {
+  targetServiceId,
+}: TargetServiceInput): Promise<ServiceMutationResult> {
   const [businessRows, sourceFormRows] = await Promise.all([
     db
       .select({
@@ -1303,19 +1305,19 @@ export async function duplicateBusinessInquiryForm({
       .limit(1),
     db
       .select({
-        id: businessInquiryForms.id,
-        name: businessInquiryForms.name,
-        businessType: businessInquiryForms.businessType,
-        publicInquiryEnabled: businessInquiryForms.publicInquiryEnabled,
-        inquiryFormConfig: businessInquiryForms.inquiryFormConfig,
-        inquiryPageConfig: businessInquiryForms.inquiryPageConfig,
+        id: services.id,
+        name: services.name,
+        businessType: services.businessType,
+        publicInquiryEnabled: services.publicInquiryEnabled,
+        inquiryFormConfig: services.inquiryFormConfig,
+        inquiryPageConfig: services.inquiryPageConfig,
       })
-      .from(businessInquiryForms)
+      .from(services)
       .where(
         and(
-          eq(businessInquiryForms.businessId, businessId),
-          eq(businessInquiryForms.id, targetFormId),
-          isNull(businessInquiryForms.archivedAt),
+          eq(services.businessId, businessId),
+          eq(services.id, targetServiceId),
+          isNull(services.archivedAt),
         ),
       )
       .limit(1),
@@ -1332,8 +1334,8 @@ export async function duplicateBusinessInquiryForm({
   }
 
   const now = new Date();
-  const nextName = createDuplicateInquiryFormName(sourceForm.name);
-  const formId = newEntityId();
+  const nextName = createDuplicateServiceName(sourceForm.name);
+  const serviceId = newEntityId();
   const sourceFormBusinessType = normalizeBusinessType(sourceForm.businessType);
   const sourceInquiryFormConfig = getNormalizedInquiryFormConfig(
     sourceForm.inquiryFormConfig,
@@ -1343,10 +1345,10 @@ export async function duplicateBusinessInquiryForm({
   );
   const plan = await resolveServicePlan(businessId);
   let limitExceeded = false;
-  let formSlug = "";
+  let serviceSlug = "";
 
   for (let attempt = 0; attempt < 5; attempt += 1) {
-    const candidateSlug = await getAvailableBusinessInquiryFormSlug({
+    const candidateSlug = await getAvailableServiceSlug({
       businessId,
       baseSlug: nextName,
     });
@@ -1363,8 +1365,8 @@ export async function duplicateBusinessInquiryForm({
           return;
         }
 
-        await tx.insert(businessInquiryForms).values({
-          id: formId,
+        await tx.insert(services).values({
+          id: serviceId,
           businessId,
           name: nextName,
           slug: candidateSlug,
@@ -1385,18 +1387,18 @@ export async function duplicateBusinessInquiryForm({
           businessId,
           actorUserId,
           type: "business.inquiry_form_duplicated",
-          summary: `Inquiry form duplicated: ${nextName}.`,
+          summary: `Service duplicated: ${nextName}.`,
           metadata: {
-            inquiryFormId: formId,
+            inquiryFormId: serviceId,
             inquiryFormSlug: candidateSlug,
-            sourceInquiryFormId: targetFormId,
+            sourceInquiryFormId: targetServiceId,
           },
           createdAt: now,
           updatedAt: now,
         });
       });
 
-      formSlug = candidateSlug;
+      serviceSlug = candidateSlug;
       break;
     } catch (error) {
       if (isUniqueViolation(error)) {
@@ -1414,7 +1416,7 @@ export async function duplicateBusinessInquiryForm({
     };
   }
 
-  if (!formSlug) {
+  if (!serviceSlug) {
     return {
       ok: false,
       reason: "not-found",
@@ -1424,15 +1426,15 @@ export async function duplicateBusinessInquiryForm({
   return {
     ok: true,
     businessSlug: business.slug,
-    formSlug,
+    serviceSlug,
   };
 }
 
-export async function setDefaultBusinessInquiryForm({
+export async function setDefaultService({
   businessId,
   actorUserId,
-  targetFormId,
-}: TargetBusinessInquiryFormInput): Promise<BusinessInquiryFormMutationResult> {
+  targetServiceId,
+}: TargetServiceInput): Promise<ServiceMutationResult> {
   const [businessRows, targetFormRows] = await Promise.all([
     db
       .select({
@@ -1444,16 +1446,16 @@ export async function setDefaultBusinessInquiryForm({
       .limit(1),
     db
       .select({
-        id: businessInquiryForms.id,
-        slug: businessInquiryForms.slug,
-        publicInquiryEnabled: businessInquiryForms.publicInquiryEnabled,
+        id: services.id,
+        slug: services.slug,
+        publicInquiryEnabled: services.publicInquiryEnabled,
       })
-      .from(businessInquiryForms)
+      .from(services)
       .where(
         and(
-          eq(businessInquiryForms.businessId, businessId),
-          eq(businessInquiryForms.id, targetFormId),
-          isNull(businessInquiryForms.archivedAt),
+          eq(services.businessId, businessId),
+          eq(services.id, targetServiceId),
+          isNull(services.archivedAt),
         ),
       )
       .limit(1),
@@ -1482,23 +1484,23 @@ export async function setDefaultBusinessInquiryForm({
 
   await db.transaction(async (tx) => {
     await tx
-      .update(businessInquiryForms)
+      .update(services)
       .set({
         isDefault: false,
         updatedAt: now,
       })
-      .where(eq(businessInquiryForms.businessId, businessId));
+      .where(eq(services.businessId, businessId));
 
     await tx
-      .update(businessInquiryForms)
+      .update(services)
       .set({
         isDefault: true,
         updatedAt: now,
       })
       .where(
         and(
-          eq(businessInquiryForms.businessId, businessId),
-          eq(businessInquiryForms.id, targetFormId),
+          eq(services.businessId, businessId),
+          eq(services.id, targetServiceId),
         ),
       );
 
@@ -1507,9 +1509,9 @@ export async function setDefaultBusinessInquiryForm({
       businessId,
       actorUserId,
       type: "business.inquiry_form_default_changed",
-      summary: `Default inquiry form set to ${targetForm.slug}.`,
+      summary: `Default service set to ${targetForm.slug}.`,
       metadata: {
-        inquiryFormId: targetFormId,
+        inquiryFormId: targetServiceId,
         inquiryFormSlug: targetForm.slug,
       },
       createdAt: now,
@@ -1520,15 +1522,15 @@ export async function setDefaultBusinessInquiryForm({
   return {
     ok: true,
     businessSlug: business.slug,
-    formSlug: targetForm.slug,
+    serviceSlug: targetForm.slug,
   };
 }
 
-export async function archiveBusinessInquiryForm({
+export async function archiveService({
   businessId,
   actorUserId,
-  targetFormId,
-}: TargetBusinessInquiryFormInput): Promise<BusinessInquiryFormMutationResult> {
+  targetServiceId,
+}: TargetServiceInput): Promise<ServiceMutationResult> {
   const [businessRows, targetFormRows, activeForms] = await Promise.all([
     db
       .select({
@@ -1540,28 +1542,28 @@ export async function archiveBusinessInquiryForm({
       .limit(1),
     db
       .select({
-        id: businessInquiryForms.id,
-        slug: businessInquiryForms.slug,
-        isDefault: businessInquiryForms.isDefault,
+        id: services.id,
+        slug: services.slug,
+        isDefault: services.isDefault,
       })
-      .from(businessInquiryForms)
+      .from(services)
       .where(
         and(
-          eq(businessInquiryForms.businessId, businessId),
-          eq(businessInquiryForms.id, targetFormId),
-          isNull(businessInquiryForms.archivedAt),
+          eq(services.businessId, businessId),
+          eq(services.id, targetServiceId),
+          isNull(services.archivedAt),
         ),
       )
       .limit(1),
     db
       .select({
-        id: businessInquiryForms.id,
+        id: services.id,
       })
-      .from(businessInquiryForms)
+      .from(services)
       .where(
         and(
-          eq(businessInquiryForms.businessId, businessId),
-          isNull(businessInquiryForms.archivedAt),
+          eq(services.businessId, businessId),
+          isNull(services.archivedAt),
         ),
       ),
   ]);
@@ -1594,7 +1596,7 @@ export async function archiveBusinessInquiryForm({
 
   await db.transaction(async (tx) => {
     await tx
-      .update(businessInquiryForms)
+      .update(services)
       .set({
         archivedAt: now,
         isDefault: false,
@@ -1602,8 +1604,8 @@ export async function archiveBusinessInquiryForm({
       })
       .where(
         and(
-          eq(businessInquiryForms.businessId, businessId),
-          eq(businessInquiryForms.id, targetFormId),
+          eq(services.businessId, businessId),
+          eq(services.id, targetServiceId),
         ),
       );
 
@@ -1612,9 +1614,9 @@ export async function archiveBusinessInquiryForm({
       businessId,
       actorUserId,
       type: "business.inquiry_form_archived",
-      summary: `Inquiry form archived: ${targetForm.slug}.`,
+      summary: `Service archived: ${targetForm.slug}.`,
       metadata: {
-        inquiryFormId: targetFormId,
+        inquiryFormId: targetServiceId,
         inquiryFormSlug: targetForm.slug,
       },
       createdAt: now,
@@ -1625,15 +1627,15 @@ export async function archiveBusinessInquiryForm({
   return {
     ok: true,
     businessSlug: business.slug,
-    formSlug: targetForm.slug,
+    serviceSlug: targetForm.slug,
   };
 }
 
-export async function deleteBusinessInquiryForm({
+export async function deleteService({
   businessId,
   actorUserId,
-  targetFormId,
-}: TargetBusinessInquiryFormInput): Promise<BusinessInquiryFormMutationResult> {
+  targetServiceId,
+}: TargetServiceInput): Promise<ServiceMutationResult> {
   const [businessRows, targetFormRows, activeFormRows] = await Promise.all([
     db
       .select({
@@ -1645,26 +1647,26 @@ export async function deleteBusinessInquiryForm({
       .limit(1),
     db
       .select({
-        id: businessInquiryForms.id,
-        slug: businessInquiryForms.slug,
-        isDefault: businessInquiryForms.isDefault,
-        archivedAt: businessInquiryForms.archivedAt,
+        id: services.id,
+        slug: services.slug,
+        isDefault: services.isDefault,
+        archivedAt: services.archivedAt,
       })
-      .from(businessInquiryForms)
+      .from(services)
       .where(
         and(
-          eq(businessInquiryForms.businessId, businessId),
-          eq(businessInquiryForms.id, targetFormId),
+          eq(services.businessId, businessId),
+          eq(services.id, targetServiceId),
         ),
       )
       .limit(1),
     db
-      .select({ id: businessInquiryForms.id })
-      .from(businessInquiryForms)
+      .select({ id: services.id })
+      .from(services)
       .where(
         and(
-          eq(businessInquiryForms.businessId, businessId),
-          isNull(businessInquiryForms.archivedAt),
+          eq(services.businessId, businessId),
+          isNull(services.archivedAt),
         ),
       ),
   ]);
@@ -1692,7 +1694,7 @@ export async function deleteBusinessInquiryForm({
   const [linkedInquiry] = await db
     .select({ id: inquiries.id })
     .from(inquiries)
-    .where(eq(inquiries.businessInquiryFormId, targetFormId))
+    .where(eq(inquiries.serviceId, targetServiceId))
     .limit(1);
 
   if (linkedInquiry) {
@@ -1708,7 +1710,7 @@ export async function deleteBusinessInquiryForm({
   const [linkedAnalyticsEvent] = await db
     .select({ id: analyticsEvents.id })
     .from(analyticsEvents)
-    .where(eq(analyticsEvents.businessInquiryFormId, targetFormId))
+    .where(eq(analyticsEvents.serviceId, targetServiceId))
     .limit(1);
 
   if (linkedAnalyticsEvent) {
@@ -1725,17 +1727,17 @@ export async function deleteBusinessInquiryForm({
     // default so the shared public URL keeps resolving.
     if (targetForm.isDefault) {
       const [nextDefault] = await tx
-        .select({ id: businessInquiryForms.id })
-        .from(businessInquiryForms)
+        .select({ id: services.id })
+        .from(services)
         .where(
           and(
-            eq(businessInquiryForms.businessId, businessId),
-            isNull(businessInquiryForms.archivedAt),
-            eq(businessInquiryForms.publicInquiryEnabled, true),
-            ne(businessInquiryForms.id, targetFormId),
+            eq(services.businessId, businessId),
+            isNull(services.archivedAt),
+            eq(services.publicInquiryEnabled, true),
+            ne(services.id, targetServiceId),
           ),
         )
-        .orderBy(asc(businessInquiryForms.name))
+        .orderBy(asc(services.name))
         .limit(1);
 
       if (!nextDefault) {
@@ -1745,27 +1747,27 @@ export async function deleteBusinessInquiryForm({
       // Clear the outgoing default first: the database enforces at most one
       // default per business, so the two updates cannot overlap.
       await tx
-        .update(businessInquiryForms)
+        .update(services)
         .set({ isDefault: false, updatedAt: now })
         .where(
           and(
-            eq(businessInquiryForms.businessId, businessId),
-            eq(businessInquiryForms.id, targetFormId),
+            eq(services.businessId, businessId),
+            eq(services.id, targetServiceId),
           ),
         );
 
       await tx
-        .update(businessInquiryForms)
+        .update(services)
         .set({ isDefault: true, updatedAt: now })
-        .where(eq(businessInquiryForms.id, nextDefault.id));
+        .where(eq(services.id, nextDefault.id));
     }
 
     await tx
-      .delete(businessInquiryForms)
+      .delete(services)
       .where(
         and(
-          eq(businessInquiryForms.businessId, businessId),
-          eq(businessInquiryForms.id, targetFormId),
+          eq(services.businessId, businessId),
+          eq(services.id, targetServiceId),
         ),
       );
 
@@ -1774,9 +1776,9 @@ export async function deleteBusinessInquiryForm({
       businessId,
       actorUserId,
       type: "business.inquiry_form_deleted",
-      summary: `Inquiry form deleted: ${targetForm.slug}.`,
+      summary: `Service deleted: ${targetForm.slug}.`,
       metadata: {
-        inquiryFormId: targetFormId,
+        inquiryFormId: targetServiceId,
         inquiryFormSlug: targetForm.slug,
       },
       createdAt: now,
@@ -1792,16 +1794,16 @@ export async function deleteBusinessInquiryForm({
   return {
     ok: true,
     businessSlug: business.slug,
-    formSlug: targetForm.slug,
+    serviceSlug: targetForm.slug,
   };
 }
 
-export async function setBusinessInquiryFormPublicState({
+export async function setServicePublicState({
   businessId,
   actorUserId,
-  targetFormId,
+  targetServiceId,
   publicInquiryEnabled,
-}: SetBusinessInquiryFormPublicStateInput): Promise<BusinessInquiryFormMutationResult> {
+}: SetServicePublicStateInput): Promise<ServiceMutationResult> {
   const [businessRows, targetFormRows] = await Promise.all([
     db
       .select({
@@ -1814,16 +1816,16 @@ export async function setBusinessInquiryFormPublicState({
       .limit(1),
     db
       .select({
-        id: businessInquiryForms.id,
-        slug: businessInquiryForms.slug,
-        isDefault: businessInquiryForms.isDefault,
+        id: services.id,
+        slug: services.slug,
+        isDefault: services.isDefault,
       })
-      .from(businessInquiryForms)
+      .from(services)
       .where(
         and(
-          eq(businessInquiryForms.businessId, businessId),
-          eq(businessInquiryForms.id, targetFormId),
-          isNull(businessInquiryForms.archivedAt),
+          eq(services.businessId, businessId),
+          eq(services.id, targetServiceId),
+          isNull(services.archivedAt),
         ),
       )
       .limit(1),
@@ -1855,22 +1857,22 @@ export async function setBusinessInquiryFormPublicState({
 
     if (
       publicInquiryEnabled &&
-      !(await hasLiveServiceSlot(tx, businessId, plan, targetFormId))
+      !(await hasLiveServiceSlot(tx, businessId, plan, targetServiceId))
     ) {
       limitExceeded = true;
       return;
     }
 
     await tx
-      .update(businessInquiryForms)
+      .update(services)
       .set({
         publicInquiryEnabled,
         updatedAt: now,
       })
       .where(
         and(
-          eq(businessInquiryForms.businessId, businessId),
-          eq(businessInquiryForms.id, targetFormId),
+          eq(services.businessId, businessId),
+          eq(services.id, targetServiceId),
         ),
       );
 
@@ -1880,10 +1882,10 @@ export async function setBusinessInquiryFormPublicState({
       actorUserId,
       type: "business.inquiry_form_page_updated",
       summary: publicInquiryEnabled
-        ? `Inquiry form published: ${targetForm.slug}.`
-        : `Inquiry form unpublished: ${targetForm.slug}.`,
+        ? `Service published: ${targetForm.slug}.`
+        : `Service unpublished: ${targetForm.slug}.`,
       metadata: {
-        inquiryFormId: targetFormId,
+        inquiryFormId: targetServiceId,
         inquiryFormSlug: targetForm.slug,
         publicInquiryEnabled,
       },
@@ -1902,15 +1904,15 @@ export async function setBusinessInquiryFormPublicState({
   return {
     ok: true,
     businessSlug: business.slug,
-    formSlug: targetForm.slug,
+    serviceSlug: targetForm.slug,
   };
 }
 
-export async function unarchiveBusinessInquiryForm({
+export async function unarchiveService({
   businessId,
   actorUserId,
-  targetFormId,
-}: TargetBusinessInquiryFormInput): Promise<BusinessInquiryFormMutationResult> {
+  targetServiceId,
+}: TargetServiceInput): Promise<ServiceMutationResult> {
   const [businessRows, targetFormRows] = await Promise.all([
     db
       .select({
@@ -1923,15 +1925,15 @@ export async function unarchiveBusinessInquiryForm({
       .limit(1),
     db
       .select({
-        id: businessInquiryForms.id,
-        slug: businessInquiryForms.slug,
-        publicInquiryEnabled: businessInquiryForms.publicInquiryEnabled,
+        id: services.id,
+        slug: services.slug,
+        publicInquiryEnabled: services.publicInquiryEnabled,
       })
-      .from(businessInquiryForms)
+      .from(services)
       .where(
         and(
-          eq(businessInquiryForms.businessId, businessId),
-          eq(businessInquiryForms.id, targetFormId),
+          eq(services.businessId, businessId),
+          eq(services.id, targetServiceId),
         ),
       )
       .limit(1),
@@ -1963,15 +1965,15 @@ export async function unarchiveBusinessInquiryForm({
     }
 
     await tx
-      .update(businessInquiryForms)
+      .update(services)
       .set({
         archivedAt: null,
         updatedAt: now,
       })
       .where(
         and(
-          eq(businessInquiryForms.businessId, businessId),
-          eq(businessInquiryForms.id, targetFormId),
+          eq(services.businessId, businessId),
+          eq(services.id, targetServiceId),
         ),
       );
 
@@ -1980,9 +1982,9 @@ export async function unarchiveBusinessInquiryForm({
       businessId,
       actorUserId,
       type: "business.inquiry_form_updated",
-      summary: `Inquiry form unarchived: ${targetForm.slug}.`,
+      summary: `Service unarchived: ${targetForm.slug}.`,
       metadata: {
-        inquiryFormId: targetFormId,
+        inquiryFormId: targetServiceId,
         inquiryFormSlug: targetForm.slug,
       },
       createdAt: now,
@@ -2000,6 +2002,6 @@ export async function unarchiveBusinessInquiryForm({
   return {
     ok: true,
     businessSlug: business.slug,
-    formSlug: targetForm.slug,
+    serviceSlug: targetForm.slug,
   };
 }

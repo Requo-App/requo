@@ -41,11 +41,11 @@ export function ManualInquiryEditor({
   action,
   businessName,
   businessSlug,
-  forms,
-  initialFormSlug,
+  services,
+  initialServiceSlug,
   uploadHelpText,
 }: ManualInquiryEditorProps) {
-  const [selectedFormSlug, setSelectedFormSlug] = useState(initialFormSlug);
+  const [selectedServiceSlug, setSelectedServiceSlug] = useState(initialServiceSlug);
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [customerContactMethod, setCustomerContactMethod] =
@@ -79,22 +79,22 @@ export function ManualInquiryEditor({
     initialState,
   );
 
-  const selectedForm = useMemo(
-    () => forms.find((form) => form.slug === selectedFormSlug) ?? forms[0],
-    [forms, selectedFormSlug],
+  const selectedService = useMemo(
+    () => services.find((service) => service.slug === selectedServiceSlug) ?? services[0],
+    [services, selectedServiceSlug],
   );
   const quickInquiryFormConfig = useMemo(
-    () => createManualQuickInquiryFormConfig(selectedForm.inquiryFormConfig),
-    [selectedForm],
+    () => createManualQuickInquiryFormConfig(selectedService.inquiryFormConfig),
+    [selectedService],
   );
   const formOptions = useMemo(
     () =>
-      forms.map((form) => ({
-        label: form.isDefault ? `${form.name} (Default)` : form.name,
-        searchText: `${form.name} ${form.slug}`,
-        value: form.slug,
+      services.map((service) => ({
+        label: service.isDefault ? `${service.name} (Default)` : service.name,
+        searchText: `${service.name} ${service.slug}`,
+        value: service.slug,
       })),
-    [forms],
+    [services],
   );
   const projectFields = useMemo(
     () =>
@@ -133,8 +133,8 @@ export function ManualInquiryEditor({
     }));
   }
 
-  function handleFormChange(nextFormSlug: string) {
-    setSelectedFormSlug(nextFormSlug);
+  function handleServiceChange(nextServiceSlug: string) {
+    setSelectedServiceSlug(nextServiceSlug);
     setAttachment(null);
     setAttachmentError(null);
     setFileInputResetKey((currentValue) => currentValue + 1);
@@ -148,36 +148,36 @@ export function ManualInquiryEditor({
         if (isAttachmentUploading || attachmentError) event.preventDefault();
       }}
     >
-      <input name="formSlug" type="hidden" value={selectedForm.slug} />
+      <input name="serviceSlug" type="hidden" value={selectedService.slug} />
 
       <DashboardSidebarStack className="min-w-0">
         <DashboardSection
-          action={<DashboardMetaPill>{selectedForm.slug}</DashboardMetaPill>}
+          action={<DashboardMetaPill>{selectedService.slug}</DashboardMetaPill>}
           contentClassName="flex flex-col gap-5"
           description="Choose the intake form this manual inquiry should follow."
           title="Intake setup"
         >
-          <Field data-invalid={Boolean(getFieldMessage("formSlug")) || undefined}>
-            <FieldLabel htmlFor="manual-inquiry-form">Inquiry form</FieldLabel>
+          <Field data-invalid={Boolean(getFieldMessage("serviceSlug")) || undefined}>
+            <FieldLabel htmlFor="manual-inquiry-form">Service</FieldLabel>
             <FieldContent>
               <Combobox
-                aria-invalid={Boolean(getFieldMessage("formSlug"))}
+                aria-invalid={Boolean(getFieldMessage("serviceSlug"))}
                 disabled={isPending || isAttachmentUploading}
                 id="manual-inquiry-form"
-                onValueChange={(value) => handleFormChange(value)}
+                onValueChange={(value) => handleServiceChange(value)}
                 options={formOptions}
-                placeholder="Choose an inquiry form"
+                placeholder="Choose a service"
                 searchable
-                searchPlaceholder="Search forms"
-                value={selectedForm.slug}
+                searchPlaceholder="Search services"
+                value={selectedService.slug}
               />
               <FieldDescription>
-                Switch forms if this inquiry belongs to a different intake flow.
+                Switch services if this inquiry belongs to a different intake flow.
               </FieldDescription>
               <FieldError
                 errors={
-                  getFieldMessage("formSlug")
-                    ? [{ message: getFieldMessage("formSlug")! }]
+                  getFieldMessage("serviceSlug")
+                    ? [{ message: getFieldMessage("serviceSlug")! }]
                     : undefined
                 }
               />
@@ -188,7 +188,7 @@ export function ManualInquiryEditor({
         <DashboardSection
           contentClassName="flex flex-col gap-5"
           description="Add the customer's name and best way to reply."
-          title={selectedForm.inquiryFormConfig.groupLabels.contact}
+          title={selectedService.inquiryFormConfig.groupLabels.contact}
         >
           <FieldGroup>
             <div className="grid gap-5 sm:grid-cols-2">
@@ -325,7 +325,7 @@ export function ManualInquiryEditor({
 
                 return (
                   <ManualProjectField
-                    key={`${selectedForm.slug}:${inputName}`}
+                    key={`${selectedService.slug}:${inputName}`}
                     error={getFieldMessage(inputName)}
                     field={field}
                     isPending={isPending}
@@ -372,7 +372,7 @@ export function ManualInquiryEditor({
                 <InquiryAttachmentUploader
                   businessSlug={businessSlug}
                   disabled={isPending}
-                  formSlug={selectedForm.slug}
+                  serviceSlug={selectedService.slug}
                   helpText={uploadHelpText}
                   id="manual-inquiry-attachment"
                   onChange={setAttachment}
@@ -381,7 +381,7 @@ export function ManualInquiryEditor({
                     if (message) toast.error(message);
                   }}
                   onUploadingChange={setIsAttachmentUploading}
-                  resetKey={`${selectedForm.slug}:${fileInputResetKey}`}
+                  resetKey={`${selectedService.slug}:${fileInputResetKey}`}
                   value={attachment}
                 />
                 <FieldError
@@ -439,7 +439,7 @@ export function ManualInquiryEditor({
         projectFields={projectFields}
         projectValues={deferredProjectValues}
         selectedFileName={attachment?.fileName ?? null}
-        selectedForm={selectedForm}
+        selectedService={selectedService}
       />
     </form>
   );

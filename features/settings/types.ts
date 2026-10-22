@@ -5,13 +5,13 @@ import type {
   InquiryFormFieldDefinition,
 } from "@/features/inquiries/form-config";
 import type { InquiryPageConfig } from "@/features/inquiries/page-config";
-import type { BusinessInquiryFormSummary } from "@/features/inquiries/types";
+import type { ServiceSummary } from "@/features/inquiries/types";
 import type {
   InvoiceEmailTemplateConfigV2,
   QuoteEmailTemplateConfigV2,
   QuoteFollowUpTemplateConfigV2,
 } from "@/features/settings/email-templates";
-import type { BusinessPlan as plan } from "@/lib/plans/plans";
+import type { PlanTier as plan } from "@/lib/plans/plans";
 
 export type BusinessSettingsView = {
   id: string;
@@ -54,10 +54,10 @@ export type BusinessSettingsView = {
   notifyInAppOnFollowUpReminder: boolean;
   notifyInAppOnQuoteExpiring: boolean;
   defaultCurrency: string;
-  aiAgentEnabled: boolean;
-  aiAgentTone: "friendly" | "professional" | "casual";
+  agentEnabled: boolean;
+  agentTone: "friendly" | "professional" | "casual";
   /** Owner-authored guidance injected into both AI surfaces. Empty when unset. */
-  aiAgentInstructions: string;
+  agentInstructions: string;
   updatedAt: Date;
 };
 
@@ -104,19 +104,19 @@ export type BusinessNotificationSettingsActionState = {
   fieldErrors?: BusinessNotificationSettingsFieldErrors;
 };
 
-export type BusinessAiAgentSettingsFieldName =
-  | "aiAgentEnabled"
+export type BusinessAgentSettingsFieldName =
+  | "agentEnabled"
   | "tone"
-  | "aiAgentInstructions";
+  | "agentInstructions";
 
-export type BusinessAiAgentSettingsFieldErrors = Partial<
-  Record<BusinessAiAgentSettingsFieldName, string[] | undefined>
+export type BusinessAgentSettingsFieldErrors = Partial<
+  Record<BusinessAgentSettingsFieldName, string[] | undefined>
 >;
 
-export type BusinessAiAgentSettingsActionState = {
+export type BusinessAgentSettingsActionState = {
   error?: string;
   success?: string;
-  fieldErrors?: BusinessAiAgentSettingsFieldErrors;
+  fieldErrors?: BusinessAgentSettingsFieldErrors;
 };
 
 export type BusinessQuoteSettingsFieldName =
@@ -162,7 +162,7 @@ export type BusinessDeleteActionState = {
   fieldErrors?: BusinessDeleteFieldErrors;
 };
 
-export type BusinessInquiryFormsSettingsView = {
+export type ServicesSettingsView = {
   id: string;
   name: string;
   slug: string;
@@ -172,23 +172,23 @@ export type BusinessInquiryFormsSettingsView = {
    * form and page configs live behind the editor query, so they never travel
    * to the list client.
    */
-  forms: Array<
-    BusinessInquiryFormSummary & {
+  services: Array<
+    ServiceSummary & {
       submittedInquiryCount: number;
     }
   >;
 };
 
-export type BusinessInquiryPageSettingsView = {
+export type ServicePageSettingsView = {
   id: string;
   name: string;
   slug: string;
   plan: plan;
   shortDescription: string | null;
   logoStoragePath: string | null;
-  formId: string;
-  formName: string;
-  formSlug: string;
+  serviceId: string;
+  serviceName: string;
+  serviceSlug: string;
   businessType: BusinessType;
   publicInquiryEnabled: boolean;
   isDefault: boolean;
@@ -197,7 +197,7 @@ export type BusinessInquiryPageSettingsView = {
   updatedAt: Date;
 };
 
-export type BusinessInquiryPageFieldName =
+export type ServicePageFieldName =
   | "name"
   | "slug"
   | "businessType"
@@ -228,24 +228,24 @@ export type BusinessInquiryPageFieldName =
   | "showcaseImageCropZoom"
   | "cards";
 
-export type BusinessInquiryPageFieldErrors = Partial<
-  Record<BusinessInquiryPageFieldName, string[] | undefined>
+export type ServicePageFieldErrors = Partial<
+  Record<ServicePageFieldName, string[] | undefined>
 >;
 
-export type BusinessInquiryPageActionState = {
+export type ServicePageActionState = {
   error?: string;
   success?: string;
-  fieldErrors?: BusinessInquiryPageFieldErrors;
+  fieldErrors?: ServicePageFieldErrors;
 };
 
-export type BusinessInquiryFormSettingsView = {
+export type ServiceSettingsView = {
   id: string;
   name: string;
   slug: string;
   plan: plan;
-  formId: string;
-  formName: string;
-  formSlug: string;
+  serviceId: string;
+  serviceName: string;
+  serviceSlug: string;
   businessType: BusinessType;
   publicInquiryEnabled: boolean;
   isDefault: boolean;
@@ -254,7 +254,7 @@ export type BusinessInquiryFormSettingsView = {
   updatedAt: Date;
 };
 
-export type BusinessInquiryFormEditorView = BusinessInquiryFormSettingsView & {
+export type ServiceEditorView = ServiceSettingsView & {
   shortDescription: string | null;
   logoStoragePath: string | null;
   activeFormCount: number;
@@ -266,15 +266,15 @@ export type BusinessInquiryFormEditorView = BusinessInquiryFormSettingsView & {
  * derive page-level links. The normalized form/page configs and the form and
  * inquiry counts stay behind the streamed editor region.
  */
-export type BusinessInquiryFormHeaderView = Pick<
-  BusinessInquiryFormSettingsView,
+export type ServiceHeaderView = Pick<
+  ServiceSettingsView,
   | "id"
   | "name"
   | "slug"
   | "plan"
-  | "formId"
-  | "formName"
-  | "formSlug"
+  | "serviceId"
+  | "serviceName"
+  | "serviceSlug"
   | "businessType"
   | "publicInquiryEnabled"
   | "isDefault"
@@ -283,46 +283,46 @@ export type BusinessInquiryFormHeaderView = Pick<
   logoStoragePath: string | null;
 };
 
-export type BusinessInquiryFormPreviewDraft = {
+export type ServicePreviewDraft = {
   businessType: BusinessType;
-  formName: string;
-  formSlug: string;
+  serviceName: string;
+  serviceSlug: string;
   inquiryFormConfig: InquiryFormConfig;
   inquiryPageConfig: InquiryPageConfig;
 };
 
-export type BusinessInquiryPagePreviewDraft = {
+export type ServicePagePreviewDraft = {
   businessType: BusinessType;
-  formName: string;
-  formSlug: string;
+  serviceName: string;
+  serviceSlug: string;
   publicInquiryEnabled: boolean;
   inquiryPageConfig: InquiryPageConfig;
 };
 
-export type BusinessInquiryFormFieldName =
-  | "formId"
+export type ServiceFieldName =
+  | "serviceId"
   | "businessType"
   | "inquiryFormConfig";
 
-export type BusinessInquiryFormFieldErrors = Partial<
-  Record<BusinessInquiryFormFieldName, string[] | undefined>
+export type ServiceFieldErrors = Partial<
+  Record<ServiceFieldName, string[] | undefined>
 >;
 
-export type BusinessInquiryFormActionState = {
+export type ServiceActionState = {
   error?: string;
   success?: string;
-  fieldErrors?: BusinessInquiryFormFieldErrors;
+  fieldErrors?: ServiceFieldErrors;
 };
 
-export type BusinessInquiryFormsActionState = {
+export type ServicesActionState = {
   error?: string;
   success?: string;
   fieldErrors?: Partial<
-    Record<"name" | "businessType" | "formId" | "targetFormId", string[] | undefined>
+    Record<"name" | "businessType" | "serviceId" | "targetServiceId", string[] | undefined>
   >;
 };
 
-export type BusinessInquiryFormDangerActionState = {
+export type ServiceDangerActionState = {
   error?: string;
   success?: string;
 };

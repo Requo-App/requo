@@ -1,5 +1,5 @@
 import type {
-  InquiryEditorForm,
+  InquiryEditorService,
   ManualInquiryActionState,
 } from "@/features/inquiries/types";
 
@@ -10,8 +10,8 @@ export type ManualInquiryEditorProps = {
   ) => Promise<ManualInquiryActionState>;
   businessName: string;
   businessSlug: string;
-  forms: InquiryEditorForm[];
-  initialFormSlug: string;
+  services: InquiryEditorService[];
+  initialServiceSlug: string;
   uploadHelpText: string;
 };
 

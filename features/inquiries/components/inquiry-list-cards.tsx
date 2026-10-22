@@ -11,8 +11,8 @@ import { InquiryStatusBadge } from "@/features/inquiries/components/inquiry-stat
 import { getBusinessInquiryPath } from "@/features/businesses/routes";
 
 function getInquiryChannelDisplay(inquiry: DashboardInquiryListItem) {
-  if (inquiry.inquiryFormName) {
-    return { label: inquiry.inquiryFormName, icon: PencilRuler };
+  if (inquiry.serviceName) {
+    return { label: inquiry.serviceName, icon: PencilRuler };
   }
   return { label: getInquirySourceLabel(inquiry.source), icon: PenLine };
 }

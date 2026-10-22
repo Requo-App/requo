@@ -1,12 +1,12 @@
-import { FeatureGate } from "@/features/paywall/components/feature-gate";
-import type { UpgradeActionProps } from "@/features/paywall/types";
+import { FeatureGate } from "@/features/entitlements/components/feature-gate";
+import type { UpgradeActionProps } from "@/features/entitlements/types";
 import type { PlanFeature } from "@/lib/plans/entitlements";
-import type { BusinessPlan } from "@/lib/plans/plans";
+import type { PlanTier } from "@/lib/plans/plans";
 import { cn } from "@/lib/utils";
 
 /**
  * Static previews for locked tabs. These are sample numbers written into the
- * component — never a query result — so a Free workspace never receives
+ * component — never a query result — so a Free business never receives
  * premium data in the DOM, only the shape of what unlocking buys.
  */
 
@@ -137,7 +137,7 @@ export function AnalyticsTabLock({
   preview,
 }: {
   feature: PlanFeature;
-  plan: BusinessPlan;
+  plan: PlanTier;
   upgradeAction: UpgradeActionProps;
   description: string;
   preview: React.ReactNode;

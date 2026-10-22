@@ -5,7 +5,7 @@ import type {
   InquirySubmittedFieldSnapshot,
 } from "@/features/inquiries/form-config";
 import type { InquiryPageConfig } from "@/features/inquiries/page-config";
-import type { BusinessPlan as plan } from "@/lib/plans/plans";
+import type { PlanTier as plan } from "@/lib/plans/plans";
 
 export const inquiryStatuses = [
   "new",
@@ -31,7 +31,9 @@ export const inquiryFilterableStatuses = [
 export const inquiryRecordViews = ["active", "archived"] as const;
 export const inquirySources = {
   serviceForm: "service_form",
-  aiAssistant: "ai_assistant",
+  // Stored value remains `ai_assistant` for historical rows; the customer-facing
+  // surface that produces these inquiries is the Agent.
+  agent: "ai_assistant",
   manual: "manual",
   api: "api",
   unknown: "unknown",
@@ -42,7 +44,7 @@ export type InquirySourceValue =
 
 export const inquirySourceLabels: Record<InquirySourceValue, string> = {
   service_form: "Service Form",
-  ai_assistant: "AI Assistant",
+  ai_assistant: "Agent",
   manual: "Manual",
   api: "API",
   unknown: "Unknown",
@@ -99,9 +101,9 @@ export type InquiryStatusFilterValue = (typeof inquiryStatusFilterValues)[number
 
 export type DashboardInquiryListItem = {
   id: string;
-  businessInquiryFormId: string | null;
-  inquiryFormName: string | null;
-  inquiryFormSlug: string | null;
+  serviceId: string | null;
+  serviceName: string | null;
+  serviceSlug: string | null;
   source: string | null;
   customerName: string;
   customerEmail: string | null;
@@ -162,10 +164,10 @@ export type DashboardInquiryRelatedQuotes = {
 export type DashboardInquiryDetail = {
   id: string;
   businessId: string;
-  businessInquiryFormId: string | null;
-  inquiryFormName: string | null;
-  inquiryFormSlug: string | null;
-  inquiryFormBusinessType: BusinessType | null;
+  serviceId: string | null;
+  serviceName: string | null;
+  serviceSlug: string | null;
+  serviceBusinessType: BusinessType | null;
   customerName: string;
   customerEmail: string | null;
   customerContactMethod: string;
@@ -214,7 +216,7 @@ export type InquiryListFilters = {
 
 export type InquiryListQueryFilters = Omit<InquiryListFilters, "page">;
 
-export type BusinessInquiryFormSummary = {
+export type ServiceSummary = {
   id: string;
   name: string;
   slug: string;
@@ -226,7 +228,7 @@ export type BusinessInquiryFormSummary = {
   updatedAt: Date;
 };
 
-export type InquiryEditorForm = {
+export type InquiryEditorService = {
   id: string;
   name: string;
   slug: string;

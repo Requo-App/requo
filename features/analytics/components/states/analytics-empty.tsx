@@ -9,7 +9,7 @@ import {
 } from "@/features/businesses/routes";
 
 /**
- * First-run analytics: the workspace has never recorded an inquiry or quote.
+ * First-run analytics: the business has never recorded an inquiry or quote.
  * Points at the two actions that create data instead of showing empty charts.
  */
 export function AnalyticsFirstRunEmpty({ businessSlug }: { businessSlug: string }) {

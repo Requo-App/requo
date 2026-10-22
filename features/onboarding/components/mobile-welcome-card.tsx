@@ -45,7 +45,7 @@ const features = [
   },
   {
     icon: Package,
-    title: "Products",
+    title: "Quote library",
     description: "Reuse your price book",
   },
   {

@@ -188,14 +188,14 @@ async function fetchBatchFormViews(
           and(
             inArray(analyticsEvents.businessId, businessIds),
             eq(analyticsEvents.eventType, "inquiry_form_viewed"),
-            isNotNull(analyticsEvents.businessInquiryFormId),
+            isNotNull(analyticsEvents.serviceId),
             gte(analyticsEvents.occurredAt, dayStart),
             lt(analyticsEvents.occurredAt, dayEnd),
           ),
         )
         .groupBy(
           analyticsEvents.businessId,
-          analyticsEvents.businessInquiryFormId,
+          analyticsEvents.serviceId,
           analyticsEvents.visitorHash,
           sql`date_trunc('second', ${analyticsEvents.occurredAt})`,
         )
@@ -227,7 +227,7 @@ async function fetchBatchUniqueVisitors(
       and(
         inArray(analyticsEvents.businessId, businessIds),
         eq(analyticsEvents.eventType, "inquiry_form_viewed"),
-        isNotNull(analyticsEvents.businessInquiryFormId),
+        isNotNull(analyticsEvents.serviceId),
         gte(analyticsEvents.occurredAt, dayStart),
         lt(analyticsEvents.occurredAt, dayEnd),
       ),

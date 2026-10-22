@@ -14,10 +14,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import type { BusinessPlan } from "@/lib/plans/plans";
+import type { PlanTier } from "@/lib/plans/plans";
 import { planCatalog } from "@/lib/plans/catalog";
 
-function getPlanLabel(plan: BusinessPlan): string {
+function getPlanLabel(plan: PlanTier): string {
   return planCatalog[plan].label;
 }
 
@@ -27,7 +27,7 @@ export function UpgradeSuccessModal() {
   const router = useRouter();
   const firedRef = useRef(false);
   const [open, setOpen] = useState(false);
-  const [plan, setPlan] = useState<BusinessPlan>("pro");
+  const [plan, setPlan] = useState<PlanTier>("pro");
 
   useEffect(() => {
     if (firedRef.current) return;

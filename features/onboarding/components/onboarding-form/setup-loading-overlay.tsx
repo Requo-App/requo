@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 const setupLoadingSteps = [
   "Creating your business…",
   "Setting up your business…",
-  "Building your inquiry form…",
+  "Building your service…",
   "You’re all set!",
 ];
 

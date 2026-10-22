@@ -84,8 +84,8 @@ export function ArchivedInquiriesSheet({
   const formOptions = useMemo(() => {
     const seen = new Map<string, string>();
     for (const item of archived) {
-      const slug = item.inquiryFormSlug ?? "__no_form__";
-      const name = item.inquiryFormName ?? getInquirySourceLabel(item.source);
+      const slug = item.serviceSlug ?? "__no_form__";
+      const name = item.serviceName ?? getInquirySourceLabel(item.source);
       if (!seen.has(slug)) {
         seen.set(slug, name);
       }
@@ -97,7 +97,7 @@ export function ArchivedInquiriesSheet({
     const q = query.toLowerCase().trim();
     return archived.filter((item) => {
       if (statusFilter !== "all" && item.status !== statusFilter) return false;
-      if (formFilter !== "all" && (item.inquiryFormSlug ?? "__no_form__") !== formFilter)
+      if (formFilter !== "all" && (item.serviceSlug ?? "__no_form__") !== formFilter)
         return false;
       if (!q) return true;
       return (
@@ -306,7 +306,7 @@ export function ArchivedInquiriesSheet({
                       </p>
                     ) : null}
                     <p className="truncate text-xs text-muted-foreground/90">
-                      {item.inquiryFormName ??
+                      {item.serviceName ??
                         getInquirySourceLabel(item.source)}
                       {" · "}
                       {formatInquiryDate(item.submittedAt)}

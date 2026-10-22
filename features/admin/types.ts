@@ -26,7 +26,7 @@ import type {
   PaymentAttemptStatus,
   SubscriptionStatus,
 } from "@/lib/billing/types";
-import type { BusinessPlan } from "@/lib/plans/plans";
+import type { PlanTier } from "@/lib/plans/plans";
 
 /** Minimal row shape rendered by `AdminUsersTable`. */
 export type AdminUserRow = {
@@ -48,7 +48,7 @@ export type AdminUserDetailSubscription = {
    * which is subscription-keyed even though the service itself is user-keyed.
    */
   id: string;
-  plan: BusinessPlan;
+  plan: PlanTier;
   status: SubscriptionStatus;
   currentPeriodEnd: Date | null;
 };
@@ -58,7 +58,7 @@ export type AdminUserDetailBusiness = {
   id: string;
   name: string;
   slug: string;
-  plan: BusinessPlan;
+  plan: PlanTier;
 };
 
 /** Full detail payload rendered by `AdminUserDetail`. */
@@ -91,7 +91,7 @@ export type AdminBusinessRow = {
   name: string;
   slug: string;
   ownerEmail: string;
-  plan: BusinessPlan;
+  plan: PlanTier;
   memberCount: number;
   createdAt: Date;
 };
@@ -322,7 +322,7 @@ export type AdminBusinessSubscriptionSummary = {
 export type AdminBusinessBilling = {
   businessId: string;
   /** Denormalized read cache on `businesses` — what the product enforces. */
-  plan: BusinessPlan;
+  plan: PlanTier;
   /** The business-scoped subscription row, or null when on the free plan. */
   subscription: AdminBusinessSubscriptionSummary | null;
 };
@@ -410,7 +410,7 @@ export type AdminInquiryDetail = {
     id: string;
     name: string;
     slug: string;
-    plan: BusinessPlan;
+    plan: PlanTier;
   };
   owner: {
     userId: string;
@@ -541,7 +541,7 @@ export type AdminQuoteDetail = {
     id: string;
     name: string;
     slug: string;
-    plan: BusinessPlan;
+    plan: PlanTier;
   };
   linkedInquiry: {
     id: string;
@@ -653,7 +653,7 @@ export type AdminInvoiceDetail = {
     id: string;
     name: string;
     slug: string;
-    plan: BusinessPlan;
+    plan: PlanTier;
   };
   owner: {
     userId: string;

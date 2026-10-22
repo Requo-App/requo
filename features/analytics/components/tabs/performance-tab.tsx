@@ -2,7 +2,7 @@ import { Suspense } from "react";
 
 import type { AnalyticsWindow } from "@/features/analytics/lib/window";
 import { getPerformanceData } from "@/features/analytics/queries";
-import type { BusinessPlan } from "@/lib/plans";
+import type { PlanTier } from "@/lib/plans";
 
 import {
   AnalyticsRow,
@@ -46,7 +46,7 @@ export function PerformanceTab({
   businessId: string;
   businessSlug: string;
   window: AnalyticsWindow;
-  plan: BusinessPlan;
+  plan: PlanTier;
 }) {
   const dataPromise = getPerformanceData({ businessId, businessSlug, window, plan });
   const sectionProps = { dataPromise, businessSlug, window };

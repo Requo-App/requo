@@ -15,7 +15,7 @@ import { sendEmailWithFallback } from "@/lib/email/send-email";
 import { getEmailSender } from "@/lib/email/senders";
 import { env, isAnalyticsDigestEmailEnabled, isEmailConfigured } from "@/lib/env";
 import { hasFeatureAccess } from "@/lib/plans/entitlements";
-import type { BusinessPlan } from "@/lib/plans/plans";
+import type { PlanTier } from "@/lib/plans/plans";
 
 export type AnalyticsDigestSummary = {
   skipped?: boolean;
@@ -180,7 +180,7 @@ export async function sendAnalyticsDigestEmails(): Promise<AnalyticsDigestSummar
     );
 
   const entitled = eligibleBusinesses.filter((business) =>
-    hasFeatureAccess(business.plan as BusinessPlan, "analyticsOperations"),
+    hasFeatureAccess(business.plan as PlanTier, "analyticsOperations"),
   );
 
   const now = new Date();

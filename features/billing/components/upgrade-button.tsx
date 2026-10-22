@@ -11,7 +11,7 @@ import { PlanSelectionSheet } from "@/features/billing/components/plan-selection
 import { startPolarCheckout } from "@/features/billing/start-checkout";
 import { getBusinessHomePath } from "@/features/businesses/routes";
 import type { BillingInterval, PaidPlan } from "@/lib/billing/types";
-import type { BusinessPlan as plan } from "@/lib/plans/plans";
+import type { PlanTier as plan } from "@/lib/plans/plans";
 import { cn } from "@/lib/utils";
 
 type UpgradeButtonProps = {
@@ -40,7 +40,7 @@ function resolveTargetPlan(currentPlan: plan, targetPlan?: PaidPlan): PaidPlan {
  * and checkout state to the provider so multiple UpgradeButtons on the same
  * page share a single sheet and a single in-flight checkout transition.
  *
- * When rendered outside the provider (settings routes, paywall popovers in
+ * When rendered outside the provider (settings routes, upgrade popovers in
  * deep layouts, etc.), it falls back to a self-contained PlanSelectionSheet
  * using the props it already receives. This guarantees every UpgradeButton
  * opens the plan sheet, regardless of where it's mounted.

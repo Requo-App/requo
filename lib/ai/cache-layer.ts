@@ -231,7 +231,7 @@ function getFromMemory<T>(key: string): T | null {
   return entry.value as T;
 }
 
-/** Raw in-memory entry, including its expiry, for window-aware settlement. */
+/** Raw in-knowledge entry, including its expiry, for window-aware settlement. */
 function getMemoryEntry(key: string): InMemoryEntry | null {
   const entry = inMemoryStore.get(key);
   if (!entry) return null;

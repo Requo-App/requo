@@ -19,11 +19,11 @@ import {
 } from "@/lib/billing/plans";
 import type { BillingInterval, PaidPlan } from "@/lib/billing/types";
 import { planMeta } from "@/lib/plans";
-import type { BusinessPlan } from "@/lib/plans/plans";
+import type { PlanTier } from "@/lib/plans/plans";
 import { cn } from "@/lib/utils";
 
 type PlanCard = {
-  id: BusinessPlan;
+  id: PlanTier;
   tagline: string;
   highlights: string[];
 };
@@ -33,7 +33,7 @@ const planCards: PlanCard[] = [
     id: "free",
     tagline: "For solo operators",
     highlights: [
-      "AI assistant",
+      "Assistant",
       "Workflow defaults",
       "Follow-ups",
       "Email sending",
@@ -64,7 +64,7 @@ const planCards: PlanCard[] = [
 type PlanSelectionSheetProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  currentPlan: BusinessPlan;
+  currentPlan: PlanTier;
   targetPlan?: PaidPlan;
   onSelectPlan: (plan: PaidPlan, interval: BillingInterval) => void;
   businessId?: string;

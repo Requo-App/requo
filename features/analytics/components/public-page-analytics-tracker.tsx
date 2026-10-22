@@ -51,19 +51,19 @@ function trackPublicAnalyticsEvent(payload: PublicAnalyticsEventInput) {
 
 export function PublicInquiryFormViewTracker({
   businessId,
-  businessInquiryFormId,
+  serviceId,
 }: {
   businessId: string;
-  businessInquiryFormId: string;
+  serviceId: string;
 }) {
   useEffect(() => {
     trackPublicAnalyticsEvent({
       eventType: "inquiry_form_viewed",
       businessId,
-      businessInquiryFormId,
+      serviceId,
       metadata: getTrackingMetadata(),
     });
-  }, [businessId, businessInquiryFormId]);
+  }, [businessId, serviceId]);
 
   return null;
 }

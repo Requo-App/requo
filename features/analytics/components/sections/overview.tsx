@@ -2,8 +2,8 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { FeatureGate } from "@/features/paywall";
-import type { UpgradeActionProps } from "@/features/paywall/types";
+import { FeatureGate } from "@/features/entitlements";
+import type { UpgradeActionProps } from "@/features/entitlements/types";
 import { chartSemantic } from "@/features/analytics/lib/chart-theme";
 import {
   formatDuration,
@@ -19,7 +19,7 @@ import { getInvoicesListHref } from "@/features/analytics/lib/links";
 import { averageWonInCents } from "@/features/analytics/lib/kpi";
 import type { AnalyticsWindow } from "@/features/analytics/lib/window";
 import type { OverviewData } from "@/features/analytics/types";
-import type { BusinessPlan } from "@/lib/plans";
+import type { PlanTier } from "@/lib/plans";
 
 import { AgingList } from "../primitives/aging-list";
 import { AnalyticsCard } from "../primitives/analytics-card";
@@ -44,7 +44,7 @@ export type OverviewSectionProps = {
   dataPromise: Promise<OverviewData>;
   businessSlug: string;
   window: AnalyticsWindow;
-  plan: BusinessPlan;
+  plan: PlanTier;
   upgradeAction: UpgradeActionProps;
 };
 

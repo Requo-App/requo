@@ -407,7 +407,7 @@ export function PublicInquiryForm({
                   <InquiryAttachmentUploader
                     businessSlug={business.slug}
                     disabled={isPending}
-                    formSlug={business.form.slug}
+                    serviceSlug={business.form.slug}
                     helpText={attachmentHelpText}
                     id="inquiry-attachment"
                     onChange={setAttachment}

@@ -8,7 +8,7 @@ import {
 
 /**
  * Shared UI-chat request parsing for the AI chat routes
- * (`app/api/ai/agent/chat`, `app/api/ai/owner-assistant/chat`).
+ * (`app/api/ai/agent/chat`, `app/api/ai/assistant/chat`).
  *
  * Only genuinely identical logic lives here: message-shape validation,
  * turn text extraction, and attachment data-URL decoding. Everything
@@ -58,7 +58,7 @@ export type UiChatMessage = z.infer<typeof uiMessageSchema>;
  *
  * The two chat routes disagree on blank-string `content` and that
  * difference is preserved explicitly: the agent keeps a present-but-blank
- * `content` as-is, while the owner assistant falls back to the parts.
+ * `content` as-is, while the assistant falls back to the parts.
  */
 export function extractUiMessageText(
   message: UiChatMessage,

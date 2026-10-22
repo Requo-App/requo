@@ -65,6 +65,6 @@ export function canViewBusinessAnalytics(role: BusinessMemberRole) {
   return hasBusinessRoleAccess(role, "staff");
 }
 
-export function canManageBusinessWorkspace(role: BusinessMemberRole) {
+export function isBusinessMember(role: BusinessMemberRole) {
   return hasBusinessRoleAccess(role, "staff");
 }

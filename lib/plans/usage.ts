@@ -13,11 +13,11 @@ import { and, count, eq, gte, inArray, isNull, lt, sql } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import {
   activityLogs,
-  businessInquiryForms,
+  services,
   businessMembers,
   quotes,
 } from "@/lib/db/schema";
-import type { BusinessPlan } from "@/lib/plans/plans";
+import type { PlanTier } from "@/lib/plans/plans";
 import {
   getUsageLimit,
   type UsageLimitKey,
@@ -202,12 +202,12 @@ export async function getBusinessLiveFormsCount(
 ): Promise<number> {
   const [row] = await db
     .select({ value: count() })
-    .from(businessInquiryForms)
+    .from(services)
     .where(
       and(
-        eq(businessInquiryForms.businessId, businessId),
-        eq(businessInquiryForms.publicInquiryEnabled, true),
-        isNull(businessInquiryForms.archivedAt),
+        eq(services.businessId, businessId),
+        eq(services.publicInquiryEnabled, true),
+        isNull(services.archivedAt),
       ),
     );
 
@@ -226,7 +226,7 @@ export type UsageAllowance = {
  */
 export async function checkUsageAllowance(
   businessId: string,
-  plan: BusinessPlan,
+  plan: PlanTier,
   key: UsageLimitKey,
 ): Promise<UsageAllowance> {
   const limit = getUsageLimit(plan, key);
@@ -256,7 +256,7 @@ export async function checkUsageAllowance(
     case "membersPerBusiness":
       current = await getBusinessMemberCount(businessId);
       break;
-    case "liveFormsPerBusiness":
+    case "liveServicesPerBusiness":
       current = await getBusinessLiveFormsCount(businessId);
       break;
     default:

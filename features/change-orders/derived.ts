@@ -6,8 +6,8 @@ import { db } from "@/lib/db/client";
 import {
   changeOrderLines,
   changeOrders,
-  commercialScheduleItems,
-  commercialSchedules,
+  paymentScheduleItems,
+  paymentSchedules,
   quoteItems,
   quoteScopeBlocks,
   quotes,
@@ -270,14 +270,14 @@ async function getLatestApprovedSchedule(
 ): Promise<DerivedSchedule> {
   const schedules = await db
     .select()
-    .from(commercialSchedules)
+    .from(paymentSchedules)
     .where(
       and(
-        eq(commercialSchedules.businessId, businessId),
-        eq(commercialSchedules.quoteId, quoteId),
+        eq(paymentSchedules.businessId, businessId),
+        eq(paymentSchedules.quoteId, quoteId),
       ),
     )
-    .orderBy(asc(commercialSchedules.version));
+    .orderBy(asc(paymentSchedules.version));
 
   const approved = schedules.filter((row) => row.state === "accepted");
   const latest = approved[approved.length - 1] ?? null;
@@ -286,9 +286,9 @@ async function getLatestApprovedSchedule(
 
   const items = await db
     .select()
-    .from(commercialScheduleItems)
-    .where(eq(commercialScheduleItems.scheduleId, latest.id))
-    .orderBy(asc(commercialScheduleItems.position));
+    .from(paymentScheduleItems)
+    .where(eq(paymentScheduleItems.scheduleId, latest.id))
+    .orderBy(asc(paymentScheduleItems.position));
 
   return {
     scheduleId: latest.id,

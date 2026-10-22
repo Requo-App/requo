@@ -52,7 +52,7 @@ import {
   FieldSet,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { LockedAction } from "@/features/paywall";
+import { FeatureGate } from "@/features/entitlements";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -81,11 +81,11 @@ import {
   type BusinessMemberAssignableRole,
   type BusinessMemberRole,
 } from "@/lib/business-members";
-import type { BusinessPlan } from "@/lib/plans/plans";
+import type { PlanTier } from "@/lib/plans/plans";
 
 type MembersManagerProps = {
   view: BusinessMembersSettingsView;
-  plan: BusinessPlan;
+  plan: PlanTier;
   /** Reusable shareable invite-link token, or null when none exists yet. */
   inviteLinkToken: string | null;
   createInviteAction: BusinessMemberAction;
@@ -273,7 +273,7 @@ export function BusinessMembersManager({
                 {view.invites.length} pending
               </Button>
             ) : null}
-            <LockedAction feature="members" plan={plan}>
+            <FeatureGate variant="action" feature="members" plan={plan}>
               <Button
                 className="shrink-0"
                 type="button"
@@ -283,7 +283,7 @@ export function BusinessMembersManager({
                 <UserPlus data-icon="inline-start" />
                 Invite
               </Button>
-            </LockedAction>
+            </FeatureGate>
           </div>
 
           {isFiltering ? (

@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { toast } from "@/components/shared/notify";
 
-import { ProFeatureNoticeButton } from "@/components/shared/pro-feature-notice-button";
+import { UpgradeNoticeButton } from "@/features/entitlements/components/upgrade-notice-button";
 import { Button } from "@/components/ui/button";
 import { mobileNavbarIconButtonClassName } from "@/components/shell/mobile-header-slot";
 import { cn } from "@/lib/utils";
@@ -610,16 +610,16 @@ export function SendQuoteDialog({
                     </a>
                   </Button>
                 ) : pdfExportLocked ? (
-                  <ProFeatureNoticeButton
+                  <UpgradeNoticeButton
                     className="flex-1"
-                    noticeDescription="Upgrade to Pro to download quote PDFs."
-                    noticeTitle="PDF is a Pro feature."
+                    noticeDescription="Upgrade your plan to download quote PDFs."
+                    noticeTitle="PDF export requires an upgrade."
                     size="sm"
                     variant="outline"
                   >
                     <ExternalLink data-icon="inline-start" className="size-3.5" />
                     PDF
-                  </ProFeatureNoticeButton>
+                  </UpgradeNoticeButton>
                 ) : null}
               </div>
 

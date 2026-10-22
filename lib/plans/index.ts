@@ -1,7 +1,7 @@
 export {
-  businessPlans,
-  type BusinessPlan,
-  isBusinessPlan,
+  planTiers,
+  type PlanTier,
+  isPlanTier,
   planMeta,
   type PlanMeta,
   getUpgradePlan,

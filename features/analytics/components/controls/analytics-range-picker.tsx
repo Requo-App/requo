@@ -166,7 +166,7 @@ export function AnalyticsRangePicker({
   );
 }
 
-/** Static range chip — the only range control a Free workspace sees. */
+/** Static range chip — the only range control a Free business sees. */
 export function AnalyticsRangePill({ label }: { label: string }) {
   return (
     <span className="flex h-8 shrink-0 items-center gap-1.5 rounded-md border border-border/85 bg-muted/40 px-2.5 text-sm text-muted-foreground">

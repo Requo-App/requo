@@ -30,7 +30,7 @@ import {
   adminArchiveBusinessSchema,
   adminRestoreBusinessSchema,
   adminDeleteBusinessSchema,
-  adminOverrideBusinessPlanSchema,
+  adminOverridePlanTierSchema,
   adminCancelBusinessSubscriptionSchema,
   type AdminDeleteUserInput,
   type AdminDemoteUserInput,
@@ -39,7 +39,7 @@ import {
   type AdminArchiveBusinessInput,
   type AdminRestoreBusinessInput,
   type AdminDeleteBusinessInput,
-  type AdminOverrideBusinessPlanInput,
+  type AdminOverridePlanTierInput,
   type AdminCancelBusinessSubscriptionInput,
   type AdminManualPlanOverrideInput,
   type AdminPromoteUserInput,
@@ -78,7 +78,7 @@ import {
 } from "@/lib/cache/admin-tags";
 import { db } from "@/lib/db/client";
 import { accountSubscriptions, businesses, session, user } from "@/lib/db/schema";
-import type { BusinessPlan } from "@/lib/plans/plans";
+import type { PlanTier } from "@/lib/plans/plans";
 
 /* ──────────────────────────────────────────────────────────────────────────
  * Shared helpers
@@ -1029,7 +1029,7 @@ export async function demoteFromAdminAction(
  * `lib/billing/subscription-service.ts` (`activateSubscription` /
  * `cancelSubscription`) does NOT accept an external Drizzle transaction.
  * It opens its own writes against `account_subscriptions` and then calls
- * `syncOwnerBusinessPlans` + `enforceActiveBusinessLimitOnPlanChange`
+ * `syncOwnerPlanTiers` + `enforceActiveBusinessLimitOnPlanChange`
  * internally, and issues its own `revalidateTag` calls for user + every
  * owned business.
  *
@@ -1118,7 +1118,7 @@ async function recordSubscriptionOverrideAudit(
  * Manually override a user's subscription plan (Req 7.1). Routes the
  * change through `lib/billing/subscription-service.ts#activateSubscription`
  * so `account_subscriptions` AND every owned `businesses.plan` value
- * are kept in sync via `syncOwnerBusinessPlans` (Property 12).
+ * are kept in sync via `syncOwnerPlanTiers` (Property 12).
  *
  * No direct writes to `account_subscriptions` — the service is the
  * single write path.
@@ -1175,8 +1175,8 @@ export async function manualPlanOverrideAction(
   // exists so the override doesn't silently flip providers (e.g., Polar→another).
   // When there is no row yet, fall back to the module-level defaults.
   const existing = await getAccountSubscription(userId);
-  const previousPlan: BusinessPlan | null = existing
-    ? (existing.plan as BusinessPlan)
+  const previousPlan: PlanTier | null = existing
+    ? (existing.plan as PlanTier)
     : null;
   const provider: BillingProvider =
     existing?.billingProvider ?? DEFAULT_OVERRIDE_PROVIDER;
@@ -1278,7 +1278,7 @@ export async function manualPlanOverrideAction(
  * Force-cancel a subscription (Req 7.2, 7.3). The admin form passes a
  * `subscriptionId`, but the service operates on the owning `userId` so
  * the fix-up happens inside every owned business via
- * `syncOwnerBusinessPlans`. We resolve the user first and surface a
+ * `syncOwnerPlanTiers`. We resolve the user first and surface a
  * clean "no such subscription" message if it's been deleted.
  *
  * The service `cancelSubscription(userId)` calls
@@ -1645,7 +1645,7 @@ export async function restoreBusinessAction(
  * Soft-delete a business (hidden from lists, restorable from the
  * detail page). Clears any archive flag so restore converges to
  * active. There is no admin hard-delete — permanent removal stays
- * with the owner's workspace deletion flow.
+ * with the owner's business deletion flow.
  */
 export async function deleteBusinessAction(
   input: AdminDeleteBusinessInput,
@@ -1738,13 +1738,13 @@ export async function deleteBusinessAction(
  * cache through the service. Provider/currency carry over from the
  * existing row so the override never silently flips providers.
  */
-export async function overrideBusinessPlanAction(
-  input: AdminOverrideBusinessPlanInput,
+export async function overridePlanTierAction(
+  input: AdminOverridePlanTierInput,
 ): Promise<AdminActionResult> {
   const { session: authSession, user: admin } = await requireAdminUser();
   const auditContext = resolveAuditContext(admin, authSession);
 
-  const parsed = adminOverrideBusinessPlanSchema.safeParse(input);
+  const parsed = adminOverridePlanTierSchema.safeParse(input);
   if (!parsed.success) {
     return {
       ok: false,
@@ -1772,8 +1772,8 @@ export async function overrideBusinessPlanAction(
   }
 
   const existing = await getBusinessSubscription(businessId);
-  const previousPlan: BusinessPlan | null = existing
-    ? (existing.plan as BusinessPlan)
+  const previousPlan: PlanTier | null = existing
+    ? (existing.plan as PlanTier)
     : null;
   const provider: BillingProvider =
     existing?.billingProvider ?? DEFAULT_OVERRIDE_PROVIDER;

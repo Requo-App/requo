@@ -27,20 +27,20 @@ import { and, eq, gte, sql, type SQLWrapper } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
 import {
-  aiAgentMessages,
-  aiAgentSessions,
-  ownerAssistantMessages,
-  ownerAssistantSessions,
+  agentMessages,
+  agentSessions,
+  assistantMessages,
+  assistantSessions,
 } from "@/lib/db/schema";
 import { ATTACHMENT_METADATA_KEY } from "@/lib/ai/chat-attachments";
 import { getUsageLimit } from "@/lib/plans/usage-limits";
-import type { BusinessPlan } from "@/lib/plans/plans";
+import type { PlanTier } from "@/lib/plans/plans";
 
 /** Lifetime user-message cap per Agent session. */
 export const AGENT_MESSAGES_PER_SESSION = 50;
 
 /** Per-business daily session ceiling (abuse protection, distinct from plan allowance). */
-const AGENT_SESSIONS_PER_BUSINESS_PER_DAY: Record<BusinessPlan, number> = {
+const AGENT_SESSIONS_PER_BUSINESS_PER_DAY: Record<PlanTier, number> = {
   free: 0,
   pro: 10,
   business: 50,
@@ -52,7 +52,7 @@ export type ConversationLimitResult =
       allowed: false;
       reason: "daily_limit" | "monthly_limit" | "session_limit";
       message: string;
-      requiredPlan: BusinessPlan | null;
+      requiredPlan: PlanTier | null;
     };
 
 function startOfDayUtc(now = new Date()): Date {
@@ -74,23 +74,23 @@ export async function checkAssistantMessageLimit({
   plan,
 }: {
   businessId: string;
-  plan: BusinessPlan;
+  plan: PlanTier;
 }): Promise<ConversationLimitResult> {
   const limit = getUsageLimit(plan, "assistantMessagesPerDay") ?? 25;
   const since = startOfDayUtc();
 
   const [{ count }] = await db
     .select({ count: sql<number>`count(*)` })
-    .from(ownerAssistantMessages)
+    .from(assistantMessages)
     .innerJoin(
-      ownerAssistantSessions,
-      eq(ownerAssistantMessages.sessionId, ownerAssistantSessions.id),
+      assistantSessions,
+      eq(assistantMessages.sessionId, assistantSessions.id),
     )
     .where(
       and(
-        eq(ownerAssistantSessions.businessId, businessId),
-        eq(ownerAssistantMessages.role, "user"),
-        gte(ownerAssistantMessages.createdAt, since),
+        eq(assistantSessions.businessId, businessId),
+        eq(assistantMessages.role, "user"),
+        gte(assistantMessages.createdAt, since),
       ),
     );
 
@@ -115,7 +115,7 @@ export async function checkAgentSessionLimit({
   plan,
 }: {
   businessId: string;
-  plan: BusinessPlan;
+  plan: PlanTier;
 }): Promise<ConversationLimitResult> {
   const monthlyLimit = getUsageLimit(plan, "agentSessionsPerMonth") ?? 0;
   if (monthlyLimit <= 0) {
@@ -133,16 +133,16 @@ export async function checkAgentSessionLimit({
   // requests exhaust a Pro business's daily ceiling without a single
   // conversation ever happening.
   const [{ monthCount }] = await db
-    .select({ monthCount: sql<number>`count(distinct ${aiAgentSessions.id})` })
-    .from(aiAgentSessions)
+    .select({ monthCount: sql<number>`count(distinct ${agentSessions.id})` })
+    .from(agentSessions)
     .innerJoin(
-      aiAgentMessages,
-      eq(aiAgentMessages.sessionId, aiAgentSessions.id),
+      agentMessages,
+      eq(agentMessages.sessionId, agentSessions.id),
     )
     .where(
       and(
-        eq(aiAgentSessions.businessId, businessId),
-        gte(aiAgentSessions.createdAt, monthStart),
+        eq(agentSessions.businessId, businessId),
+        gte(agentSessions.createdAt, monthStart),
       ),
     );
 
@@ -157,16 +157,16 @@ export async function checkAgentSessionLimit({
 
   const dailyCeiling = AGENT_SESSIONS_PER_BUSINESS_PER_DAY[plan];
   const [{ dayCount }] = await db
-    .select({ dayCount: sql<number>`count(distinct ${aiAgentSessions.id})` })
-    .from(aiAgentSessions)
+    .select({ dayCount: sql<number>`count(distinct ${agentSessions.id})` })
+    .from(agentSessions)
     .innerJoin(
-      aiAgentMessages,
-      eq(aiAgentMessages.sessionId, aiAgentSessions.id),
+      agentMessages,
+      eq(agentMessages.sessionId, agentSessions.id),
     )
     .where(
       and(
-        eq(aiAgentSessions.businessId, businessId),
-        gte(aiAgentSessions.createdAt, startOfDayUtc()),
+        eq(agentSessions.businessId, businessId),
+        gte(agentSessions.createdAt, startOfDayUtc()),
       ),
     );
 
@@ -194,7 +194,7 @@ async function checkFileUploadLimit({
   copy,
 }: {
   businessId: string;
-  plan: BusinessPlan;
+  plan: PlanTier;
   limitKey: "assistantFileUploadsPerDay" | "agentFileUploadsPerDay";
   copy: { noun: string; limitMessage: (limit: number) => string };
 }): Promise<ConversationLimitResult> {
@@ -208,32 +208,32 @@ async function checkFileUploadLimit({
     limitKey === "assistantFileUploadsPerDay"
       ? await db
           .select({ count: sql<number>`count(*)` })
-          .from(ownerAssistantMessages)
+          .from(assistantMessages)
           .innerJoin(
-            ownerAssistantSessions,
-            eq(ownerAssistantMessages.sessionId, ownerAssistantSessions.id),
+            assistantSessions,
+            eq(assistantMessages.sessionId, assistantSessions.id),
           )
           .where(
             and(
-              eq(ownerAssistantSessions.businessId, businessId),
-              eq(ownerAssistantMessages.role, "user"),
-              gte(ownerAssistantMessages.createdAt, since),
-              hasAttachment(ownerAssistantMessages.metadata),
+              eq(assistantSessions.businessId, businessId),
+              eq(assistantMessages.role, "user"),
+              gte(assistantMessages.createdAt, since),
+              hasAttachment(assistantMessages.metadata),
             ),
           )
       : await db
           .select({ count: sql<number>`count(*)` })
-          .from(aiAgentMessages)
+          .from(agentMessages)
           .innerJoin(
-            aiAgentSessions,
-            eq(aiAgentMessages.sessionId, aiAgentSessions.id),
+            agentSessions,
+            eq(agentMessages.sessionId, agentSessions.id),
           )
           .where(
             and(
-              eq(aiAgentSessions.businessId, businessId),
-              eq(aiAgentMessages.role, "user"),
-              gte(aiAgentMessages.createdAt, since),
-              hasAttachment(aiAgentMessages.metadata),
+              eq(agentSessions.businessId, businessId),
+              eq(agentMessages.role, "user"),
+              gte(agentMessages.createdAt, since),
+              hasAttachment(agentMessages.metadata),
             ),
           );
 
@@ -255,7 +255,7 @@ export async function checkAssistantFileUploadLimit({
   plan,
 }: {
   businessId: string;
-  plan: BusinessPlan;
+  plan: PlanTier;
 }): Promise<ConversationLimitResult> {
   return checkFileUploadLimit({
     businessId,
@@ -275,7 +275,7 @@ export async function checkAgentFileUploadLimit({
   plan,
 }: {
   businessId: string;
-  plan: BusinessPlan;
+  plan: PlanTier;
 }): Promise<ConversationLimitResult> {
   return checkFileUploadLimit({
     businessId,
@@ -297,11 +297,11 @@ export async function checkAgentMessageLimit({
 }): Promise<ConversationLimitResult> {
   const [{ count }] = await db
     .select({ count: sql<number>`count(*)` })
-    .from(aiAgentMessages)
+    .from(agentMessages)
     .where(
       and(
-        eq(aiAgentMessages.sessionId, sessionId),
-        eq(aiAgentMessages.role, "user"),
+        eq(agentMessages.sessionId, sessionId),
+        eq(agentMessages.role, "user"),
       ),
     );
 

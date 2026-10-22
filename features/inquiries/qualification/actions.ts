@@ -7,7 +7,7 @@ import {
   getBusinessInquiryListCacheTags,
   uniqueCacheTags,
 } from "@/lib/cache/business-tags";
-import { getWorkspaceBusinessActionContext } from "@/lib/db/business-access";
+import { getMemberBusinessActionContext } from "@/lib/db/business-access";
 import { db } from "@/lib/db/client";
 import { inquiryDuplicates } from "@/lib/db/schema";
 import { and, eq } from "drizzle-orm";
@@ -24,13 +24,13 @@ export async function dismissDuplicateWarningAction(
   businessId: string,
   inquiryId: string,
 ): Promise<{ error?: string }> {
-  const ownerAccess = await getWorkspaceBusinessActionContext();
+  const memberAccess = await getMemberBusinessActionContext();
 
-  if (!ownerAccess.ok) {
-    return { error: ownerAccess.error };
+  if (!memberAccess.ok) {
+    return { error: memberAccess.error };
   }
 
-  const { user, businessContext } = ownerAccess;
+  const { user, businessContext } = memberAccess;
 
   // Ensure the user's active business matches the requested businessId
   if (businessContext.business.id !== businessId) {

@@ -47,7 +47,7 @@ function BenchmarkRow({ row }: { row: AnalyticsBenchmarkRow }) {
         </div>
         <p className="text-xs text-muted-foreground">
           {row.yours === null
-            ? "No data from your workspace in this period."
+            ? "No data from your business in this period."
             : "Not enough peer data yet — benchmarks publish at 10+ businesses."}
         </p>
       </li>

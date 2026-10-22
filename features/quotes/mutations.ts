@@ -1219,7 +1219,7 @@ type MarkQuoteSentForBusinessInput = {
  * Collects the pack-aware send gates for a quote.
  *
  * The gates are the product's own readiness rules: incomplete required scope
- * blocks, critical intake gaps, and a commercial schedule whose total no
+ * blocks, critical intake gaps, and a payment schedule whose total no
  * longer matches the draft. Callers MUST run this before emailing a customer
  * — the customer must never receive a quote the server considers unsendable.
  *
@@ -1240,7 +1240,7 @@ export async function collectQuoteSendGates({
 }) {
   const { evaluateScopeSendGate } = await import("@/features/scope-blocks/queries");
   const { evaluateIntakeReadiness } = await import("@/features/businesses/intake-bindings");
-  const { getEditableScheduleForQuote } = await import("@/features/schedules/queries");
+  const { getEditableScheduleForQuote } = await import("@/features/payment-schedules/queries");
 
   const [scopeGate, readiness] = await Promise.all([
     evaluateScopeSendGate({ businessId, quoteId }),
@@ -2164,7 +2164,7 @@ export async function onQuoteAccepted(
     .limit(1);
 
   if (acceptedQuote) {
-    const { acceptScheduleForQuote } = await import("@/features/schedules/mutations");
+    const { acceptScheduleForQuote } = await import("@/features/payment-schedules/mutations");
     await acceptScheduleForQuote(tx, {
       businessId,
       quoteId,

@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 
-import { generateQuoteDraftForBusiness } from "@/features/ai/quote-generator";
-import { createAutoDraftQuote } from "@/features/ai/auto-draft";
+import { generateQuoteDraftForBusiness } from "@/features/quote-drafting/quote-generator";
+import { createAutoDraftQuote } from "@/features/quote-drafting/auto-draft";
 import { enableAutoFollowUpForQuote } from "@/features/quotes/mutations";
 import { getBusinessInquiryPath, getBusinessInvoicePath, getBusinessQuotePath } from "@/features/businesses/routes";
 import { getBusinessMessagingSettings } from "@/lib/db/business-access";

@@ -11,9 +11,9 @@ import {
 import { formatProductDate } from "@/features/admin/components/product/admin-product-format";
 import { getAdminBusinessDetailPath } from "@/features/admin/navigation";
 import type { AdminBusinessRow } from "@/features/admin/types";
-import { planMeta, type BusinessPlan } from "@/lib/plans";
+import { planMeta, type PlanTier } from "@/lib/plans";
 
-function AdminBusinessPlanBadge({ plan }: { plan: BusinessPlan }) {
+function AdminPlanTierBadge({ plan }: { plan: PlanTier }) {
   return (
     <Badge variant={plan === "free" ? "outline" : "secondary"}>
       {planMeta[plan].label}
@@ -51,7 +51,7 @@ const adminBusinessColumns: AdminDataTableColumn<AdminBusinessRow>[] = [
     id: "plan",
     header: "Plan",
     width: "w-[9rem]",
-    cell: (item) => <AdminBusinessPlanBadge plan={item.plan} />,
+    cell: (item) => <AdminPlanTierBadge plan={item.plan} />,
   },
   {
     id: "owner",
@@ -127,7 +127,7 @@ export function AdminBusinessesTable({
       mobileCard={(item) => ({
         title: item.name,
         subtitle: `${item.slug} · ${item.ownerEmail}`,
-        statusBadge: <AdminBusinessPlanBadge plan={item.plan} />,
+        statusBadge: <AdminPlanTierBadge plan={item.plan} />,
         metadata: (
           <span>
             {item.memberCount.toLocaleString()}{" "}

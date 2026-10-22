@@ -41,6 +41,6 @@ export function sanitizeBusinessLogoFileName(fileName: string) {
   return sanitizeStorageFileName(fileName, "business-logo");
 }
 
-export function getBusinessPublicInquiryUrl(slug: string, formSlug?: string) {
-  return formSlug ? `/inquire/${slug}/${formSlug}` : `/inquire/${slug}`;
+export function getBusinessPublicInquiryUrl(slug: string, serviceSlug?: string) {
+  return serviceSlug ? `/inquire/${slug}/${serviceSlug}` : `/inquire/${slug}`;
 }

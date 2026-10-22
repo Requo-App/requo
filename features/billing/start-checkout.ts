@@ -3,7 +3,7 @@
 import type { BillingInterval, PaidPlan } from "@/lib/billing/types";
 
 /**
- * Posts to `/api/account/billing/checkout` to create a Polar hosted
+ * Posts to `/api/billing/checkout` to create a Polar hosted
  * checkout session, then opens the hosted checkout URL in a new
  * browser tab.
  *
@@ -100,7 +100,7 @@ export async function startPolarCheckout(
 
   let response: Response;
   try {
-    response = await fetch("/api/account/billing/checkout", {
+    response = await fetch("/api/billing/checkout", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

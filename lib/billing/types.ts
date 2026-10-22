@@ -5,7 +5,7 @@
  * for region detection, checkout creation, and webhook processing.
  */
 
-import type { BusinessPlan } from "@/lib/plans/plans";
+import type { PlanTier } from "@/lib/plans/plans";
 
 export type {
   BillingProvider,
@@ -16,7 +16,7 @@ export type {
 
 export type BillingInterval = "monthly" | "yearly";
 
-export type PaidPlan = Exclude<BusinessPlan, "free">;
+export type PaidPlan = Exclude<PlanTier, "free">;
 
 export type PlanPricing = {
   USD: number; // cents

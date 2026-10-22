@@ -27,7 +27,7 @@ export type RevenuePoint = {
 /**
  * Revenue trend: rounded-top bars for the won value in each bucket, with the
  * average accepted deal as a thin line over them. Money is formatted in the
- * workspace currency everywhere — compact on the axis, exact in the tooltip.
+ * business currency everywhere — compact on the axis, exact in the tooltip.
  */
 export function RevenueChart({
   points,

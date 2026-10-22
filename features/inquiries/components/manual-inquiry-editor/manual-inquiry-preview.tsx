@@ -12,7 +12,7 @@ import {
   type InquiryFormFieldDefinition,
   type InquiryFormSystemFieldDefinition,
 } from "@/features/inquiries/form-config";
-import type { InquiryEditorForm } from "@/features/inquiries/types";
+import type { InquiryEditorService } from "@/features/inquiries/types";
 import type { ProjectValues } from "./types";
 import { getPreviewValueDisplay } from "./utils";
 
@@ -24,7 +24,7 @@ export function ManualInquiryPreview({
   projectFields,
   projectValues,
   selectedFileName,
-  selectedForm,
+  selectedService,
 }: {
   customerName: string;
   customerEmail: string;
@@ -33,7 +33,7 @@ export function ManualInquiryPreview({
   projectFields: InquiryFormFieldDefinition[];
   projectValues: ProjectValues;
   selectedFileName: string | null;
-  selectedForm: InquiryEditorForm;
+  selectedService: InquiryEditorService;
 }) {
   const detailsField = projectFields.find(
     (field): field is InquiryFormSystemFieldDefinition =>
@@ -74,16 +74,16 @@ export function ManualInquiryPreview({
             <div className="flex min-w-0 flex-col gap-2">
               <p className="meta-label">Inquiry preview</p>
               <h2 className="font-heading text-3xl font-semibold tracking-tight text-foreground">
-                {selectedForm.name}
+                {selectedService.name}
               </h2>
               <p className="text-sm leading-6 text-muted-foreground">
-                Saved with the {selectedForm.name} form.
+                Saved with the {selectedService.name} form.
               </p>
             </div>
           </div>
 
           <div className="dashboard-detail-header-meta">
-            <DashboardMetaPill>{selectedForm.name}</DashboardMetaPill>
+            <DashboardMetaPill>{selectedService.name}</DashboardMetaPill>
             <DashboardMetaPill>Manual entry</DashboardMetaPill>
           </div>
         </div>

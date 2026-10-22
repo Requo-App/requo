@@ -1,6 +1,6 @@
 import type { BusinessRecordState } from "@/features/businesses/lifecycle";
 import type { InquiryStatus } from "@/features/inquiries/types";
-import type { BusinessPlan as plan } from "@/lib/plans/plans";
+import type { PlanTier as plan } from "@/lib/plans/plans";
 import type {
   QuoteReminderKind,
   QuoteStatus,

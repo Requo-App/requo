@@ -8,13 +8,13 @@ import { getValidationActionState } from "@/lib/action-state";
 import { runRecordAction } from "@/lib/actions/run-record-action";
 import {
   getBusinessInquiryDetailCacheTags,
-  getBusinessInquiryFormsCacheTags,
+  getServicesCacheTags,
   getBusinessInquiryListCacheTags,
   uniqueCacheTags,
   updateCacheTags,
 } from "@/lib/cache/business-tags";
 import {
-  getWorkspaceBusinessActionContext,
+  getMemberBusinessActionContext,
 } from "@/lib/db/business-access";
 import { getEffectivePlanForBusiness } from "@/lib/billing/subscription-service";
 import { assertPublicActionRateLimit } from "@/lib/rate-limit/redis-rate-limiter";
@@ -37,9 +37,9 @@ import {
 } from "@/features/inquiries/attachments";
 import { verifyInquiryAttachmentUploadToken } from "@/features/inquiries/attachment-tokens";
 import {
-  getInquiryEditorFormForBusiness,
+  getInquiryEditorServiceForBusiness,
   getInquiryIdsMatchingFiltersForBusiness,
-  getPublicInquiryBusinessByFormSlug,
+  getPublicInquiryBusinessByServiceSlug,
   getPublicInquiryBusinessBySlug,
 } from "@/features/inquiries/queries";
 import {
@@ -167,16 +167,16 @@ function getSubmittedPublicInquiryUrl(business: {
 
 export async function submitPublicInquiryAction(
   slug: string,
-  formSlug: string | null,
+  serviceSlug: string | null,
   _prevState: PublicInquiryFormState,
   formData: FormData,
 ): Promise<PublicInquiryFormState> {
   const honeypotValue = getTextValue(formData, "company_fax_number")?.trim();
 
-  const business = formSlug
-    ? await getPublicInquiryBusinessByFormSlug({
+  const business = serviceSlug
+    ? await getPublicInquiryBusinessByServiceSlug({
         businessSlug: slug,
-        formSlug,
+        serviceSlug,
       })
     : await getPublicInquiryBusinessBySlug(slug);
 
@@ -240,7 +240,7 @@ export async function submitPublicInquiryAction(
 
     updateCacheTags([
       ...getInquiryMutationCacheTags(business.id, createdInquiry.inquiryId),
-      ...getBusinessInquiryFormsCacheTags(business.id),
+      ...getServicesCacheTags(business.id),
     ]);
 
     void sendPushInquiryReceivedEvent({
@@ -267,42 +267,42 @@ export async function createManualInquiryAction(
   _prevState: ManualInquiryActionState,
   formData: FormData,
 ): Promise<ManualInquiryActionState> {
-  const ownerAccess = await getWorkspaceBusinessActionContext();
+  const memberAccess = await getMemberBusinessActionContext();
 
-  if (!ownerAccess.ok) {
+  if (!memberAccess.ok) {
     return {
-      error: ownerAccess.error,
+      error: memberAccess.error,
     };
   }
 
-  const { user, businessContext } = ownerAccess;
+  const { user, businessContext } = memberAccess;
   const formSelectionResult = inquiryFormSelectionSchema.safeParse({
-    formSlug: formData.get("formSlug"),
+    serviceSlug: formData.get("serviceSlug"),
   });
 
   if (!formSelectionResult.success) {
     return getValidationActionState(
       formSelectionResult.error,
-      "Choose an inquiry form.",
+      "Choose a service.",
     );
   }
 
-  const selectedForm = await getInquiryEditorFormForBusiness({
+  const selectedService = await getInquiryEditorServiceForBusiness({
     businessId: businessContext.business.id,
-    formSlug: formSelectionResult.data.formSlug,
+    serviceSlug: formSelectionResult.data.serviceSlug,
   });
 
-  if (!selectedForm) {
+  if (!selectedService) {
     return {
-      error: "That inquiry form is unavailable.",
+      error: "That service is unavailable.",
       fieldErrors: {
-        formSlug: ["Choose an active inquiry form."],
+        serviceSlug: ["Choose an active service."],
       },
     };
   }
 
   const effectiveFormConfig = resolveInquiryFormConfigForPlan(
-    selectedForm.inquiryFormConfig,
+    selectedService.inquiryFormConfig,
     businessContext.business.plan,
   );
   const validationResult = validateManualQuickInquirySubmission(
@@ -342,12 +342,12 @@ export async function createManualInquiryAction(
         name: businessContext.business.name,
         slug: businessContext.business.slug,
         form: {
-          id: selectedForm.id,
-          name: selectedForm.name,
-          slug: selectedForm.slug,
-          businessType: selectedForm.businessType,
-          isDefault: selectedForm.isDefault,
-          publicInquiryEnabled: selectedForm.publicInquiryEnabled,
+          id: selectedService.id,
+          name: selectedService.name,
+          slug: selectedService.slug,
+          businessType: selectedService.businessType,
+          isDefault: selectedService.isDefault,
+          publicInquiryEnabled: selectedService.publicInquiryEnabled,
         },
       },
       submission: attachmentResolution.submission,
@@ -387,15 +387,15 @@ export async function addInquiryNoteAction(
   _prevState: InquiryNoteActionState,
   formData: FormData,
 ): Promise<InquiryNoteActionState> {
-  const ownerAccess = await getWorkspaceBusinessActionContext();
+  const memberAccess = await getMemberBusinessActionContext();
 
-  if (!ownerAccess.ok) {
+  if (!memberAccess.ok) {
     return {
-      error: ownerAccess.error,
+      error: memberAccess.error,
     };
   }
 
-  const { user, businessContext } = ownerAccess;
+  const { user, businessContext } = memberAccess;
 
   const validationResult = inquiryNoteSchema.safeParse({
     body: formData.get("body"),
@@ -437,15 +437,15 @@ export async function changeInquiryStatusAction(
   _prevState: InquiryStatusActionState,
   formData: FormData,
 ): Promise<InquiryStatusActionState> {
-  const ownerAccess = await getWorkspaceBusinessActionContext();
+  const memberAccess = await getMemberBusinessActionContext();
 
-  if (!ownerAccess.ok) {
+  if (!memberAccess.ok) {
     return {
-      error: ownerAccess.error,
+      error: memberAccess.error,
     };
   }
 
-  const { user, businessContext } = ownerAccess;
+  const { user, businessContext } = memberAccess;
 
   const validationResult = inquiryStatusChangeSchema.safeParse({
     status: formData.get("status"),
@@ -621,10 +621,10 @@ const inquiryBulkActionSchema = z.object({
 export async function getInquiryIdsForBulkSelectionAction(
   searchParams: Record<string, string | string[] | undefined>,
 ): Promise<string[]> {
-  const ownerAccess = await getWorkspaceBusinessActionContext();
+  const memberAccess = await getMemberBusinessActionContext();
 
-  if (!ownerAccess.ok) {
-    throw new Error(ownerAccess.error);
+  if (!memberAccess.ok) {
+    throw new Error(memberAccess.error);
   }
 
   const parsedFilters = inquiryListFiltersSchema.safeParse(searchParams);
@@ -636,7 +636,7 @@ export async function getInquiryIdsForBulkSelectionAction(
   const { page: _page, ...filters } = parsedFilters.data;
 
   return getInquiryIdsMatchingFiltersForBusiness({
-    businessId: ownerAccess.businessContext.business.id,
+    businessId: memberAccess.businessContext.business.id,
     // The list page always renders with the unread filter off.
     filters: { ...filters, unread: false },
     limit: inquiryBulkSelectionLimit,
@@ -661,10 +661,10 @@ export async function bulkArchiveInquiriesAction(
   _prevState: InquiryBulkActionState,
   formData: FormData,
 ): Promise<InquiryBulkActionState> {
-  const ownerAccess = await getWorkspaceBusinessActionContext();
-  if (!ownerAccess.ok) return { error: ownerAccess.error };
+  const memberAccess = await getMemberBusinessActionContext();
+  if (!memberAccess.ok) return { error: memberAccess.error };
 
-  const { user, businessContext } = ownerAccess;
+  const { user, businessContext } = memberAccess;
   const rawIds = getTextValue(formData, "inquiryIds");
   const parsed = inquiryBulkActionSchema.safeParse({
     inquiryIds: rawIds ? rawIds.split(",").filter(Boolean) : [],
@@ -706,10 +706,10 @@ export async function bulkDeleteInquiriesAction(
   _prevState: InquiryBulkActionState,
   formData: FormData,
 ): Promise<InquiryBulkActionState> {
-  const ownerAccess = await getWorkspaceBusinessActionContext();
-  if (!ownerAccess.ok) return { error: ownerAccess.error };
+  const memberAccess = await getMemberBusinessActionContext();
+  if (!memberAccess.ok) return { error: memberAccess.error };
 
-  const { user, businessContext } = ownerAccess;
+  const { user, businessContext } = memberAccess;
   const rawIds = getTextValue(formData, "inquiryIds");
   const parsed = inquiryBulkActionSchema.safeParse({
     inquiryIds: rawIds ? rawIds.split(",").filter(Boolean) : [],
@@ -757,10 +757,10 @@ export async function bulkChangeInquiryStatusAction(
   _prevState: InquiryBulkActionState,
   formData: FormData,
 ): Promise<InquiryBulkActionState> {
-  const ownerAccess = await getWorkspaceBusinessActionContext();
-  if (!ownerAccess.ok) return { error: ownerAccess.error };
+  const memberAccess = await getMemberBusinessActionContext();
+  if (!memberAccess.ok) return { error: memberAccess.error };
 
-  const { user, businessContext } = ownerAccess;
+  const { user, businessContext } = memberAccess;
   const rawIds = getTextValue(formData, "inquiryIds");
   const rawStatus = getTextValue(formData, "targetStatus");
   const parsed = inquiryBulkStatusChangeSchema.safeParse({
@@ -797,10 +797,10 @@ export async function bulkUnarchiveInquiriesAction(
   _prevState: InquiryBulkActionState,
   formData: FormData,
 ): Promise<InquiryBulkActionState> {
-  const ownerAccess = await getWorkspaceBusinessActionContext();
-  if (!ownerAccess.ok) return { error: ownerAccess.error };
+  const memberAccess = await getMemberBusinessActionContext();
+  if (!memberAccess.ok) return { error: memberAccess.error };
 
-  const { user, businessContext } = ownerAccess;
+  const { user, businessContext } = memberAccess;
   const rawIds = getTextValue(formData, "inquiryIds");
   const parsed = inquiryBulkActionSchema.safeParse({
     inquiryIds: rawIds ? rawIds.split(",").filter(Boolean) : [],
@@ -857,13 +857,13 @@ export async function bulkUnarchiveInquiriesAction(
 export async function markInquiryViewedAction(
   inquiryId: string,
 ): Promise<{ marked: boolean }> {
-  const ownerAccess = await getWorkspaceBusinessActionContext();
+  const memberAccess = await getMemberBusinessActionContext();
 
-  if (!ownerAccess.ok) {
+  if (!memberAccess.ok) {
     return { marked: false };
   }
 
-  const { user, businessContext } = ownerAccess;
+  const { user, businessContext } = memberAccess;
 
   try {
     const { marked } = await markInquiryViewedForBusiness({

@@ -3,9 +3,9 @@
  *
  * Two callers with different precision needs share this:
  *
- * - Knowledge/memory retrieval (`features/memory/retrieval.ts`) uses
+ * - Knowledge retrieval (`features/knowledge/retrieval.ts`) uses
  *   `COMMON_STOPWORDS` and `matchedTerms`, which matches on token boundaries.
- * - Pricing retrieval (`features/ai/pricing-retrieval.ts`) passes its own
+ * - Pricing retrieval (`features/quote-drafting/pricing-retrieval.ts`) passes its own
  *   stopword set and keeps its substring matching, because that path decides
  *   whether a price may be auto-verified — a behaviour change there is a
  *   liability question, not a retrieval-quality one.

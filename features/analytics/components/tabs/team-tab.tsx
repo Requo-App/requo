@@ -2,7 +2,7 @@ import { Suspense } from "react";
 
 import type { AnalyticsWindow } from "@/features/analytics/lib/window";
 import { getTeamData } from "@/features/analytics/queries";
-import type { BusinessPlan } from "@/lib/plans";
+import type { PlanTier } from "@/lib/plans";
 
 import { AnalyticsSectionGate } from "../primitives/analytics-section";
 import {
@@ -34,7 +34,7 @@ export function TeamTab({
   businessId: string;
   businessSlug: string;
   window: AnalyticsWindow;
-  plan: BusinessPlan;
+  plan: PlanTier;
 }) {
   const dataPromise = getTeamData({ businessId, window, plan });
   const sectionProps = { dataPromise, businessSlug, window };

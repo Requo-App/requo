@@ -9,7 +9,7 @@ import { requireUser } from "@/lib/auth/session";
 import { newEntityId } from "@/lib/ids";
 import {
   getBusinessAnalyticsCacheTags,
-  getBusinessInquiryFormsCacheTags,
+  getServicesCacheTags,
   getBusinessInquiryListCacheTags,
   getBusinessMembersCacheTags,
   getBusinessOverviewCacheTags,
@@ -76,7 +76,7 @@ function updateBusinessCacheTags(businessId: string) {
   for (const tag of uniqueCacheTags([
     ...getBusinessSettingsCacheTags(businessId),
     ...getBusinessMembersCacheTags(businessId),
-    ...getBusinessInquiryFormsCacheTags(businessId),
+    ...getServicesCacheTags(businessId),
     ...getBusinessInquiryListCacheTags(businessId),
     ...getBusinessQuoteListCacheTags(businessId),
     ...getBusinessAnalyticsCacheTags(businessId),

@@ -15,7 +15,7 @@ export const publicAnalyticsEventSchema = z.discriminatedUnion("eventType", [
   z.object({
     eventType: z.literal("inquiry_form_viewed"),
     businessId: idSchema,
-    businessInquiryFormId: idSchema,
+    serviceId: idSchema,
     metadata: trackingMetadataSchema,
   }),
   z.object({
@@ -29,3 +29,40 @@ export const publicAnalyticsEventSchema = z.discriminatedUnion("eventType", [
 export type PublicAnalyticsEventInput = z.infer<
   typeof publicAnalyticsEventSchema
 >;
+
+/**
+ * Maps the pre-Service analytics field name onto `serviceId`.
+ *
+ * A public page loaded before the rename can still send its view event after
+ * deployment. Accepting the legacy name keeps that view instead of rejecting
+ * the whole payload with a 400.
+ */
+export function normalizeLegacyPublicAnalyticsEventPayload(
+  value: unknown,
+): unknown {
+  if (typeof value !== "object" || value === null) {
+    return value;
+  }
+
+  const record = value as Record<string, unknown>;
+
+  if (record.eventType !== "inquiry_form_viewed") {
+    return value;
+  }
+
+  if (typeof record.serviceId === "string" && record.serviceId.trim()) {
+    return value;
+  }
+
+  if (
+    typeof record.businessInquiryFormId !== "string" ||
+    !record.businessInquiryFormId.trim()
+  ) {
+    return value;
+  }
+
+  return {
+    ...record,
+    serviceId: record.businessInquiryFormId,
+  };
+}

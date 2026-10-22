@@ -17,7 +17,7 @@ import {
   approvalChains,
   approvals,
   businesses,
-  commercialScheduleItems,
+  paymentScheduleItems,
   inquiries,
   quotes,
   type ApprovalState,
@@ -119,12 +119,12 @@ export async function requestApprovalForBusiness(input: RequestApprovalInput) {
 
     if (input.scheduleItemId) {
       const [item] = await tx
-        .select({ id: commercialScheduleItems.id })
-        .from(commercialScheduleItems)
+        .select({ id: paymentScheduleItems.id })
+        .from(paymentScheduleItems)
         .where(
           and(
-            eq(commercialScheduleItems.id, input.scheduleItemId),
-            eq(commercialScheduleItems.businessId, input.businessId),
+            eq(paymentScheduleItems.id, input.scheduleItemId),
+            eq(paymentScheduleItems.businessId, input.businessId),
           ),
         )
         .limit(1);

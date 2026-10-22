@@ -5,7 +5,7 @@ import { and, count, eq, isNull, sql } from "drizzle-orm";
 import type { BusinessQuotaSnapshot } from "@/features/businesses/types";
 import { db } from "@/lib/db/client";
 import { businesses } from "@/lib/db/schema";
-import { getUpgradePlan, planMeta, type BusinessPlan as plan } from "@/lib/plans/plans";
+import { getUpgradePlan, planMeta, type PlanTier as plan } from "@/lib/plans/plans";
 import { getUsageLimit } from "@/lib/plans/usage-limits";
 import { businessSubscriptions } from "@/lib/db/schema/subscriptions";
 
