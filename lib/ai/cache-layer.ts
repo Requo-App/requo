@@ -663,17 +663,20 @@ class DistributedCacheLayer implements CacheLayer {
   }
 }
 
+// Day TTLs are rounded to whole seconds per request. Reservations sharing a
+// day key can therefore disagree about its expiry by up to one second.
+const WINDOW_TTL_SKEW_MS = 1_000;
+
 /**
- * The hold's key can have at most `ttl − heldForMs` left to live: it was
- * created no later than the hold. A longer lifetime proves the key now present
- * was recreated after this hold's window expired, so it belongs to a newer
- * window with its own usage.
+ * The hold's key can have at most `ttl − heldForMs` left to live, plus the
+ * day-TTL rounding allowance. A longer lifetime means the key was recreated
+ * after this hold's window expired and belongs to a newer window.
  */
 function belongsToNewerWindow(
   remainingTtlMs: number,
   maxRemainingTtlMs: number,
 ): boolean {
-  return remainingTtlMs > maxRemainingTtlMs;
+  return remainingTtlMs > maxRemainingTtlMs + WINDOW_TTL_SKEW_MS;
 }
 
 /** Parse the `{applied, value}` shape the adjustment script returns. */
@@ -698,9 +701,10 @@ function parseCounterWrite(
  *
  * A key can also still exist while belonging to a *newer* window: the hold's
  * window expired, and another request recreated the counter. The hold's key can
- * have at most `ttl − heldForMs` left to live, so a longer TTL proves the key
- * was recreated. In that case a negative delta must not subtract from usage
- * recorded in the new window, and a positive delta charges the full `seed`
+ * have at most `ttl − heldForMs` left to live, plus one second of day-TTL
+ * rounding skew, so a longer TTL proves the key was recreated. In that case
+ * a negative delta must not subtract from usage recorded in the new window,
+ * and a positive delta charges the full `seed`
  * instead of a difference against a hold that no longer exists.
  *
  * Returns `{applied, value}` so the caller knows whether the counter changed.
@@ -720,7 +724,7 @@ end
 local value = tonumber(current) or 0
 local maxRemaining = ttl * 1000 - heldForMs
 local remaining = redis.call("PTTL", KEYS[1])
-if remaining < 0 or remaining > maxRemaining then
+if remaining < 0 or remaining > maxRemaining + ${WINDOW_TTL_SKEW_MS} then
   if delta > 0 and seed > 0 then
     redis.call("INCRBY", KEYS[1], seed)
     return {1, value + seed}

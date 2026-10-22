@@ -72,6 +72,33 @@ describe("counter settlement", () => {
     expect(await cacheLayer.get<number>(`${prefix}:tpm`)).toBe(0);
   });
 
+  it.each([
+    { operation: "release", delta: -1_000, actual: 0, expected: 100 },
+    { operation: "lower usage", delta: -650, actual: 350, expected: 450 },
+    { operation: "higher usage", delta: 800, actual: 1_800, expected: 1_900 },
+  ])("settles $operation on the same day key despite rounded TTL skew", async ({ delta, actual, expected }) => {
+    vi.useFakeTimers();
+    const start = new Date("2026-10-22T12:00:00.900Z").getTime();
+    vi.setSystemTime(start);
+    const key = `${prefix}:tpd`;
+    await cacheLayer.reserve([
+      { key, limit: 10_000, amount: 100, ttlSeconds: 43_200 },
+    ]);
+
+    // The day TTL rounds down by one second while only 200 ms elapses.
+    // Both reservations share the first key's expiry, leaving 800 ms of skew.
+    vi.setSystemTime(start + 200);
+    await cacheLayer.reserve([
+      { key, limit: 10_000, amount: 1_000, ttlSeconds: 43_199 },
+    ]);
+    vi.setSystemTime(start + 300);
+
+    expect(await cacheLayer.adjustCounter(key, delta, 43_199, actual, 100)).toBe(expected);
+    expect(await cacheLayer.get<number>(key)).toBe(expected);
+    vi.setSystemTime(start + 43_200_001);
+    expect(await cacheLayer.get<number>(key)).toBeNull();
+  });
+
   it("does not let a late release erase a newer window's usage", async () => {
     vi.useFakeTimers();
     const start = new Date("2026-10-22T12:00:00Z");

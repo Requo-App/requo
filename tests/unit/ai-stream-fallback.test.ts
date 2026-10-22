@@ -94,7 +94,7 @@ beforeEach(() => {
     rollback: mocks.rollback,
   }));
 });
-afterEach(() => { vi.restoreAllMocks(); });
+afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
 
 describe("stream failure propagation", () => {
   it("throws when every fallback candidate fails and never yields stop", async () => {
@@ -302,27 +302,120 @@ describe("stream failure propagation", () => {
 });
 
 describe("per-candidate timeouts", () => {
-  it("uses independent provider budgets when the first attempt times out", async () => {
-    const controllers: AbortController[] = [];
-    const timeout = vi.spyOn(AbortSignal, "timeout").mockImplementation(() => {
-      const controller = new AbortController(); controllers.push(controller); return controller.signal;
-    });
+  it.each(["dispatch", "head"])("uses independent provider budgets when the first %s times out", async (stage) => {
+    vi.useFakeTimers();
     const signals: AbortSignal[] = [];
     mocks.languageModel.mockImplementation((id: string) => model(async (options) => {
       signals.push(options.abortSignal!);
       if (id === "groq:first") {
-        // controllers[0] is the router's turn deadline; the candidate timeout
-        // for the first attempt is controllers[1].
-        controllers[1].abort(new DOMException("timeout", "TimeoutError"));
-        options.abortSignal!.throwIfAborted();
+        if (stage === "dispatch") {
+          await new Promise<void>((_, reject) => {
+            options.abortSignal!.addEventListener("abort", () => reject(options.abortSignal!.reason), { once: true });
+          });
+        } else {
+          return { stream: new ReadableStream<LanguageModelV3StreamPart>({
+            start(controller) {
+              controller.enqueue({ type: "stream-start", warnings: [] });
+              options.abortSignal!.addEventListener("abort", () => controller.error(options.abortSignal!.reason), { once: true });
+            },
+          }) };
+        }
       }
-      expect(options.abortSignal!.aborted).toBe(false);
       return success();
     }));
-    const result = await streamWithFallback(request);
-    expect((await consume(result.stream)).at(-1)?.finishReason).toBe("stop");
-    expect(timeout.mock.calls.map(([ms]) => ms)).toEqual([120_000, 15_000, 30_000]);
-    expect(signals[0]).not.toBe(signals[1]);
+    const fallback = createFallbackLanguageModel({
+      modelIds: ["groq:first", "openrouter:second"],
+      getTimeoutMs: ({ provider }) => provider === "groq" ? 15_000 : 30_000,
+    });
+    const pending = fallback.doStream(callOptions);
+    await vi.advanceTimersByTimeAsync(15_000);
+    await drain((await pending).stream);
+    expect(signals).toHaveLength(2);
+    expect(signals[0].aborted).toBe(true);
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(signals[1].aborted).toBe(false);
+  });
+
+  it.each(["head", "clean end"])("clears the provider timer after a non-error %s while retaining the step deadline", async (kind) => {
+    vi.useFakeTimers();
+    // Control the uncancellable step deadline separately from provider timers.
+    const deadline = new AbortController();
+    const timeout = vi.spyOn(AbortSignal, "timeout").mockReturnValue(deadline.signal);
+    let signal: AbortSignal | undefined;
+    let source: ReadableStreamDefaultController<LanguageModelV3StreamPart> | undefined;
+    mocks.languageModel.mockReturnValue(model(async (options) => {
+      signal = options.abortSignal;
+      return { stream: new ReadableStream<LanguageModelV3StreamPart>({
+        start(controller) {
+          source = controller;
+          signal!.addEventListener("abort", () => controller.error(signal!.reason), { once: true });
+          controller.enqueue({ type: "stream-start", warnings: [] });
+          if (kind === "clean end") controller.close();
+          else controller.enqueue({ type: "text-start", id: "text-1" });
+        },
+      }) };
+    }));
+    const fallback = createFallbackLanguageModel({
+      modelIds: ["groq:first"], deadlineMs: 90_000, getTimeoutMs: () => 15_000,
+    });
+    const result = await fallback.doStream(callOptions);
+    await vi.advanceTimersByTimeAsync(15_001);
+    expect(signal!.aborted).toBe(false);
+    expect(vi.getTimerCount()).toBe(0);
+    expect(timeout.mock.calls).toEqual([[90_000]]);
+
+    if (kind === "clean end") {
+      expect(await drain(result.stream)).toEqual([{ type: "stream-start", warnings: [] }]);
+    } else {
+      // Streaming still progresses after the provider timeout budget elapses.
+      source!.enqueue({ type: "text-delta", id: "text-1", delta: "Still streaming" });
+      const consumed = drain(result.stream);
+      deadline.abort(new DOMException("Step deadline", "TimeoutError"));
+      await expect(consumed).rejects.toThrow("Step deadline");
+      expect(signal!.aborted).toBe(true);
+      expect(mocks.recordFailure).not.toHaveBeenCalled();
+    }
+  });
+
+  it.each(["dispatch", "read", "error head"])("clears the provider timer after a %s failure", async (kind) => {
+    vi.useFakeTimers();
+    const failure = new Error("provider failed");
+    let signal: AbortSignal | undefined;
+    mocks.languageModel.mockReturnValue(model(async (options) => {
+      signal = options.abortSignal;
+      if (kind === "dispatch") throw failure;
+      if (kind === "error head") return stream({ type: "error", error: failure });
+      return { stream: new ReadableStream<LanguageModelV3StreamPart>({
+        start(controller) { controller.error(failure); },
+      }) };
+    }));
+    const fallback = createFallbackLanguageModel({
+      modelIds: ["groq:first"], getTimeoutMs: () => 15_000,
+    });
+    await expect(fallback.doStream(callOptions)).rejects.toThrow("provider failed");
+    expect(vi.getTimerCount()).toBe(0);
+    await vi.advanceTimersByTimeAsync(15_001);
+    expect(signal!.aborted).toBe(false);
+  });
+
+  it.each([false, true])("clears the generation timer on completion (failure: %s)", async (fails) => {
+    vi.useFakeTimers();
+    let signal: AbortSignal | undefined;
+    const provider = model(async () => success());
+    provider.doGenerate = vi.fn<LanguageModelV3["doGenerate"]>(async (options) => {
+      signal = options.abortSignal;
+      if (fails) throw new Error("generation failed");
+      return { content: [], finishReason: { unified: "stop", raw: "stop" }, usage: finish.usage, warnings: [] };
+    });
+    mocks.languageModel.mockReturnValue(provider);
+    const fallback = createFallbackLanguageModel({
+      modelIds: ["groq:first"], getTimeoutMs: () => 15_000,
+    });
+    if (fails) await expect(fallback.doGenerate(callOptions)).rejects.toThrow("generation failed");
+    else await fallback.doGenerate(callOptions);
+    expect(vi.getTimerCount()).toBe(0);
+    await vi.advanceTimersByTimeAsync(15_001);
+    expect(signal!.aborted).toBe(false);
   });
 
   it("combines caller cancellation with the attempt timeout and stops fallback", async () => {

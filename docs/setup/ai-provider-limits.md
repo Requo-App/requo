@@ -164,8 +164,9 @@ on the free neuron allowance.
   long stream outlives a minute-scoped token hold, settlement seeds the new
   minute with reported usage instead of driving the counter negative. A
   settlement that arrives after its window expired never subtracts from a newer
-  window: the counter's remaining lifetime proves it was recreated, so a late
-  release is dropped and a late over-spend charges the full reported usage.
+  window: the counter's remaining lifetime, allowing one second of per-request
+  day-TTL rounding skew, proves it was recreated, so a late release is dropped
+  and a late over-spend charges the full reported usage.
 - **Health and pressure demote, never remove.** Success/failure counts,
   consecutive failures, and an EWMA of successful-call latency demote a
   candidate within its tier; a higher load ratio moves it to the stressed tier.
@@ -176,8 +177,11 @@ on the free neuron allowance.
   end-to-end budget and streaming chat has 120 s; each chat step gets 90 s,
   with per-candidate provider timeouts of 15–30 s inside. Caller cancellation
   stops the chain immediately. A per-candidate timeout advances to the next
-  candidate. Streaming settles its reservation when the provider finishes or
-  the consumer cancels, and a mid-stream failure keeps the conservative hold.
+  candidate. For streams, that timer is cleared after the first non-error head
+  or clean end; the step deadline and caller cancellation remain active through
+  stream consumption. Streaming settles its reservation when the provider
+  finishes or the consumer cancels, and a mid-stream failure keeps the
+  conservative hold.
 - **Shared buckets are counted once.** Groq shares RPM/RPD/TPM/TPD across all
   its models. OpenRouter shares RPM/RPD across every `:free` model.
   Cloudflare shares RPM across the account and a single neuron pool. Gemini

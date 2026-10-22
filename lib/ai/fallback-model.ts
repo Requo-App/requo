@@ -87,7 +87,7 @@ export type FallbackModelOptions = {
   maxAttempts?: number;
   /** Preflight token estimate, reserved before each dispatch. */
   estimatedTokens?: number;
-  /** A fresh provider timeout is created for each candidate attempt. */
+  /** Per-candidate timeout through generation or the first stream head. */
   getTimeoutMs?: (selected: FallbackModelSelected) => number;
   /**
    * End-to-end budget for one model step, including stream consumption.
@@ -471,18 +471,28 @@ export function createFallbackLanguageModel(
     options: LanguageModelV3CallOptions,
     selected: FallbackModelSelected,
     turnSignal: AbortSignal | undefined,
-  ): LanguageModelV3CallOptions {
-    const timeoutSignal = opts.getTimeoutMs
-      ? AbortSignal.timeout(opts.getTimeoutMs(selected))
+  ): { callOptions: LanguageModelV3CallOptions; cleanup: () => void } {
+    const timeoutMs = opts.getTimeoutMs?.(selected);
+    const timeoutController = timeoutMs === undefined ? undefined : new AbortController();
+    const timer = timeoutController
+      ? setTimeout(() => {
+          timeoutController.abort(new DOMException("Provider timed out", "TimeoutError"));
+        }, timeoutMs)
       : undefined;
-    const signals = [turnSignal, timeoutSignal].filter(
+    const cleanup = () => clearTimeout(timer);
+    const signals = [turnSignal, timeoutController?.signal].filter(
       (signal): signal is AbortSignal => Boolean(signal),
     );
-    if (signals.length === 0) return options;
     return {
-      ...options,
-      abortSignal:
-        signals.length === 1 ? signals[0] : AbortSignal.any(signals),
+      callOptions:
+        signals.length === 0
+          ? options
+          : {
+              ...options,
+              abortSignal:
+                signals.length === 1 ? signals[0] : AbortSignal.any(signals),
+            },
+      cleanup,
     };
   }
 
@@ -558,11 +568,10 @@ export function createFallbackLanguageModel(
         }
 
         const startedAt = Date.now();
+        const { callOptions, cleanup } = attemptOptions(options, selected, turnSignal);
         try {
           const model = candidateModel(candidate);
-          const result = await model.doGenerate(
-            attemptOptions(options, selected, turnSignal),
-          );
+          const result = await model.doGenerate(callOptions);
           await safeBookkeeping(
             reservation.settle(usageFromProvider(result.usage)),
           );
@@ -573,6 +582,7 @@ export function createFallbackLanguageModel(
           preferredModelId = candidate;
           return result;
         } catch (error) {
+          cleanup();
           if (turnSignal?.aborted) {
             // Caller cancellation or the turn deadline: stop the chain. The
             // request was dispatched, so keep the conservative token hold.
@@ -606,6 +616,8 @@ export function createFallbackLanguageModel(
               contextWindowOf(candidate),
             );
           }
+        } finally {
+          cleanup();
         }
       }
 
@@ -658,13 +670,15 @@ export function createFallbackLanguageModel(
         }
 
         const startedAt = Date.now();
+        const { callOptions, cleanup } = attemptOptions(options, selected, turnSignal);
         try {
           const model = candidateModel(candidate);
-          const result = await model.doStream(
-            attemptOptions(options, selected, turnSignal),
-          );
+          const result = await model.doStream(callOptions);
           const { buffered, head, reader, doneEarly } =
             await peekHead(result);
+          // Once the stream is ready, only caller cancellation and the step's
+          // deadline remain active while the consumer reads the response.
+          cleanup();
 
           if (head && head.type === "error") {
             const streamError = (head as { error?: unknown }).error ?? head;
@@ -710,6 +724,7 @@ export function createFallbackLanguageModel(
             ...(result.response ? { response: result.response } : {}),
           };
         } catch (error) {
+          cleanup();
           if (turnSignal?.aborted) {
             // Caller cancellation or the turn deadline: stop the chain. The
             // request was dispatched, so keep the conservative token hold.
