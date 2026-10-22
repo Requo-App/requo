@@ -1,7 +1,7 @@
 import { connection, NextResponse } from "next/server";
 import { z } from "zod";
-import { loadSessionByToken } from "@/features/ai-agent/session-service";
-import { loadRecentMessages } from "@/features/ai-agent/message-service";
+import { loadSessionByToken } from "@/features/agent/session-service";
+import { loadRecentMessages } from "@/features/agent/message-service";
 
 const sessionTokenSchema = z.string().regex(/^[a-f0-9]{64}$/);
 

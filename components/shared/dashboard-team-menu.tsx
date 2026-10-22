@@ -54,7 +54,7 @@ type MenuGroup = {
 
 const GROUPS: MenuGroup[] = [
   {
-    id: "workspace",
+    id: "business",
     items: [
       { icon: RiBankLine, label: "View team profile" },
       { icon: RiFolder6Line, label: "Folders" },

@@ -36,7 +36,7 @@ function readParam(value: string | string[] | undefined): string | null {
  * the race between the redirect and webhook delivery, we actively
  * sync the subscription from Polar before redirecting the user.
  */
-export default async function AccountBillingCheckoutPage({
+export default async function BillingCheckoutPage({
   searchParams,
 }: CheckoutPageProps) {
   const session = await requireSession();

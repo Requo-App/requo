@@ -4,6 +4,64 @@ SaaS for service businesses: inquiry → quote → invoice → manual payment re
 
 ## Language
 
+### Tenancy and access
+
+**Business**:
+The tenant boundary: one service business, its members, settings, services, quotes, invoices, and plan.
+_Avoid_: Workspace
+
+**Account**:
+The authenticated user identity from Better Auth. One account can belong to multiple businesses.
+_Avoid_: Workspace, organization
+
+**Plan**:
+The subscription tier attached to a business (`free`, `pro`, or `business`).
+_Avoid_: Package, subscription level
+
+**Entitlement**:
+A capability granted by a plan, checked with `hasFeatureAccess`.
+_Avoid_: Paywall, permission (reserve permission for roles)
+
+**Feature gate**:
+The UI component that hides or locks an entitlement (`FeatureGate`).
+_Avoid_: Paywall
+
+**Upgrade prompt**:
+The conversion UI shown when a gate or usage limit is reached (`UpgradePrompt`).
+_Avoid_: Paywall
+
+**Billing**:
+Subscription mechanics: checkout, subscription state, and the customer portal.
+_Avoid_: Payments (reserve payments for invoice payment records)
+
+### Services and quotes
+
+**Service**:
+An offering with a public page and associated intake form. The database retains the historical `business_inquiry_forms` table name.
+_Avoid_: Form, inquiry form (for the offering itself)
+
+**Quote library**:
+Reusable pricing entries and line items used to build quotes. The database table is `quote_library_entries`.
+_Avoid_: Products, product library
+
+**Payment schedule**:
+The quote-side deposit/milestone/balance/retainer plan. The database retains the historical `commercial_schedules` table name.
+_Avoid_: Commercial schedule (in user-facing copy)
+
+### AI surfaces
+
+**Agent**:
+The public, customer-facing chat that can answer questions and propose an inquiry. Database tables retain the historical `ai_agent_*` names.
+_Avoid_: AI agent
+
+**Assistant**:
+The authenticated, business-scoped operations chat for members. Database tables retain the historical `owner_assistant_*` names.
+_Avoid_: Owner Assistant, AI assistant
+
+**Knowledge entry**:
+Manually maintained business context used by AI features. The database table is `business_memories`; uploaded files are knowledge files.
+_Avoid_: Memory, business memory
+
 ### Manual payments
 
 **Record payment**:

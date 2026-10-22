@@ -7,23 +7,33 @@ vi.mock("@/lib/db/client", async () => {
   return { db: mockedDb };
 });
 
-vi.mock("@/features/memory/retrieval", () => ({
-  retrieveBusinessKnowledge: vi.fn(),
-}));
+vi.mock("@/features/knowledge/retrieval", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/features/knowledge/retrieval")>();
 
-import { businessInquiryForms } from "@/lib/db/schema";
-import { loadSessionByToken } from "@/features/ai-agent/session-service";
-import { retrieveBusinessKnowledge } from "@/features/memory/retrieval";
-import { getBusinessInfoTool } from "@/features/ai-agent/tools/get-business-info";
-import { getServicesTool } from "@/features/ai-agent/tools/get-services";
-import { searchKnowledgeTool } from "@/features/ai-agent/tools/search-knowledge";
+  return {
+    ...actual,
+    retrieveBusinessKnowledge: vi.fn(),
+  };
+});
+
+import { services } from "@/lib/db/schema";
+import { loadSessionByToken } from "@/features/agent/session-service";
+import { retrieveBusinessKnowledge } from "@/features/knowledge/retrieval";
+import {
+  UNTRUSTED_KNOWLEDGE_CLOSE,
+  UNTRUSTED_KNOWLEDGE_OPEN,
+} from "@/features/knowledge/retrieval";
+import { getBusinessInfoTool } from "@/features/agent/tools/get-business-info";
+import { getServicesTool } from "@/features/agent/tools/get-services";
+import { searchKnowledgeTool } from "@/features/agent/tools/search-knowledge";
 
 import { closeTestDb, testDb } from "@/tests/support/db";
 import {
   createActiveAgentSession,
   createAgentToolContext,
   runAgentTool,
-} from "@/tests/support/ai-agent";
+} from "@/tests/support/agent";
 import {
   cleanupWorkflowFixture,
   createWorkflowFixture,
@@ -33,7 +43,7 @@ import {
 const prefix = "test_ai_agent_isolation";
 let ids: WorkflowFixtureIds;
 
-describe("ai-agent tenant isolation", () => {
+describe("agent tenant isolation", () => {
   beforeAll(async () => {
     ids = await createWorkflowFixture(prefix);
   }, 30_000);
@@ -86,9 +96,9 @@ describe("ai-agent tenant isolation", () => {
 
   it("returns no services when services are disabled for public inquiry", async () => {
     await testDb
-      .update(businessInquiryForms)
+      .update(services)
       .set({ publicInquiryEnabled: false })
-      .where(eq(businessInquiryForms.businessId, ids.businessId));
+      .where(eq(services.businessId, ids.businessId));
 
     const session = await createActiveAgentSession(ids.businessId);
     const context = await createAgentToolContext(session.publicToken);
@@ -104,9 +114,9 @@ describe("ai-agent tenant isolation", () => {
 
   it("returns live services scoped to the session business only", async () => {
     await testDb
-      .update(businessInquiryForms)
+      .update(services)
       .set({ publicInquiryEnabled: true })
-      .where(eq(businessInquiryForms.businessId, ids.businessId));
+      .where(eq(services.businessId, ids.businessId));
 
     const session = await createActiveAgentSession(ids.businessId);
     const context = await createAgentToolContext(session.publicToken);
@@ -117,7 +127,7 @@ describe("ai-agent tenant isolation", () => {
       { experimental_context: context },
     );
 
-    expect(result.services.map((s) => s.label)).toEqual(["Workflow Form"]);
+    expect(result.services.map((s) => s.label)).toEqual(["Workflow Service"]);
     expect(result.services.map((s) => s.value)).toEqual(["workflow-form"]);
 
     // The other business never sees business A's services.
@@ -129,7 +139,7 @@ describe("ai-agent tenant isolation", () => {
       { experimental_context: otherContext },
     );
 
-    expect(otherResult.services.map((s) => s.label)).toEqual(["Other Workflow Form"]);
+    expect(otherResult.services.map((s) => s.label)).toEqual(["Other Workflow Service"]);
   });
 
   it("forwards the session business id to the knowledge retriever", async () => {
@@ -139,7 +149,7 @@ describe("ai-agent tenant isolation", () => {
     vi.mocked(retrieveBusinessKnowledge).mockResolvedValueOnce({
       evidence: [
         {
-          sourceType: "manual_memory",
+          sourceType: "manual_entry",
           sourceId: "mem_1",
           chunkId: "chunk_1",
           title: "Pricing guide",
@@ -170,7 +180,15 @@ describe("ai-agent tenant isolation", () => {
     expect(result).toEqual({
       found: true,
       results: [
-        { content: "Signage starts at $400.", relevance: 0.92, source: "Pricing guide" },
+        {
+          content: [
+            UNTRUSTED_KNOWLEDGE_OPEN,
+            "Signage starts at $400.",
+            UNTRUSTED_KNOWLEDGE_CLOSE,
+          ].join("\n"),
+          relevance: 0.92,
+          source: "Pricing guide",
+        },
       ],
     });
 

@@ -57,7 +57,7 @@ const tabs: Array<{ value: SearchTab; label: string }> = [
   { value: "inquiry", label: "Inquiries" },
   { value: "quote", label: "Quotes" },
   { value: "invoice", label: "Invoices" },
-  { value: "product", label: "Products" },
+  { value: "quote-library", label: "Quote library" },
   { value: "service", label: "Services" },
   { value: "follow-up", label: "Follow-ups" },
 ];
@@ -66,7 +66,7 @@ const typeLabels: Record<SearchRecordType, string> = {
   inquiry: "Inquiry",
   quote: "Quote",
   invoice: "Invoice",
-  product: "Product",
+  "quote-library": "Quote library",
   service: "Service",
   "follow-up": "Follow-up",
 };
@@ -80,7 +80,7 @@ function ResultIcon({ type }: { type: SearchRecordType }) {
       return <RiFileTextLine className={className} aria-hidden="true" />;
     case "invoice":
       return <RiReceiptLine className={className} aria-hidden="true" />;
-    case "product":
+    case "quote-library":
       return <RiPriceTagLine className={className} aria-hidden="true" />;
     case "service":
       return <RiToolsLine className={className} aria-hidden="true" />;
@@ -127,7 +127,7 @@ function ResultRow({
 /**
  * Global record search dialog (sidebar Search / ⌘K).
  *
- * Searches inquiries, quotes, invoices, products, services, and follow-ups
+ * Searches inquiries, quotes, invoices, quote library, services, and follow-ups
  * through the business-scoped mobile-search endpoint. Type tabs appear once
  * the user types; with an empty query the dialog lists last-opened records
  * from per-business localStorage recents.
@@ -282,14 +282,14 @@ export function CommandMenu({
         >
           <DialogTitle className="sr-only">Search records</DialogTitle>
           <DialogDescription className="sr-only">
-            Search inquiries, quotes, invoices, products, services, and
+            Search inquiries, quotes, invoices, quote library, services, and
             follow-ups.
           </DialogDescription>
           <div className="flex shrink-0 items-center gap-1 px-4">
             <input
               ref={inputRef}
               type="search"
-              aria-label="Search inquiries, quotes, invoices, products, services, and follow-ups"
+              aria-label="Search inquiries, quotes, invoices, quote library, services, and follow-ups"
               placeholder="Search..."
               value={query}
               onChange={(event) => {
@@ -347,7 +347,7 @@ export function CommandMenu({
             {!isSearching ? (
               recents.length === 0 ? (
                 <p className="px-3 py-3 text-sm text-muted-foreground">
-                  Type to search inquiries, quotes, invoices, products,
+                  Type to search inquiries, quotes, invoices, quote library,
                   services, and follow-ups.
                 </p>
               ) : (

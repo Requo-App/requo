@@ -132,7 +132,7 @@ test("public chat flow streams a reply on the enabled demo business @smoke", asy
 test("chat page shows the public not-found state for agent-disabled businesses", async ({
   page,
 }) => {
-  // "demo-business" (Santos Print Shop) is not seeded with the AI agent.
+  // "demo-business" (Santos Print Shop) is not seeded with the Agent.
   await page.goto("/b/demo-business/chat");
 
   await expect(page.getByText("This public page is unavailable.")).toBeVisible();

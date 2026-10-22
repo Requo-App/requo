@@ -44,7 +44,7 @@ vi.mock("@/lib/auth/session", () => ({
 import {
   getBusinessActionContext,
   getBusinessRequestContextForSlug,
-  getWorkspaceBusinessActionContext,
+  getMemberBusinessActionContext,
   getBusinessContextForMembershipSlug,
 } from "@/lib/db/business-access";
 import { businessSubscriptions, businesses } from "@/lib/db/schema";
@@ -208,7 +208,7 @@ describe("business access control", () => {
   it("resolves the active business cookie through the same active membership rules", async () => {
     authState.currentUserId = ids.ownerUserId;
 
-    const context = await getWorkspaceBusinessActionContext();
+    const context = await getMemberBusinessActionContext();
 
     expect(context.ok).toBe(true);
     if (context.ok) {

@@ -12,8 +12,8 @@ import { test, type TestInfo } from "@playwright/test";
  *   2. public inquiry submission
  *   3. quote creation and sending
  *   4. public quote response
- *   5. AI agent conversation
- *   6. owner assistant conversation
+ *   5. Agent conversation
+ *   6. assistant conversation
  *   7. non-member denial
  *
  * Adding an entry here is an explicit acknowledgement that the spec's
@@ -26,7 +26,7 @@ export const SMOKE_REGISTRY = {
   "public-inquiry.spec.ts": ["public inquiry submission"],
   "dashboard-workflows.spec.ts": ["quote creation and sending"],
   "public-quote.spec.ts": ["public quote response"],
-  "ai-agent-conversation.spec.ts": ["AI agent conversation"],
+  "agent-conversation.spec.ts": ["Agent conversation"],
   "assistant-conversation.spec.ts": ["assistant conversation"],
   "business-members.spec.ts": ["non-member denial"],
 } as const satisfies Readonly<Record<string, readonly string[]>>;

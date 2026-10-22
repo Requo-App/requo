@@ -6,11 +6,11 @@ export default function BusinessDashboardNewInquiryLoading() {
   return (
     <DashboardPage>
       <PageHeader
-        description="Capture the essentials from a call, chat, walk-in, or forwarded message. You can add deeper form details later."
+        description="Capture the essentials from a call, chat, walk-in, or forwarded message. You can add deeper intake details later."
         eyebrow="New inquiry"
         title="Quick-add inquiry"
       />
       <ManagerBodySkeleton />
     </DashboardPage>
   );
-}
+}

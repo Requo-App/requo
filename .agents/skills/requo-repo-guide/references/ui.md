@@ -93,7 +93,7 @@ Flow: optimistic update in `startTransition` â†’ await existing Server Action â†
 
 Two tours, keep in sync with the surface:
 
-- Dashboard (`features/onboarding/components/dashboard-tour.tsx`): sidebar order Home, Inquiries, Quotes, Follow-ups, Assistant, Services, Products, Members, Analytics; deep-dives sit beside their nav item; previews in `tour-modal.tsx`.
+- Dashboard (`features/onboarding/components/dashboard-tour.tsx`): sidebar order Home, Inquiries, Quotes, Follow-ups, Assistant, Services, Quote library, Members, Analytics; deep-dives sit beside their nav item; previews in `tour-modal.tsx`.
 - Form editor (`form-editor-tour.tsx`): mirrors Service editor tabs Form | Service page | Settings.
 
 ## Audits

@@ -33,11 +33,11 @@ function uiStreamBody(text: string) {
 }
 
 /**
- * Mocks POST /api/ai/owner-assistant/chat with a deterministic UI message
+ * Mocks POST /api/ai/assistant/chat with a deterministic UI message
  * stream reply so the smoke test never depends on a live LLM provider.
  */
 function mockAssistantChatEndpoint(page: Page) {
-  return page.route("**/api/ai/owner-assistant/chat", async (route) => {
+  return page.route("**/api/ai/assistant/chat", async (route) => {
     const request = route.request();
 
     expect(request.method()).toBe("POST");

@@ -350,7 +350,7 @@ async function dismissTour(page) {
 }
 
 /**
- * Puts the workspace in the state a returning owner sees: the sidebar's
+ * Puts the business in the state a returning owner sees: the sidebar's
  * getting-started checklist dismissed, and the one-time milestone
  * celebrations already shown.
  *
@@ -496,7 +496,7 @@ async function main() {
   await dismissTour(page);
   await prepareCleanWorkspace(page);
   // The checklist and the milestone celebrations are read on mount, so the
-  // dashboard is reloaded with the workspace state in place.
+  // dashboard is reloaded with the business state in place.
   await goto(page, home);
   await dismissTour(page);
   await page

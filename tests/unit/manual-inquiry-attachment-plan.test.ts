@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({ access: vi.fn(), plan: vi.fn(), form: vi.fn(), create: vi.fn() }));
-vi.mock("@/lib/db/business-access", () => ({ getWorkspaceBusinessActionContext: mocks.access }));
+vi.mock("@/lib/db/business-access", () => ({ getMemberBusinessActionContext: mocks.access }));
 vi.mock("@/lib/billing/subscription-service", () => ({ getEffectivePlanForBusiness: mocks.plan }));
-vi.mock("@/features/inquiries/queries", () => ({ getInquiryEditorFormForBusiness: mocks.form }));
+vi.mock("@/features/inquiries/queries", () => ({ getInquiryEditorServiceForBusiness: mocks.form }));
 vi.mock("@/features/inquiries/mutations", () => ({ createManualInquirySubmission: mocks.create }));
 vi.mock("next/cache", () => ({ revalidateTag: vi.fn(), updateTag: vi.fn() }));
 vi.mock("next/navigation", () => ({ redirect: () => { throw new Error("redirect"); } }));
@@ -20,7 +20,7 @@ beforeEach(() => {
 
 function submission() {
   const data = new FormData();
-  data.set("formSlug", "general");
+  data.set("serviceSlug", "general");
   data.set("customerName", "Taylor Nguyen");
   data.set("customerEmail", "taylor@example.com");
   data.set("customerContactMethod", "email");

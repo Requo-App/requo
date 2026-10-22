@@ -23,7 +23,7 @@ import { canManageOperationalBusinessSettings } from "@/lib/business-members";
 import type { BusinessContext } from "@/lib/db/business-access";
 import type { BusinessQuotaSnapshot } from "@/features/businesses/types";
 import { BusinessAvatar } from "@/components/shared/business-avatar";
-import { PlanBadge } from "@/components/shared/paywall";
+import { PlanBadge } from "@/components/shared/plan-badge";
 import { ChevronDownSmall } from "@/components/shared/chevrons";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";

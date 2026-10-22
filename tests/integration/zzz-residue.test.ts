@@ -32,7 +32,7 @@ import {
   activityLogs,
   analyticsEvents,
   auditLogs,
-  businessInquiryForms,
+  services,
   businessMembers,
   businessNotifications,
   businesses,
@@ -52,7 +52,7 @@ const INTEGRATION_DIR = path.resolve(__dirname);
 const CLEANUP_TABLES = [
   { name: "businesses", table: businesses },
   { name: "business_members", table: businessMembers },
-  { name: "business_inquiry_forms", table: businessInquiryForms },
+  { name: "business_inquiry_forms", table: services },
   { name: "inquiries", table: inquiries },
   { name: "quotes", table: quotes },
   { name: "quote_items", table: quoteItems },

@@ -4,9 +4,9 @@ import { cva } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 // Sizes used in the designs (px):
-//   xs = 20   breadcrumb workspace marks     (initials 10/15 semibold)
+//   xs = 20   breadcrumb business marks     (initials 10/15 semibold)
 //   sm = 24   table rows                     (initials 12/16 semibold)
-//   md = 32   sidebar workspace / team card  (initials 16/22 semibold)
+//   md = 32   sidebar business / team card  (initials 16/22 semibold)
 //   lg = 36   people cards                   (initials 18/24 semibold)
 //
 // Renders a photo when `src` is given, otherwise centered initials on a

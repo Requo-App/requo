@@ -6,8 +6,8 @@ import { RegionErrorBoundary } from "@/components/shared/region-error-boundary";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getAppShellContext } from "@/lib/app-shell/context";
 import { createNoIndexMetadata } from "@/lib/seo/site";
-import { OwnerAssistantChat } from "@/features/owner-assistant/components/owner-assistant-chat";
-import { loadAssistantTranscript } from "@/features/owner-assistant/session-service";
+import { AssistantChat } from "@/features/assistant/components/assistant-chat";
+import { loadAssistantTranscript } from "@/features/assistant/session-service";
 
 type AssistantSearchParams = { q?: string; session?: string };
 
@@ -72,7 +72,7 @@ async function AssistantRegion({
   return (
     // No `key`: the surface must never be remounted by a param change, or a
     // mint would restart the conversation it just created.
-    <OwnerAssistantChat
+    <AssistantChat
       autoPrompt={typeof q === "string" && q.trim() ? q : null}
       businessId={businessContext.business.id}
       businessSlug={businessSlug}

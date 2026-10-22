@@ -218,7 +218,7 @@ test("inquiry form preview reflects unsaved field and page edits in realtime", a
   const updatedHeadline = `Custom request preview ${Date.now()}`;
 
   await signIn(page);
-  await openBusinessesPage(page, "/forms/project-request");
+  await openBusinessesPage(page, "/services/project-request");
   await page.getByRole("button", { name: "Fields" }).click();
 
   const contactNameLabelInput = page.locator("#contact-customerName-label");
@@ -236,7 +236,7 @@ test("inquiry form preview reflects unsaved field and page edits in realtime", a
   await closePreview(page);
   await page.getByRole("button", { name: "Page" }).click();
 
-  const headlineInput = page.locator("#inquiry-page-headline");
+  const headlineInput = page.locator("#service-page-headline");
   const originalHeadline = await headlineInput.inputValue();
 
   await headlineInput.fill(updatedHeadline);
@@ -270,7 +270,7 @@ test("project fields can be dragged and the preview order persists after save", 
   test.setTimeout(90_000);
 
   await signIn(page);
-  await openBusinessesPage(page, "/forms/project-request");
+  await openBusinessesPage(page, "/services/project-request");
   await page.getByRole("button", { name: "Fields" }).click();
 
   const budgetHandle = page.getByRole("button", { name: "Reorder Budget" });
@@ -330,7 +330,7 @@ test("supporting card fields can be edited and previewed before save", async ({
     "Share the size, quantity, and any install constraints before we review the request.";
 
   await signIn(page);
-  await openBusinessesPage(page, "/forms/project-request");
+  await openBusinessesPage(page, "/services/project-request");
   await page.getByRole("button", { name: "Page" }).click();
 
   const titleInput = page.locator("#inquiry-card-title-specs");
@@ -365,7 +365,7 @@ test("supporting cards can be dragged and the preview order persists after save"
   test.setTimeout(90_000);
 
   await signIn(page);
-  await openBusinessesPage(page, "/forms/project-request");
+  await openBusinessesPage(page, "/services/project-request");
   await page.getByRole("button", { name: "Page" }).click();
 
   const scheduleHandle = page.getByRole("button", { name: "Reorder Call out timing" });

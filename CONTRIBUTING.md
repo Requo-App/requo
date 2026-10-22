@@ -8,7 +8,7 @@ Thanks for considering a contribution. Requo is SaaS for service businesses (inq
 - `app/` stays thin (routes only). Product logic lives in `features/`. Infra lives in `lib/`. Reuse `components/ui/*` + `components/shared/*` before custom markup.
 - Preserve tenant isolation: every business query filters by `businessId` via `getBusinessActionContext`. Never trust IDs from client/URL alone.
 - Better Auth only. All AI through `lib/ai/`. Never write `businesses.plan` directly (via `lib/billing/subscription-service.ts` only).
-- Never filter navigation by plan (role only). Gate paid features with `features/paywall/` + server-side `hasFeatureAccess`.
+- Never filter navigation by plan (role only). Gate paid features with `features/entitlements/` + server-side `hasFeatureAccess`.
 - Keep diffs small and feature-scoped. Do not invent APIs, fields, env vars, or services.
 
 ## Local setup

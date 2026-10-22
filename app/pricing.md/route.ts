@@ -6,7 +6,7 @@ import {
   annualBillingPromoCopy,
   planCatalog,
 } from "@/lib/plans/catalog";
-import { businessPlans } from "@/lib/plans/plans";
+import { planTiers } from "@/lib/plans/plans";
 
 /**
  * Machine-readable pricing mirror for agents (`/pricing.md`).
@@ -26,7 +26,7 @@ function buildPricingMarkdown(): string {
     "",
   ];
 
-  for (const plan of businessPlans) {
+  for (const plan of planTiers) {
     const entry = planCatalog[plan];
     lines.push(`### ${entry.label} — ${entry.audience}`);
     lines.push("");

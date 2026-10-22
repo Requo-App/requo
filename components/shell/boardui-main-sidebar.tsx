@@ -24,7 +24,7 @@ type BoarduiMainSidebarProps = {
    * still enforced server-side.
    */
   role?: BusinessMemberRole;
-  /** Rendered at the top of the sidebar in place of the demo workspace menu. */
+  /** Rendered at the top of the sidebar in place of the demo business menu. */
   topSlot?: ReactNode;
   /** Rendered at the bottom of the sidebar in place of the demo team card. */
   bottomSlot?: ReactNode;

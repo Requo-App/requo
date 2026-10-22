@@ -4,6 +4,7 @@ import {
   buildPublicInquiryAttachmentUploadPath,
   validatePublicInquiryAttachmentUpload,
 } from "@/features/inquiries/attachments";
+import { publicInquiryUploadRequestSchema } from "@/features/inquiries/schemas";
 
 describe("inquiry attachment upload contract", () => {
   it("scopes an upload path to a server-issued upload id", () => {
@@ -85,5 +86,36 @@ describe("inquiry attachment upload contract", () => {
         }),
       }),
     );
+  });
+
+  it("maps the legacy formSlug upload field onto serviceSlug", () => {
+    const parsed = publicInquiryUploadRequestSchema.safeParse({
+      businessSlug: "acme",
+      formSlug: "deck-repair",
+      fileName: "plan.pdf",
+      contentType: "application/pdf",
+      size: 1024,
+    });
+
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.serviceSlug).toBe("deck-repair");
+      expect(parsed.data).not.toHaveProperty("formSlug");
+    }
+  });
+
+  it("prefers serviceSlug when both upload field names are present", () => {
+    const parsed = publicInquiryUploadRequestSchema.safeParse({
+      businessSlug: "acme",
+      serviceSlug: "deck-repair",
+      formSlug: "old-form",
+      fileName: "plan.pdf",
+      size: 1024,
+    });
+
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.serviceSlug).toBe("deck-repair");
+    }
   });
 });

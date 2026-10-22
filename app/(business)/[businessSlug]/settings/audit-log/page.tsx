@@ -2,12 +2,12 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
-import { BusinessAuditLogFilters } from "@/features/audit/components/workspace-audit-log-filters";
+import { BusinessAuditLogFilters } from "@/features/audit/components/business-audit-log-filters";
 import {
   AuditLogFiltersFallback,
   AuditLogTableFallback,
-} from "@/features/audit/components/workspace-audit-log-fallbacks";
-import { BusinessAuditLogTable } from "@/features/audit/components/workspace-audit-log-table";
+} from "@/features/audit/components/business-audit-log-fallbacks";
+import { BusinessAuditLogTable } from "@/features/audit/components/business-audit-log-table";
 import {
   getBusinessAuditLogFiltersBySlug,
   getBusinessAuditLogPageBySlug,

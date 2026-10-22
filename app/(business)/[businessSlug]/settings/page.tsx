@@ -8,7 +8,7 @@ import { getBusinessSettingsPageContext } from "./_lib/page-context";
 
 export const metadata: Metadata = createNoIndexMetadata({
   title: "Settings",
-  description: "Personal and business settings for your Requo workspace.",
+  description: "Personal and business settings for your Requo business.",
 });
 
 export const instant = true;

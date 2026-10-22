@@ -37,7 +37,7 @@ flowchart LR
 ```
 
 `app/` is the transport and rendering layer: route groups separate marketing,
-authentication, business workspaces, public pages, checkout, and administration.
+authentication, business dashboards, public pages, checkout, and administration.
 Route handlers expose APIs, webhooks, cron endpoints, and Inngest. Product
 queries, validation, actions, and mutations live primarily in `features/`.
 Provider clients, database access, auth, caching, and shared policies live in
@@ -120,7 +120,7 @@ tab has one cached aggregator (`getOverviewData`, `getPerformanceData`,
 `analytics_daily_rollups`; rollups cover complete past days and the current day
 is read live. When a window contains days the rollup job has not processed
 (yet), the series builder fills those days from the live source tables, so a
-trend chart never reads as a flat zero line for a workspace whose history
+trend chart never reads as a flat zero line for a business whose history
 predates the job. The live fallback and the rollup count the same things —
 visitors who opened a service form, form views with a form, live inquiries
 and quotes — so a window that mixes rolled-up and live days plots one
@@ -137,7 +137,7 @@ use `"use cache"` with `hotBusinessCacheLife` and business/tab tags, while
 custom ranges compute directly. Plan access is checked server-side before a
 tab's aggregator runs, and the export route re-resolves the window so plan
 caps cannot be bypassed. Goals, annotations, and scheduled reports are
-workspace-scoped records managed through `app/api/business/[slug]/analytics/*`.
+business-scoped records managed through `app/api/business/[slug]/analytics/*`.
 
 ## Persistence and migrations
 
@@ -214,8 +214,8 @@ instead of leaking sends.
 ## AI and model integrations
 
 There are two chat products: the anonymous customer-facing Agent in
-`features/ai-agent/` and the authenticated owner Assistant in
-`features/owner-assistant/`. Their API routes are under `app/api/ai/`. AI quote
+`features/agent/` and the authenticated Assistant in
+`features/assistant/`. Their API routes are under `app/api/ai/`. AI quote
 drafting and business-knowledge retrieval are separate feature flows. Model
 selection, provider SDKs, fallback, usage limits, caching, input sanitization,
 output filtering, and invocation logging are centralized in `lib/ai/`.
@@ -250,8 +250,8 @@ streaming and non-streaming entry points run through the same fallback
 wrapper, so failure classification, cooldowns, attempt accounting, deadlines,
 and cancellation cannot drift between them. Turns have bounded context and
 tool steps, and retry behavior must not duplicate side effects. These
-constraints are implemented across `features/ai-agent/`,
-`features/owner-assistant/`, and `lib/ai/`; their tests are the executable
+constraints are implemented across `features/agent/`,
+`features/assistant/`, and `lib/ai/`; their tests are the executable
 contract.
 
 ## Identifiers and transaction invariants
@@ -305,7 +305,7 @@ subscription rather than the denormalized `businesses.plan` cache — the same
 plan the public inquiry pages resolve, so the two surfaces cannot disagree.
 The plan's custom-field allowance is applied when the intake form is saved,
 so a crafted request cannot persist fields the plan does not include. Public
-surfaces for a business — the inquiry pages and the public AI agent — all
+surfaces for a business — the inquiry pages and the public Agent — all
 apply the same business-lifecycle filter, so an archived, locked, or trashed
 business keeps no public intake or chat surface.
 
@@ -318,7 +318,7 @@ deduplication, capacity, and rate-limit paths; those modules have in-process
 fallbacks. Atomic capacity reservations are cross-instance only when Redis is
 configured; the in-process fallback is atomic within one process. It is not
 the primary application database. Client state is local to feature needs;
-there is no general global state store. The owner Assistant has a tab-local
+there is no general global state store. The Assistant has a tab-local
 live chat store.
 
 Errors are handled at route/feature boundaries and streamed UI boundaries.
@@ -367,6 +367,6 @@ and [Development](../engineering/DEVELOPMENT.md).
 - There are two historical migrations with the `0021` prefix. Journal order
   governs application; do not rename committed migrations. See
   [`technical-debt.md`](../technical-debt.md).
-- Product scope blocks, approvals, commercial schedules, and change orders
+- Typed scope blocks, approvals, payment schedules, and change orders
   are implemented in the current schema/features; their detailed product
   semantics continue to evolve and should be verified in code/tests.

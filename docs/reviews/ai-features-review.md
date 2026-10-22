@@ -9,7 +9,7 @@ authenticated **Assistant**, the AI quote and suggestion pipeline, the shared
 | Base | `origin/main` @ `ca9cd744` (fix(services): harden the service feature) |
 | Branch | `chore/ai-features-review` |
 | Method | Five independent read-only reviews, one per surface, then cross-checking of every High finding against the source |
-| Scope | `lib/ai/**`, `features/ai/**`, `features/ai-agent/**`, `features/owner-assistant/**`, `features/memory/**`, `features/importer/ai-extractor.ts`, `features/quotes/**`, `features/follow-ups/**` AI paths, `features/settings/**` AI paths, `features/admin/components/ai/**`, `app/api/ai/**`, `app/admin/ai/**`, `app/(public)/b/[slug]/chat/**`, `app/(business)/[businessSlug]/(main)/assistant/**`, `app/(business)/[businessSlug]/settings/ai/**`, `lib/db/schema/{ai,ai-agent,owner-assistant,memories,knowledge-files}.ts` |
+| Scope | `lib/ai/**`, `features/quote-drafting/**`, `features/agent/**`, `features/assistant/**`, `features/knowledge/**`, `features/importer/ai-extractor.ts`, `features/quotes/**`, `features/follow-ups/**` AI paths, `features/settings/**` AI paths, `features/admin/components/ai/**`, `app/api/ai/**`, `app/admin/ai/**`, `app/(public)/b/[slug]/chat/**`, `app/(business)/[businessSlug]/(main)/assistant/**`, `app/(business)/[businessSlug]/settings/ai/**`, `lib/db/schema/{ai,agent,assistant,knowledge,knowledge-files}.ts` |
 | Status | **Fixed.** Every finding below is addressed on this branch. See [Resolution](#resolution). |
 
 No code was executed while producing this review. Every finding below was
@@ -48,8 +48,8 @@ confirmation. The defects are not in the design — they are in the seams:
   tag is never stripped, and the customer's own revision request is injected
   under a "HIGHEST PRIORITY" heading.
 
-Test coverage for the AI layer is close to zero: `features/ai/`,
-`features/ai-agent/`, `features/owner-assistant/` and `features/memory/` have
+Test coverage for the AI layer is close to zero: `features/quote-drafting/`,
+`features/agent/`, `features/assistant/` and `features/knowledge/` have
 no unit or integration tests, and the two e2e specs mock the chat endpoints
 outright.
 
@@ -106,34 +106,34 @@ what the customer is emailed and asked to accept. The reverse case also fails
 
 ### 3. Knowledge entries store the body text as the title
 
-**`features/memory/actions.ts:147` and `:225`**
+**`features/knowledge/actions.ts:147` and `:225`**
 
 ```js
 title: sanitization.output || parsed.data.title,
 content: sanitization.output || parsed.data.content,
 ```
 
-`sanitizeMemoryContent(title, content)` returns a single `output` that is
+`sanitizeKnowledgeContent(title, content)` returns a single `output` that is
 always derived from the *content*
 (`lib/ai/input-sanitizer.ts:282` sanitized path, `:287` clean path). There is
 no sanitized-title return value, so the body text is assigned to both fields.
 
 Two consequences: `business_memories` has a
-`char_length(title) <= 200` check (`lib/db/schema/memories.ts:66`) while the
+`char_length(title) <= 200` check (`lib/db/schema/knowledge.ts:66`) while the
 Zod schema allows 4000 characters of content
-(`features/memory/schemas.ts:18`), so any entry with more than 200 characters
+(`features/knowledge/schemas.ts:18`), so any entry with more than 200 characters
 of body fails the insert and surfaces as the generic "We couldn't save that
 entry right now."; and when the body is short enough, the owner's title is
 silently replaced by the body, the list row renders it as the title
-(`features/memory/components/knowledge-manager.tsx:460`), and the embedding is
+(`features/knowledge/components/knowledge-manager.tsx:460`), and the embedding is
 computed from `title\ncontent` = `content\ncontent`
-(`features/memory/embedding-text.ts:9`).
+(`features/knowledge/embedding-text.ts:9`).
 
 **Fix:** sanitize the two fields independently and keep them separate.
 
 ### 4. The Agent's approval path ignores the public-inquiry kill switches
 
-**`features/ai-agent/actions.ts:377-397`**
+**`features/agent/actions.ts:377-397`**
 
 The form is resolved with `businessId + slug + archivedAt IS NULL` only. The
 query *selects* `publicInquiryEnabled` (`:384`) but never filters on it, and
@@ -143,27 +143,27 @@ requires both
 businessPublicInquiryEnabled`).
 
 `get_services` only advertises published services
-(`features/ai-agent/tools/get-services.ts:47`), but the `serviceSlug` on the
+(`features/agent/tools/get-services.ts:47`), but the `serviceSlug` on the
 proposal card is a free-text input
-(`features/ai-agent/components/proposed-inquiry-card.tsx:293`), so a visitor
+(`features/agent/components/proposed-inquiry-card.tsx:293`), so a visitor
 can type any slug of that business — including an unpublished one — and the
 approval accepts it.
 
-**Fix:** filter on `businessInquiryForms.publicInquiryEnabled`, select and
+**Fix:** filter on `services.publicInquiryEnabled`, select and
 check `businesses.publicInquiryEnabled`, and reject unpublished services.
 
 ### 5. The Assistant resolves its business without `requireActiveBusiness`
 
-**`features/owner-assistant/actions.ts:25`, `app/api/ai/owner-assistant/chat/route.ts:84`**
+**`features/assistant/actions.ts:25`, `app/api/ai/assistant/chat/route.ts:84`**
 
 Both use `getBusinessActionContext({ businessSlug })`, which defaults
 `requireActiveBusiness` to `false` (`lib/db/business-access.ts:527`). The
 "locked business" check that produces *"This business is locked on your
 current plan"* therefore never applies on the Assistant path. Every other
-operational write path uses `getWorkspaceBusinessActionContext()` /
+operational write path uses `getMemberBusinessActionContext()` /
 `getOperationalBusinessActionContext()`, which set it to `true`
 (`features/quotes/actions.ts:127`, `features/inquiries/actions.ts:270`,
-`features/memory/actions.ts:80`, `features/ai/actions.ts:91`).
+`features/knowledge/actions.ts:80`, `features/quote-drafting/actions.ts:91`).
 
 A business locked during a plan downgrade can still be driven by the
 Assistant to create inquiries and — after confirmation — **send a customer-facing
@@ -171,7 +171,7 @@ quote email** (`markQuoteSentForBusiness` joins `businesses` but never
 inspects `lockedAt`/`archivedAt`). The dashboard buttons are blocked; the API
 is not.
 
-**Fix:** use `getWorkspaceBusinessActionContext()` on the Assistant path and
+**Fix:** use `getMemberBusinessActionContext()` on the Assistant path and
 re-check the business record state inside the write tools.
 
 ### 6. The non-stream router double-counts tokens and drives TPM negative
@@ -202,7 +202,7 @@ does; or record the actual only and drop the correction.
 
 ### 7. A failed Agent submission after approval loses the lead permanently
 
-**`features/ai-agent/actions.ts:253`, `:292-298`, `:424-471`**
+**`features/agent/actions.ts:253`, `:292-298`, `:424-471`**
 
 The proposal is flipped to `status: "approved"` inside the locking
 transaction, *before* `createAgentInquirySubmission()` runs as a separate,
@@ -211,7 +211,7 @@ that inquiry. Please try again." but leaves the proposal `approved` with no
 `inquiryId`. Every later approval hits `status === "approved"` → `kind:
 "sending"` → "That inquiry is already being sent. Please wait a moment."
 — forever. The client keeps the card in `pending` state
-(`features/ai-agent/components/chat-interface.tsx:573`) and the reload path
+(`features/agent/components/chat-interface.tsx:573`) and the reload path
 returns the `approved` proposal
 (`app/api/ai/agent/session/route.ts:60-63`), so the card renders the receipt
 branch — "Sent to the business" — for a lead that was never filed.
@@ -222,7 +222,7 @@ retry from.
 
 ### 8. The untrusted-content fence in the quote-draft prompt is incomplete and breakable
 
-**`features/ai/quote-generator.ts:259-324`, `features/ai/prompts/quote-draft.ts:45`**
+**`features/quote-drafting/quote-generator.ts:259-324`, `features/quote-drafting/prompts/quote-draft.ts:45`**
 
 Three gaps:
 
@@ -239,7 +239,7 @@ Three gaps:
 3. `revisionComment` — the customer's own revision-request message — is
    pattern-sanitised only (`:1311-1353`) and then injected verbatim under
    `REVISION REQUEST:`, a section the prompt labels "**HIGHEST PRIORITY**"
-   (`features/ai/prompts/quote-draft.ts:45-50`). It is not fenced and carries
+   (`features/quote-drafting/prompts/quote-draft.ts:45-50`). It is not fenced and carries
    no data-not-instructions rule.
 
 **Fix:** fence every customer-controlled field, strip or nonce the fence tag,
@@ -247,7 +247,7 @@ and drop the "HIGHEST PRIORITY" framing on the revision section.
 
 ### 9. The model controls the line quantity that multiplies the DB unit price
 
-**`features/ai/quote-generator.ts:452`, `:500`, `:135`**
+**`features/quote-drafting/quote-generator.ts:452`, `:500`, `:135`**
 
 The model response schema accepts any positive quantity
 (`z.coerce.number().finite().positive()`, clamped only to 999 999). The
@@ -288,69 +288,69 @@ mark any quantity that differs from the library item's as needing review.
 | 22 | The in-memory cache fallback is an unbounded `Map` with no eviction sweep | `lib/ai/cache-layer.ts:43` |
 | 23 | `normalizeBusinessInstructions` claims to normalise for prompt injection but only caps length — owner instructions reach the public Agent's system prompt with no filtering | `lib/ai/business-instructions.ts:21` |
 
-### Public Agent (`features/ai-agent/`)
+### Public Agent (`features/agent/`)
 
 | # | Finding | Location |
 |---|---|---|
-| 24 | The business-facing transcript is truncated to the **oldest** 100 raw rows and filtered to user/assistant *after* the limit, so the newest turns — the ones describing the project — are dropped | `features/ai-agent/queries.ts:178` |
-| 25 | Every public Agent rate limit is keyed on a User-Agent-dependent fingerprint with no `ipLimit`/`scopeLimit`, so rotating the header defeats all throttles — the same limits the inquiry path guards with `ipLimit` | `app/api/ai/agent/chat/route.ts:70`, `:85`; `features/ai-agent/actions.ts:94` |
-| 26 | The per-business session allowance counts every session row, including abandoned ones; ten anonymous POSTs exhaust a Pro business's daily ceiling | `features/ai-agent/actions.ts:109`; `lib/ai/conversation-limits.ts:38` |
-| 27 | "Retry response" always fails with 400 — the session token is attached per-call, not on the transport, and `regenerate()` sends no body | `features/ai-agent/components/chat-interface.tsx:795` |
-| 28 | "Stop generating" does not cancel the server-side model call: no `abortSignal` is threaded, so the turn runs to completion, is billed, and is persisted as a reply the visitor never saw | `features/ai-agent/orchestrator.ts:410` |
-| 29 | Usage is metered only on success, so failed and retried provider calls are free; the quota check is a read, not a reservation | `features/ai-agent/orchestrator.ts:522`, `:586-613` |
-| 30 | The 2 000-character message cap covers the legacy `content` field only; the transport the client actually uses (`messages`) is unbounded and the full text is persisted verbatim | `features/ai-agent/schemas.ts:115`; `features/ai-agent/orchestrator.ts:303` |
-| 31 | The session token — the sole credential for the transcript and the staged proposal — is sent in the URL query string on every reload | `features/ai-agent/components/chat-interface.tsx:367` |
-| 32 | A second inquiry in the same session overwrites `ai_agent_sessions.inquiryId`, orphaning the first inquiry's transcript | `features/inquiries/mutations.ts:404`; `features/ai-agent/queries.ts:158` |
-| 33 | Client-supplied session metadata is stored verbatim and unbounded; the `sessionMetadataSchema` that exists for it is never applied | `features/ai-agent/actions.ts:121`; `features/ai-agent/schemas.ts:66` |
+| 24 | The business-facing transcript is truncated to the **oldest** 100 raw rows and filtered to user/assistant *after* the limit, so the newest turns — the ones describing the project — are dropped | `features/agent/queries.ts:178` |
+| 25 | Every public Agent rate limit is keyed on a User-Agent-dependent fingerprint with no `ipLimit`/`scopeLimit`, so rotating the header defeats all throttles — the same limits the inquiry path guards with `ipLimit` | `app/api/ai/agent/chat/route.ts:70`, `:85`; `features/agent/actions.ts:94` |
+| 26 | The per-business session allowance counts every session row, including abandoned ones; ten anonymous POSTs exhaust a Pro business's daily ceiling | `features/agent/actions.ts:109`; `lib/ai/conversation-limits.ts:38` |
+| 27 | "Retry response" always fails with 400 — the session token is attached per-call, not on the transport, and `regenerate()` sends no body | `features/agent/components/chat-interface.tsx:795` |
+| 28 | "Stop generating" does not cancel the server-side model call: no `abortSignal` is threaded, so the turn runs to completion, is billed, and is persisted as a reply the visitor never saw | `features/agent/orchestrator.ts:410` |
+| 29 | Usage is metered only on success, so failed and retried provider calls are free; the quota check is a read, not a reservation | `features/agent/orchestrator.ts:522`, `:586-613` |
+| 30 | The 2 000-character message cap covers the legacy `content` field only; the transport the client actually uses (`messages`) is unbounded and the full text is persisted verbatim | `features/agent/schemas.ts:115`; `features/agent/orchestrator.ts:303` |
+| 31 | The session token — the sole credential for the transcript and the staged proposal — is sent in the URL query string on every reload | `features/agent/components/chat-interface.tsx:367` |
+| 32 | A second inquiry in the same session overwrites `ai_agent_sessions.inquiryId`, orphaning the first inquiry's transcript | `features/inquiries/mutations.ts:404`; `features/agent/queries.ts:158` |
+| 33 | Client-supplied session metadata is stored verbatim and unbounded; the `sessionMetadataSchema` that exists for it is never applied | `features/agent/actions.ts:121`; `features/agent/schemas.ts:66` |
 | 34 | A malformed `messages` array returns 500 instead of 400 | `app/api/ai/agent/chat/route.ts:57` |
-| 35 | The public chat page never checks `hasFeatureAccess(business.plan, "aiAgent")`, so a downgraded business keeps a discoverable but dead chat | `app/(public)/b/[slug]/chat/page.tsx:48` |
+| 35 | The public chat page never checks `hasFeatureAccess(business.plan, "agent")`, so a downgraded business keeps a discoverable but dead chat | `app/(public)/b/[slug]/chat/page.tsx:48` |
 
-### Owner Assistant (`features/owner-assistant/`)
-
-| # | Finding | Location |
-|---|---|---|
-| 36 | `send_quote` emails the customer *before* the state transition, so a quote changed in the window produces a customer email for a quote the system still shows as a draft — and a re-run sends a second email | `features/owner-assistant/tools/send-quote.ts:309` vs `:343` |
-| 37 | `create_quote` always fails when the model supplies `validUntil`: the tool schema wants a full UTC datetime, the quote schema wants `YYYY-MM-DD` — the two are mutually unsatisfiable | `features/owner-assistant/schemas.ts:139`; `features/quotes/schemas.ts:245` |
-| 38 | The conversation-history cache is keyed by business slug only, so a second member signing in on the same tab is shown the previous member's conversation titles — which are the first user message | `features/owner-assistant/components/assistant-history-cache.ts:32` |
-| 39 | The Assistant's email quota and `emailTemplates` entitlement use the denormalized `businesses.plan` instead of the effective plan, which the codebase itself documents as fallible | `features/owner-assistant/tools/send-quote.ts:176`, `:275` |
-| 40 | `update_inquiry_status` stages an unfrozen payload (no `expectedStatus`), and staged confirmations never expire — the approved prompt can diverge from what is then written | `features/owner-assistant/tools/update-inquiry-status.ts:96`; `features/owner-assistant/session-service.ts:552` |
-| 41 | The chat route accepts an unbounded message; `compactMessages` then trims the tail, so a long turn is silently dropped from the prompt while still being stored and billed | `app/api/ai/owner-assistant/chat/route.ts:30`; `lib/ai/token-budget.ts:100` |
-| 42 | Errored turns are never metered — `recordUsage` runs only from `onFinish`, which the AI SDK skips when no step completes | `features/owner-assistant/orchestrator.ts:506` vs `:477` |
-| 43 | `search_customers` loads every customer email in the business (both tables, no LIMIT) into a `Map` on every tool call, then paginates in memory | `features/owner-assistant/queries.ts:425` |
-| 44 | Attachment text is concatenated **after** sanitisation, so an uploaded document reaches a model with write tools unsanitised — the README states the opposite | `features/owner-assistant/orchestrator.ts:190-223`; `features/owner-assistant/README.md` |
-| 45 | The README's "Testing" section names four test files; none of them exist | `features/owner-assistant/README.md:156-167` |
-
-### Quote AI, suggestions, importer (`features/ai/`, `features/quotes/`, `features/follow-ups/`)
+### Assistant (`features/assistant/`)
 
 | # | Finding | Location |
 |---|---|---|
-| 46 | The quote-draft path checks the AI allowance instead of reserving it, and the per-user cooldown starts only after generation completes — N concurrent requests all pass the same cached total | `features/ai/actions.ts:115`; `features/ai/quote-generator.ts:1204` |
+| 36 | `send_quote` emails the customer *before* the state transition, so a quote changed in the window produces a customer email for a quote the system still shows as a draft — and a re-run sends a second email | `features/assistant/tools/send-quote.ts:309` vs `:343` |
+| 37 | `create_quote` always fails when the model supplies `validUntil`: the tool schema wants a full UTC datetime, the quote schema wants `YYYY-MM-DD` — the two are mutually unsatisfiable | `features/assistant/schemas.ts:139`; `features/quotes/schemas.ts:245` |
+| 38 | The conversation-history cache is keyed by business slug only, so a second member signing in on the same tab is shown the previous member's conversation titles — which are the first user message | `features/assistant/components/assistant-history-cache.ts:32` |
+| 39 | The Assistant's email quota and `emailTemplates` entitlement use the denormalized `businesses.plan` instead of the effective plan, which the codebase itself documents as fallible | `features/assistant/tools/send-quote.ts:176`, `:275` |
+| 40 | `update_inquiry_status` stages an unfrozen payload (no `expectedStatus`), and staged confirmations never expire — the approved prompt can diverge from what is then written | `features/assistant/tools/update-inquiry-status.ts:96`; `features/assistant/session-service.ts:552` |
+| 41 | The chat route accepts an unbounded message; `compactMessages` then trims the tail, so a long turn is silently dropped from the prompt while still being stored and billed | `app/api/ai/assistant/chat/route.ts:30`; `lib/ai/token-budget.ts:100` |
+| 42 | Errored turns are never metered — `recordUsage` runs only from `onFinish`, which the AI SDK skips when no step completes | `features/assistant/orchestrator.ts:506` vs `:477` |
+| 43 | `search_customers` loads every customer email in the business (both tables, no LIMIT) into a `Map` on every tool call, then paginates in memory | `features/assistant/queries.ts:425` |
+| 44 | Attachment text is concatenated **after** sanitisation, so an uploaded document reaches a model with write tools unsanitised — the README states the opposite | `features/assistant/orchestrator.ts:190-223`; `features/assistant/README.md` |
+| 45 | The README's "Testing" section names four test files; none of them exist | `features/assistant/README.md:156-167` |
+
+### Quote AI, suggestions, importer (`features/quote-drafting/`, `features/quotes/`, `features/follow-ups/`)
+
+| # | Finding | Location |
+|---|---|---|
+| 46 | The quote-draft path checks the AI allowance instead of reserving it, and the per-user cooldown starts only after generation completes — N concurrent requests all pass the same cached total | `features/quote-drafting/actions.ts:115`; `features/quote-drafting/quote-generator.ts:1204` |
 | 47 | The editor strips all AI provenance before submit — `getVisibleEditorItems` omits `aiProductStatus`, `aiProductLibraryEntryId`, `aiProductLibraryItemId` and `aiEvidence`, so every saved quote persists `ai_product_status = NULL` and the audit trail is always empty | `features/quotes/components/quote-editor/utils.ts:71` |
 | 48 | The auto-draft-on-qualify job generates an AI draft and throws it away — no quote row, no draft record, and the spend still counts against the credit pool | `lib/inngest/functions/events.ts:368` |
 | 49 | The follow-up AI prompt embeds the customer's public quote bearer token, which the codebase documents as a credential that must not be exposed | `app/api/business/follow-ups/suggest-message/route.ts:107`; `features/follow-ups/queries.ts:685`; `features/quotes/token-storage.ts:13` |
 | 50 | The importer imports a provider SDK inside `features/` and calls it directly, bypassing the router, the usage meter, `sanitizeAiInput` and `filterAiOutput` | `features/importer/ai-extractor.ts:3`, `:155` |
 | 51 | Importer extraction output is not Zod-validated at the analyze step, and the cents conversion depends entirely on the model obeying "convert to cents" — a scale error seeds a wrong price into the library, where it can later be auto-verified onto a quote | `features/importer/ai-extractor.ts:223` |
-| 52 | Raw model output (which can echo customer text) is written to server logs on parse failure | `features/ai/quote-generator.ts:1237` |
+| 52 | Raw model output (which can echo customer text) is written to server logs on parse failure | `features/quote-drafting/quote-generator.ts:1237` |
 
-### Admin AI and knowledge (`app/admin/ai/`, `features/memory/`, `features/settings/`)
+### Admin AI and knowledge (`app/admin/ai/`, `features/knowledge/`, `features/settings/`)
 
 | # | Finding | Location |
 |---|---|---|
-| 53 | The AI Agent settings save targets the active-business cookie, not the business in the route slug — the same bug already fixed for the service editor (`CHANGELOG.md:52`), and inconsistent with the six slug-bound knowledge actions on the same page | `features/settings/actions.ts:297`; `app/(business)/[businessSlug]/settings/ai/page.tsx:89` |
-| 54 | Untrusted knowledge content reaches model prompts unfenced, and any `staff` member can write it — unlike customer text, knowledge is not wrapped or marked "data, never instructions" | `features/memory/retrieval.ts:287`; `features/memory/actions.ts:79`; `features/ai/quote-generator.ts:833` |
-| 55 | A failed knowledge upload deletes the storage object but leaves the `business_knowledge_files` row in `pending`, permanently consuming a plan slot | `features/memory/actions.ts:443` |
-| 56 | The embedding backfill re-selects rows that fail to embed first forever (the job mutates the same `updatedAt` it orders by), so poison rows starve every row behind them | `features/memory/jobs/embedding-backfill.ts:77`, `:104` |
+| 53 | The Agent settings save targets the active-business cookie, not the business in the route slug — the same bug already fixed for the service editor (`CHANGELOG.md:52`), and inconsistent with the six slug-bound knowledge actions on the same page | `features/settings/actions.ts:297`; `app/(business)/[businessSlug]/settings/ai/page.tsx:89` |
+| 54 | Untrusted knowledge content reaches model prompts unfenced, and any `staff` member can write it — unlike customer text, knowledge is not wrapped or marked "data, never instructions" | `features/knowledge/retrieval.ts:287`; `features/knowledge/actions.ts:79`; `features/quote-drafting/quote-generator.ts:833` |
+| 55 | A failed knowledge upload deletes the storage object but leaves the `business_knowledge_files` row in `pending`, permanently consuming a plan slot | `features/knowledge/actions.ts:443` |
+| 56 | The embedding backfill re-selects rows that fail to embed first forever (the job mutates the same `updatedAt` it orders by), so poison rows starve every row behind them | `features/knowledge/jobs/embedding-backfill.ts:77`, `:104` |
 | 57 | The Knowledge tab's queries run on every load of the Assistant settings page, whether or not the tab is selected | `app/(business)/[businessSlug]/settings/ai/page.tsx:106` |
-| 58 | Embedding vectors for every memory row are serialized into the client payload (~768 floats per row) and never used | `features/memory/queries.ts:29` |
+| 58 | Embedding vectors for every memory row are serialized into the client payload (~768 floats per row) and never used | `features/knowledge/queries.ts:29` |
 | 59 | Raw provider error text — which can echo customer text from a rejected generation — is persisted for 90 days and rendered in the admin errors table | `features/admin/queries.ts:2857`; `features/admin/components/ai/admin-ai-errors-table.tsx:62` |
-| 60 | Files stuck in `processing` (killed Inngest step) can never be retried — the UI only offers retry for `failed` | `features/memory/processing.ts:104`; `features/memory/components/knowledge-manager.tsx:495` |
+| 60 | Files stuck in `processing` (killed Inngest step) can never be retried — the UI only offers retry for `failed` | `features/knowledge/processing.ts:104`; `features/knowledge/components/knowledge-manager.tsx:495` |
 
 ### Low
 
-- `features/owner-assistant/actions.ts:203` — the confirmation action reports failures as success and the client discards the result.
-- `features/owner-assistant/tools/get-quote-stats.ts:66` — quote aggregates are hard-coded to `USD` while the rows use `quote.currency`.
-- `features/ai-agent/actions.ts:358` — approval proceeds when the plan or the agent toggle has lapsed (deliberate, but undocumented).
-- `features/memory/processing.ts:140` — one injection phrase anywhere in a 500-page file rejects the whole file.
+- `features/assistant/actions.ts:203` — the confirmation action reports failures as success and the client discards the result.
+- `features/assistant/tools/get-quote-stats.ts:66` — quote aggregates are hard-coded to `USD` while the rows use `quote.currency`.
+- `features/agent/actions.ts:358` — approval proceeds when the plan or the agent toggle has lapsed (deliberate, but undocumented).
+- `features/knowledge/processing.ts:140` — one injection phrase anywhere in a 500-page file rejects the whole file.
 - `lib/ai/output-filter.ts:7` — the header still says "fail-open" on a fail-closed path.
 - `features/importer/actions.ts:88` — the `ai-file-import` rate-limit label does not merge with the `public-inquiry-submit` bucket.
 
@@ -358,11 +358,11 @@ mark any quantity that differs from the library item's as needing review.
 
 ## Test gaps
 
-The AI layer has almost no executable coverage. Nothing in `features/ai/`,
-`features/ai-agent/`, `features/owner-assistant/` or `features/memory/` is
+The AI layer has almost no executable coverage. Nothing in `features/quote-drafting/`,
+`features/agent/`, `features/assistant/` or `features/knowledge/` is
 exercised by a test that asserts behaviour rather than mocking it, and the two
 e2e specs mock the chat endpoints outright
-(`tests/e2e/ai-agent-conversation.spec.ts`, `tests/e2e/assistant-conversation.spec.ts`).
+(`tests/e2e/agent-conversation.spec.ts`, `tests/e2e/assistant-conversation.spec.ts`).
 `tests/support/mock-model.ts` is entirely unused.
 
 Highest-value additions, in order:
@@ -424,8 +424,8 @@ commits grouped by area. The mapping:
 |---|---|
 | 1 — readiness gate inert | `computeQuoteAiReadiness` recomputes readiness server-side from the persisted provenance; the client value is ignored. `aiGenerationId` is validated against the server-issued format. |
 | 2 — percentage discount | The actions submit `discountValue`/`discountType`/`taxValue`/`taxType`; the schema derives both amounts from the server-side subtotal. |
-| 3 — knowledge title | `sanitizeMemoryContent` returns the title and the content separately. |
-| 4 — public-inquiry kill switch | The Agent's approval path requires `businessInquiryForms.publicInquiryEnabled` and `businesses.publicInquiryEnabled`. |
+| 3 — knowledge title | `sanitizeKnowledgeContent` returns the title and the content separately. |
+| 4 — public-inquiry kill switch | The Agent's approval path requires `services.publicInquiryEnabled` and `businesses.publicInquiryEnabled`. |
 | 5 — locked business writes | The Assistant resolves its business with `requireActiveBusiness: true`. |
 | 6 — token double-count | The estimate is charged first and corrected afterwards; the correction now converges on every enforced dimension. |
 | 7 — lost lead after approval | The proposal moves to `sending`, returns to `pending` when the submission fails, and a stale send is reclaimed after two minutes. |

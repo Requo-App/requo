@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 /**
  * Structural loading state for the marketing home page.
  * Mirrors the section order and anatomy of MarketingHero: hero (left-aligned
- * headline, CTAs, device frame), Why Requo, How it works, Workspace features,
+ * headline, CTAs, device frame), Why Requo, How it works, Business features,
  * FAQ, final CTA, and footer.
  */
 export default function MarketingHomeLoading() {
@@ -112,7 +112,7 @@ export default function MarketingHomeLoading() {
         </div>
       </section>
 
-      {/* The Requo workspace section */}
+      {/* The Requo business section */}
       <section className="relative left-1/2 mt-24 w-screen -translate-x-1/2 overflow-x-clip py-16 sm:mt-32 sm:py-20 lg:mt-40 lg:py-24">
         <div className="mx-auto grid w-full max-w-6xl gap-4 px-4 sm:gap-5 sm:px-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-end lg:px-8 xl:px-0">
           <div className="flex flex-col gap-3 sm:gap-4">

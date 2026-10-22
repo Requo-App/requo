@@ -22,7 +22,7 @@ It holds the *effective* plan, not the requested one: every subscription status
 change rewrites it in the same transaction as the subscription row, so a revoked,
 expired, or still-pending business cannot keep a paid plan in the cache.
 Entitlement-sensitive reads should resolve the plan from `business_subscriptions`
-(the workspace shell and the inquiry surfaces both do) rather than trusting the
+(the business shell and the inquiry surfaces both do) rather than trusting the
 column.
 
 ## Pricing
@@ -76,7 +76,7 @@ Always wire sandbox first. Production cutover is documented below; do not skip s
    - `order.updated`
    - `order.refunded`
 
-5. `app/api/account/billing/checkout/route.ts` runs eligibility checks (auth, isPolarConfigured, already-active, missing email, product id resolution) then creates the Polar checkout session directly via `lib/billing/polar-client.ts` and returns `{ checkoutUrl }`. Webhook payloads are resolved back to a Requo business via `customer.externalId` first, then `business_subscriptions.providerCustomerId`, then `providerSubscriptionId`, with `metadata.businessId` as a tertiary legacy fallback.
+5. `app/api/billing/checkout/route.ts` runs eligibility checks (auth, isPolarConfigured, already-active, missing email, product id resolution) then creates the Polar checkout session directly via `lib/billing/polar-client.ts` and returns `{ checkoutUrl }`. Webhook payloads are resolved back to a Requo business via `customer.externalId` first, then `business_subscriptions.providerCustomerId`, then `providerSubscriptionId`, with `metadata.businessId` as a tertiary legacy fallback.
 
 ## Production cutover
 

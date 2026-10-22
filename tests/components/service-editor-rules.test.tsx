@@ -30,13 +30,13 @@ vi.mock("next/link", () => ({
   ),
 }));
 
-import { BusinessInquiryFormDangerZone } from "@/features/settings/components/business-inquiry-form-danger-zone";
-import { BusinessInquiryFormManageCard } from "@/features/settings/components/business-inquiry-form-manage-card";
-import type { BusinessInquiryFormDangerActionState } from "@/features/settings/types";
+import { ServiceDangerZone } from "@/features/settings/components/service-danger-zone";
+import { ServiceManageCard } from "@/features/settings/components/service-manage-card";
+import type { ServiceDangerActionState } from "@/features/settings/types";
 
 const noopAction = async (
-  state: BusinessInquiryFormDangerActionState,
-): Promise<BusinessInquiryFormDangerActionState> => state;
+  state: ServiceDangerActionState,
+): Promise<ServiceDangerActionState> => state;
 
 const noopFormsAction = async (state: {
   error?: string;
@@ -46,11 +46,11 @@ const noopFormsAction = async (state: {
 describe("service danger zone", () => {
   it("enables archive and delete for a normal service", () => {
     render(
-      <BusinessInquiryFormDangerZone
+      <ServiceDangerZone
         activeFormCount={3}
         archiveAction={noopAction}
         deleteAction={noopAction}
-        formId="form-1"
+        serviceId="form-1"
         inquiryListHref="/acme/services"
         isDefault={false}
         submittedInquiryCount={0}
@@ -65,11 +65,11 @@ describe("service danger zone", () => {
 
   it("disables archive for the default service and explains why", () => {
     render(
-      <BusinessInquiryFormDangerZone
+      <ServiceDangerZone
         activeFormCount={3}
         archiveAction={noopAction}
         deleteAction={noopAction}
-        formId="form-1"
+        serviceId="form-1"
         inquiryListHref="/acme/services"
         isDefault
         submittedInquiryCount={0}
@@ -88,11 +88,11 @@ describe("service danger zone", () => {
 
   it("disables archive for the last active service", () => {
     render(
-      <BusinessInquiryFormDangerZone
+      <ServiceDangerZone
         activeFormCount={1}
         archiveAction={noopAction}
         deleteAction={noopAction}
-        formId="form-1"
+        serviceId="form-1"
         inquiryListHref="/acme/services"
         isDefault={false}
         submittedInquiryCount={0}
@@ -109,11 +109,11 @@ describe("service danger zone", () => {
 
   it("disables delete for a service that still has inquiries", () => {
     render(
-      <BusinessInquiryFormDangerZone
+      <ServiceDangerZone
         activeFormCount={3}
         archiveAction={noopAction}
         deleteAction={noopAction}
-        formId="form-1"
+        serviceId="form-1"
         inquiryListHref="/acme/services"
         isDefault={false}
         submittedInquiryCount={4}
@@ -128,11 +128,11 @@ describe("service danger zone", () => {
 
   it("disables delete for the last active service", () => {
     render(
-      <BusinessInquiryFormDangerZone
+      <ServiceDangerZone
         activeFormCount={1}
         archiveAction={noopAction}
         deleteAction={noopAction}
-        formId="form-1"
+        serviceId="form-1"
         inquiryListHref="/acme/services"
         isDefault={false}
         submittedInquiryCount={0}
@@ -151,10 +151,10 @@ describe("service danger zone", () => {
 describe("service publishing card", () => {
   it("tells a non-owner that only the owner can publish", () => {
     render(
-      <BusinessInquiryFormManageCard
+      <ServiceManageCard
         canPublish={false}
         duplicateAction={noopFormsAction}
-        formId="form-1"
+        serviceId="form-1"
         isDefault={false}
         isPublicInquiryEnabled={false}
         setDefaultAction={noopFormsAction}
@@ -172,10 +172,10 @@ describe("service publishing card", () => {
 
   it("offers publish to an owner", () => {
     render(
-      <BusinessInquiryFormManageCard
+      <ServiceManageCard
         canPublish
         duplicateAction={noopFormsAction}
-        formId="form-1"
+        serviceId="form-1"
         isDefault={false}
         isPublicInquiryEnabled={false}
         setDefaultAction={noopFormsAction}
@@ -190,10 +190,10 @@ describe("service publishing card", () => {
 
   it("refuses to offer set-as-default for an unpublished service", () => {
     render(
-      <BusinessInquiryFormManageCard
+      <ServiceManageCard
         canPublish
         duplicateAction={noopFormsAction}
-        formId="form-1"
+        serviceId="form-1"
         isDefault={false}
         isPublicInquiryEnabled={false}
         setDefaultAction={noopFormsAction}
@@ -211,10 +211,10 @@ describe("service publishing card", () => {
 
   it("offers set-as-default for a published service", () => {
     render(
-      <BusinessInquiryFormManageCard
+      <ServiceManageCard
         canPublish
         duplicateAction={noopFormsAction}
-        formId="form-1"
+        serviceId="form-1"
         isDefault={false}
         isPublicInquiryEnabled
         setDefaultAction={noopFormsAction}

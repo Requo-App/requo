@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 
 vi.mock("@/lib/db/client", async () => {
   const { testDb: mockedDb } = await import("../support/db");
@@ -74,12 +74,12 @@ vi.mock("next/navigation", () => ({
  *    owns exactly one business, so the authorization assertions stay scoped.
  *
  * `knowledgeBase` is available on every plan and metered by source count
- * instead (see `lib/plans/usage-limits.ts`), so the AI agent — the pro-gated
+ * instead (see `lib/plans/usage-limits.ts`), so the Agent — the pro-gated
  * surface that shares the same enforcement copy — is the vehicle for the
  * action-level assertions.
  */
 
-import { updateBusinessAiAgentSettingsAction } from "@/features/settings/actions";
+import { updateBusinessAgentSettingsAction } from "@/features/settings/actions";
 import { getRequiredPlan, hasFeatureAccess } from "@/lib/plans/entitlements";
 
 import { closeTestDb, testDb } from "@/tests/support/db";
@@ -88,7 +88,7 @@ import {
   createWorkflowFixture,
   type WorkflowFixtureIds,
 } from "@/tests/support/fixtures/workflow";
-import { businessSubscriptions } from "@/lib/db/schema";
+import { activityLogs, businessSubscriptions } from "@/lib/db/schema";
 
 const prefix = "test_plan_authz";
 let ids: WorkflowFixtureIds;
@@ -116,21 +116,21 @@ async function revokePlan() {
     .where(eq(businessSubscriptions.businessId, ids.otherBusinessId));
 }
 
-function aiAgentFormData() {
+function agentFormData() {
   const formData = new FormData();
-  formData.set("aiAgentEnabled", "on");
+  formData.set("agentEnabled", "on");
   formData.set("tone", "friendly");
-  formData.set("aiAgentInstructions", "Keep answers brief.");
+  formData.set("agentInstructions", "Keep answers brief.");
   return formData;
 }
 
-function updateAiAgentSettings() {
+function updateAgentSettings() {
   // The action is bound to the business slug so it always writes to the
   // business whose settings page rendered the form.
-  return updateBusinessAiAgentSettingsAction(
+  return updateBusinessAgentSettingsAction(
     ids.otherBusinessSlug,
     { error: "" },
-    aiAgentFormData(),
+    agentFormData(),
   );
 }
 
@@ -149,34 +149,63 @@ describe("Plan-based authorization — server-side enforcement", () => {
     await closeTestDb();
   }, 30_000);
 
-  describe("AI agent (aiAgent feature)", () => {
-    it("rejects enabling the AI agent on the free plan", async () => {
+  describe("Agent (agent feature)", () => {
+    it("rejects enabling the Agent on the free plan", async () => {
       await revokePlan();
 
-      const result = await updateAiAgentSettings();
+      const result = await updateAgentSettings();
 
       expect(result.error).toBeDefined();
       expect(result.error).toContain("plan does not include");
     });
 
-    it("allows enabling the AI agent once the business is on Pro", async () => {
+    it("allows enabling the Agent once the business is on Pro", async () => {
       await grantPlan("pro");
 
-      const result = await updateAiAgentSettings();
+      const result = await updateAgentSettings();
 
       expect(result.error ?? "").not.toContain("plan does not include");
       expect(result.success).toBeDefined();
+    });
+
+    it("keeps the persisted aiAgentEnabled activity metadata key", async () => {
+      await grantPlan("pro");
+
+      const result = await updateAgentSettings();
+      expect(result.success).toBeDefined();
+
+      const [activity] = await testDb
+        .select({ metadata: activityLogs.metadata })
+        .from(activityLogs)
+        .where(
+          and(
+            eq(activityLogs.businessId, ids.otherBusinessId),
+            eq(activityLogs.actorUserId, ids.outsiderUserId),
+            eq(activityLogs.type, "business.ai_agent_settings_updated"),
+          ),
+        )
+        .orderBy(desc(activityLogs.createdAt))
+        .limit(1);
+
+      expect(activity?.metadata).toEqual(
+        expect.objectContaining({
+          aiAgentEnabled: true,
+          tone: "friendly",
+          hasInstructions: true,
+        }),
+      );
+      expect(activity?.metadata).not.toHaveProperty("agentEnabled");
     });
   });
 
   describe("Plan transitions", () => {
     it("denies access immediately after a downgrade", async () => {
       await grantPlan("pro");
-      const onPro = await updateAiAgentSettings();
+      const onPro = await updateAgentSettings();
       expect(onPro.success).toBeDefined();
 
       await revokePlan();
-      const onFree = await updateAiAgentSettings();
+      const onFree = await updateAgentSettings();
 
       expect(onFree.error).toBeDefined();
       expect(onFree.error).toContain("plan does not include");
@@ -184,11 +213,11 @@ describe("Plan-based authorization — server-side enforcement", () => {
 
     it("grants access immediately after an upgrade", async () => {
       await revokePlan();
-      const onFree = await updateAiAgentSettings();
+      const onFree = await updateAgentSettings();
       expect(onFree.error).toContain("plan does not include");
 
       await grantPlan("pro");
-      const onPro = await updateAiAgentSettings();
+      const onPro = await updateAgentSettings();
 
       expect(onPro.success).toBeDefined();
       expect(onPro.error ?? "").not.toContain("plan does not include");
@@ -199,7 +228,7 @@ describe("Plan-based authorization — server-side enforcement", () => {
     it("gives the business plan access to the pro-gated feature", async () => {
       await grantPlan("business");
 
-      const result = await updateAiAgentSettings();
+      const result = await updateAgentSettings();
 
       expect(result.error ?? "").not.toContain("plan does not include");
       expect(result.error ?? "").not.toContain("Upgrade to");
@@ -216,11 +245,11 @@ describe("Plan-based authorization — server-side enforcement", () => {
       expect(hasFeatureAccess("business", "knowledgeBase")).toBe(true);
       expect(getRequiredPlan("knowledgeBase")).toBeNull();
 
-      // The AI agent is the pro gate the action above enforces.
-      expect(hasFeatureAccess("free", "aiAgent")).toBe(false);
-      expect(hasFeatureAccess("pro", "aiAgent")).toBe(true);
-      expect(hasFeatureAccess("business", "aiAgent")).toBe(true);
-      expect(getRequiredPlan("aiAgent")).toBe("pro");
+      // The Agent is the pro gate the action above enforces.
+      expect(hasFeatureAccess("free", "agent")).toBe(false);
+      expect(hasFeatureAccess("pro", "agent")).toBe(true);
+      expect(hasFeatureAccess("business", "agent")).toBe(true);
+      expect(getRequiredPlan("agent")).toBe("pro");
 
       // Team members remain a business-tier capability.
       expect(hasFeatureAccess("free", "members")).toBe(false);

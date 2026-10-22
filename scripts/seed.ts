@@ -23,20 +23,20 @@ import { and, eq, sql } from "drizzle-orm";
 
 import type { BusinessType } from "../features/inquiries/business-types";
 import type { InquirySubmittedFieldSnapshot } from "../features/inquiries/form-config";
-import { createInquiryFormPreset } from "../features/inquiries/inquiry-forms";
+import { createServicePreset } from "../features/inquiries/service-presets";
 import {
   BEHAVIOR_PACK_VERSION,
   getBehaviorPack,
 } from "../features/businesses/behavior-packs";
 import { packRecipeDefaults } from "../features/businesses/pack-recipe-defaults";
-import { computeScheduleCoherence } from "../features/schedules/coherence";
+import { computeScheduleCoherence } from "../features/payment-schedules/coherence";
 import { db, dbConnection } from "../lib/db/client";
 import {
   activityLogs,
   analyticsEvents,
   auditLogs,
   billingEvents,
-  businessInquiryForms,
+  services,
   businessMemberInvites,
   businessMembers,
   businessNotificationReads,
@@ -46,8 +46,8 @@ import {
   businessPackAssignments,
   businesses,
   businessSubscriptions,
-  commercialScheduleItems,
-  commercialSchedules,
+  paymentScheduleItems,
+  paymentSchedules,
   emailAttempts,
   emailOutbox,
   followUps,
@@ -68,7 +68,7 @@ import {
 import { packRecipeKinds } from "../lib/db/schema/pack-recipes";
 import type { ScopeBlockKind } from "../lib/db/schema/scope-blocks";
 import { env } from "../lib/env";
-import type { BusinessPlan } from "../lib/plans/plans";
+import type { PlanTier } from "../lib/plans/plans";
 const DEFAULT_PASSWORD = "12345678";
 
 const ownerEmail = "user@email.com";
@@ -114,23 +114,23 @@ type BusinessSeed = {
   contactEmail: string;
   inquiryCount: number;
   quoteRatio: number;
-  defaultFormName?: string;
-  defaultFormSlug?: string;
-  aiAgentEnabled?: boolean;
+  defaultServiceName?: string;
+  defaultServiceSlug?: string;
+  agentEnabled?: boolean;
 };
 
 type AccountSeed = {
   name: string;
   email: string;
   password: string;
-  plan: BusinessPlan;
+  plan: PlanTier;
   businesses: BusinessSeed[];
   teamMembers?: TeamMemberSeed[];
 };
 
 type CreatedBusiness = {
   businessId: string;
-  formId: string;
+  serviceId: string;
 };
 
 const primaryAccount: AccountSeed = {
@@ -151,9 +151,9 @@ const primaryAccount: AccountSeed = {
       contactEmail: "hello@brightsideprint.com",
       inquiryCount: 18,
       quoteRatio: 0.58,
-      defaultFormName: "Project request",
-      defaultFormSlug: "project-request",
-      aiAgentEnabled: true,
+      defaultServiceName: "Project request",
+      defaultServiceSlug: "project-request",
+      agentEnabled: true,
     },
   ],
   teamMembers: [
@@ -772,7 +772,7 @@ function _safeAccountKey(email: string) {
   return normalizeEmail(email).replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
 }
 
-function getPlanRank(plan: BusinessPlan) {
+function getPlanRank(plan: PlanTier) {
   return plan === "business" ? 3 : plan === "pro" ? 2 : 1;
 }
 
@@ -1009,7 +1009,7 @@ async function ensureUserAccount(input: {
 async function seedBusinessBilling(
   businessId: string,
   businessSlug: string,
-  plan: BusinessPlan,
+  plan: PlanTier,
 ) {
   if (plan === "free") {
     return;
@@ -1074,8 +1074,8 @@ async function createBusiness(
   ownerUserId: string,
 ): Promise<CreatedBusiness> {
   const businessId = id("biz");
-  const formId = id("form");
-  const preset = createInquiryFormPreset({
+  const serviceId = id("form");
+  const preset = createServicePreset({
     businessType: business.businessType,
     businessName: business.name,
     businessShortDescription: business.shortDescription,
@@ -1088,8 +1088,8 @@ async function createBusiness(
       email: business.contactEmail,
     },
   };
-  const formName = business.defaultFormName ?? preset.name;
-  const formSlug = business.defaultFormSlug ?? preset.slug;
+  const serviceName = business.defaultServiceName ?? preset.name;
+  const serviceSlug = business.defaultServiceSlug ?? preset.slug;
   const createdAt = daysAgo(90);
   const defaultQuoteNotes =
     "Prices are valid for 14 days unless noted. A deposit may be required before scheduling production or site work.";
@@ -1106,7 +1106,7 @@ async function createBusiness(
     customerContactChannel: business.customerContactChannel,
     contactEmail: business.contactEmail,
     publicInquiryEnabled: true,
-    aiAgentEnabled: business.aiAgentEnabled ?? false,
+    agentEnabled: business.agentEnabled ?? false,
     inquiryHeadline: `Tell ${business.name} what you need quoted.`,
     inquiryFormConfig,
     inquiryPageConfig,
@@ -1134,11 +1134,11 @@ async function createBusiness(
     updatedAt: seedNow,
   });
 
-  await db.insert(businessInquiryForms).values({
-    id: formId,
+  await db.insert(services).values({
+    id: serviceId,
     businessId,
-    name: formName,
-    slug: formSlug,
+    name: serviceName,
+    slug: serviceSlug,
     businessType: business.businessType,
     isDefault: true,
     publicInquiryEnabled: true,
@@ -1215,14 +1215,14 @@ async function createBusiness(
     plan: account.plan,
   });
 
-  return { businessId, formId };
+  return { businessId, serviceId };
 }
 
 async function seedBusinessDefaults(input: {
   businessId: string;
   business: BusinessSeed;
   ownerUserId: string;
-  plan: BusinessPlan;
+  plan: PlanTier;
 }) {
   await db.insert(replySnippets).values([
     {
@@ -1490,7 +1490,7 @@ async function seedPendingInvite(input: {
 async function _seedGeneratedBusinessData(input: {
   business: BusinessSeed;
   businessId: string;
-  formId: string;
+  serviceId: string;
   ownerUserId: string;
 }) {
   const rng = createRng(input.business.slug);
@@ -1542,7 +1542,7 @@ async function _seedGeneratedBusinessData(input: {
     inquiryRows.push({
       id: inquiryId,
       businessId: input.businessId,
-      businessInquiryFormId: input.formId,
+      serviceId: input.serviceId,
       status,
       subject: serviceCategory,
       customerName,
@@ -1597,7 +1597,7 @@ async function _seedGeneratedBusinessData(input: {
     analyticsRows.push({
       id: id("analytics"),
       businessId: input.businessId,
-      businessInquiryFormId: input.formId,
+      serviceId: input.serviceId,
       eventType: "inquiry_form_viewed",
       visitorHash: hashOpaqueToken(`${input.businessId}:${index}:form`),
       occurredAt: addMinutes(submittedAt, -randInt(rng, 2, 25)),
@@ -1611,7 +1611,7 @@ async function _seedGeneratedBusinessData(input: {
       analyticsRows.push({
         id: id("analytics"),
         businessId: input.businessId,
-        businessInquiryFormId: input.formId,
+        serviceId: input.serviceId,
         eventType: "inquiry_form_viewed",
         visitorHash: hashOpaqueToken(
           `${input.businessId}:${index}:browse:${extra}`,
@@ -1961,7 +1961,7 @@ async function seedPackWorkflowDemo(input: {
     const scheduleId = id("schedule");
 
     const insertedSchedules = await db
-      .insert(commercialSchedules)
+      .insert(paymentSchedules)
       .values({
         id: scheduleId,
         businessId: input.businessId,
@@ -1976,7 +1976,7 @@ async function seedPackWorkflowDemo(input: {
         updatedAt: seedNow,
       })
       .onConflictDoNothing()
-      .returning({ id: commercialSchedules.id });
+      .returning({ id: paymentSchedules.id });
 
     // A quote may already carry a schedule (a re-seed, or a quote that was
     // scheduled before). The insert is then skipped by the unique index, and
@@ -1985,12 +1985,12 @@ async function seedPackWorkflowDemo(input: {
 
     if (insertedSchedules.length === 0) {
       const [existing] = await db
-        .select({ id: commercialSchedules.id })
-        .from(commercialSchedules)
+        .select({ id: paymentSchedules.id })
+        .from(paymentSchedules)
         .where(
           and(
-            eq(commercialSchedules.quoteId, quote.id),
-            eq(commercialSchedules.businessId, input.businessId),
+            eq(paymentSchedules.quoteId, quote.id),
+            eq(paymentSchedules.businessId, input.businessId),
           ),
         )
         .limit(1);
@@ -2003,7 +2003,7 @@ async function seedPackWorkflowDemo(input: {
 
     for (const item of coherence.items) {
       await db
-        .insert(commercialScheduleItems)
+        .insert(paymentScheduleItems)
         .values({
           id: id("scheditem"),
           businessId: input.businessId,
@@ -2088,7 +2088,7 @@ async function insertQuoteItemsCompat(rows: Array<typeof quoteItems.$inferInsert
 
 async function seedStableSmokeFixtures(input: {
   businessId: string;
-  formId: string;
+  serviceId: string;
   ownerUserId: string;
 }) {
   const demoInquiryId = "demo_inquiry_quoted_booth_kit";
@@ -2106,7 +2106,7 @@ async function seedStableSmokeFixtures(input: {
     {
       id: demoInquiryId,
       businessId: input.businessId,
-      businessInquiryFormId: input.formId,
+      serviceId: input.serviceId,
       status: "quoted",
       subject: "Foundry Labs booth kit",
       customerName: "Taylor Nguyen",
@@ -2146,7 +2146,7 @@ async function seedStableSmokeFixtures(input: {
     {
       id: storefrontInquiryId,
       businessId: input.businessId,
-      businessInquiryFormId: input.formId,
+      serviceId: input.serviceId,
       status: "waiting",
       subject: "Foundry Labs storefront rebrand",
       customerName: "Taylor Nguyen",
@@ -2179,7 +2179,7 @@ async function seedStableSmokeFixtures(input: {
     {
       id: archivedInquiryId,
       businessId: input.businessId,
-      businessInquiryFormId: input.formId,
+      serviceId: input.serviceId,
       status: "waiting",
       subject: "Showroom graphics refresh",
       customerName: "Jordan Silva",
@@ -2557,7 +2557,7 @@ async function seedStableSmokeFixtures(input: {
 
   await seedStableAnalyticsAndNotifications({
     businessId: input.businessId,
-    formId: input.formId,
+    serviceId: input.serviceId,
     ownerUserId: input.ownerUserId,
     demoInquiryId,
     sentQuoteId,
@@ -2569,7 +2569,7 @@ async function seedStableSmokeFixtures(input: {
 
 async function seedStableAnalyticsAndNotifications(input: {
   businessId: string;
-  formId: string;
+  serviceId: string;
   ownerUserId: string;
   demoInquiryId: string;
   sentQuoteId: string;
@@ -2581,7 +2581,7 @@ async function seedStableAnalyticsAndNotifications(input: {
     {
       id: id("analytics"),
       businessId: input.businessId,
-      businessInquiryFormId: input.formId,
+      serviceId: input.serviceId,
       eventType: "inquiry_form_viewed",
       visitorHash: hashOpaqueToken("stable-form-view-1"),
       occurredAt: daysAgo(5),
@@ -2766,7 +2766,7 @@ async function main() {
 
   const summary: Array<{
     email: string;
-    plan: BusinessPlan;
+    plan: PlanTier;
     isAdmin: boolean;
     businesses: Array<{
       name: string;
@@ -2812,7 +2812,7 @@ async function main() {
       const linkedCounts = await _seedGeneratedBusinessData({
         business,
         businessId: createdBusiness.businessId,
-        formId: createdBusiness.formId,
+        serviceId: createdBusiness.serviceId,
         ownerUserId,
       });
 
@@ -2828,7 +2828,7 @@ async function main() {
       if (isPrimaryBusiness) {
         await seedStableSmokeFixtures({
           businessId: createdBusiness.businessId,
-          formId: createdBusiness.formId,
+          serviceId: createdBusiness.serviceId,
           ownerUserId,
         });
         // Same demo coverage for the deterministic smoke draft quote.

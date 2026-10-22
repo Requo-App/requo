@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { agentChatRequestSchema } from "@/features/ai-agent/schemas";
-import { runAgent } from "@/features/ai-agent/orchestrator";
+import { agentChatRequestSchema } from "@/features/agent/schemas";
+import { runAgent } from "@/features/agent/orchestrator";
 import {
   decodeChatAttachmentsOrResponse,
   mapChatError,
@@ -16,7 +16,7 @@ import {
 import { headers } from "next/headers";
 
 /**
- * AI Agent Chat API Route
+ * Agent Chat API Route
  *
  * POST /api/ai/agent/chat
  * Body (UI transport): { sessionToken, messages: UIMessage[] }
@@ -91,7 +91,7 @@ export async function POST(request: Request) {
     // actually bounds one, and `scopeLimit` is the flood backstop.
     const ipAllowed = await assertPublicActionRateLimit({
       action: "public-inquiry-submit",
-      scope: `ai-agent-ip:${clientIp}`,
+      scope: `agent-ip:${clientIp}`,
       limit: 100,
       ipLimit: 100,
       scopeLimit: 1000,
@@ -110,7 +110,7 @@ export async function POST(request: Request) {
     // rotated.
     const sessionAllowed = await assertPublicActionRateLimit({
       action: "public-inquiry-submit",
-      scope: `ai-agent-session:${sessionToken}`,
+      scope: `agent-session:${sessionToken}`,
       limit: 50,
       ipLimit: 50,
       windowMs: 60 * 60 * 1000,

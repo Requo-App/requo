@@ -21,7 +21,7 @@ export const metadata: Metadata = createPageMetadata({
 const steps: readonly { name: string; text: string }[] = [
   {
     name: "Capture the inquiry with details and files",
-    text: "Collect the request through a public form with custom fields — scope, timeline, budget — or log a call or DM manually. Ask for photos and files upfront so the quote starts from facts.",
+    text: "Collect the request through a public service page with custom fields — scope, timeline, budget — or log a call or DM manually. Ask for photos and files upfront so the quote starts from facts.",
   },
   {
     name: "Qualify and draft the quote",
@@ -45,7 +45,7 @@ const guideFaqs = [
   {
     question: "How long should each step take?",
     answer:
-      "Capture is instant with a good form, drafting takes minutes from the pricing library, and the view usually lands within a day. Follow-up timing matters most: nudge within a few days of the first view, not weeks later.",
+      "Capture is instant with a good service page, drafting takes minutes from the quote library, and the view usually lands within a day. Follow-up timing matters most: nudge within a few days of the first view, not weeks later.",
   },
   {
     question: "What if the customer requests changes?",
@@ -60,7 +60,7 @@ const guideFaqs = [
   {
     question: "Do I need the paid plans for this workflow?",
     answer:
-      "No. The full loop — capture, draft, send, track, follow up manually, invoice — works on Free. Paid plans add automatic follow-up emails, more forms and AI drafts, advanced analytics, and team access.",
+      "No. The full loop — capture, draft, send, track, follow up manually, invoice — works on Free. Paid plans add automatic follow-up emails, more services and AI drafts, advanced analytics, and team access.",
   },
 ] as const;
 

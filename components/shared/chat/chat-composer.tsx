@@ -34,7 +34,7 @@ type ChatComposerProps = {
 
 /**
  * The shared chat composer: a single rounded box with the textarea on top and
- * an action row beneath it, used by the owner assistant, the dashboard home
+ * an action row beneath it, used by the assistant, the dashboard home
  * box, and the public customer chat.
  *
  * Enter sends, Shift+Enter adds a line, and the textarea grows with its

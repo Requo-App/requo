@@ -432,7 +432,7 @@ describe("EmptyState", () => {
 });
 
 describe("analytics empty states", () => {
-  it("points first-run workspaces at the two actions that create data", () => {
+  it("points first-run businesses at the two actions that create data", () => {
     render(<AnalyticsFirstRunEmpty businessSlug="acme" />);
 
     expect(screen.getByText("No data yet")).toBeInTheDocument();

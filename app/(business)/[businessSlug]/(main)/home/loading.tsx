@@ -3,7 +3,7 @@ import { KpiFallback, NeedsAttentionFallback } from "./page";
 export default function BusinessDashboardLoading() {
   return (
     <div className="home-page-container home-entrance">
-      {/* Owner Assistant + launchpad stream with null fallbacks */}
+      {/* Assistant + launchpad stream with null fallbacks */}
       <section className="home-entrance-section w-full max-w-5xl mx-auto" />
       <section className="home-entrance-section w-full max-w-5xl mx-auto mt-4" />
 

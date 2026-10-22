@@ -32,7 +32,7 @@ const typeLabels: Record<MobileSearchResult["type"], string> = {
   inquiry: "Inquiry",
   quote: "Quote",
   invoice: "Invoice",
-  product: "Product",
+  "quote-library": "Quote library",
   service: "Service",
   "follow-up": "Follow-up",
 };
@@ -46,7 +46,7 @@ function ResultIcon({ type }: { type: MobileSearchResult["type"] }) {
       return <RiFileTextLine className={className} aria-hidden="true" />;
     case "invoice":
       return <RiReceiptLine className={className} aria-hidden="true" />;
-    case "product":
+    case "quote-library":
       return <RiPriceTagLine className={className} aria-hidden="true" />;
     case "service":
       return <RiToolsLine className={className} aria-hidden="true" />;
@@ -57,7 +57,7 @@ function ResultIcon({ type }: { type: MobileSearchResult["type"] }) {
 
 /**
  * Fullscreen record search for mobile (below `lg`).
- * Searches inquiries, quotes, invoices, products, services, and follow-ups
+ * Searches inquiries, quotes, invoices, quote library, services, and follow-ups
  * through the business-scoped mobile-search endpoint.
  */
 export function MobileGlobalSearch({
@@ -161,7 +161,7 @@ export function MobileGlobalSearch({
         <input
           ref={inputRef}
           type="search"
-          aria-label="Search inquiries, quotes, invoices, products, services, and follow-ups"
+          aria-label="Search inquiries, quotes, invoices, quote library, services, and follow-ups"
           placeholder="Type anything…"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
@@ -180,7 +180,7 @@ export function MobileGlobalSearch({
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 pb-28">
         {state.status === "idle" ? (
           <p className="px-1 py-3 text-sm text-muted-foreground">
-            Search inquiries, quotes, invoices, products, services, and
+            Search inquiries, quotes, invoices, quote library, services, and
             follow-ups.
           </p>
         ) : null}

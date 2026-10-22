@@ -44,7 +44,7 @@ const InternalCropper = dynamic(
 const InternalCropDialog = dynamic(
   () =>
     import(
-      "@/features/settings/components/inquiry-page-form/crop-dialog"
+      "@/features/settings/components/service-page-sections/crop-dialog"
     ).then((mod) => mod.CropDialog),
   { ssr: false, loading: () => <CropperSkeleton /> }
 );

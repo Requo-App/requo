@@ -139,7 +139,7 @@ describe("analytics daily rollup definitions", () => {
     await testDb.insert(analyticsEvents).values({
       id: `${prefix}_event_form`,
       businessId: ids.businessId,
-      businessInquiryFormId: ids.formId,
+      serviceId: ids.serviceId,
       eventType: "inquiry_form_viewed",
       visitorHash: "visitor-hash-1",
       occurredAt: dayStart,
@@ -149,7 +149,7 @@ describe("analytics daily rollup definitions", () => {
     await testDb.insert(analyticsEvents).values({
       id: `${prefix}_event_no_form`,
       businessId: ids.businessId,
-      businessInquiryFormId: null,
+      serviceId: null,
       eventType: "inquiry_form_viewed",
       visitorHash: "visitor-hash-2",
       occurredAt: dayStart,
@@ -159,7 +159,7 @@ describe("analytics daily rollup definitions", () => {
     await testDb.insert(analyticsEvents).values({
       id: `${prefix}_event_other_type`,
       businessId: ids.businessId,
-      businessInquiryFormId: ids.formId,
+      serviceId: ids.serviceId,
       eventType: "quote_public_viewed",
       visitorHash: "visitor-hash-3",
       occurredAt: dayStart,

@@ -2,11 +2,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ListToolbarStripSkeleton } from "@/components/shared/skeleton-blocks";
 
 /**
- * Products page skeleton fallback — matches the structure of the
- * BusinessProductLibraryManager list shell (actions row + toolbar strip +
+ * Quote library page skeleton fallback — matches the structure of the
+ * QuoteLibraryManager list shell (actions row + toolbar strip +
  * table rows).
  */
-export function ProductsPageSkeleton() {
+export function QuoteLibraryPageSkeleton() {
   return (
     <div className="flex flex-col gap-4">
       {/* Actions row: usage hint + buttons */}

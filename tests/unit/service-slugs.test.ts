@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { normalizeInquiryFormSlug } from "@/features/inquiries/inquiry-forms";
-import { businessInquiryPageSettingsSchema } from "@/features/settings/schemas";
+import { normalizeServiceSlug } from "@/features/inquiries/service-presets";
+import { servicePageSettingsSchema } from "@/features/settings/schemas";
 import { getBusinessPublicInquiryUrl } from "@/features/settings/utils";
 import {
   appendRandomSlugSuffix,
@@ -24,7 +24,7 @@ describe("service slug generation", () => {
     ];
 
     for (const name of names) {
-      const slug = normalizeInquiryFormSlug(name);
+      const slug = normalizeServiceSlug(name);
 
       expect(slug).toMatch(publicSlugRegex);
       expect(slug.length).toBeLessThanOrEqual(publicSlugMaxLength);
@@ -33,7 +33,7 @@ describe("service slug generation", () => {
 
   it("never starts or ends with a hyphen", () => {
     for (const name of ["-Leading hyphen", "Trailing hyphen-", "---"]) {
-      const slug = normalizeInquiryFormSlug(name);
+      const slug = normalizeServiceSlug(name);
 
       expect(slug.startsWith("-")).toBe(false);
       expect(slug.endsWith("-")).toBe(false);
@@ -41,14 +41,14 @@ describe("service slug generation", () => {
   });
 
   it("falls back to a usable slug when the name slugifies to nothing", () => {
-    const slug = normalizeInquiryFormSlug("!!!");
+    const slug = normalizeServiceSlug("!!!");
 
     expect(slug.length).toBeGreaterThan(0);
     expect(slug).toMatch(publicSlugRegex);
   });
 
   it("truncates long names without leaving a trailing hyphen", () => {
-    const slug = normalizeInquiryFormSlug("a".repeat(200));
+    const slug = normalizeServiceSlug("a".repeat(200));
 
     expect(slug.length).toBeLessThanOrEqual(publicSlugMaxLength);
     expect(slug.endsWith("-")).toBe(false);
@@ -63,7 +63,7 @@ describe("service slug generation", () => {
   });
 
   it("slugifies the same way through the shared helper", () => {
-    expect(normalizeInquiryFormSlug("Deck resurfacing")).toBe(
+    expect(normalizeServiceSlug("Deck resurfacing")).toBe(
       slugifyPublicName("Deck resurfacing"),
     );
   });
@@ -103,13 +103,13 @@ describe("service page slug validation", () => {
   };
 
   it("accepts a normal service slug", () => {
-    const result = businessInquiryPageSettingsSchema.safeParse(basePayload);
+    const result = servicePageSettingsSchema.safeParse(basePayload);
 
     expect(result.success).toBe(true);
   });
 
   it("rejects slugs that are only hyphens", () => {
-    const result = businessInquiryPageSettingsSchema.safeParse({
+    const result = servicePageSettingsSchema.safeParse({
       ...basePayload,
       slug: "--",
     });
@@ -119,7 +119,7 @@ describe("service page slug validation", () => {
 
   it("rejects slugs that start or end with a hyphen", () => {
     for (const slug of ["-deck", "deck-"]) {
-      const result = businessInquiryPageSettingsSchema.safeParse({
+      const result = servicePageSettingsSchema.safeParse({
         ...basePayload,
         slug,
       });
@@ -129,7 +129,7 @@ describe("service page slug validation", () => {
   });
 
   it("rejects slugs with characters outside the allowed set", () => {
-    const result = businessInquiryPageSettingsSchema.safeParse({
+    const result = servicePageSettingsSchema.safeParse({
       ...basePayload,
       slug: "deck resurfacing!",
     });

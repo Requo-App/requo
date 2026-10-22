@@ -176,7 +176,7 @@ export const faqItems = [
   {
     question: "Can my team work inside the same business?",
     answer:
-      "Yes. The Business plan supports up to five members with roles and shared access to the business workspace, including inquiries, quotes, forms, follow-ups, and analytics. Free and Pro are designed for solo owners.",
+      "Yes. The Business plan supports up to five members with roles and shared access to the business, including inquiries, quotes, services, follow-ups, and analytics. Free and Pro are designed for solo owners.",
   },
   {
     question: "Can I run more than one business from one account?",
@@ -199,7 +199,7 @@ export const faqItems = [
       "Requo has three business plans. Free is $0. Pro is $9 per month or $90 per year. Business is $24 per month or $240 per year. Annual billing includes two months free. Paid subscriptions are billed per business, and the pricing page shows the current plan limits and included features.",
   },
   {
-    question: "Does Requo include an AI assistant or customer chat?",
+    question: "Does Requo include an Assistant or customer chat?",
     answer:
       "Yes. The owner Assistant helps members search business data, create inquiries and quotes, and review metrics inside the dashboard. Pro and Business plans also include a public customer-facing Agent that can answer questions and collect qualified inquiries from your website. AI usage is subject to plan limits.",
   },

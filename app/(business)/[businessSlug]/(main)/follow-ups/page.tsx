@@ -24,7 +24,7 @@ import {
 } from "@/features/follow-ups/components/follow-up-list-page-sections";
 import { CreateFollowUpButton } from "@/features/follow-ups/components/create-follow-up-button";
 import { MobileHeaderSlot } from "@/components/shell/mobile-header-slot";
-import { LockedAction } from "@/features/paywall";
+import { FeatureGate } from "@/features/entitlements";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 import { FirstVisitTip } from "@/features/onboarding/components/first-visit-tip";
 import { featureTips } from "@/features/onboarding/feature-tips";
@@ -104,7 +104,7 @@ async function FollowUpsContentRegion({
     searchParams,
   ]);
 
-  // The board is the default workspace. The filterable list is reached
+  // The board is the default business. The filterable list is reached
   // explicitly (`?view=list`) or through a status deep link (e.g. the
   // Analytics drill-downs), so every status-filtered link lands on the list.
   const requestedView = resolvedSearchParams.view;
@@ -152,14 +152,14 @@ async function StreamedFollowUpBoard({ businessSlug }: { businessSlug: string })
         historyCount={summaryCounts.history}
         createButton={
           <MobileHeaderSlot desktopClassName="flex items-center gap-2">
-            <LockedAction feature="followUps" plan={businessContext.business.plan}>
+            <FeatureGate variant="action" feature="followUps" plan={businessContext.business.plan}>
               <CreateFollowUpButton
                 businessSlug={businessSlug}
                 plan={businessContext.business.plan}
                 records={recentRecords}
                 timezone={businessContext.business.timezone}
               />
-            </LockedAction>
+            </FeatureGate>
           </MobileHeaderSlot>
         }
       />

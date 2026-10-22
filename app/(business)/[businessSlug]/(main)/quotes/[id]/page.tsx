@@ -42,7 +42,7 @@ import {
   getCustomerContactEmail,
   shouldShowPreferredContactTile,
 } from "@/features/inquiries/utils";
-import { getCustomerHistoryForBusiness } from "@/features/customers/queries";
+import { getCustomerHistoryForBusiness } from "@/features/customer-history/queries";
 import { CopyQuoteLinkButton } from "@/features/quotes/components/copy-quote-link-button";
 import { QuoteWorkflowSteps } from "@/features/businesses/components/workflow-steps";
 import { QuoteEditor } from "@/features/quotes/components/quote-editor";

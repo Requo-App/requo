@@ -29,7 +29,7 @@ import {
   getBusinessMembersPath,
   getBusinessNotificationsPath,
   getBusinessNewInquiryPath,
-  getBusinessProductsPath,
+  getBusinessQuoteLibraryPath,
   getBusinessQuotesPath,
   getBusinessInvoicesPath,
   getBusinessPaymentsPath,
@@ -102,8 +102,8 @@ export function getDashboardNavigation(
       icon: PencilRuler,
     },
     {
-      href: getBusinessProductsPath(slug),
-      label: "Products",
+      href: getBusinessQuoteLibraryPath(slug),
+      label: "Quote library",
       description: "Reusable blocks and packages for faster quotes.",
       icon: Package,
     },
@@ -243,7 +243,7 @@ export function getDashboardBreadcrumbs(pathname: string): DashboardBreadcrumbIt
   const servicesPath = getBusinessServicesPath(slug);
   const membersPath = getBusinessMembersPath(slug);
   const notificationsPath = getBusinessNotificationsPath(slug);
-  const productsPath = getBusinessProductsPath(slug);
+  const quoteLibraryPath = getBusinessQuoteLibraryPath(slug);
   const settingsPath = getBusinessSettingsPath(slug);
   const assistantPath = getBusinessAssistantPath(slug);
 
@@ -381,8 +381,8 @@ export function getDashboardBreadcrumbs(pathname: string): DashboardBreadcrumbIt
     return withHome(slug, [{ label: "Notifications" }]);
   }
 
-  if (pathname === productsPath || pathname.startsWith(`${productsPath}/`)) {
-    return withHome(slug, [{ label: "Products" }]);
+  if (pathname === quoteLibraryPath || pathname.startsWith(`${quoteLibraryPath}/`)) {
+    return withHome(slug, [{ label: "Quote library" }]);
   }
 
   if (pathname === settingsPath) {

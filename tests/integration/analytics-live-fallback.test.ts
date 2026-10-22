@@ -161,7 +161,7 @@ describe("analytics live-rollup fallback", () => {
     await testDb.insert(analyticsEvents).values({
       id: `${prefix}_event`,
       businessId: ids.businessId,
-      businessInquiryFormId: ids.formId,
+      serviceId: ids.serviceId,
       eventType: "inquiry_form_viewed",
       visitorHash: "visitor-hash-1",
       occurredAt: dayOne,

@@ -36,7 +36,7 @@ export function ChevronRightSmall(props: IconProps) {
   );
 }
 
-/** 16×16 stacked up/down chevrons. Workspace / account switchers. */
+/** 16×16 stacked up/down chevrons. Business / account switchers. */
 export function ChevronUpDownSmall(props: IconProps) {
   return (
     <svg viewBox="0 0 16 16" fill="none" aria-hidden {...props}>

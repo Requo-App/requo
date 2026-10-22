@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Bot, Briefcase } from "lucide-react";
 
-import { getPublicAgentBusiness, getPublicAgentStarterForms } from "@/features/ai-agent/queries";
+import { getPublicAgentBusiness, getPublicAgentStarterServices } from "@/features/agent/queries";
 import { getBusinessPublicChatPath } from "@/features/businesses/routes";
 import { getBusinessPublicInquiryUrl } from "@/features/settings/utils";
 
@@ -26,9 +26,9 @@ export default async function PublicInquireHubPage({ params }: Props) {
 
   if (!business) notFound();
 
-  const services = await getPublicAgentStarterForms(business.id);
+  const services = await getPublicAgentStarterServices(business.id);
 
-  const showChat = business.aiAgentEnabled;
+  const showChat = business.agentEnabled;
   const showServices = services.length > 0;
   const chatOnly = showChat && !showServices;
 

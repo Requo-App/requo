@@ -8,23 +8,23 @@ import { RegionErrorBoundary } from "@/components/shared/region-error-boundary";
 import { DetailPageHeaderFallback } from "@/components/shared/detail-section-fallback";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  applyBusinessInquiryFormPresetAction,
-  archiveBusinessInquiryFormFromDetailAction,
-  deleteBusinessInquiryFormAction,
-  duplicateBusinessInquiryFormAction,
-  setDefaultBusinessInquiryFormAction,
-  toggleBusinessInquiryFormPublicAction,
-  updateBusinessInquiryFormAction,
-  updateBusinessInquiryPageAction,
+  applyServicePresetAction,
+  archiveServiceFromDetailAction,
+  deleteServiceAction,
+  duplicateServiceAction,
+  setDefaultServiceAction,
+  toggleServicePublicAction,
+  updateServiceAction,
+  updateServicePageAction,
 } from "@/features/settings/actions";
-import { BusinessInquiryFormEditorTabs } from "@/features/settings/components/business-inquiry-form-editor-tabs";
+import { ServiceEditorTabs } from "@/features/settings/components/service-editor-tabs";
 import {
-  getBusinessInquiryFormEditorForBusiness,
-  getBusinessInquiryFormHeaderForBusiness,
+  getServiceEditorForBusiness,
+  getServiceHeaderForBusiness,
 } from "@/features/settings/queries";
 import { getBusinessPublicInquiryUrl } from "@/features/settings/utils";
 import {
-  getBusinessProductsPath,
+  getBusinessQuoteLibraryPath,
   getBusinessServicePreviewPath,
   getBusinessServicesPath,
   getBusinessSettingsPath,
@@ -112,10 +112,9 @@ async function ServiceEditorHeaderRegion({ params }: ServicePageProps) {
     requireSession(),
     getBusinessOperationalPageContext(businessSlug),
   ]);
-  const formSlug = serviceSlug;
-  const header = await getBusinessInquiryFormHeaderForBusiness(
+  const header = await getServiceHeaderForBusiness(
     businessContext.business.id,
-    formSlug,
+    serviceSlug,
   );
 
   if (!header) {
@@ -125,7 +124,7 @@ async function ServiceEditorHeaderRegion({ params }: ServicePageProps) {
   const logoPreviewUrl = header.logoStoragePath
     ? `/api/business/logo?v=${header.updatedAt.getTime()}`
     : null;
-  const previewHref = getBusinessServicePreviewPath(header.slug, header.formSlug);
+  const previewHref = getBusinessServicePreviewPath(header.slug, header.serviceSlug);
   const inquiryListHref = getBusinessServicesPath(header.slug);
   const generalSettingsHref = canManageBusinessAdministration(businessContext.role)
     ? getBusinessSettingsPath(header.slug, "general")
@@ -136,27 +135,27 @@ async function ServiceEditorHeaderRegion({ params }: ServicePageProps) {
   );
   const publicInquiryHref = header.isDefault
     ? getBusinessPublicInquiryUrl(header.slug)
-    : getBusinessPublicInquiryUrl(header.slug, header.formSlug);
+    : getBusinessPublicInquiryUrl(header.slug, header.serviceSlug);
 
   return (
     <>
       <PageHeader
         eyebrow="Services"
-        title={header.formName}
+        title={header.serviceName}
         description="Manage this service's intake form, public page, and settings."
       />
 
       <Suspense fallback={<ServiceEditorTabsFallback />}>
         <ServiceEditorTabsRegion
           businessId={businessContext.business.id}
-          formSlug={formSlug}
+          serviceSlug={serviceSlug}
           logoPreviewUrl={logoPreviewUrl}
           generalSettingsHref={generalSettingsHref}
           settingsHref={settingsHref}
           previewHref={previewHref}
           publicInquiryHref={publicInquiryHref}
           inquiryListHref={inquiryListHref}
-          productsHref={getBusinessProductsPath(header.slug)}
+          quoteLibraryHref={getBusinessQuoteLibraryPath(header.slug)}
           isPublicLive={header.publicInquiryEnabled}
           canPublish={businessContext.role === "owner"}
         />
@@ -171,26 +170,26 @@ async function ServiceEditorHeaderRegion({ params }: ServicePageProps) {
 
 type ServiceEditorTabsRegionProps = {
   businessId: string;
-  formSlug: string;
+  serviceSlug: string;
   logoPreviewUrl: string | null;
   generalSettingsHref: string | null;
   settingsHref: string;
   previewHref: string;
   publicInquiryHref: string;
   inquiryListHref: string;
-  productsHref: string;
+  quoteLibraryHref: string;
   isPublicLive: boolean;
   canPublish: boolean;
 };
 
 async function ServiceEditorTabsRegion({
   businessId,
-  formSlug,
+  serviceSlug,
   ...frame
 }: ServiceEditorTabsRegionProps) {
-  const settings = await getBusinessInquiryFormEditorForBusiness(
+  const settings = await getServiceEditorForBusiness(
     businessId,
-    formSlug,
+    serviceSlug,
   );
 
   if (!settings) {
@@ -198,21 +197,21 @@ async function ServiceEditorTabsRegion({
   }
 
   return (
-    <BusinessInquiryFormEditorTabs
-      key={settings.formId}
+    <ServiceEditorTabs
+      key={settings.serviceId}
       settings={settings}
       {...frame}
-      applyPresetAction={applyBusinessInquiryFormPresetAction.bind(
+      applyPresetAction={applyServicePresetAction.bind(
         null,
-        settings.formSlug,
+        settings.serviceSlug,
       )}
-      saveFormAction={updateBusinessInquiryFormAction.bind(null, settings.formSlug)}
-      updatePageAction={updateBusinessInquiryPageAction.bind(null, settings.formSlug)}
-      duplicateAction={duplicateBusinessInquiryFormAction}
-      setDefaultAction={setDefaultBusinessInquiryFormAction}
-      togglePublicAction={toggleBusinessInquiryFormPublicAction}
-      archiveAction={archiveBusinessInquiryFormFromDetailAction}
-      deleteAction={deleteBusinessInquiryFormAction}
+      saveFormAction={updateServiceAction.bind(null, settings.serviceSlug)}
+      updatePageAction={updateServicePageAction.bind(null, settings.serviceSlug)}
+      duplicateAction={duplicateServiceAction}
+      setDefaultAction={setDefaultServiceAction}
+      togglePublicAction={toggleServicePublicAction}
+      archiveAction={archiveServiceFromDetailAction}
+      deleteAction={deleteServiceAction}
     />
   );
 }

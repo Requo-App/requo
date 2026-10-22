@@ -248,8 +248,8 @@ export const featureDetails: Record<string, FeatureDetail> = {
         body: "Every draft waits for your review. Scope and pricing stay yours; AI only assembles the starting point.",
       },
       {
-        title: "Owner Assistant in the dashboard",
-        body: "Search business data, create inquiries and quotes, and review metrics by asking — inside the workspace, subject to plan limits.",
+        title: "Assistant in the dashboard",
+        body: "Search business data, create inquiries and quotes, and review metrics by asking — inside the business, subject to plan limits.",
       },
       {
         title: "Customer-facing Agent on paid plans",
@@ -394,7 +394,7 @@ export const featureDetails: Record<string, FeatureDetail> = {
       {
         question: "Does analytics include team performance?",
         answer:
-          "Business plans add members with roles and audit logs, so activity across the workspace stays attributable and reviewable.",
+          "Business plans add members with roles and audit logs, so activity across the business stays attributable and reviewable.",
       },
     ],
     related: ["follow-ups", "quotes", "invoices"],

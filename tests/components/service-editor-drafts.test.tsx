@@ -12,33 +12,33 @@ vi.mock("@/components/shared/notify", () => ({
 vi.mock("@/hooks/use-deferred-refresh", () => ({
   useDeferredRefresh: () => ({ scheduleRefresh: vi.fn() }),
 }));
-vi.mock("@/features/settings/components/business-inquiry-form-form", () => ({
-  BusinessInquiryFormForm: () => null,
+vi.mock("@/features/settings/components/service-form", () => ({
+  ServiceForm: () => null,
 }));
-vi.mock("@/features/settings/components/business-inquiry-preview-overlay", () => ({
-  BusinessInquiryPreviewOverlay: () => null,
+vi.mock("@/features/settings/components/service-preview-overlay", () => ({
+  ServicePreviewOverlay: () => null,
 }));
 
-import { BusinessInquiryFormEditorTabs } from "@/features/settings/components/business-inquiry-form-editor-tabs";
-import { createInquiryFormPreset } from "@/features/inquiries/inquiry-forms";
-import type { BusinessInquiryFormEditorView } from "@/features/settings/types";
+import { ServiceEditorTabs } from "@/features/settings/components/service-editor-tabs";
+import { createServicePreset } from "@/features/inquiries/service-presets";
+import type { ServiceEditorView } from "@/features/settings/types";
 
 afterEach(cleanup);
 
 it("preserves unsaved page edits when publication changes, then refreshes saved page changes", async () => {
   const user = userEvent.setup();
-  const preset = createInquiryFormPreset({
+  const preset = createServicePreset({
     businessName: "Acme",
     businessType: "general_project_services",
   });
-  const settings: BusinessInquiryFormEditorView = {
+  const settings: ServiceEditorView = {
     id: "business-1",
     name: "Acme",
     slug: "acme",
     plan: "pro",
-    formId: "form-1",
-    formName: "Original service",
-    formSlug: "original-service",
+    serviceId: "form-1",
+    serviceName: "Original service",
+    serviceSlug: "original-service",
     businessType: preset.businessType,
     publicInquiryEnabled: true,
     isDefault: false,
@@ -69,16 +69,16 @@ it("preserves unsaved page edits when publication changes, then refreshes saved 
     archiveAction: action,
     deleteAction: action,
   };
-  const { rerender } = render(<BusinessInquiryFormEditorTabs {...props} />);
+  const { rerender } = render(<ServiceEditorTabs {...props} />);
   const name = screen.getByRole("textbox", { name: "Service name" });
   await user.clear(name);
   await user.type(name, "Unsaved service name");
 
-  rerender(<BusinessInquiryFormEditorTabs {...props} settings={{ ...settings, publicInquiryEnabled: false }} />);
+  rerender(<ServiceEditorTabs {...props} settings={{ ...settings, publicInquiryEnabled: false }} />);
 
   expect(screen.getByRole("textbox", { name: "Service name" })).toHaveValue("Unsaved service name");
 
-  rerender(<BusinessInquiryFormEditorTabs {...props} settings={{ ...settings, formName: "Saved service name" }} />);
+  rerender(<ServiceEditorTabs {...props} settings={{ ...settings, serviceName: "Saved service name" }} />);
 
   expect(screen.getByRole("textbox", { name: "Service name" })).toHaveValue("Saved service name");
 });

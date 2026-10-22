@@ -6,7 +6,7 @@ import { ArrowRight, ArrowUpRight, Check, Plus } from "lucide-react";
 import { toast } from "@/components/shared/notify";
 
 import { BusinessAvatar } from "@/components/shared/business-avatar";
-import { PlanBadge } from "@/components/shared/paywall";
+import { PlanBadge } from "@/components/shared/plan-badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -28,7 +28,7 @@ import type {
   BillingInterval,
   PaidPlan,
 } from "@/lib/billing/types";
-import { planMeta, type BusinessPlan } from "@/lib/plans/plans";
+import { planMeta, type PlanTier } from "@/lib/plans/plans";
 import { cn } from "@/lib/utils";
 
 type SelectBusinessDialogProps = {
@@ -182,7 +182,7 @@ export function SelectBusinessDialog({
                             <p className="truncate text-sm font-medium text-foreground">
                               {business.name}
                             </p>
-                            <PlanBadge plan={business.plan as BusinessPlan} />
+                            <PlanBadge plan={business.plan as PlanTier} />
                           </div>
                           <p className="truncate text-xs text-muted-foreground font-mono">
                             /{business.slug}
@@ -230,7 +230,7 @@ export function SelectBusinessDialog({
                           <p className="truncate text-sm font-medium text-foreground group-hover:text-primary transition-colors">
                             {business.name}
                           </p>
-                          <PlanBadge plan={business.plan as BusinessPlan} />
+                          <PlanBadge plan={business.plan as PlanTier} />
                         </div>
                         <p className="truncate text-xs text-muted-foreground font-mono">
                           /{business.slug}

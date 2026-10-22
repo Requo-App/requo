@@ -122,7 +122,7 @@ Rules that keep the split honest:
 - **The frame query returns only what the header and its links need.** That is
   the `*DetailCore` type (`InvoiceDetailCore`, `DashboardInquiryDetailCore`,
   `DashboardQuoteDetailCore`) or a purpose-built identity slice
-  (`getBusinessInquiryFormHeaderForBusiness` on the service editor). It is a
+  (`getServiceHeaderForBusiness` on the service editor). It is a
   single indexed row fetch — never a join fan-out.
 - **A feed the header itself depends on resolves with the frame.** The inquiry
   detail frame loads its related quotes alongside the core row, because the
@@ -157,7 +157,7 @@ Staged detail routes today:
 | `inquiries/[id]` | `getInquiryDetailCoreForBusiness` (+ related quotes, header action) | attachments, notes, activity, customer history, follow-ups, duplicate banner |
 | `quotes/[id]` | `getQuoteDetailCoreForBusiness` | editor payload (items, pricing library, revision feedback), preview items, activity, customer history, revisions, follow-ups |
 | `invoices/[invoiceId]` | `getInvoiceDetailCoreForBusiness` | status tiles (core re-read), line items, payments |
-| `services/[serviceSlug]` | `getBusinessInquiryFormHeaderForBusiness` | editor tabs payload (normalized form/page configs, form + inquiry counts) |
+| `services/[serviceSlug]` | `getServiceHeaderForBusiness` | editor tabs payload (normalized form/page configs, form + inquiry counts) |
 
 Deliberately not staged: `assistant/chat/[sessionId]` is a pure `redirect()`, and
 `quotes/[id]/preview`, `invoices/[invoiceId]/edit`, `preview/*`, and `print/*`

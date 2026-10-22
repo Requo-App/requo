@@ -13,8 +13,8 @@ import { Skeleton } from "@/components/ui/skeleton";
  *   section header (same bar, different title/action widths). The four
  *   dashboard grid sections keep a local header because their title sits
  *   inside an extra `flex flex-col gap-2` wrapper.
- * - `ListToolbarStripSkeleton`: products/services toolbar strips (same
- *   strip, grid, search, and count; products has one filter plus a second
+ * - `ListToolbarStripSkeleton`: quote library/services toolbar strips (same
+ *   strip, grid, search, and count; services have one filter plus a second
  *   filter row, services has two filters).
  */
 export function StatTilesSkeleton({ count = 4 }: { count?: number }) {

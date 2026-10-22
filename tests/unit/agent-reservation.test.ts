@@ -9,13 +9,13 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock("ai", () => ({ streamText: mocks.stream, stepCountIs: vi.fn() }));
 vi.mock("@/lib/ai/chat-fallback", () => ({ resolveChatFallbackModel: mocks.resolveModel }));
-vi.mock("@/features/ai-agent/tools", () => ({ agentTools: {} }));
-vi.mock("@/features/ai-agent/session-service", () => ({
+vi.mock("@/features/agent/tools", () => ({ agentTools: {} }));
+vi.mock("@/features/agent/session-service", () => ({
   loadSessionByToken: mocks.loadSession, loadSessionById: mocks.freshSession,
   advanceQualificationFromMessage: mocks.advance, updateSessionState: mocks.updateState,
   updateSessionMetadata: vi.fn(),
 }));
-vi.mock("@/features/ai-agent/message-service", () => ({
+vi.mock("@/features/agent/message-service", () => ({
   countSessionMessages: mocks.count, addAgentMessage: mocks.addMessage,
   buildAiSdkMessages: mocks.history, hasAgentMessageWithClientId: vi.fn(),
 }));
@@ -31,21 +31,21 @@ vi.mock("@/lib/ai/usage-limiter", () => ({
   reserveUsage: mocks.reserve, releaseUsageReservation: mocks.release,
   settleUsageReservation: mocks.settle, computeUsageWeight: () => 1,
 }));
-vi.mock("@/features/ai-agent/telemetry", () => ({
+vi.mock("@/features/agent/telemetry", () => ({
   startAgentRun: mocks.startRun, failAgentRun: mocks.failRun, updateAgentRun: mocks.updateRun,
   computeEstimatedCostCents: () => 0,
 }));
 vi.mock("@/lib/ai/token-logger", () => ({ logAiInvocation: mocks.log }));
 vi.mock("@/lib/ai/security-events", () => ({ logAiSecurityEvent: vi.fn() }));
 
-import { runAgent } from "@/features/ai-agent/orchestrator";
+import { runAgent } from "@/features/agent/orchestrator";
 
 beforeEach(() => {
   vi.resetAllMocks();
   const state = { collected: {}, missing: ["name"] };
   mocks.loadSession.mockResolvedValue({
     id: "session-1", state, metadata: {},
-    business: { id: "business-1", aiAgentEnabled: true, plan: "pro", name: "Test", slug: "test" },
+    business: { id: "business-1", agentEnabled: true, plan: "pro", name: "Test", slug: "test" },
   });
   mocks.advance.mockReturnValue(state);
   mocks.count.mockResolvedValue(0);
