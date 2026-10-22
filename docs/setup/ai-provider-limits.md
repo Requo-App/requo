@@ -140,9 +140,9 @@ on the free neuron allowance.
 
 - **80% is a deprioritization threshold**, not a spending allowance. Healthy
   candidates are tried before stressed ones.
-- **100% is a hard stop.** A candidate whose next-request load would exceed
+- **100% is a hard stop.** A candidate whose next-request load would reach or exceed
   any modelled RPM, RPD, TPM, TPD, neuron, or shared bucket is dropped from
-  selection. `selectModels` returns only candidates at or below the ceiling;
+  selection. `selectModels` returns only candidates below the ceiling;
   if none remain, the router reports that free capacity is exhausted instead
   of calling a provider.
 - **Shared buckets are counted once.** Groq shares RPM/RPD/TPM/TPD across all

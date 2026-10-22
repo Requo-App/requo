@@ -50,6 +50,7 @@ import {
   type ModelEntry,
 } from "@/lib/ai/catalog";
 import {
+  getCapacitySnapshot,
   getModelQuotaState,
   markModelExhausted,
   recordModelUsage,
@@ -104,18 +105,21 @@ afterEach(() => {
 });
 
 describe("capacity selection quota ceiling", () => {
-  it("keeps a model at exactly 100% before the next request", async () => {
-    const gemini = entry("google:gemini-3.8-flash");
-    expect(gemini.limits.rpd).toBeGreaterThan(0);
-    mocks.store.set(rpdKey(gemini.modelId), gemini.limits.rpd - 1);
+  it.each(["assistant_chat", undefined] as const)(
+    "drops a model at exactly 100% before the next request (profile: %s)",
+    async (profile) => {
+      const gemini = entry("google:gemini-3.8-flash");
+      expect(gemini.limits.rpd).toBeGreaterThan(0);
+      mocks.store.set(rpdKey(gemini.modelId), gemini.limits.rpd - 1);
 
-    const selected = await selectModels({
-      profile: "assistant_chat",
-      estimatedTokens: 100,
-    });
+      const selected = await selectModels({
+        profile,
+        estimatedTokens: 100,
+      });
 
-    expect(selected).toContain(gemini.modelId);
-  });
+      expect(selected).not.toContain(gemini.modelId);
+    },
+  );
 
   it("drops a model once the next request would exceed its daily quota", async () => {
     const gemini = entry("google:gemini-3.8-flash");
@@ -275,14 +279,25 @@ describe("off-catalog accounting", () => {
 });
 
 describe("getModelQuotaState", () => {
-  it("distinguishes stressed from exhausted", async () => {
-    const gemini = entry("google:gemini-3.8-flash");
-    mocks.store.set(rpdKey(gemini.modelId), gemini.limits.rpd - 1);
-    await expect(getModelQuotaState(gemini.modelId)).resolves.toBe("stressed");
+  it.each([
+    { remaining: 2, state: "stressed", exhausted: false },
+    { remaining: 1, state: "exhausted", exhausted: true },
+    { remaining: 0, state: "exhausted", exhausted: true },
+  ])(
+    "reports $state with $remaining daily requests remaining",
+    async ({ remaining, state, exhausted }) => {
+      const gemini = entry("google:gemini-3.8-flash");
+      mocks.store.set(rpdKey(gemini.modelId), gemini.limits.rpd - remaining);
+      await expect(getModelQuotaState(gemini.modelId)).resolves.toBe(state);
 
-    mocks.store.set(rpdKey(gemini.modelId), gemini.limits.rpd);
-    await expect(getModelQuotaState(gemini.modelId)).resolves.toBe("exhausted");
-  });
+      const snapshot = await getCapacitySnapshot();
+      expect(snapshot.find((model) => model.modelId === gemini.modelId)).toMatchObject({
+        loadRatio: (gemini.limits.rpd - remaining + 1) / gemini.limits.rpd,
+        available: false,
+        quotaExhausted: exhausted,
+      });
+    },
+  );
 
   it("reports unknown catalog entries and dead identifiers", async () => {
     await expect(

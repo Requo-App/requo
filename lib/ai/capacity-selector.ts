@@ -62,8 +62,7 @@ const CAPACITY_THRESHOLD = 0.80; // Pick models under 80% of their limit
 /**
  * The hard ceiling. A candidate at or above 100% of any modelled free quota
  * is never returned: the 80% threshold only deprioritizes a model, it does
- * not license exceeding the quota. A next-request load of exactly 1.0 is
- * still inside the quota, so the cutoff is `> 1`.
+ * not license reaching or exceeding the quota.
  */
 const QUOTA_CEILING = 1;
 const EXHAUSTED_SENTINEL = 99999;
@@ -721,7 +720,7 @@ export async function selectModels(
 
   const available = scored.filter((m) => m.loadRatio < CAPACITY_THRESHOLD);
   const stressed = scored.filter(
-    (m) => m.loadRatio >= CAPACITY_THRESHOLD && m.loadRatio <= QUOTA_CEILING,
+    (m) => m.loadRatio >= CAPACITY_THRESHOLD && m.loadRatio < QUOTA_CEILING,
   );
 
   // Profile order is the ranking: stable-sort by (reserve, stressed-position)
@@ -770,7 +769,7 @@ export async function getModelQuotaState(
   if (!entry) return "unknown";
   if (await isModelDead(modelId)) return "dead";
   const ratio = await getLoadRatio(entry, estimatedTokens);
-  if (ratio > QUOTA_CEILING) return "exhausted";
+  if (ratio >= QUOTA_CEILING) return "exhausted";
   return ratio >= CAPACITY_THRESHOLD ? "stressed" : "available";
 }
 
@@ -845,7 +844,7 @@ export async function getCapacitySnapshot(): Promise<
           : null,
         loadRatio,
         available: loadRatio < CAPACITY_THRESHOLD,
-        quotaExhausted: loadRatio > QUOTA_CEILING,
+        quotaExhausted: loadRatio >= QUOTA_CEILING,
       };
     }),
   );
