@@ -7,6 +7,8 @@
 import { createClient } from "@supabase/supabase-js";
 import postgres from "postgres";
 
+import { pingRedisRestWithRetry } from "@/lib/admin/redis-health";
+
 export type AdminHealthCheckStatus = "pass" | "fail" | "warn" | "skip";
 
 export type AdminHealthCheckCategory =
@@ -498,27 +500,18 @@ async function checkRedis(): Promise<AdminHealthCheckResult> {
 
   if (!redisConfigured || !url || !token) {
     return {
-      name: "Redis (Upstash)",
+      name: "Redis",
       status: "warn",
       message: "Not configured — in-memory fallback",
-      hint: "Set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN. Caches fall back to per-instance memory, so on serverless the 24h embedding cache never hits and identical text re-embeds on every cold start.",
+      hint: "Set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN. The Docker Compose stack exposes a local Upstash-compatible proxy at http://127.0.0.1:8079. Caches fall back to per-instance memory, so on serverless the 24h embedding cache never hits and identical text re-embeds on every cold start.",
       category: "cache",
     };
   }
 
   try {
-    const [, duration] = await timed(async () => {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 5000);
-      const response = await fetch(`${url}/ping`, {
-        headers: { Authorization: `Bearer ${token}` },
-        signal: controller.signal,
-      });
-      clearTimeout(timeout);
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    });
+    const [, duration] = await timed(() => pingRedisRestWithRetry(url, token));
     return {
-      name: "Redis (Upstash)",
+      name: "Redis",
       status: "pass",
       message: "Connected",
       duration,
@@ -531,7 +524,7 @@ async function checkRedis(): Promise<AdminHealthCheckResult> {
         ? "Connection timeout"
         : error.message.split("\n")[0];
     return {
-      name: "Redis (Upstash)",
+      name: "Redis",
       status: "warn",
       message: msg,
       hint: "Falls back to in-memory cache.",

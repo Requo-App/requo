@@ -6,6 +6,8 @@
 #
 # - app: Next.js dev server with hot reload (http://localhost:3000)
 # - inngest: local Inngest Dev Server (http://localhost:8288)
+# - redis: local Redis (localhost:6379)
+# - redis-http: Upstash-compatible REST proxy (http://localhost:8079)
 services:
   app:
     build:
@@ -39,6 +41,9 @@ services:
       DATABASE_URL: postgresql://postgres:postgres@supabase_db_requo:5432/postgres?sslmode=disable
       DATABASE_MIGRATION_URL: postgresql://postgres:postgres@supabase_db_requo:5432/postgres?sslmode=disable
       NEXT_PUBLIC_SUPABASE_URL: http://host.docker.internal:54321
+      # Local Redis is reached through the Upstash-compatible REST proxy.
+      UPSTASH_REDIS_REST_URL: http://redis-http:80
+      UPSTASH_REDIS_REST_TOKEN: local-dev-token
       INNGEST_DEV: 1
       INNGEST_BASE_URL: http://inngest:8288
       # Bind mounts need polling for reliable hot reload.
@@ -56,6 +61,37 @@ services:
     ports:
       - "8288:8288"
     command: npx inngest-cli@latest dev -u http://app:3000/api/inngest --port 8288
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 10
+
+  redis-http:
+    image: hiett/serverless-redis-http:latest
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8079:80"
+    environment:
+      SRH_MODE: env
+      SRH_TOKEN: local-dev-token
+      SRH_CONNECTION_STRING: redis://redis:6379
+      SRH_MAX_CONNECTIONS: 10
+
+volumes:
+  redis-data:
 
 networks:
   # Created by `npx supabase start`; external so CLI restarts keep working.

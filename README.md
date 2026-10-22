@@ -89,8 +89,12 @@ npm run dev                  # app on http://localhost:3000
 cp .env.example .env.local   # set local database/Supabase values from `npx supabase status`
 npx supabase start           # one-time: local Postgres, Storage, realtime (data persists)
 npm run db:local:setup       # migrate + demo seed + local realtime setup
-docker compose up --build    # app on http://localhost:3000, Inngest on http://localhost:8288
+docker compose up --build    # app, Inngest, Redis (see Local ports)
 ```
+
+Compose also starts Redis (`6379`) and an Upstash-compatible REST proxy
+(`8079`); the app uses the proxy so the existing `@upstash/redis` client and
+cache code run unchanged.
 
 `npm run db:local:setup` resets application data and creates deterministic
 local accounts and businesses — development only, and it refuses non-local

@@ -1,8 +1,10 @@
-# Upstash Redis
+# Redis
 
 Redis backs Requo's distributed cache layer. It is **optional** — the app runs
 without it — but several behaviours degrade in ways that are easy to miss, so
-this page covers what is actually lost and how to confirm Redis is live.
+this page covers what is actually lost and how to confirm Redis is live. The
+hosted Upstash setup and the full-local Docker Compose setup use the same
+`@upstash/redis` client and the same REST contract.
 
 ## What it is used for
 
@@ -36,7 +38,35 @@ in two ways:
   (~100 RPM / ~1,000 RPD). Wasted calls reduce how many knowledge files can be
   indexed or repaired per day. See `docs/setup/ai-provider-limits.md`.
 
-## Provisioning
+## Local development (Docker Compose)
+
+The full-local stack starts two Redis-related services:
+
+- `redis` — Redis 7 with append-only persistence on `localhost:6379`.
+- `redis-http` — [`serverless-redis-http`](https://github.com/hiett/serverless-redis-http),
+  an Upstash-compatible REST proxy on `localhost:8079`.
+
+Both host port mappings bind to `127.0.0.1`; the Compose app reaches
+`redis-http` over the Compose network instead.
+
+For host `npm run dev`, set:
+
+```text
+UPSTASH_REDIS_REST_URL=http://127.0.0.1:8079
+UPSTASH_REDIS_REST_TOKEN=local-dev-token
+```
+
+The compose `app` service overrides the URL to `http://redis-http:80` and uses
+the same token. The cache client needs no changes: SRH speaks the REST API that
+the `@upstash/redis` client already uses, including the Lua `EVAL` scripts in
+`lib/ai/cache-layer.ts`. The admin health check was updated to use the
+body-command form described below because SRH does not support path commands.
+
+SRH only accepts commands through the request body, not URL paths. That is why
+the health check and the manual verification below POST `["ping"]` instead of
+calling `/ping`.
+
+## Hosted Upstash
 
 1. Create a database at <https://console.upstash.com>.
 2. Copy the **REST API** credentials — the REST URL and token, not the Redis
@@ -48,26 +78,34 @@ UPSTASH_REDIS_REST_URL=https://<name>.upstash.io
 UPSTASH_REDIS_REST_TOKEN=<token>
 ```
 
-Both are already stubbed in `.env.example` (~line 206). The URL is validated as
-a URL and the token as non-empty; a whitespace-only value counts as unset.
+Both are stubbed in `.env.example`. The URL is validated as a URL and the
+token as non-empty; a whitespace-only value counts as unset.
 
 ## Verifying
 
-The admin health report includes a `Redis (Upstash)` check under the **cache**
+The admin health report includes a `Redis` check under the **cache**
 category. It reports:
 
 - `warn` / "Not configured — in-memory fallback" — variables absent.
 - `warn` / a connection error — variables present but unreachable (5s timeout).
-- `pass` / "Connected" — a real round trip to `<url>/ping` succeeded.
+- `pass` / "Connected" — a real round trip to the REST endpoint succeeded.
 
 The same check is exposed on the integration config matrix as "Redis cache".
 
-You can also verify directly:
+You can also verify directly with the body-command form used by both Upstash
+and SRH:
 
 ```bash
-curl -H "Authorization: Bearer $UPSTASH_REDIS_REST_TOKEN" "$UPSTASH_REDIS_REST_URL/ping"
+curl -X POST \
+  -H "Authorization: Bearer $UPSTASH_REDIS_REST_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '["ping"]' \
+  "$UPSTASH_REDIS_REST_URL"
 # expected: {"result":"PONG"}
 ```
+
+For the local Compose stack, `redis-cli -h 127.0.0.1 -p 6379 ping` checks the
+Redis server itself.
 
 ## Related
 
