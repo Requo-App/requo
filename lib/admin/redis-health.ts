@@ -62,7 +62,7 @@ export function isRetryableRedisPingError(error: unknown): boolean {
   return (
     error.name === "AbortError" ||
     error instanceof TypeError ||
-    /^HTTP 50[234]$/.test(error.message)
+    /^HTTP 5\d{2}$/.test(error.message)
   );
 }
 

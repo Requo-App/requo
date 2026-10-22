@@ -95,6 +95,21 @@ describe("Redis REST health probe", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it("retries an HTTP 500 response", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(errorResponse(500))
+      .mockResolvedValueOnce(okResponse());
+    vi.stubGlobal("fetch", fetchMock);
+
+    await pingRedisRestWithRetry("http://127.0.0.1:8079", "token", {
+      attempts: 2,
+      retryDelayMs: 0,
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it("retries a proxy-still-starting response", async () => {
     const fetchMock = vi
       .fn()
