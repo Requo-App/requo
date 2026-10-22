@@ -57,7 +57,7 @@ beforeEach(() => {
   mocks.history.mockResolvedValue([{ role: "user", content: "Hello" }]);
   mocks.resolveModel.mockResolvedValue({
     fallbackModel: {}, serving: { model: "test", provider: "groq", modelId: "groq:test" },
-    attemptTrail: [], correctUsage: vi.fn(),
+    attemptTrail: [],
   });
   mocks.startRun.mockResolvedValue({ id: "run-1" });
   mocks.failRun.mockResolvedValue(undefined);

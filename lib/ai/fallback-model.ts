@@ -7,6 +7,7 @@ import type {
   LanguageModelV3GenerateResult,
   LanguageModelV3StreamPart,
   LanguageModelV3StreamResult,
+  LanguageModelV3Usage,
 } from "@ai-sdk/provider";
 
 import { registry } from "@/lib/ai/registry";
@@ -15,15 +16,15 @@ import {
   isModelDead,
   markModelDead,
   markModelExhausted,
-  recordModelTokenUsage,
-  recordModelUsage,
+  recordModelFailure,
+  recordModelSuccess,
+  reserveModelCapacity,
+  type ModelCapacityReservation,
 } from "@/lib/ai/capacity-selector";
 import { getCatalogEntry } from "@/lib/ai/catalog";
 import {
+  classifyProviderFailure,
   getSanitizedErrorInfo,
-  isModelNotFoundError,
-  isOversizedError,
-  isRetryableError,
 } from "@/lib/ai/errors";
 
 // ---------------------------------------------------------------------------
@@ -58,9 +59,11 @@ import {
 //   replays earlier steps' reasoning parts into later prompts, and the
 //   OpenAI-compatible shape serializes those as `reasoning_content`, which
 //   some OpenAI-compatible providers reject with a 400.
-// - On success the serving model is attributed via `recordModelUsage` and
-//   `recordModelTokenUsage`, and reported through `onModelSelected` so the
-//   orchestrator can persist and log the model that actually served the step.
+// - Every dispatch reserves its request and token capacity atomically before
+//   the provider call. A success settles to real usage; a refused request
+//   releases the token hold while keeping the request counted; a timeout keeps
+//   the conservative estimate. The serving model is reported through
+//   `onModelSelected` so the orchestrator can persist and log it.
 // ---------------------------------------------------------------------------
 
 export type FallbackAttemptTrailEntry = {
@@ -82,10 +85,16 @@ export type FallbackModelOptions = {
    * default. Defaults to 5 for chat-shaped work.
    */
   maxAttempts?: number;
-  /** Preflight token estimate, attributed to the model that serves. */
+  /** Preflight token estimate, reserved before each dispatch. */
   estimatedTokens?: number;
-  /** A fresh provider timeout is created for each candidate attempt. */
+  /** Per-candidate timeout through generation or the first stream head. */
   getTimeoutMs?: (selected: FallbackModelSelected) => number;
+  /**
+   * End-to-end budget for one model step, including stream consumption.
+   * The router supplies its own turn signal for its streaming path; the chat
+   * wrapper uses this to bound each tool step.
+   */
+  deadlineMs?: number;
   onModelSelected?: (selected: FallbackModelSelected) => void;
   onAttemptFailed?: (selected: FallbackModelSelected, error: unknown) => void;
 };
@@ -163,61 +172,200 @@ function reorderForOversized(
   });
 }
 
-async function attributeSuccess(
-  modelId: string,
-  estimatedTokens: number | undefined,
-  selected: FallbackModelSelected,
-  onModelSelected: FallbackModelOptions["onModelSelected"],
-): Promise<void> {
+type AttemptOutcome = {
+  advance: boolean;
+  countsAttempt: boolean;
+  oversized: boolean;
+  dead: boolean;
+  /**
+   * The failure was an account-wide auth rejection. Every model behind that
+   * credential will fail the same way, so the chain skips the rest of them.
+   */
+  providerCooled: boolean;
+};
+
+async function safeBookkeeping(value: Promise<unknown>): Promise<void> {
   try {
-    await recordModelUsage(modelId);
+    await value;
   } catch (error) {
-    console.warn("[ai-fallback] Failed to record model usage:", error);
+    console.warn("[ai-fallback] Capacity bookkeeping failed:", error);
   }
-  if (estimatedTokens !== undefined && estimatedTokens > 0) {
-    try {
-      await recordModelTokenUsage(modelId, estimatedTokens);
-    } catch (error) {
-      console.warn("[ai-fallback] Failed to record token usage:", error);
-    }
+}
+
+function usageFromProvider(
+  usage: LanguageModelV3Usage | undefined,
+): { inputTokens: number; outputTokens: number } | undefined {
+  if (!usage) return undefined;
+  const input = usage.inputTokens?.total;
+  const output = usage.outputTokens?.total;
+  if (typeof input !== "number" && typeof output !== "number") {
+    return undefined;
   }
-  onModelSelected?.(selected);
+  return {
+    inputTokens: typeof input === "number" ? Math.max(0, input) : 0,
+    outputTokens: typeof output === "number" ? Math.max(0, output) : 0,
+  };
 }
 
 async function noteAttemptFailed(
-  modelId: string,
+  modelId: `${string}:${string}`,
   selected: FallbackModelSelected,
   error: unknown,
+  reservation: ModelCapacityReservation,
   onAttemptFailed: FallbackModelOptions["onAttemptFailed"],
-): Promise<"dead" | "oversized" | "exhausted" | "other"> {
+  turnAborted: boolean,
+): Promise<AttemptOutcome> {
   const info = getSanitizedErrorInfo(error);
+  const classification = classifyProviderFailure(error, { turnAborted });
   console.warn(
-    `[ai-fallback] Attempt failed: model="${modelId}" status=${info.statusCode ?? "N/A"} retryable=${info.retryable} message="${info.message}"`,
+    `[ai-fallback] Attempt failed: model="${modelId}" kind=${classification.kind} status=${info.statusCode ?? "N/A"} retryable=${info.retryable} message="${info.message}"`,
   );
   onAttemptFailed?.(selected, error);
-  if (isModelNotFoundError(error)) {
-    try {
+
+  if (classification.kind !== "cancelled") {
+    void recordModelFailure(modelId, classification.kind).catch(() => {});
+  }
+
+  try {
+    if (classification.markModelDead) {
       await markModelDead(modelId);
-    } catch (markError) {
-      console.warn("[ai-fallback] Failed to mark model dead:", markError);
+      await reservation.rollback();
+    } else if (classification.keepTokenEstimate) {
+      // The provider may already have processed the request (timeout, 5xx,
+      // network loss): keep the conservative token hold.
+      await reservation.settle();
+    } else {
+      // Explicit refusal before generation: the request still counts, but the
+      // token hold is released for another attempt.
+      await reservation.releaseTokens();
     }
-    return "dead";
+  } catch (markError) {
+    console.warn("[ai-fallback] Failed to settle reservation:", markError);
   }
-  if (isOversizedError(error)) {
-    // Payload problem, not capacity — do not burn a minute cooldown.
-    return "oversized";
-  }
-  if (isRetryableError(error)) {
+
+  if (classification.cooldown !== "none") {
     try {
-      await markModelExhausted(modelId, error);
+      await markModelExhausted(modelId, error, { turnAborted });
     } catch (markError) {
       console.warn("[ai-fallback] Failed to mark model exhausted:", markError);
     }
-    return "exhausted";
   }
-  // Non-retryable errors still advance (they often succeed elsewhere), but
-  // without poisoning the capacity counters.
-  return "other";
+
+  return {
+    advance: classification.advance,
+    countsAttempt: classification.countsAttempt,
+    oversized: classification.kind === "oversized",
+    dead: classification.markModelDead,
+    providerCooled: classification.cooldown === "provider",
+  };
+}
+
+/**
+ * Observe the provider stream so the reservation settles against real usage,
+ * not the estimate. The stream itself is passed through unchanged: tool-call,
+ * text, reasoning, and error parts keep their order.
+ */
+function observeReservationStream(
+  stream: ReadableStream<LanguageModelV3StreamPart>,
+  modelId: `${string}:${string}`,
+  reservation: ModelCapacityReservation,
+  startedAt: number,
+  onStreamFailure: (() => void) | undefined,
+  isTurnAborted: () => boolean,
+): ReadableStream<LanguageModelV3StreamPart> {
+  const reader = stream.getReader();
+  let finished = false;
+  let settled = false;
+  let failureNoted = false;
+
+  const settleOnce = async (
+    usage?: { inputTokens: number; outputTokens: number },
+  ) => {
+    if (settled) return;
+    settled = true;
+    await safeBookkeeping(
+      usage ? reservation.settle(usage) : reservation.settle(),
+    );
+  };
+
+  const noteFailure = (error: unknown, turnAborted: boolean) => {
+    if (failureNoted) return;
+    failureNoted = true;
+    // A mid-stream timeout is a provider failure; the turn's own abort is not.
+    const kind = classifyProviderFailure(error, { turnAborted }).kind;
+    if (kind === "cancelled") return;
+    onStreamFailure?.();
+    void recordModelFailure(modelId, kind).catch(() => {});
+  };
+
+  const releaseReader = () => {
+    try {
+      reader.releaseLock();
+    } catch {
+      // Ignore — the reader may already be released on error paths.
+    }
+  };
+
+  // Pull-based passthrough: the observer only reads when the consumer asks for
+  // the next part, so a slow consumer applies backpressure to the provider
+  // stream instead of the observer draining it eagerly.
+  return new ReadableStream<LanguageModelV3StreamPart>({
+    async pull(controller) {
+      if (finished) return;
+
+      try {
+        const { done, value } = await reader.read();
+        if (done) {
+          finished = true;
+          // A stream that closes without a finish part has unknown usage.
+          // Keeping the estimate is the conservative choice.
+          await settleOnce();
+          releaseReader();
+          controller.close();
+          return;
+        }
+
+        if (value.type === "finish") {
+          await settleOnce(usageFromProvider(value.usage));
+          if (!failureNoted) {
+            void recordModelSuccess(modelId, Date.now() - startedAt).catch(
+              () => {},
+            );
+          }
+        } else if (value.type === "error") {
+          await settleOnce();
+          noteFailure(value.error, isTurnAborted());
+        }
+
+        controller.enqueue(value);
+      } catch (error) {
+        // A consumer cancel closes this stream first; the failing enqueue is
+        // not a provider failure and must not be recorded as one.
+        const wasCancelled = finished;
+        finished = true;
+        await settleOnce();
+        if (!wasCancelled) noteFailure(error, isTurnAborted());
+        try {
+          controller.error(error);
+        } catch {
+          // Ignore — the consumer may already have cancelled the stream.
+        }
+        releaseReader();
+      }
+    },
+    async cancel(reason) {
+      finished = true;
+      // Caller walked away mid-stream: the request still counts, and the
+      // provider may already have spent the token hold. Keep the estimate.
+      await settleOnce();
+      try {
+        await reader.cancel(reason);
+      } catch {
+        // Ignore — cancelling an already-closed reader is a no-op.
+      }
+      releaseReader();
+    },
+  });
 }
 
 /**
@@ -307,19 +455,64 @@ export function createFallbackLanguageModel(
   // providers that already failed moments earlier.
   let preferredModelId: `${string}:${string}` | undefined;
 
+  function turnSignalFor(
+    options: LanguageModelV3CallOptions,
+  ): AbortSignal | undefined {
+    if (!opts.deadlineMs || opts.deadlineMs <= 0) {
+      return options.abortSignal;
+    }
+    const deadline = AbortSignal.timeout(opts.deadlineMs);
+    return options.abortSignal
+      ? AbortSignal.any([options.abortSignal, deadline])
+      : deadline;
+  }
+
   function attemptOptions(
     options: LanguageModelV3CallOptions,
     selected: FallbackModelSelected,
-  ): LanguageModelV3CallOptions {
-    if (!opts.getTimeoutMs) return options;
-    const timeoutSignal = AbortSignal.timeout(opts.getTimeoutMs(selected));
+    turnSignal: AbortSignal | undefined,
+  ): { callOptions: LanguageModelV3CallOptions; cleanup: () => void } {
+    const timeoutMs = opts.getTimeoutMs?.(selected);
+    const timeoutController = timeoutMs === undefined ? undefined : new AbortController();
+    const timer = timeoutController
+      ? setTimeout(() => {
+          timeoutController.abort(new DOMException("Provider timed out", "TimeoutError"));
+        }, timeoutMs)
+      : undefined;
+    const cleanup = () => clearTimeout(timer);
+    const signals = [turnSignal, timeoutController?.signal].filter(
+      (signal): signal is AbortSignal => Boolean(signal),
+    );
     return {
-      ...options,
-      abortSignal: options.abortSignal
-        ? AbortSignal.any([options.abortSignal, timeoutSignal])
-        : timeoutSignal,
+      callOptions:
+        signals.length === 0
+          ? options
+          : {
+              ...options,
+              abortSignal:
+                signals.length === 1 ? signals[0] : AbortSignal.any(signals),
+            },
+      cleanup,
     };
   }
+
+  async function reserveCandidate(
+    candidate: `${string}:${string}`,
+  ): Promise<ModelCapacityReservation | null> {
+    try {
+      return await reserveModelCapacity(candidate, estimatedTokens ?? 0);
+    } catch (error) {
+      console.warn("[ai-fallback] Capacity reservation failed:", error);
+      return null;
+    }
+  }
+
+  // Providers whose credentials failed earlier in this wrapper's lifetime.
+  // The router's Redis cooldown already filters chain construction, but a
+  // chain that was built before the failure (and every later tool step that
+  // reuses it) would otherwise spend all remaining attempts on the same bad
+  // key. Skipping is free: it consumes no attempt budget.
+  const coolingProviders = new Set<string>();
 
   if (modelIds.length === 0) {
     throw new Error("createFallbackLanguageModel requires at least one modelId");
@@ -334,14 +527,22 @@ export function createFallbackLanguageModel(
     async doGenerate(
       options: LanguageModelV3CallOptions,
     ): Promise<LanguageModelV3GenerateResult> {
+      const turnSignal = turnSignalFor(options);
       let remaining = candidatesFor(modelIds, maxAttempts, preferredModelId);
       let lastError: unknown = null;
       let attemptsUsed = 0;
 
       while (remaining.length > 0 && attemptsUsed < maxAttempts) {
-        options.abortSignal?.throwIfAborted();
+        turnSignal?.throwIfAborted();
         const candidate = remaining.shift() as `${string}:${string}`;
         const selected = parseModelId(candidate);
+        if (coolingProviders.has(selected.provider)) {
+          console.warn(
+            `[ai-fallback] Skipping model on a cooling provider (no attempt consumed): model="${candidate}"`,
+          );
+          onAttemptFailed?.(selected, new Error("provider auth cooldown"));
+          continue;
+        }
         try {
           if (await isModelDead(candidate)) {
             console.warn(
@@ -353,37 +554,70 @@ export function createFallbackLanguageModel(
         } catch {
           // Dead-check failure must never block a turn.
         }
+
+        const reservation = await reserveCandidate(candidate);
+        if (!reservation) {
+          const refusal = new Error(
+            `No capacity available for ${candidate} (reserved by another request).`,
+          );
+          lastError = refusal;
+          // The turn is served by a later candidate, but the attempt trail
+          // should record why this one was skipped.
+          onAttemptFailed?.(selected, refusal);
+          continue;
+        }
+
+        const startedAt = Date.now();
+        const { callOptions, cleanup } = attemptOptions(options, selected, turnSignal);
         try {
           const model = candidateModel(candidate);
-          const result = await model.doGenerate(attemptOptions(options, selected));
-          await attributeSuccess(
-            candidate,
-            estimatedTokens,
-            selected,
-            onModelSelected,
+          const result = await model.doGenerate(callOptions);
+          await safeBookkeeping(
+            reservation.settle(usageFromProvider(result.usage)),
           );
+          void recordModelSuccess(candidate, Date.now() - startedAt).catch(
+            () => {},
+          );
+          onModelSelected?.(selected);
           preferredModelId = candidate;
           return result;
         } catch (error) {
-          options.abortSignal?.throwIfAborted();
+          cleanup();
+          if (turnSignal?.aborted) {
+            // Caller cancellation or the turn deadline: stop the chain. The
+            // request was dispatched, so keep the conservative token hold.
+            await safeBookkeeping(reservation.settle());
+            throw error;
+          }
           lastError = error;
-          const kind = await noteAttemptFailed(
+          const outcome = await noteAttemptFailed(
             candidate,
             selected,
             error,
+            reservation,
             onAttemptFailed,
+            turnSignal?.aborted ?? false,
           );
-          if (kind === "dead") {
+          if (!outcome.advance) throw error;
+          if (outcome.dead) {
             // Stale identifier costs nothing — do not consume the budget.
             continue;
           }
-          attemptsUsed += 1;
-          if (kind === "oversized") {
+          if (outcome.providerCooled) {
+            coolingProviders.add(selected.provider);
+            remaining = remaining.filter(
+              (id) => parseModelId(id).provider !== selected.provider,
+            );
+          }
+          if (outcome.countsAttempt) attemptsUsed += 1;
+          if (outcome.oversized) {
             remaining = reorderForOversized(
               remaining,
               contextWindowOf(candidate),
             );
           }
+        } finally {
+          cleanup();
         }
       }
 
@@ -395,14 +629,22 @@ export function createFallbackLanguageModel(
     async doStream(
       options: LanguageModelV3CallOptions,
     ): Promise<LanguageModelV3StreamResult> {
+      const turnSignal = turnSignalFor(options);
       let remaining = candidatesFor(modelIds, maxAttempts, preferredModelId);
       let lastError: unknown = null;
       let attemptsUsed = 0;
 
       while (remaining.length > 0 && attemptsUsed < maxAttempts) {
-        options.abortSignal?.throwIfAborted();
+        turnSignal?.throwIfAborted();
         const candidate = remaining.shift() as `${string}:${string}`;
         const selected = parseModelId(candidate);
+        if (coolingProviders.has(selected.provider)) {
+          console.warn(
+            `[ai-fallback] Skipping model on a cooling provider (no attempt consumed): model="${candidate}"`,
+          );
+          onAttemptFailed?.(selected, new Error("provider auth cooldown"));
+          continue;
+        }
         try {
           if (await isModelDead(candidate)) {
             console.warn(
@@ -414,11 +656,29 @@ export function createFallbackLanguageModel(
         } catch {
           // Dead-check failure must never block a turn.
         }
+
+        const reservation = await reserveCandidate(candidate);
+        if (!reservation) {
+          const refusal = new Error(
+            `No capacity available for ${candidate} (reserved by another request).`,
+          );
+          lastError = refusal;
+          // The turn is served by a later candidate, but the attempt trail
+          // should record why this one was skipped.
+          onAttemptFailed?.(selected, refusal);
+          continue;
+        }
+
+        const startedAt = Date.now();
+        const { callOptions, cleanup } = attemptOptions(options, selected, turnSignal);
         try {
           const model = candidateModel(candidate);
-          const result = await model.doStream(attemptOptions(options, selected));
+          const result = await model.doStream(callOptions);
           const { buffered, head, reader, doneEarly } =
             await peekHead(result);
+          // Once the stream is ready, only caller cancellation and the step's
+          // deadline remain active while the consumer reads the response.
+          cleanup();
 
           if (head && head.type === "error") {
             const streamError = (head as { error?: unknown }).error ?? head;
@@ -430,10 +690,11 @@ export function createFallbackLanguageModel(
             throw streamError;
           }
 
-          // Empty-but-clean streams (done before any content) are returned
-          // as-is: the orchestrator treats zero-text turns as failures and
-          // skips persisting them. Falling back here would hide that signal.
-          const stream = doneEarly
+          // Empty-but-clean streams are passed through unchanged; the
+          // reservation settles against the estimate because no usage part
+          // exists, and the orchestrator still decides whether zero text is a
+          // failed turn.
+          const baseStream = doneEarly
             ? new ReadableStream<LanguageModelV3StreamPart>({
                 start(controller) {
                   for (const part of buffered) controller.enqueue(part);
@@ -441,13 +702,21 @@ export function createFallbackLanguageModel(
                 },
               })
             : reemitWithHead(buffered, reader);
-
-          await attributeSuccess(
+          const stream = observeReservationStream(
+            baseStream,
             candidate,
-            estimatedTokens,
-            selected,
-            onModelSelected,
+            reservation,
+            startedAt,
+            () => {
+              // A mid-stream error cannot be retried without duplicating
+              // output, but the next step of the same turn should not try
+              // this candidate first again.
+              if (preferredModelId === candidate) preferredModelId = undefined;
+            },
+            () => turnSignal?.aborted === true,
           );
+
+          onModelSelected?.(selected);
           preferredModelId = candidate;
           return {
             stream,
@@ -455,19 +724,32 @@ export function createFallbackLanguageModel(
             ...(result.response ? { response: result.response } : {}),
           };
         } catch (error) {
-          options.abortSignal?.throwIfAborted();
+          cleanup();
+          if (turnSignal?.aborted) {
+            // Caller cancellation or the turn deadline: stop the chain. The
+            // request was dispatched, so keep the conservative token hold.
+            await safeBookkeeping(reservation.settle());
+            throw error;
+          }
           lastError = error;
-          const kind = await noteAttemptFailed(
+          const outcome = await noteAttemptFailed(
             candidate,
             selected,
             error,
+            reservation,
             onAttemptFailed,
+            turnSignal?.aborted ?? false,
           );
-          if (kind === "dead") {
-            continue;
+          if (!outcome.advance) throw error;
+          if (outcome.dead) continue;
+          if (outcome.providerCooled) {
+            coolingProviders.add(selected.provider);
+            remaining = remaining.filter(
+              (id) => parseModelId(id).provider !== selected.provider,
+            );
           }
-          attemptsUsed += 1;
-          if (kind === "oversized") {
+          if (outcome.countsAttempt) attemptsUsed += 1;
+          if (outcome.oversized) {
             remaining = reorderForOversized(
               remaining,
               contextWindowOf(candidate),

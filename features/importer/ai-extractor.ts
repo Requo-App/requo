@@ -287,7 +287,7 @@ export async function aiExtractFromFile(
     } catch (error) {
       lastError = error;
       try {
-        await markModelExhausted(modelId, error);
+        await markModelExhausted(modelId, error, { turnAborted: false });
       } catch {
         // Capacity bookkeeping must never fail an extraction.
       }

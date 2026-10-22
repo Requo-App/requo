@@ -8,11 +8,11 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@/lib/ai/router", () => ({
   selectModels: mocks.selectModels,
+  providerTimeoutMs: () => 15_000,
 }));
 
 vi.mock("@/lib/ai/capacity-selector", () => ({
   CHAT_MAX_ATTEMPTS: 5,
-  correctTokenUsage: vi.fn(),
 }));
 
 vi.mock("@/lib/ai/fallback-model", () => ({

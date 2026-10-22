@@ -94,5 +94,7 @@ it("cools an extraction model after a provider failure", async () => {
   });
 
   expect(result.ok).toBe(false);
-  expect(mocks.markExhausted).toHaveBeenCalledWith("google:test", failure);
+  expect(mocks.markExhausted).toHaveBeenCalledWith("google:test", failure, {
+    turnAborted: false,
+  });
 });

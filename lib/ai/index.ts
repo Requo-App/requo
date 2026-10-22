@@ -5,10 +5,17 @@ export type { CacheLayer } from "./cache-layer";
 export { registry } from "./registry";
 export {
   AiProviderError,
+  classifyProviderFailure,
+  isAbortError,
   isModelNotFoundError,
   isOversizedError,
   isRetryableError,
   classifyExhaustionScope,
+} from "./errors";
+export type {
+  AiFailureClassification,
+  AiFailureCooldown,
+  AiFailureKind,
 } from "./errors";
 export {
   TOKEN_COST_TABLE,
@@ -66,30 +73,47 @@ export type { MessageComplexity } from "./message-complexity";
 export {
   selectModels,
   recordModelUsage,
-  recordModelTokenUsage,
   recordModelTokenUsageDetailed,
-  correctTokenUsage,
+  recordModelSuccess,
+  recordModelFailure,
   markModelExhausted,
   markModelDead,
   isModelDead,
+  markProviderCooling,
+  isProviderCooling,
+  reserveModelCapacity,
+  getModelQuotaState,
   getCapacitySnapshot,
   getAllRegisteredModelIds,
   CHAT_MAX_ATTEMPTS,
   NON_CHAT_MAX_ATTEMPTS,
 } from "./capacity-selector";
-export type { ModelCapacity, SelectionCriteria } from "./capacity-selector";
+export type {
+  CapacitySnapshotEntry,
+  ModelCapacity,
+  ModelCapacityReservation,
+  ModelHealth,
+  ModelQuotaState,
+  SelectionCriteria,
+} from "./capacity-selector";
 export {
+  QUOTA_DIMENSIONS,
   getModelCatalog,
   getBaseCatalog,
   getCatalogEntry,
   getDerivedCostTable,
   getProviderOverride,
   getNeuronPoolOverride,
+  quotaLimit,
   CLOUDFLARE_DAILY_NEURON_POOL,
   EXTRACTION_MODEL_IDS,
   KNOWN_CATALOG_PROVIDERS,
 } from "./catalog";
-export type { ModelEntry } from "./catalog";
+export type {
+  ModelEntry,
+  ModelQuotaLimits,
+  QuotaDimension,
+} from "./catalog";
 export { ROUTING_PROFILES, profileForTaskType } from "./routing-profiles";
 export type {
   AiRoutingProfile as RoutingProfile,

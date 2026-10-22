@@ -381,9 +381,9 @@ export async function runOwnerAssistant({
         if (stepNumber >= 4) return { toolChoice: "none" as const };
         return { tools: getActiveAssistantTools(stepNumber) as typeof ownerAssistantTools };
       },
-      // Retry a step that dies after emitting content so a half-written
-      // reply is finished rather than abandoned.
-      maxRetries: 2,
+      // The fallback wrapper owns retries across providers. SDK-level retries
+      // would repeat the whole candidate chain and double-charge quota.
+      maxRetries: 0,
       // Retrieval and arithmetic over the business's own data, not prose.
       temperature: 0.2,
       maxOutputTokens: CHAT_TOKEN_BUDGETS.assistant.output,
@@ -459,7 +459,6 @@ export async function runOwnerAssistant({
         const inputTokens = usage?.inputTokens ?? 0;
         const outputTokens = usage?.outputTokens ?? 0;
 
-        void chatModel.correctUsage(inputTokens, outputTokens);
         if (attemptTrail.length > 0) {
           console.warn(
             `[owner-assistant] Attempt trail for session ${session.sessionId}: ${attemptTrail.map((t) => `${t.modelId} (${t.reason})`).join("; ")} — served by ${serving.modelId}`,

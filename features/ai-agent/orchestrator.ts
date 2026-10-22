@@ -510,10 +510,9 @@ export async function runAgent({
       // still leave room for the closing answer, otherwise the turn ends
       // with zero text.
       stopWhen: stepCountIs(5),
-      // Retry a step that dies after emitting content so a half-written
-      // reply is finished rather than abandoned (pre-content failures are
-      // already covered by the fallback wrapper's head-peeking).
-      maxRetries: 2,
+      // The fallback wrapper owns retries across providers. SDK-level retries
+      // would repeat the whole candidate chain and double-charge quota.
+      maxRetries: 0,
       // Cancellation must reach the provider: an aborted turn that keeps
       // running spends tokens the visitor already walked away from.
       abortSignal,
@@ -560,8 +559,7 @@ export async function runAgent({
         const inputTokens = completion.usage?.inputTokens ?? 0;
         const outputTokens = completion.usage?.outputTokens ?? 0;
 
-        // Correct the minute's counters against real usage.
-        chatModel.correctUsage(inputTokens, outputTokens);
+        // Provider quota was settled per step by the fallback wrapper.
 
         // Filter model output before it is stored or displayed.
         const filtered = filterAiOutput(

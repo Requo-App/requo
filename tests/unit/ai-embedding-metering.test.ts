@@ -108,6 +108,7 @@ describe("embedding capacity accounting", () => {
     expect(mocks.markExhausted).toHaveBeenCalledWith(
       EMBEDDING_MODEL_ID,
       expect.any(Error),
+      { turnAborted: false },
     );
   });
 });

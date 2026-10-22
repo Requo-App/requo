@@ -145,26 +145,67 @@ on the free neuron allowance.
   selection. `selectModels` returns only candidates below the ceiling;
   if none remain, the router reports that free capacity is exhausted instead
   of calling a provider.
+- **Every routed dispatch reserves capacity first.** One atomic cache
+  operation checks every enforced bucket and increments all of them only if
+  each can absorb the request. Redis executes it as a single Lua script, so
+  two concurrent turns cannot both claim the last request in a bucket. Without
+  Redis, the in-memory fallback is atomic within one process only; capacity
+  can be overrun across instances until Redis is configured. If the Redis call
+  times out, the router cannot know whether the script committed: it refuses
+  that candidate (the turn continues on the next one) rather than opening a
+  second, unaccounted hold, and any committed hold expires with its TTL.
+- **Reservations settle against reality.** A successful call reports the
+  provider's usage and posts the difference between the preflight estimate and
+  actual tokens (and Cloudflare's rate-weighted neuron charge). A
+  timeout/network/5xx failure keeps the estimate because the provider may
+  already have processed the request. An explicit refusal (429 or a
+  request-shape 4xx) releases the token hold but keeps the request counted. A
+  404 rolls the whole reservation back and marks the identifier dead. If a
+  long stream outlives a minute-scoped token hold, settlement seeds the new
+  minute with reported usage instead of driving the counter negative. A
+  settlement that arrives after its window expired never subtracts from a newer
+  window: the counter's remaining lifetime, allowing one second of per-request
+  day-TTL rounding skew, proves it was recreated, so a late release is dropped
+  and a late over-spend charges the full reported usage.
+- **Health and pressure demote, never remove.** Success/failure counts,
+  consecutive failures, and an EWMA of successful-call latency demote a
+  candidate within its tier; a higher load ratio moves it to the stressed tier.
+  Poor health never removes a candidate; only a quota ceiling, a dead
+  identifier, or a provider cooldown does. This keeps a bad minute from
+  benching a provider that is merely slow.
+- **Deadlines and cancellation are explicit.** Non-chat generation has a 90 s
+  end-to-end budget and streaming chat has 120 s; each chat step gets 90 s,
+  with per-candidate provider timeouts of 15–30 s inside. Caller cancellation
+  stops the chain immediately. A per-candidate timeout advances to the next
+  candidate. For streams, that timer is cleared after the first non-error head
+  or clean end; the step deadline and caller cancellation remain active through
+  stream consumption. Streaming settles its reservation when the provider
+  finishes or the consumer cancels, and a mid-stream failure keeps the
+  conservative hold.
 - **Shared buckets are counted once.** Groq shares RPM/RPD/TPM/TPD across all
   its models. OpenRouter shares RPM/RPD across every `:free` model.
   Cloudflare shares RPM across the account and a single neuron pool. Gemini
   limits are per model/project.
 - **Request and token counters are separate.** Request counters power
-  RPM/RPD. Token counters charge the preflight estimate first, then post the
-  difference against actual usage after the turn or stream settles, so the
-  counters converge on real spend. Cloudflare neurons are corrected by rate
-  as well as by token count.
+  RPM/RPD. Token counters charge the preflight estimate at reservation time,
+  then settle against actual usage, so they converge on real spend.
+  Cloudflare neurons are settled by rate as well as by token count.
 - **Provider refusals cool down the scope that failed.** A daily-quota error
   cools until the provider's day boundary; a per-minute error cools for one
-  minute and marks the provider bucket when limits are shared. A 404 marks
-  the identifier dead for six hours without consuming an attempt.
+  minute and marks the provider bucket when limits are shared. Authentication
+  failures cool the whole provider for ten minutes, and a chain that is
+  already running skips that provider's remaining models instead of spending
+  its attempts on the same bad key. A 404 marks the identifier dead for six
+  hours without consuming an attempt.
 - **Model selection is catalog-only.** The router selects through routing
   profiles, and every profile identifier must exist in the catalog. There is
   no manual override path, so a stale setting cannot reach a provider.
 - **Direct provider paths are metered too.** The file importer preflights
-  each extraction model, records the request and actual tokens on success,
+  each extraction model, records the request and actual tokens after the call,
   and cools the model after a provider failure. Embedding calls record their
-  token usage under `google:gemini-embedding-001`. The provider console
+  token usage under `google:gemini-embedding-001`. These direct paths are not
+  routed through the atomic reservation because they call a provider without a
+  routing profile; their preflight check is advisory and the provider console
   remains authoritative for usage from other applications sharing the key.
 
 `costCentsPerMillion` stores provider list prices for observability only.

@@ -49,6 +49,12 @@ export type AiCompletionRequest = {
   routingProfile?: AiRoutingProfile;
   /** Preflight token estimate (input + output) for capacity selection. */
   estimatedTokens?: number;
+  /**
+   * End-to-end budget for this request, including fallback attempts. The
+   * router applies its own default when omitted. Per-candidate provider
+   * timeouts always sit inside this budget.
+   */
+  deadlineMs?: number;
   /** Caller cancellation for streaming requests, shared by all fallback attempts. */
   abortSignal?: AbortSignal;
 };
