@@ -77,7 +77,7 @@ services:
       retries: 10
 
   redis-http:
-    image: hiett/serverless-redis-http:latest
+    image: hiett/serverless-redis-http:0.0.10
     restart: unless-stopped
     depends_on:
       redis:

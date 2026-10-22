@@ -20,6 +20,12 @@ function errorResponse(status: number) {
   } as Response;
 }
 
+function abortError() {
+  return Object.assign(new Error("The operation was aborted"), {
+    name: "AbortError",
+  });
+}
+
 describe("Redis REST health probe", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -56,6 +62,35 @@ describe("Redis REST health probe", () => {
       attempts: 2,
       retryDelayMs: 0,
     });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries a timed-out ping and then succeeds", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(abortError())
+      .mockResolvedValueOnce(okResponse());
+    vi.stubGlobal("fetch", fetchMock);
+
+    await pingRedisRestWithRetry("http://127.0.0.1:8079", "token", {
+      attempts: 2,
+      retryDelayMs: 0,
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("stops after two consecutive timeouts", async () => {
+    const fetchMock = vi.fn().mockRejectedValue(abortError());
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      pingRedisRestWithRetry("http://127.0.0.1:8079", "token", {
+        attempts: 6,
+        retryDelayMs: 0,
+      }),
+    ).rejects.toMatchObject({ name: "AbortError" });
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });

@@ -9,6 +9,10 @@
 const DEFAULT_TIMEOUT_MS = 5000;
 const DEFAULT_ATTEMPTS = 6;
 const DEFAULT_RETRY_DELAY_MS = 1000;
+// A timed-out ping is ambiguous, but retrying every 5s until the normal
+// attempt limit would stall the health check for ~30s. Allow one retry for a
+// transient timeout; connection and 5xx failures still use every attempt.
+const MAX_TIMEOUT_ATTEMPTS = 2;
 
 export type RedisPingOptions = {
   attempts?: number;
@@ -50,16 +54,22 @@ export async function pingRedisRest(
 
 /**
  * Retry only failures that can mean "the local proxy is still starting".
- * Authentication and protocol errors are not transient.
+ * Timeouts, connection failures, and 5xx responses are transient;
+ * authentication and protocol errors are not.
  */
 export function isRetryableRedisPingError(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
-  return error instanceof TypeError || /^HTTP 50[234]$/.test(error.message);
+  return (
+    error.name === "AbortError" ||
+    error instanceof TypeError ||
+    /^HTTP 50[234]$/.test(error.message)
+  );
 }
 
 /**
- * Pings a Redis REST endpoint, retrying transient connection failures so a
- * cold-starting SRH container does not produce a false warning.
+ * Pings a Redis REST endpoint, retrying transient failures so a cold-starting
+ * SRH container does not produce a false warning. Timeouts get one retry;
+ * connection and 5xx failures get the full attempt budget.
  */
 export async function pingRedisRestWithRetry(
   url: string,
@@ -71,13 +81,21 @@ export async function pingRedisRestWithRetry(
     0,
     Math.floor(options.retryDelayMs ?? DEFAULT_RETRY_DELAY_MS),
   );
+  let timeoutAttempts = 0;
 
   for (let attempt = 1; ; attempt++) {
     try {
       await pingRedisRest(url, token, options.timeoutMs);
       return;
     } catch (error) {
-      if (attempt >= attempts || !isRetryableRedisPingError(error)) {
+      const timedOut = error instanceof Error && error.name === "AbortError";
+      if (timedOut) timeoutAttempts += 1;
+
+      if (
+        attempt >= attempts ||
+        !isRetryableRedisPingError(error) ||
+        (timedOut && timeoutAttempts >= MAX_TIMEOUT_ATTEMPTS)
+      ) {
         throw error;
       }
       if (retryDelayMs > 0) {

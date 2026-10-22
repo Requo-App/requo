@@ -44,7 +44,7 @@ The full-local stack starts two Redis-related services:
 
 - `redis` — Redis 7 with append-only persistence on `localhost:6379`.
 - `redis-http` — [`serverless-redis-http`](https://github.com/hiett/serverless-redis-http),
-  an Upstash-compatible REST proxy on `localhost:8079`.
+  pinned to `0.0.10`, an Upstash-compatible REST proxy on `localhost:8079`.
 
 Both host port mappings bind to `127.0.0.1`; the Compose app reaches
 `redis-http` over the Compose network instead.
@@ -87,7 +87,8 @@ The admin health report includes a `Redis` check under the **cache**
 category. It reports:
 
 - `warn` / "Not configured — in-memory fallback" — variables absent.
-- `warn` / a connection error — variables present but unreachable (5s timeout).
+- `warn` / a connection error — variables present but unreachable after the
+  retry policy (5s per attempt; timeouts get one retry).
 - `pass` / "Connected" — a real round trip to the REST endpoint succeeded.
 
 The same check is exposed on the integration config matrix as "Redis cache".
