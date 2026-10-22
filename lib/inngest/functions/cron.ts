@@ -1,5 +1,5 @@
 import { inngest } from "@/lib/inngest/client";
-import { processExpireAgentSessions } from "@/features/ai-agent/jobs/expire-sessions";
+import { processExpireAgentSessions } from "@/features/agent/jobs/expire-sessions";
 import { computeAnalyticsBenchmarks } from "@/features/analytics/jobs/benchmarks";
 import { sendAnalyticsDigestEmails } from "@/features/analytics/jobs/digest";
 import { computeDailyRollups } from "@/features/analytics/jobs/rollup";
@@ -8,7 +8,7 @@ import { processFollowUpReminders } from "@/features/follow-ups/jobs/reminders";
 import { processAutomaticFollowUpSends } from "@/features/follow-ups/jobs/auto-send";
 import { processAutoArchiveStaleInquiries } from "@/features/inquiries/jobs/auto-archive";
 import { processInvoiceOverdue } from "@/features/invoices/jobs/overdue";
-import { backfillMissingEmbeddings } from "@/features/memory/jobs/embedding-backfill";
+import { backfillMissingEmbeddings } from "@/features/knowledge/jobs/embedding-backfill";
 import { processQuoteAutoFollowUps } from "@/features/quotes/jobs/auto-follow-ups";
 import { processQuoteExpiringSoon } from "@/features/quotes/jobs/expiring-soon";
 import { processQuoteViewedFollowUps } from "@/features/quotes/jobs/viewed-follow-ups";
@@ -200,7 +200,7 @@ export const invoiceOverdueCron = inngest.createFunction(
 export const expireAgentSessionsCron = inngest.createFunction(
   {
     id: "cron-expire-agent-sessions",
-    name: "Expire abandoned AI agent sessions",
+    name: "Expire abandoned Agent sessions",
     triggers: [{ cron: "0 * * * *" }], // Hourly
     retries: 2,
   },

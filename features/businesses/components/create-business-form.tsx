@@ -35,7 +35,7 @@ import { validateBusinessSlug } from "@/features/businesses/validation";
 import type { CreateBusinessActionState } from "@/features/businesses/types";
 import type { BusinessType } from "@/features/inquiries/business-types";
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
-import type { BusinessPlan } from "@/lib/plans/plans";
+import type { PlanTier } from "@/lib/plans/plans";
 import { slugifyPublicName } from "@/lib/slugs";
 import { cn } from "@/lib/utils";
 
@@ -50,7 +50,7 @@ type CreateBusinessFormProps = {
   /** When true, renders without dialog wrappers for standalone page use. */
   standalone?: boolean;
   /** Resolved plan for the new business; drives the service cap UI. */
-  plan?: BusinessPlan;
+  plan?: PlanTier;
 };
 
 const initialState: CreateBusinessActionState = {};

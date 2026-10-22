@@ -81,7 +81,7 @@ export function getBusinessMembersCacheTags(businessId: string) {
   ]);
 }
 
-export function getBusinessInquiryFormsCacheTags(businessId: string) {
+export function getServicesCacheTags(businessId: string) {
   const scopeTag = getBusinessScopeTag(businessId);
 
   return uniqueCacheTags([
@@ -91,9 +91,9 @@ export function getBusinessInquiryFormsCacheTags(businessId: string) {
   ]);
 }
 
-export function getBusinessInquiryFormCacheTags(
+export function getServiceCacheTags(
   businessId: string,
-  formSlug: string,
+  serviceSlug: string,
 ) {
   const scopeTag = getBusinessScopeTag(businessId);
 
@@ -101,7 +101,7 @@ export function getBusinessInquiryFormCacheTags(
     scopeTag,
     `${scopeTag}:settings`,
     `${scopeTag}:inquiry-forms`,
-    `${scopeTag}:inquiry-form:${formSlug}`,
+    `${scopeTag}:inquiry-form:${serviceSlug}`,
   ]);
 }
 
@@ -186,7 +186,7 @@ export function getBusinessInvoiceDetailCacheTags(businessId: string, invoiceId:
   ]);
 }
 
-export function getBusinessProductCacheTags(businessId: string) {
+export function getBusinessQuoteLibraryCacheTags(businessId: string) {
   const scopeTag = getBusinessScopeTag(businessId);
 
   return uniqueCacheTags([
@@ -196,7 +196,7 @@ export function getBusinessProductCacheTags(businessId: string) {
   ]);
 }
 
-export function getBusinessMemoryCacheTags(businessId: string) {
+export function getKnowledgeCacheTags(businessId: string) {
   const scopeTag = getBusinessScopeTag(businessId);
 
   return uniqueCacheTags([

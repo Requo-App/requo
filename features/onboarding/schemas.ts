@@ -151,7 +151,7 @@ export const onboardingBusinessBasicsSchema = z.object({
 
 /**
  * Step 2: Starting Workflow
- * Selects one of three workflow patterns for the initial inquiry form.
+ * Selects one of three workflow patterns for the initial service.
  */
 export const onboardingStartingWorkflowSchema = z.object({
   starterWorkflow: z.enum(starterWorkflowKeys),

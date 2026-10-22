@@ -5,7 +5,7 @@ export type InquiryDocumentData = {
   businessName: string;
   businessCurrency: string;
   referenceId: string;
-  inquiryFormName: string | null;
+  serviceName: string | null;
   source: string | null;
   customerName: string;
   customerEmail: string | null;
@@ -42,7 +42,7 @@ export function getInquiryDocumentData({
     businessName,
     businessCurrency,
     referenceId: inquiry.id,
-    inquiryFormName: inquiry.inquiryFormName,
+    serviceName: inquiry.serviceName,
     source: inquiry.source,
     customerName: inquiry.customerName,
     customerEmail: inquiry.customerEmail,

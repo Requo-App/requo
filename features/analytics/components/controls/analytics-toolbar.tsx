@@ -12,9 +12,9 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { FeatureGate } from "@/features/paywall/components/feature-gate";
-import type { UpgradeActionProps } from "@/features/paywall/types";
-import type { BusinessPlan } from "@/lib/plans";
+import { FeatureGate } from "@/features/entitlements/components/feature-gate";
+import type { UpgradeActionProps } from "@/features/entitlements/types";
+import type { PlanTier } from "@/lib/plans";
 import type { AnalyticsRangePreset } from "@/features/analytics/lib/window";
 
 import { AnalyticsExportMenu } from "./analytics-export-menu";
@@ -29,7 +29,7 @@ import { CompareToggle } from "./compare-toggle";
  * Analytics toolbar: range, comparison, and export.
  *
  * Desktop renders the controls inline; phones get one summary button opening
- * a sheet with the same controls (the list-filter pattern). Free workspaces
+ * a sheet with the same controls (the list-filter pattern). Free businesses
  * see a static "Last 30 days" pill — the window itself is server-clamped, the
  * pill only states it. Export is server-gated to Pro+; the locked trigger
  * opens the upgrade popover instead of firing a request.
@@ -51,7 +51,7 @@ export function AnalyticsToolbar({
   exportUntil,
   upgradeAction,
 }: {
-  plan: BusinessPlan;
+  plan: PlanTier;
   range: AnalyticsRangePreset;
   from: string | null;
   to: string | null;

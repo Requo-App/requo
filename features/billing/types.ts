@@ -1,4 +1,4 @@
-import type { BusinessPlan as plan } from "@/lib/plans/plans";
+import type { PlanTier as plan } from "@/lib/plans/plans";
 import type {
   BillingCurrency,
   BillingInterval,
@@ -7,8 +7,8 @@ import type {
   SubscriptionStatus,
 } from "@/lib/billing/types";
 
-/** Billing overview for the account billing UI. */
-export type AccountBillingOverview = {
+/** Billing overview for the business billing UI. */
+export type BusinessBillingOverview = {
   userId: string;
   /** Current business context (for display and navigation). */
   businessId: string;
@@ -39,9 +39,6 @@ export type AccountBillingOverview = {
     requiresSelection: boolean;
   };
 };
-
-/** @deprecated Use `AccountBillingOverview` instead. */
-export type WorkspaceBillingOverview = AccountBillingOverview;
 
 /** Props for the checkout dialog. */
 export type CheckoutDialogProps = {

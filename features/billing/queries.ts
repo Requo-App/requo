@@ -16,8 +16,8 @@ import {
   getBusinessBillingCacheTags,
   billingShellCacheLife,
 } from "@/lib/cache/shell-tags";
-import type { AccountBillingOverview } from "@/features/billing/types";
-import type { BusinessPlan } from "@/lib/plans/plans";
+import type { BusinessBillingOverview } from "@/features/billing/types";
+import type { PlanTier } from "@/lib/plans/plans";
 
 /**
  * Cached business identity (no dynamic APIs like headers()).
@@ -45,7 +45,7 @@ async function getCachedBusinessData(businessId: string) {
 
 function toBillingSubscriptionView(
   subscription: Awaited<ReturnType<typeof getBusinessSubscription>>,
-): AccountBillingOverview["subscription"] {
+): BusinessBillingOverview["subscription"] {
   return subscription
     ? {
         status: subscription.status,
@@ -62,7 +62,7 @@ function toBillingSubscriptionView(
     : null;
 }
 
-function createEmptyDowngradePreview(): AccountBillingOverview["downgradePreview"] {
+function createEmptyDowngradePreview(): BusinessBillingOverview["downgradePreview"] {
   return {
     targetPlan: "free",
     activeBusinessLimit: null,
@@ -80,7 +80,7 @@ function createEmptyDowngradePreview(): AccountBillingOverview["downgradePreview
  * request. The inner cached reads are already `"use cache"`-backed.
  */
 export const getBusinessBillingShellOverview = cache(
-  async (businessId: string): Promise<AccountBillingOverview | null> => {
+  async (businessId: string): Promise<BusinessBillingOverview | null> => {
     try {
       const businessData = await getCachedBusinessData(businessId);
 
@@ -91,7 +91,7 @@ export const getBusinessBillingShellOverview = cache(
       const subscription = await getCachedBusinessSubscription(businessId);
       const currentPlan = subscription
         ? resolveEffectivePlanFromSubscription(subscription)
-        : (businessData.plan as BusinessPlan);
+        : (businessData.plan as PlanTier);
 
       return {
         userId: businessData.ownerUserId,
@@ -115,12 +115,12 @@ export const getBusinessBillingShellOverview = cache(
 );
 
 /**
- * Returns a full billing overview for the account billing UI.
+ * Returns a full billing overview for the business billing UI.
  * Subscription and plan are resolved for the requested business.
  */
-export async function getAccountBillingOverview(
+export async function getBusinessBillingOverview(
   businessId: string,
-): Promise<AccountBillingOverview | null> {
+): Promise<BusinessBillingOverview | null> {
   try {
     const businessData = await getCachedBusinessData(businessId);
 
@@ -135,7 +135,7 @@ export async function getAccountBillingOverview(
     });
     const currentPlan = subscription
       ? resolveEffectivePlanFromSubscription(subscription)
-      : (businessData.plan as BusinessPlan);
+      : (businessData.plan as PlanTier);
 
     return {
       userId: businessData.ownerUserId,
@@ -158,7 +158,7 @@ export async function getAccountBillingOverview(
     };
   } catch (error) {
     console.error(
-      "Failed to load account billing overview.",
+      "Failed to load business billing overview.",
       { businessId },
       error,
     );
@@ -166,6 +166,3 @@ export async function getAccountBillingOverview(
     return null;
   }
 }
-
-/** @deprecated Use `getAccountBillingOverview` instead. */
-export const getBusinessBillingOverview = getAccountBillingOverview;

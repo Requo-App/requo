@@ -70,7 +70,7 @@ export async function processInvoiceOverdue(): Promise<InvoiceOverdueSummary> {
           invoiceId: row.invoiceId,
           type: "invoice_overdue",
           title: `Invoice ${row.invoiceNumber} is overdue`,
-          summary: `Invoice ${row.invoiceNumber} for ${row.customerName} was due ${row.dueDate}. Follow up on the outstanding balance.`,
+          summary: `Invoice ${row.invoiceNumber} for ${row.customerName} was due ${row.dueDate}. Follow up on the amount due.`,
           metadata: {
             invoiceId: row.invoiceId,
             invoiceNumber: row.invoiceNumber,

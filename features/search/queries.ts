@@ -8,11 +8,11 @@ import {
   getBusinessFollowUpPath,
   getBusinessInquiryPath,
   getBusinessInvoicePath,
-  getBusinessProductsPath,
+  getBusinessQuoteLibraryPath,
   getBusinessQuotePath,
   getBusinessServicePath,
 } from "@/features/businesses/routes";
-import { businessInquiryForms } from "@/lib/db/schema/business-inquiry-forms";
+import { services } from "@/lib/db/schema/services";
 import { followUps } from "@/lib/db/schema/follow-ups";
 import { inquiries } from "@/lib/db/schema/inquiries";
 import { invoices } from "@/lib/db/schema/invoices";
@@ -23,7 +23,7 @@ export type MobileSearchResultType =
   | "inquiry"
   | "quote"
   | "invoice"
-  | "product"
+  | "quote-library"
   | "service"
   | "follow-up";
 
@@ -72,9 +72,9 @@ export async function searchMobileRecordsForBusiness({
   }
 
   const pattern = `%${escapeLikePattern(normalized)}%`;
-  const productsPath = getBusinessProductsPath(businessSlug);
+  const quoteLibraryPath = getBusinessQuoteLibraryPath(businessSlug);
 
-  const [inquiryRows, quoteRows, invoiceRows, productRows, serviceRows, followUpRows] =
+  const [inquiryRows, quoteRows, invoiceRows, quoteLibraryRows, serviceRows, followUpRows] =
     await Promise.all([
       withCircuitBreaker(`mobile-search:inquiries:${businessId}`, () =>
         db
@@ -149,7 +149,7 @@ export async function searchMobileRecordsForBusiness({
           .orderBy(desc(invoices.createdAt))
           .limit(LIMIT_PER_TYPE),
       ),
-      withCircuitBreaker(`mobile-search:products:${businessId}`, () =>
+      withCircuitBreaker(`mobile-search:quote-library:${businessId}`, () =>
         db
           .select({
             id: quoteLibraryEntries.id,
@@ -172,22 +172,22 @@ export async function searchMobileRecordsForBusiness({
       withCircuitBreaker(`mobile-search:services:${businessId}`, () =>
         db
           .select({
-            id: businessInquiryForms.id,
-            name: businessInquiryForms.name,
-            slug: businessInquiryForms.slug,
+            id: services.id,
+            name: services.name,
+            slug: services.slug,
           })
-          .from(businessInquiryForms)
+          .from(services)
           .where(
             and(
-              eq(businessInquiryForms.businessId, businessId),
-              isNull(businessInquiryForms.archivedAt),
+              eq(services.businessId, businessId),
+              isNull(services.archivedAt),
               or(
-                ilike(businessInquiryForms.name, pattern),
-                ilike(businessInquiryForms.slug, pattern),
+                ilike(services.name, pattern),
+                ilike(services.slug, pattern),
               ),
             ),
           )
-          .orderBy(desc(businessInquiryForms.updatedAt))
+          .orderBy(desc(services.updatedAt))
           .limit(LIMIT_PER_TYPE),
       ),
       withCircuitBreaker(`mobile-search:follow-ups:${businessId}`, () =>
@@ -241,13 +241,13 @@ export async function searchMobileRecordsForBusiness({
         href: getBusinessInvoicePath(businessSlug, row.id),
       }),
     ),
-    ...productRows.map(
+    ...quoteLibraryRows.map(
       (row): MobileSearchResult => ({
         id: row.id,
-        type: "product",
+        type: "quote-library",
         title: row.name,
         subtitle: row.description,
-        href: productsPath,
+        href: quoteLibraryPath,
       }),
     ),
     ...serviceRows.map(

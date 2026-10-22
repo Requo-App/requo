@@ -20,7 +20,7 @@ import { activityLogs, businesses, followUps, inquiries, quotes } from "@/lib/db
 import { env, isFollowUpAutoSendEmailEnabled } from "@/lib/env";
 import { newEntityId } from "@/lib/ids";
 import { hasFeatureAccess } from "@/lib/plans/entitlements";
-import type { BusinessPlan } from "@/lib/plans/plans";
+import type { PlanTier } from "@/lib/plans/plans";
 import {
   getDailyAutoFollowUpSendCount,
   getMonthlyAutoFollowUpSendCount,
@@ -68,7 +68,7 @@ export async function processAutomaticFollowUpSends(): Promise<FollowUpAutoSendS
 
   async function getRemainingBudget(
     businessId: string,
-    plan: BusinessPlan,
+    plan: PlanTier,
   ): Promise<AutoSendBudget> {
     const cached = budgetByBusiness.get(businessId);
 
@@ -173,7 +173,7 @@ export async function processAutomaticFollowUpSends(): Promise<FollowUpAutoSendS
 
       const customerName = row.quoteCustomerName ?? row.inquiryCustomerName ?? "there";
       const isQuoteFollowUp = Boolean(row.quoteId);
-      const plan = row.businessPlan as BusinessPlan;
+      const plan = row.businessPlan as PlanTier;
 
       // Unattended sends are a paid capability. A business that downgraded
       // keeps `sendMode = automatic` on the row but must stop sending, so the
@@ -403,7 +403,7 @@ async function sendFollowUpAutoSend(
     customerName: string;
     message: string;
     subject: string;
-    plan: BusinessPlan;
+    plan: PlanTier;
   },
 ): Promise<boolean> {
   const replyToEmail = row.businessContactEmail ?? undefined;

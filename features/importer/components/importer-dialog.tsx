@@ -17,9 +17,9 @@ import {
 } from "@/components/ui/responsive-overlay";
 import { Spinner } from "@/components/ui/spinner";
 import {
-  ImporterProductReview,
-  type ProductDraft,
-} from "@/features/importer/components/importer-product-review";
+  ImporterQuoteLibraryReview,
+  type QuoteLibraryDraft,
+} from "@/features/importer/components/importer-quote-library-review";
 import type {
   ImporterAnalyzeResult,
   ImporterCommitResult,
@@ -35,8 +35,8 @@ type ImporterDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   analyzeAction: (formData: FormData) => Promise<ImporterAnalyzeResult>;
-  commitProductAction: (
-    payload: { sourceName: string; entries: ProductDraft[] },
+  commitQuoteLibraryAction: (
+    payload: { sourceName: string; entries: QuoteLibraryDraft[] },
   ) => Promise<ImporterCommitResult>;
 };
 
@@ -46,7 +46,7 @@ type ReviewState = {
   destination: "pricing";
   sourceName: string;
   warnings: string[];
-  entries: ProductDraft[];
+  entries: QuoteLibraryDraft[];
   planContext: ImporterPlanContext;
 };
 
@@ -54,7 +54,7 @@ export function ImporterDialog({
   open,
   onOpenChange,
   analyzeAction,
-  commitProductAction,
+  commitQuoteLibraryAction,
 }: ImporterDialogProps) {
   const [step, setStep] = useState<Step>("upload");
   const [file, setFile] = useState<File | null>(null);
@@ -119,7 +119,7 @@ export function ImporterDialog({
 
       if (!result.entries.length) {
         toast.error(
-          "The AI didn't find any pricing to import from that file. Try a different file or add entries manually.",
+          "The AI didn't find any quote library entries to import from that file. Try a different file or add entries manually.",
         );
         return;
       }
@@ -161,7 +161,7 @@ export function ImporterDialog({
     }
 
     startCommitting(async () => {
-      const result = await commitProductAction({
+      const result = await commitQuoteLibraryAction({
         sourceName: review.sourceName,
         entries: review.entries,
       });
@@ -173,17 +173,17 @@ export function ImporterDialog({
 
       toast.success(
         result.created === 1
-          ? "1 pricing entry imported."
-          : `${result.created} pricing entries imported.`,
+          ? "1 quote library entry imported."
+          : `${result.created} quote library entries imported.`,
         result.error ? { description: result.error } : undefined,
       );
       handleClose(false);
     });
   }
 
-  const title = "Import pricing from file";
+  const title = "Import quote library from file";
   const description =
-    "Upload a pricing sheet and AI will extract pricing entries you can review before saving.";
+    "Upload a price list and AI will extract quote library entries you can review before saving.";
 
   return (
     <ResponsiveOverlay open={open} onOpenChange={handleClose}>
@@ -206,7 +206,7 @@ export function ImporterDialog({
           {isAnalyzing ? <AnalyzingStep /> : null}
 
           {step === "review" && review ? (
-            <ImporterProductReview
+            <ImporterQuoteLibraryReview
               entries={review.entries}
               onChange={(entries) =>
                 setReview({ ...review, entries })
@@ -302,7 +302,7 @@ function buildOverLimitMessage(
 
   const overBy = existingCount + selectedCount - limit;
 
-  return `You have ${existingCount} saved pricing entries and selected ${selectedCount} more, which is ${overBy} over your plan limit of ${limit}. Remove ${overBy} highlighted ${overBy === 1 ? "item" : "items"} from the bottom of the list, or upgrade your plan.`;
+  return `You have ${existingCount} saved quote library entries and selected ${selectedCount} more, which is ${overBy} over your plan limit of ${limit}. Remove ${overBy} highlighted ${overBy === 1 ? "item" : "items"} from the bottom of the list, or upgrade your plan.`;
 }
 
 function getCommitLabel(review: ReviewState | null): string {

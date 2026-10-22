@@ -48,7 +48,7 @@ import {
   quotes,
 } from "@/lib/db/schema";
 import { env } from "@/lib/env";
-import type { BusinessPlan } from "@/lib/plans/plans";
+import type { PlanTier } from "@/lib/plans/plans";
 import { likePattern } from "@/lib/sql-patterns";
 
 const followUpOverviewLimit = 4;
@@ -58,7 +58,7 @@ type FollowUpRow = {
   businessId: string;
   businessName: string;
   businessTimezone: string;
-  businessPlan: BusinessPlan;
+  businessPlan: PlanTier;
   inquiryId: string | null;
   quoteId: string | null;
   assignedToUserId: string | null;
@@ -162,7 +162,7 @@ function mapFollowUpRow(row: FollowUpRow): FollowUpView {
     id: row.id,
     businessId: row.businessId,
     businessTimezone: row.businessTimezone,
-    businessPlan: row.businessPlan as BusinessPlan,
+    businessPlan: row.businessPlan as PlanTier,
     inquiryId: row.inquiryId,
     quoteId: row.quoteId,
     assignedToUserId: row.assignedToUserId,

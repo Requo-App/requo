@@ -35,7 +35,7 @@ import {
   quotes,
 } from "@/lib/db/schema";
 import { hasFeatureAccess } from "@/lib/plans/entitlements";
-import type { BusinessPlan } from "@/lib/plans/plans";
+import type { PlanTier } from "@/lib/plans/plans";
 
 type FollowUpTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -167,17 +167,17 @@ export class FollowUpCreateValidationError extends Error {
 }
 
 /** Plan of the owning business, read inside the mutation so the check cannot be skipped. */
-async function getBusinessPlan(
+async function getPlanTier(
   tx: FollowUpTransaction,
   businessId: string,
-): Promise<BusinessPlan> {
+): Promise<PlanTier> {
   const [business] = await tx
     .select({ plan: businesses.plan })
     .from(businesses)
     .where(eq(businesses.id, businessId))
     .limit(1);
 
-  return (business?.plan ?? "free") as BusinessPlan;
+  return (business?.plan ?? "free") as PlanTier;
 }
 
 /**
@@ -194,7 +194,7 @@ async function assertAutomaticSendAllowed(
     return;
   }
 
-  const plan = await getBusinessPlan(tx, businessId);
+  const plan = await getPlanTier(tx, businessId);
 
   if (!hasFeatureAccess(plan, "autoFollowUps")) {
     throw new FollowUpCreateValidationError(

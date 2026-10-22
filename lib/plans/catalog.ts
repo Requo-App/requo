@@ -9,7 +9,7 @@
  * Client-safe: no server-only imports.
  */
 
-import type { BusinessPlan } from "@/lib/plans/plans";
+import type { PlanTier } from "@/lib/plans/plans";
 import {
   formatUsageLimitValue,
   getUsageLimit,
@@ -17,14 +17,14 @@ import {
 } from "@/lib/plans/usage-limits";
 
 export type PlanCatalogEntry = {
-  id: BusinessPlan;
+  id: PlanTier;
   label: string;
   audience: string;
   description: string;
   highlights: readonly string[];
 };
 
-export const planCatalog: Record<BusinessPlan, PlanCatalogEntry> = {
+export const planCatalog: Record<PlanTier, PlanCatalogEntry> = {
   free: {
     id: "free",
     label: "Free",
@@ -76,7 +76,7 @@ export const annualBillingPromoCopy = "Two months free";
  * Customer-facing AI drafting allowance labels. Values correspond to
  * `aiWeightedCreditsPerMonth` divided by the `quote_draft` weight (3).
  */
-export const aiDraftAllowanceLabels: Record<BusinessPlan, string> = {
+export const aiDraftAllowanceLabels: Record<PlanTier, string> = {
   free: "About 10 AI quote drafts per month",
   pro: "About 50 AI quote drafts per month",
   business: "About 165 AI quote drafts per month",
@@ -101,7 +101,7 @@ export const pricingFaqs = [
   {
     question: "Can I start free and upgrade later?",
     answer:
-      "Yes. Start free with the core inquiry-to-quote workflow, then upgrade a business when you need automatic follow-ups, more live forms, more AI drafting, advanced analytics, or team access.",
+      "Yes. Start free with the core inquiry-to-quote workflow, then upgrade a business when you need automatic follow-ups, more live services, more AI drafting, advanced analytics, or team access.",
   },
   {
     question: "What is included in the free plan?",
@@ -132,7 +132,7 @@ export type PricingComparisonCategory = {
 };
 
 function limitCell(
-  plan: BusinessPlan,
+  plan: PlanTier,
   key: UsageLimitKey,
 ): PricingComparisonCell {
   const value = getUsageLimit(plan, key);
@@ -140,14 +140,14 @@ function limitCell(
   return value;
 }
 
-function attachmentCell(plan: BusinessPlan): PricingComparisonCell {
+function attachmentCell(plan: PlanTier): PricingComparisonCell {
   return formatUsageLimitValue(
     "publicInquiryAttachmentMaxBytes",
     getUsageLimit(plan, "publicInquiryAttachmentMaxBytes"),
   );
 }
 
-function aiDraftCell(plan: BusinessPlan): PricingComparisonCell {
+function aiDraftCell(plan: PlanTier): PricingComparisonCell {
   return aiDraftAllowanceLabels[plan];
 }
 
@@ -168,15 +168,15 @@ export const pricingComparison: PricingComparisonCategory[] = [
       { label: "Inquiry and quote CSV exports", free: true, pro: true, business: true },
       {
         label: "Live services",
-        free: limitCell("free", "liveFormsPerBusiness"),
-        pro: limitCell("pro", "liveFormsPerBusiness"),
-        business: limitCell("business", "liveFormsPerBusiness"),
+        free: limitCell("free", "liveServicesPerBusiness"),
+        pro: limitCell("pro", "liveServicesPerBusiness"),
+        business: limitCell("business", "liveServicesPerBusiness"),
       },
       {
-        label: "Custom fields per form",
-        free: limitCell("free", "customFieldsPerForm"),
-        pro: limitCell("pro", "customFieldsPerForm"),
-        business: limitCell("business", "customFieldsPerForm"),
+        label: "Custom fields per service",
+        free: limitCell("free", "customFieldsPerService"),
+        pro: limitCell("pro", "customFieldsPerService"),
+        business: limitCell("business", "customFieldsPerService"),
       },
       {
         label: "File upload size",
@@ -204,10 +204,10 @@ export const pricingComparison: PricingComparisonCategory[] = [
         business: limitCell("business", "autoFollowUpEmailsPerMonth"),
       },
       {
-        label: "Product library entries",
-        free: limitCell("free", "productEntriesPerBusiness"),
-        pro: limitCell("pro", "productEntriesPerBusiness"),
-        business: limitCell("business", "productEntriesPerBusiness"),
+        label: "Quote library entries",
+        free: limitCell("free", "quoteLibraryEntriesPerBusiness"),
+        pro: limitCell("pro", "quoteLibraryEntriesPerBusiness"),
+        business: limitCell("business", "quoteLibraryEntriesPerBusiness"),
       },
       {
         label: "Knowledge sources",

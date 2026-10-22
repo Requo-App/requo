@@ -7,8 +7,8 @@ import {
   CHAT_ATTACHMENT_MAX_BYTES,
   formatAttachmentBlock,
 } from "@/components/shared/chat/attachment-text";
-import { extractKnowledgeText } from "@/features/memory/extraction";
-import { sanitizeMemoryContent } from "@/lib/ai/input-sanitizer";
+import { extractKnowledgeText } from "@/features/knowledge/extraction";
+import { sanitizeKnowledgeContent } from "@/lib/ai/input-sanitizer";
 import { getFileExtension, isAcceptedFileType } from "@/lib/files";
 
 export {
@@ -204,7 +204,7 @@ export async function processChatAttachments({
       );
     }
 
-    const sanitization = sanitizeMemoryContent("", extracted.text);
+    const sanitization = sanitizeKnowledgeContent("", extracted.text);
     if (sanitization.status === "rejected") {
       throw new ChatAttachmentError(
         "unsafe",

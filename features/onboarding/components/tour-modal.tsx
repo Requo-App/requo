@@ -235,7 +235,7 @@ function PreviewSidebar({ highlight }: { highlight?: string }) {
     { icon: BellRing, label: "Follow-ups" },
     { icon: Sparkles, label: "Assistant" },
     { icon: PencilRuler, label: "Services" },
-    { icon: Package, label: "Products" },
+    { icon: Package, label: "Quote library" },
     { icon: Users, label: "Members" },
     { icon: BarChart3, label: "Analytics" },
   ];
@@ -496,13 +496,13 @@ export function AiDraftingPreview() {
                 Build a quote from this inquiry
               </p>
               <p className="truncate text-[9px] text-muted-foreground">
-                Uses your Products and business memory for context
+                Uses your quote library and business knowledge for context
               </p>
             </div>
           </div>
           <div className="mt-1.5 flex flex-col gap-1.5">
             <div className="rounded-md border border-border/50 px-2.5 py-2">
-              <p className="text-[10px] font-medium text-foreground">Line items suggested from Products</p>
+              <p className="text-[10px] font-medium text-foreground">Line items suggested from your quote library</p>
               <p className="text-[9px] text-muted-foreground">Edit, add, or remove before sending</p>
             </div>
             <div className="rounded-md border border-border/50 px-2.5 py-2">
@@ -553,13 +553,13 @@ export function AssistantPreview() {
   );
 }
 
-export function ProductsPreview() {
+export function QuoteLibraryPreview() {
   return (
     <div className="flex gap-3">
-      <PreviewSidebar highlight="Products" />
+      <PreviewSidebar highlight="Quote library" />
       <div className="flex flex-1 flex-col gap-2">
         <div className="rounded-lg border border-border/50 bg-background p-3">
-          <p className="text-[11px] font-medium text-foreground">Products</p>
+          <p className="text-[11px] font-medium text-foreground">Quote library</p>
           <p className="mt-0.5 text-[10px] text-muted-foreground">
             Save reusable items so quotes come together fast.
           </p>

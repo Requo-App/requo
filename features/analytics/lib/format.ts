@@ -35,7 +35,7 @@ function getMoneyFormatter(currency: string, compact: boolean) {
 }
 
 /**
- * Formats integer cents in the workspace currency. Whole units by default so
+ * Formats integer cents in the business currency. Whole units by default so
  * dashboard values stay scannable; `compact` is for tight chart axes/cells.
  *
  * A null, undefined, or non-finite amount reads as an em dash: every analytics

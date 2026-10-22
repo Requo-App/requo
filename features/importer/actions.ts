@@ -2,7 +2,7 @@
 
 import { updateTag } from "next/cache";
 
-import { getBusinessProductCacheTags, uniqueCacheTags } from "@/lib/cache/business-tags";
+import { getBusinessQuoteLibraryCacheTags, uniqueCacheTags } from "@/lib/cache/business-tags";
 import { getOperationalBusinessActionContext } from "@/lib/db/business-access";
 import { getUsageLimit, hasFeatureAccess } from "@/lib/plans";
 import {
@@ -14,7 +14,7 @@ import {
 import { assertPublicActionRateLimit } from "@/lib/rate-limit/redis-rate-limiter";
 import { aiExtractFromFile } from "@/features/importer/ai-extractor";
 import { extractFile } from "@/features/importer/extractors";
-import { importerCommitPricingSchema } from "@/features/importer/schemas";
+import { importerCommitQuoteLibrarySchema } from "@/features/importer/schemas";
 import type {
   ImporterAnalyzeResult,
   ImporterCommitResult,
@@ -87,7 +87,7 @@ export async function analyzeImportAction(
   if (!hasFeatureAccess(plan, "quoteLibrary")) {
     return {
       ok: false,
-      error: "Upgrade to Pro to import pricing from files.",
+      error: "Upgrade to Pro to import quote library entries from files.",
     };
   }
 
@@ -183,7 +183,7 @@ export async function analyzeImportAction(
   }
 
   // Fetch existing count + plan limit so the review UI can show what fits.
-  const limit = getUsageLimit(plan, "productEntriesPerBusiness");
+  const limit = getUsageLimit(plan, "quoteLibraryEntriesPerBusiness");
   const existingCount = (
     await getQuoteLibrarySummaryForBusiness(businessContext.business.id)
   ).entryCount;
@@ -200,11 +200,11 @@ export async function analyzeImportAction(
 }
 
 /**
- * Commits selected pricing entries from a reviewed import. Same mutation as
+ * Commits selected quote library entries from a reviewed import. Same mutation as
  * manual library creation so currency, cache tags, and activity logging are
  * handled consistently.
  */
-export async function commitProductImportAction(
+export async function commitQuoteLibraryImportAction(
   payload: unknown,
 ): Promise<ImporterCommitResult> {
   const ownerAccess = await getOperationalBusinessActionContext();
@@ -220,11 +220,11 @@ export async function commitProductImportAction(
     return {
       created: 0,
       skipped: 0,
-      error: "Upgrade to Pro to save imported pricing entries.",
+      error: "Upgrade to Pro to save imported quote library entries.",
     };
   }
 
-  const parsed = importerCommitPricingSchema.safeParse(payload);
+  const parsed = importerCommitQuoteLibrarySchema.safeParse(payload);
 
   if (!parsed.success) {
     const firstMessage = parsed.error.issues[0]?.message;
@@ -238,7 +238,7 @@ export async function commitProductImportAction(
     };
   }
 
-  const limit = getUsageLimit(plan, "productEntriesPerBusiness");
+  const limit = getUsageLimit(plan, "quoteLibraryEntriesPerBusiness");
   const existingCount = (
     await getQuoteLibrarySummaryForBusiness(businessContext.business.id)
   ).entryCount;
@@ -248,7 +248,7 @@ export async function commitProductImportAction(
     return {
       created: 0,
       skipped: parsed.data.entries.length,
-      error: `This plan supports ${limit} saved pricing entries. Remove an entry or upgrade to save another.`,
+      error: `This plan supports ${limit} saved quote library entries. Remove an entry or upgrade to save another.`,
     };
   }
 
@@ -274,11 +274,11 @@ export async function commitProductImportAction(
       });
       created += 1;
     } catch (error) {
-      console.warn("[importer] createPricingEntry failed", error);
+      console.warn("[importer] createQuoteLibraryEntryForBusiness failed", error);
     }
   }
 
-  updateCacheTags(getBusinessProductCacheTags(businessContext.business.id));
+  updateCacheTags(getBusinessQuoteLibraryCacheTags(businessContext.business.id));
 
   if (created === 0) {
     return {

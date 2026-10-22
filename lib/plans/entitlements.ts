@@ -8,14 +8,14 @@
  * Entitlements are evaluated at the business level.
  */
 
-import type { BusinessPlan } from "@/lib/plans/plans";
+import type { PlanTier } from "@/lib/plans/plans";
 
 export const planFeatures = [
   "analyticsPerformance",
   "analyticsOperations",
   "analyticsTeam",
-  "multipleForms",
-  "inquiryPageCustomization",
+  "multipleServices",
+  "servicePageCustomization",
   "emailTemplates",
   "aiQuoteDrafting",
   "quoteLibrary",
@@ -26,13 +26,13 @@ export const planFeatures = [
   "autoFollowUps",
   "members",
   "auditLogs",
-  "aiAgent",
+  "agent",
   "customWorkflowRecipes",
 ] as const;
 
 export type PlanFeature = (typeof planFeatures)[number];
 
-const planEntitlements: Record<BusinessPlan, ReadonlySet<PlanFeature>> = {
+const planEntitlements: Record<PlanTier, ReadonlySet<PlanFeature>> = {
   free: new Set<PlanFeature>([
     "followUps",
     "aiQuoteDrafting",
@@ -43,8 +43,8 @@ const planEntitlements: Record<BusinessPlan, ReadonlySet<PlanFeature>> = {
   pro: new Set<PlanFeature>([
     "analyticsPerformance",
     "analyticsOperations",
-    "multipleForms",
-    "inquiryPageCustomization",
+    "multipleServices",
+    "servicePageCustomization",
     "emailTemplates",
     "aiQuoteDrafting",
     "quoteLibrary",
@@ -53,15 +53,15 @@ const planEntitlements: Record<BusinessPlan, ReadonlySet<PlanFeature>> = {
     "removeWatermark",
     "followUps",
     "autoFollowUps",
-    "aiAgent",
+    "agent",
     "customWorkflowRecipes",
   ]),
   business: new Set<PlanFeature>([
     "analyticsPerformance",
     "analyticsOperations",
     "analyticsTeam",
-    "multipleForms",
-    "inquiryPageCustomization",
+    "multipleServices",
+    "servicePageCustomization",
     "emailTemplates",
     "aiQuoteDrafting",
     "quoteLibrary",
@@ -72,7 +72,7 @@ const planEntitlements: Record<BusinessPlan, ReadonlySet<PlanFeature>> = {
     "autoFollowUps",
     "members",
     "auditLogs",
-    "aiAgent",
+    "agent",
     "customWorkflowRecipes",
   ]),
 };
@@ -81,17 +81,17 @@ const planEntitlements: Record<BusinessPlan, ReadonlySet<PlanFeature>> = {
  * Checks whether a business plan grants access to a given feature.
  */
 export function hasFeatureAccess(
-  plan: BusinessPlan,
+  plan: PlanTier,
   feature: PlanFeature,
 ): boolean {
-  return planEntitlements[plan].has(feature);
+  return planEntitlements[plan]?.has(feature) ?? false;
 }
 
 /**
  * Returns the minimum plan required to unlock a feature, or `null` if the
  * feature is available on all plans.
  */
-export function getRequiredPlan(feature: PlanFeature): BusinessPlan | null {
+export function getRequiredPlan(feature: PlanFeature): PlanTier | null {
   if (planEntitlements.free.has(feature)) {
     return null;
   }
@@ -107,13 +107,13 @@ export function getRequiredPlan(feature: PlanFeature): BusinessPlan | null {
   return "business";
 }
 
-/** Human-readable label for a feature, used in paywall UI. */
+/** Human-readable label for a feature, used in upgrade UI. */
 export const planFeatureLabels: Record<PlanFeature, string> = {
   analyticsPerformance: "Performance analytics",
   analyticsOperations: "Operations analytics",
   analyticsTeam: "Team analytics",
-  multipleForms: "Multiple services",
-  inquiryPageCustomization: "Service page customization",
+  multipleServices: "Multiple services",
+  servicePageCustomization: "Service page customization",
   emailTemplates: "Email templates",
   aiQuoteDrafting: "AI quote drafting",
   quoteLibrary: "Quote library",
@@ -124,11 +124,11 @@ export const planFeatureLabels: Record<PlanFeature, string> = {
   autoFollowUps: "Auto follow-ups",
   members: "Team members",
   auditLogs: "Audit logs",
-  aiAgent: "AI agent",
+  agent: "Agent",
   customWorkflowRecipes: "Workflow recipes",
 };
 
-/** Short value description for use in paywall locked states. */
+/** Short value description for use in locked states. */
 export const planFeatureDescriptions: Record<PlanFeature, string> = {
   analyticsPerformance:
     "Date ranges, trend comparisons, service and source breakdowns, revenue and collections, and industry benchmarks.",
@@ -136,9 +136,9 @@ export const planFeatureDescriptions: Record<PlanFeature, string> = {
     "Follow-up effectiveness, automation health, AI impact, agent funnels, and vertical workflow metrics.",
   analyticsTeam:
     "Per-member performance, workload balance, SLA breaches, cohorts, and team report distribution.",
-  multipleForms:
+  multipleServices:
     "Create additional services for different offerings or audiences.",
-  inquiryPageCustomization:
+  servicePageCustomization:
     "Customize your public service page layout, showcase image, and supporting cards.",
   emailTemplates:
     "Customize the email message used when sending quotes through Requo.",
@@ -160,7 +160,7 @@ export const planFeatureDescriptions: Record<PlanFeature, string> = {
     "Invite team members and assign roles.",
   auditLogs:
     "Review meaningful admin, lifecycle, and security actions for this business.",
-  aiAgent:
+  agent:
     "Answer customer questions and collect inquiries automatically on your public site.",
   customWorkflowRecipes:
     "Customize behavior-pack recipes: intake bindings, scope requirements, approval cadences, and schedule structures.",

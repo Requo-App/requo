@@ -27,7 +27,7 @@ import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { useDeferredActionState } from "@/hooks/use-deferred-action-state";
-import { safeHasFeatureAccess } from "@/features/paywall/lib/utils";
+import { hasFeatureAccess } from "@/lib/plans/entitlements";
 import type {
   FollowUpCategory,
   FollowUpChannel,
@@ -88,7 +88,7 @@ export function FollowUpEditDialog({
   followUp: FollowUpView;
   disabled?: boolean;
 }) {
-  const canSendAutomatically = safeHasFeatureAccess(
+  const canSendAutomatically = hasFeatureAccess(
     followUp.businessPlan,
     "autoFollowUps",
   );

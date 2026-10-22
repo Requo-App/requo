@@ -23,7 +23,7 @@ import type {
 } from "@/features/admin/types";
 import { BusinessStatusBadge } from "@/features/businesses/components/business-status-badge";
 import { businessMemberRoleMeta } from "@/lib/business-members";
-import { planMeta, type BusinessPlan } from "@/lib/plans";
+import { planMeta, type PlanTier } from "@/lib/plans";
 
 type AdminBusinessMembers = AdminBusinessDetail["members"];
 
@@ -105,7 +105,7 @@ export function AdminBusinessHeaderSection({
       description={`/${detail.slug}`}
       meta={
         <>
-          <AdminBusinessPlanBadge plan={detail.plan} />
+          <AdminPlanTierBadge plan={detail.plan} />
           <AdminBusinessStatusBadge status={status} />
           <span className="text-xs text-muted-foreground">
             {detail.memberCount.toLocaleString()}{" "}
@@ -305,7 +305,7 @@ function getBusinessLifecycleStatus(
   return "active";
 }
 
-function AdminBusinessPlanBadge({ plan }: { plan: BusinessPlan }) {
+function AdminPlanTierBadge({ plan }: { plan: PlanTier }) {
   return (
     <Badge variant={plan === "free" ? "outline" : "secondary"}>
       {planMeta[plan].label}

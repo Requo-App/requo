@@ -7,11 +7,11 @@ import { Button } from "@/components/ui/button";
 import { mobileNavbarIconButtonClassName } from "@/components/shell/mobile-header-slot";
 import { BusinessQuotePreviewOverlay } from "@/features/quotes/components/business-quote-preview-overlay";
 import type { PublicQuoteView } from "@/features/quotes/types";
-import type { BusinessPlan } from "@/lib/plans/plans";
+import type { PlanTier } from "@/lib/plans/plans";
 
 type QuotePreviewButtonProps = {
   quote: PublicQuoteView;
-  businessPlan: BusinessPlan;
+  businessPlan: PlanTier;
   businessContactEmail: string | null;
   businessName: string;
   /** Href to the public customer-facing quote page (when available). */

@@ -10,7 +10,7 @@ import {
 } from "@/lib/cache/business-tags";
 import {
   activityLogs,
-  aiAgentSessions,
+  agentSessions,
   businesses,
   inquiries,
   inquiryAttachments,
@@ -155,7 +155,7 @@ export async function createInquirySubmission({
       await tx.insert(inquiries).values({
         id: inquiryId,
         businessId: business.id,
-        businessInquiryFormId: business.form?.id ?? null,
+        serviceId: business.form?.id ?? null,
         status: "new",
         subject: serviceName,
         customerName: submission.customerName,
@@ -349,7 +349,7 @@ export async function createManualInquirySubmission({
 /**
  * Shared submission path for the customer-facing Agent surface.
  *
- * Preserves AI attribution (`source: "ai_assistant"`, `aiAssisted: true`) while
+ * Preserves Agent attribution (`source: "ai_assistant"`, `aiAssisted: true`) while
  * reusing intake behaviour (form linkage, activity, notifications,
  * acknowledgement email, qualification) identically to the public path.
  */
@@ -366,10 +366,10 @@ export async function createAgentInquirySubmission({
     business,
     submission,
     actorUserId: null,
-    source: inquirySources.aiAssistant,
+    source: inquirySources.agent,
     activity: {
       type: "inquiry.submitted_ai_agent",
-      summary: "Inquiry submitted through AI agent conversation.",
+      summary: "Inquiry submitted through Agent conversation.",
     },
     notifyInAppOnNewInquiry: true,
     aiAssisted: true,
@@ -380,11 +380,11 @@ export async function createAgentInquirySubmission({
     try {
       const [current] = await db
         .select()
-        .from(aiAgentSessions)
+        .from(agentSessions)
         .where(
           and(
-            eq(aiAgentSessions.id, sessionId),
-            eq(aiAgentSessions.businessId, business.id),
+            eq(agentSessions.id, sessionId),
+            eq(agentSessions.businessId, business.id),
           ),
         )
         .limit(1);
@@ -399,7 +399,7 @@ export async function createAgentInquirySubmission({
           ]
         : [];
       await db
-        .update(aiAgentSessions)
+        .update(agentSessions)
         .set({
           inquiryId: result.inquiryId,
           metadata: {
@@ -411,8 +411,8 @@ export async function createAgentInquirySubmission({
         })
         .where(
           and(
-            eq(aiAgentSessions.id, sessionId),
-            eq(aiAgentSessions.businessId, business.id),
+            eq(agentSessions.id, sessionId),
+            eq(agentSessions.businessId, business.id),
           ),
         );
     } catch (error) {
@@ -442,10 +442,10 @@ export async function createAgentHandoffSubmission({
     business,
     submission,
     actorUserId: null,
-    source: inquirySources.aiAssistant,
+    source: inquirySources.agent,
     activity: {
       type: "inquiry.submitted_ai_agent",
-      summary: "Customer escalated to a human from the AI assistant conversation.",
+      summary: "Customer escalated to a human from the Agent conversation.",
     },
     notifyInAppOnNewInquiry: true,
     aiAssisted: true,
@@ -455,15 +455,15 @@ export async function createAgentHandoffSubmission({
   if (sessionId) {
     try {
       await db
-        .update(aiAgentSessions)
+        .update(agentSessions)
         .set({
           inquiryId: result.inquiryId,
           updatedAt: new Date(),
         })
         .where(
           and(
-            eq(aiAgentSessions.id, sessionId),
-            eq(aiAgentSessions.businessId, business.id),
+            eq(agentSessions.id, sessionId),
+            eq(agentSessions.businessId, business.id),
           ),
         );
     } catch (error) {
@@ -494,9 +494,9 @@ export async function createAssistantInquirySubmission({
     submission,
     actorUserId,
     // The Assistant is an AI surface, so the record is attributed to the
-    // AI Assistant source — not to "manual", which the dashboard and the
+    // Assistant source — not to "manual", which the dashboard and the
     // CSV export both read.
-    source: inquirySources.aiAssistant,
+    source: inquirySources.agent,
     activity: {
       type: "inquiry.submitted_ai_agent",
       summary: "Inquiry created by the business Assistant.",

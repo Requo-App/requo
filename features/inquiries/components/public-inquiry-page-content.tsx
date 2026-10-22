@@ -23,7 +23,7 @@ export function parseSubmittedParam(
 }
 
 /**
- * Shared body for `/inquire/[slug]` and `/inquire/[slug]/[formSlug]`.
+ * Shared body for `/inquire/[slug]` and `/inquire/[slug]/[serviceSlug]`.
  * Pages only differ by query + breadcrumb labels, so those stay in the route.
  */
 export function PublicInquiryPageContent({
@@ -89,7 +89,7 @@ export function PublicInquiryPageContent({
       {!submitted ? (
         <PublicInquiryFormViewTracker
           businessId={business.id}
-          businessInquiryFormId={business.form.id}
+          serviceId={business.form.id}
         />
       ) : null}
     </>

@@ -33,14 +33,12 @@ export type BusinessSettingsSection =
   | "general"
   | "notifications"
   | "profile"
-  | "security"
+  | "appearance"
   | "quote"
   | "email"
   | "support"
-  | "integrations"
   | "billing"
   | "audit-log"
-  | "agent"
   | "ai"
   | "members"
   | "workflow";
@@ -63,16 +61,16 @@ export function getBusinessInquiriesPath(slug: string) {
 
 export function getBusinessNewInquiryPath(
   slug: string,
-  formSlug?: string | null,
+  serviceSlug?: string | null,
 ) {
   const basePath = `${getBusinessInquiriesPath(slug)}/new`;
 
-  if (!formSlug) {
+  if (!serviceSlug) {
     return basePath;
   }
 
   const searchParams = new URLSearchParams({
-    form: formSlug,
+    form: serviceSlug,
   });
 
   return `${basePath}?${searchParams.toString()}`;
@@ -261,8 +259,8 @@ export function getBusinessNotificationsPath(slug: string) {
   return `${getBusinessPath(slug)}/notifications`;
 }
 
-export function getBusinessProductsPath(slug: string) {
-  return `${getBusinessPath(slug)}/products`;
+export function getBusinessQuoteLibraryPath(slug: string) {
+  return `${getBusinessPath(slug)}/quote-library`;
 }
 
 export function getBusinessAssistantPath(slug: string) {

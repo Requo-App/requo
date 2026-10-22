@@ -86,7 +86,7 @@ export function TrendChart({
   /** Plot height in pixels. */
   height?: number;
   emptyLabel?: string;
-  /** Workspace currency, used when a series carries money. */
+  /** Business currency, used when a series carries money. */
   currency?: string;
   className?: string;
 }) {

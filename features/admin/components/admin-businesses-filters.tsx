@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { DataListToolbar } from "@/components/shared/data-list-toolbar";
 import { useProgressRouter } from "@/hooks/use-progress-router";
 import type { AdminBusinessesListFilters } from "@/features/admin/schemas";
-import { businessPlans, planMeta, type BusinessPlan } from "@/lib/plans";
+import { planTiers, planMeta, type PlanTier } from "@/lib/plans";
 
 /**
  * URL-driven toolbar for `/admin/businesses`.
@@ -23,13 +23,13 @@ type AdminBusinessesFiltersProps = {
   resultCount: number;
 };
 
-type PlanFilterValue = BusinessPlan | "all";
+type PlanFilterValue = PlanTier | "all";
 
 const ALL_PLANS: PlanFilterValue = "all";
 
 const planFilterOptions: Array<{ label: string; value: PlanFilterValue }> = [
   { label: "All plans", value: ALL_PLANS },
-  ...businessPlans.map((plan) => ({
+  ...planTiers.map((plan) => ({
     label: planMeta[plan].label,
     value: plan satisfies PlanFilterValue,
   })),

@@ -176,8 +176,8 @@ function ServiceMobileRow({
 }) {
   return (
     <MobileRecordRow
-      id={row.formSlug}
-      href={getInquiriesListHref(businessSlug, { form: row.formSlug })}
+      id={row.serviceSlug}
+      href={getInquiriesListHref(businessSlug, { form: row.serviceSlug })}
       title={row.name}
       subtitle={`${formatPercent(row.winRate)} win rate · ${formatMoney(row.avgAcceptedValueInCents, currency)} average won`}
       statusBadge={<Badge variant="secondary">{formatNumber(row.quotesSent)} quotes</Badge>}
@@ -211,7 +211,7 @@ export async function PerformanceServicesRow(props: PerformanceSectionProps) {
         <div className="flex flex-col gap-2.5 lg:hidden">
           {data.services.map((row) => (
             <ServiceMobileRow
-              key={row.formSlug}
+              key={row.serviceSlug}
               row={row}
               businessSlug={props.businessSlug}
               currency={currency}
@@ -240,7 +240,7 @@ export async function PerformanceServicesRow(props: PerformanceSectionProps) {
             rows={data.services.map((row) => ({
               service: (
                 <Link
-                  href={getInquiriesListHref(props.businessSlug, { form: row.formSlug })}
+                  href={getInquiriesListHref(props.businessSlug, { form: row.serviceSlug })}
                   className="inline-flex items-center gap-1 rounded-sm outline-none transition-colors hover:text-primary focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   {row.name}
@@ -481,7 +481,7 @@ export async function PerformanceBenchmarksRow(props: PerformanceSectionProps) {
         <AnalyticsCard
           className={analyticsCol(hasBenchmarks ? 6 : 12)}
           title="Goals"
-          description="Targets configured for this workspace, measured against the selected period."
+          description="Targets configured for this business, measured against the selected period."
         >
           <ul className="flex flex-col gap-5">
             {data.goals.map((goal) => (
@@ -701,7 +701,7 @@ export async function PerformanceAudienceRow(props: PerformanceSectionProps) {
       <AnalyticsCard
         className={analyticsCol(4)}
         title="New vs returning"
-        description="Returning means the email had an earlier inquiry with this workspace."
+        description="Returning means the email had an earlier inquiry with this business."
       >
         <StatGrid columns={2}>
           <Stat

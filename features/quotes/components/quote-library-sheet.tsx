@@ -33,7 +33,7 @@ import type {
 import {
   getBusinessSlugFromPathname,
   getBusinessSettingsPath,
-  getBusinessProductsPath,
+  getBusinessQuoteLibraryPath,
   homePath,
 } from "@/features/businesses/routes";
 import {
@@ -185,11 +185,11 @@ export function QuoteLibrarySheet({
                         businessSlug
                           ? isTemplateMode
                             ? getBusinessSettingsPath(businessSlug, "quote")
-                            : getBusinessProductsPath(businessSlug)
+                            : getBusinessQuoteLibraryPath(businessSlug)
                           : homePath
                       }
                     >
-                      {isTemplateMode ? "Open quote settings" : "Open products"}
+                      {isTemplateMode ? "Open quote settings" : "Open quote library"}
                     </Link>
                   </Button>
                 </EmptyContent>

@@ -8,7 +8,7 @@ import { db } from "@/lib/db/client";
 import { activityLogs, businesses, quotes } from "@/lib/db/schema";
 import { env, isQuoteAutoFollowUpEmailEnabled } from "@/lib/env";
 import { hasFeatureAccess } from "@/lib/plans/entitlements";
-import type { BusinessPlan } from "@/lib/plans/plans";
+import type { PlanTier } from "@/lib/plans/plans";
 import {
   getDailyAutoFollowUpSendCount,
   getMonthlyAutoFollowUpSendCount,
@@ -50,7 +50,7 @@ export async function processQuoteAutoFollowUps(): Promise<AutoFollowUpsSummary>
 
   async function getRemainingBudget(
     businessId: string,
-    plan: BusinessPlan,
+    plan: PlanTier,
   ): Promise<AutoFollowUpBudget> {
     const cached = budgetByBusiness.get(businessId);
 
@@ -145,7 +145,7 @@ export async function processQuoteAutoFollowUps(): Promise<AutoFollowUpsSummary>
       continue;
     }
 
-    const plan = row.businessPlan as BusinessPlan;
+    const plan = row.businessPlan as PlanTier;
 
     // A business that downgraded keeps `autoFollowUpEnabled` on the row but
     // must stop sending. Re-check the entitlement at send time, not just at

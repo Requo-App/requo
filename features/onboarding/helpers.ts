@@ -9,8 +9,8 @@ import type { BusinessType } from "@/features/inquiries/business-types";
 import {
   createInquiryFormConfigDefaults,
 } from "@/features/inquiries/form-config";
-import { getDefaultInquiryFormName } from "@/features/inquiries/inquiry-forms";
-import { createInquiryFormPreset } from "@/features/inquiries/inquiry-forms";
+import { getDefaultServiceName } from "@/features/inquiries/service-presets";
+import { createServicePreset } from "@/features/inquiries/service-presets";
 import { createPublicInquiryPreviewBusiness } from "@/features/inquiries/preview-business";
 import type { PublicInquiryBusiness } from "@/features/inquiries/types";
 
@@ -57,7 +57,7 @@ export const onboardingServicesHardCap = 10;
 export function getDefaultOnboardingServiceName(
   businessType: BusinessType | "",
 ): string {
-  return businessType ? getDefaultInquiryFormName(businessType) : "Project inquiry";
+  return businessType ? getDefaultServiceName(businessType) : "Project inquiry";
 }
 
 export function createEmptyOnboardingDraft(): OnboardingDraft {
@@ -154,7 +154,7 @@ export function createOnboardingPreviewBusiness(
   const businessName = draft.businessName.trim() || "Your business";
   const businessType = draft.businessType || "general_project_services";
 
-  const preset = createInquiryFormPreset({
+  const preset = createServicePreset({
     businessType,
     businessName,
   });

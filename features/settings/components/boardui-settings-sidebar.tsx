@@ -48,7 +48,7 @@ const boarduiSettingsIcons: Record<string, LucideIcon> = {
 type BoarduiSettingsSidebarProps = {
   businessSlug: string;
   groups: SettingsNavigationGroup[];
-  /** Rendered at the top of the sidebar in place of the demo workspace menu. */
+  /** Rendered at the top of the sidebar in place of the demo business menu. */
   topSlot?: ReactNode;
   /** Rendered at the bottom of the sidebar in place of the demo team card. */
   bottomSlot?: ReactNode;
@@ -65,7 +65,7 @@ type BoarduiSettingsSidebarProps = {
  * Settings sidebar wired to the BoardUI Sidebar (`DashboardSidebar` with
  * `groups` + `selected`).
  *
- * The User / Workspace / Other navigation groups render as labeled
+ * The User / Business / Other navigation groups render as labeled
  * sections; the demo secondary Support/Settings rows are hidden because
  * the settings shell owns its own navigation (Help & Support lives in the
  * Other group).

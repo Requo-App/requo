@@ -8,7 +8,7 @@ import {
   type AnalyticsEventMetadata,
   analyticsEvents,
   businesses,
-  businessInquiryForms,
+  services,
   quotes,
 } from "@/lib/db/schema";
 import { getPublicActionClientIpAddress } from "@/lib/public-action-rate-limit";
@@ -45,7 +45,7 @@ const analyticsDuplicateWindowMs = 10_000;
 
 type RecordAnalyticsEventInput = {
   businessId: string;
-  businessInquiryFormId?: string | null;
+  serviceId?: string | null;
   quoteId?: string | null;
   eventType: AnalyticsEventType;
   visitorHash: string;
@@ -65,7 +65,7 @@ export function createBusinessScopedVisitorHash(
 
 async function findRecentMatchingAnalyticsEvent({
   businessId,
-  businessInquiryFormId = null,
+  serviceId = null,
   quoteId = null,
   eventType,
   visitorHash,
@@ -83,9 +83,9 @@ async function findRecentMatchingAnalyticsEvent({
         eq(analyticsEvents.businessId, businessId),
         eq(analyticsEvents.eventType, eventType),
         eq(analyticsEvents.visitorHash, visitorHash),
-        businessInquiryFormId === null
-          ? isNull(analyticsEvents.businessInquiryFormId)
-          : eq(analyticsEvents.businessInquiryFormId, businessInquiryFormId),
+        serviceId === null
+          ? isNull(analyticsEvents.serviceId)
+          : eq(analyticsEvents.serviceId, serviceId),
         quoteId === null
           ? isNull(analyticsEvents.quoteId)
           : eq(analyticsEvents.quoteId, quoteId),
@@ -100,7 +100,7 @@ async function findRecentMatchingAnalyticsEvent({
 
 export async function recordAnalyticsEvent({
   businessId,
-  businessInquiryFormId = null,
+  serviceId = null,
   quoteId = null,
   eventType,
   visitorHash,
@@ -109,7 +109,7 @@ export async function recordAnalyticsEvent({
 }: RecordAnalyticsEventInput) {
   const existingEvent = await findRecentMatchingAnalyticsEvent({
     businessId,
-    businessInquiryFormId,
+    serviceId,
     quoteId,
     eventType,
     visitorHash,
@@ -126,7 +126,7 @@ export async function recordAnalyticsEvent({
   await db.insert(analyticsEvents).values({
     id: newEntityId(),
     businessId,
-    businessInquiryFormId,
+    serviceId,
     quoteId,
     eventType,
     visitorHash,
@@ -142,7 +142,7 @@ export async function recordAnalyticsEvent({
 
 export async function recordPublicInquiryFormView(input: {
   businessId: string;
-  businessInquiryFormId: string;
+  serviceId: string;
   visitorHash: string;
   occurredAt?: Date;
   metadata?: AnalyticsEventMetadata | null;
@@ -168,20 +168,20 @@ export async function recordPublicQuoteView(input: {
 
 export async function isTrackablePublicInquiryForm(input: {
   businessId: string;
-  businessInquiryFormId: string;
+  serviceId: string;
 }) {
   const [form] = await db
     .select({
-      id: businessInquiryForms.id,
+      id: services.id,
     })
-    .from(businessInquiryForms)
-    .innerJoin(businesses, eq(businessInquiryForms.businessId, businesses.id))
+    .from(services)
+    .innerJoin(businesses, eq(services.businessId, businesses.id))
     .where(
       and(
-        eq(businessInquiryForms.businessId, input.businessId),
-        eq(businessInquiryForms.id, input.businessInquiryFormId),
-        eq(businessInquiryForms.publicInquiryEnabled, true),
-        isNull(businessInquiryForms.archivedAt),
+        eq(services.businessId, input.businessId),
+        eq(services.id, input.serviceId),
+        eq(services.publicInquiryEnabled, true),
+        isNull(services.archivedAt),
         eq(businesses.publicInquiryEnabled, true),
         getOperationalBusinessCondition(),
       ),

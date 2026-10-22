@@ -1,4 +1,4 @@
-import type { BusinessPlan } from "@/lib/plans/plans";
+import type { PlanTier } from "@/lib/plans/plans";
 
 export const followUpStatuses = ["pending", "completed", "skipped"] as const;
 export const followUpStatusFilterValues = ["all", ...followUpStatuses] as const;
@@ -90,7 +90,7 @@ export type FollowUpView = {
   /** IANA timezone of the owning business — due dates are read in it. */
   businessTimezone: string;
   /** Plan of the owning business — drives the automatic-send entitlement. */
-  businessPlan: BusinessPlan;
+  businessPlan: PlanTier;
   inquiryId: string | null;
   quoteId: string | null;
   assignedToUserId: string | null;
@@ -149,7 +149,7 @@ export type FollowUpOverviewData = {
 };
 
 /**
- * One row in the unified Follow-ups workspace. Manual follow-ups carry their
+ * One row in the unified Follow-ups business. Manual follow-ups carry their
  * FollowUpView; automatic email sequences surface as lightweight activity
  * items composed from quotes.autoFollowUp* columns (no follow_ups row).
  */

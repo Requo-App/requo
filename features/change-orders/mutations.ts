@@ -17,8 +17,8 @@ import {
   approvals,
   changeOrderLines,
   changeOrders,
-  commercialScheduleItems,
-  commercialSchedules,
+  paymentScheduleItems,
+  paymentSchedules,
   quoteItems,
   quoteScopeBlocks,
   quotes,
@@ -278,11 +278,11 @@ async function captureBeforeSnapshot(
   if (delta.targetKind === "schedule_item" && delta.targetScheduleItemId) {
     const [item] = await tx
       .select()
-      .from(commercialScheduleItems)
+      .from(paymentScheduleItems)
       .where(
         and(
-          eq(commercialScheduleItems.id, delta.targetScheduleItemId),
-          eq(commercialScheduleItems.businessId, businessId),
+          eq(paymentScheduleItems.id, delta.targetScheduleItemId),
+          eq(paymentScheduleItems.businessId, businessId),
         ),
       )
       .limit(1);
@@ -557,7 +557,7 @@ async function deriveScheduleV2ForApprovedCO(
   co: ChangeOrder,
   now: Date,
 ) {
-  const { computeScheduleCoherence } = await import("@/features/schedules/coherence");
+  const { computeScheduleCoherence } = await import("@/features/payment-schedules/coherence");
 
   const deltas = await tx
     .select()
@@ -574,14 +574,14 @@ async function deriveScheduleV2ForApprovedCO(
 
   const current = await tx
     .select()
-    .from(commercialSchedules)
+    .from(paymentSchedules)
     .where(
       and(
-        eq(commercialSchedules.businessId, co.businessId),
-        eq(commercialSchedules.quoteId, co.quoteId),
+        eq(paymentSchedules.businessId, co.businessId),
+        eq(paymentSchedules.quoteId, co.quoteId),
       ),
     )
-    .orderBy(desc(commercialSchedules.version))
+    .orderBy(desc(paymentSchedules.version))
     .limit(1);
 
   const latest = current[0];
@@ -597,9 +597,9 @@ async function deriveScheduleV2ForApprovedCO(
 
   const existingItems = await tx
     .select()
-    .from(commercialScheduleItems)
-    .where(eq(commercialScheduleItems.scheduleId, latest.id))
-    .orderBy(asc(commercialScheduleItems.position));
+    .from(paymentScheduleItems)
+    .where(eq(paymentScheduleItems.scheduleId, latest.id))
+    .orderBy(asc(paymentScheduleItems.position));
 
   const nextItems: Array<{
     category: string;
@@ -663,7 +663,7 @@ async function deriveScheduleV2ForApprovedCO(
   }
 
   const [v2] = await tx
-    .insert(commercialSchedules)
+    .insert(paymentSchedules)
     .values({
       id: newEntityId(),
       businessId: co.businessId,
@@ -681,7 +681,7 @@ async function deriveScheduleV2ForApprovedCO(
 
   let position = 0;
   for (const item of coherence.items) {
-    await tx.insert(commercialScheduleItems).values({
+    await tx.insert(paymentScheduleItems).values({
       id: newEntityId(),
       businessId: co.businessId,
       scheduleId: v2.id,

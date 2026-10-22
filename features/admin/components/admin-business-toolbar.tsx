@@ -30,13 +30,13 @@ import {
   archiveBusinessAction,
   cancelBusinessSubscriptionAction,
   deleteBusinessAction,
-  overrideBusinessPlanAction,
+  overridePlanTierAction,
   restoreBusinessAction,
 } from "@/features/admin/mutations";
 import type { AdminActionResult } from "@/features/admin/types";
 import { useDeferredRefresh } from "@/hooks/use-deferred-refresh";
 import type { SubscriptionStatus } from "@/lib/billing/types";
-import { planMeta, type BusinessPlan } from "@/lib/plans/plans";
+import { planMeta, type PlanTier } from "@/lib/plans/plans";
 
 export type AdminBusinessToolbarStatus = "active" | "archived" | "deleted";
 
@@ -61,11 +61,11 @@ type PendingConfirm = {
   label: string;
   description?: string;
   confirmLabel: string;
-  plan?: Exclude<BusinessPlan, "free">;
+  plan?: Exclude<PlanTier, "free">;
   reason?: string;
 };
 
-const OVERRIDABLE_PLANS: ReadonlyArray<Exclude<BusinessPlan, "free">> = [
+const OVERRIDABLE_PLANS: ReadonlyArray<Exclude<PlanTier, "free">> = [
   "pro",
   "business",
 ];
@@ -92,9 +92,9 @@ export function AdminBusinessToolbar({
   const [pendingConfirm, setPendingConfirm] =
     useState<PendingConfirm | null>(null);
 
-  const [plan, setPlan] = useState<Exclude<BusinessPlan, "free">>(
-    subscription && OVERRIDABLE_PLANS.includes(subscription.plan as Exclude<BusinessPlan, "free">)
-      ? (subscription.plan as Exclude<BusinessPlan, "free">)
+  const [plan, setPlan] = useState<Exclude<PlanTier, "free">>(
+    subscription && OVERRIDABLE_PLANS.includes(subscription.plan as Exclude<PlanTier, "free">)
+      ? (subscription.plan as Exclude<PlanTier, "free">)
       : "pro",
   );
   const [planReason, setPlanReason] = useState("");
@@ -129,7 +129,7 @@ export function AdminBusinessToolbar({
       startTransition(async () => {
         switch (queued.kind) {
           case "plan": {
-            const result = await overrideBusinessPlanAction({
+            const result = await overridePlanTierAction({
               businessId,
               plan: queued.plan ?? "pro",
               reason: queued.reason || undefined,
@@ -304,7 +304,7 @@ export function AdminBusinessToolbar({
                       <RadioGroup
                         className="flex flex-col gap-2"
                         onValueChange={(value) =>
-                          setPlan(value as Exclude<BusinessPlan, "free">)
+                          setPlan(value as Exclude<PlanTier, "free">)
                         }
                         value={plan}
                       >

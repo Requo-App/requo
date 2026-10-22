@@ -164,7 +164,7 @@ import { db } from "@/lib/db/client";
 import {
   accountSubscriptions,
   adminAuditLogs,
-  aiAgentSessions,
+  agentSessions,
   aiSecurityEvents,
   aiTokenLogs,
   billingEvents,
@@ -196,7 +196,7 @@ import type {
   PaymentAttemptStatus,
   SubscriptionStatus,
 } from "@/lib/billing/types";
-import type { BusinessPlan } from "@/lib/plans/plans";
+import type { PlanTier } from "@/lib/plans/plans";
 
 /* ── Helpers ─────────────────────────────────────────────────────────────── */
 
@@ -783,7 +783,7 @@ async function getAdminUserDetailCoreInner(
   const subscription: AdminUserDetailSubscription | null = subscriptionRow
     ? {
         id: subscriptionRow.id,
-        plan: subscriptionRow.plan as BusinessPlan,
+        plan: subscriptionRow.plan as PlanTier,
         status: subscriptionRow.status as SubscriptionStatus,
         currentPeriodEnd: subscriptionRow.currentPeriodEnd,
       }
@@ -2637,11 +2637,11 @@ async function getCachedAdminAiOverview(): Promise<AdminAiOverview> {
       .where(gte(aiSecurityEvents.createdAt, since7d)),
     db
       .select({
-        status: aiAgentSessions.status,
+        status: agentSessions.status,
         count: sql<number>`count(*)::int`,
       })
-      .from(aiAgentSessions)
-      .groupBy(aiAgentSessions.status),
+      .from(agentSessions)
+      .groupBy(agentSessions.status),
   ]);
 
   const byProvider: AdminAiProviderBreakdown[] = providerRows

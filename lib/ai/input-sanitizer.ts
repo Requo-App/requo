@@ -57,7 +57,7 @@ export const MAX_SANITIZE_INPUT_CHARS = 20_000;
  * normalization. NFKC maps Cyrillic homoglyphs and other compatibility
  * characters to their canonical ASCII equivalents.
  *
- * Exported for reuse by sanitizeMemoryContent and other consumers.
+ * Exported for reuse by sanitizeKnowledgeContent and other consumers.
  */
 export function normalizeInput(input: string): string {
   // Step 1: Strip zero-width characters
@@ -220,17 +220,17 @@ const SANITIZATION_PATTERNS: Array<{ pattern: RegExp; name: string }> = [
 ];
 
 /**
- * Sanitizes memory content (title + content) before persistence.
+ * Sanitizes knowledge content (title + content) before persistence.
  *
  * Prevents RAG poisoning by scanning both title and content fields for
  * injection patterns. Uses the same normalization pipeline as chat input.
  *
  * Returns:
  * - `rejected` if high-confidence injection patterns are found in title or content
- * - `sanitized` if low-confidence patterns were stripped (logs "memory_sanitized" event)
+ * - `sanitized` if low-confidence patterns were stripped (logs "knowledge_sanitized" event)
  * - `clean` if no patterns were detected
  */
-export function sanitizeMemoryContent(
+export function sanitizeKnowledgeContent(
   title: string,
   content: string,
 ): SanitizationResult {
@@ -293,9 +293,9 @@ export function sanitizeMemoryContent(
     }
 
     if (sanitizedPatterns.length > 0) {
-      // Log security event for memory sanitization
+      // Log security event for knowledge sanitization
       console.warn(
-        `[input-sanitizer] memory_sanitized: patterns stripped from memory content`,
+        `[input-sanitizer] knowledge_sanitized: patterns stripped from knowledge content`,
         { patterns: sanitizedPatterns },
       );
 

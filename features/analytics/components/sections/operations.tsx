@@ -400,7 +400,7 @@ export async function OperationsAssistantRow(props: OperationsSectionProps) {
     used: knowledge.sources,
     limit: knowledge.limit,
     unit: "sources",
-    hint: "Files and memories the assistant can cite when drafting.",
+    hint: "Files and entries the assistant can cite when drafting.",
     href: null,
     upgradeFeature: null,
   };
@@ -547,7 +547,7 @@ export async function OperationsDeliveryRow(props: OperationsSectionProps) {
         <AnalyticsCard
           className={analyticsCol(hasEmail ? 6 : 12)}
           title="Workflow packs"
-          description="Approvals, change orders, payment schedules, and scope checklists — shown when your workspace uses them."
+          description="Approvals, change orders, payment schedules, and scope checklists — shown when your business uses them."
         >
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <VerticalBlock

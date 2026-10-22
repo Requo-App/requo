@@ -1,9 +1,6 @@
 import { getBusinessSettingsPath } from "@/features/businesses/routes";
 import type { BusinessMemberRole } from "@/lib/business-members";
-import {
-  canManageBusinessAdministration,
-  canManageOperationalBusinessSettings,
-} from "@/lib/business-members";
+import { canManageBusinessAdministration } from "@/lib/business-members";
 
 // --- Unified Settings Navigation (Requirements 4.2, 4.3) ---
 
@@ -39,7 +36,7 @@ export function getUnifiedSettingsNavigation(
       ],
     },
     {
-      label: "Workspace",
+      label: "Business",
       items: [
         {
           href: `/${slug}/settings/general`,
@@ -96,27 +93,6 @@ export function getUnifiedSettingsNavigation(
   ];
 }
 
-export type BusinessSettingsNavigationIcon =
-  | "general"
-  | "members"
-  | "notifications"
-  | "quote"
-  | "email"
-  | "pricing"
-  | "billing"
-  | "audit-log";
-
-export type BusinessSettingsNavigationItem = {
-  href: string;
-  label: string;
-  icon: BusinessSettingsNavigationIcon;
-};
-
-export type BusinessSettingsNavigationGroup = {
-  label: string;
-  items: BusinessSettingsNavigationItem[];
-};
-
 export function getDefaultBusinessSettingsSection(role: BusinessMemberRole) {
   if (canManageBusinessAdministration(role)) {
     return "general" as const;
@@ -129,102 +105,10 @@ export function getDefaultBusinessSettingsPath(
   slug: string,
   role: BusinessMemberRole,
 ) {
-  // Owners land on Business › Profile (general); staff land on Personal › Profile.
+  // Owners land on Business › General; staff land on User › Profile.
   if (canManageBusinessAdministration(role)) {
     return getBusinessSettingsPath(slug, "general");
   }
 
   return getBusinessSettingsPath(slug, "profile");
-}
-
-export function getBusinessSettingsNavigation(
-  slug: string,
-  role: BusinessMemberRole,
-): BusinessSettingsNavigationGroup[] {
-  const groups: Array<BusinessSettingsNavigationGroup | null> = [
-    canManageOperationalBusinessSettings(role)
-      ? {
-          label: "Business",
-          items: [
-            ...(canManageBusinessAdministration(role)
-              ? [
-                  {
-                    href: getBusinessSettingsPath(slug, "general"),
-                    label: "Profile",
-                    icon: "general" as const,
-                  },
-                ]
-              : []),
-            {
-              href: getBusinessSettingsPath(slug, "notifications"),
-              label: "Notifications",
-              icon: "notifications" as const,
-            },
-          ],
-        }
-      : null,
-    canManageOperationalBusinessSettings(role)
-      ? {
-          label: "Quotes",
-          items: [
-            {
-              href: getBusinessSettingsPath(slug, "quote"),
-              label: "Quotes",
-              icon: "quote" as const,
-            },
-            {
-              href: getBusinessSettingsPath(slug, "email"),
-              label: "Email",
-              icon: "email" as const,
-            },
-            {
-              href: getBusinessSettingsPath(slug, "workflow"),
-              label: "Workflow",
-              icon: "quote" as const,
-            },
-          ],
-        }
-      : null,
-
-  ];
-
-  return groups.filter(
-    (group): group is BusinessSettingsNavigationGroup => group !== null,
-  );
-}
-
-/**
- * Returns the billing navigation group for business owners.
- * Billing is rendered within the business settings navigation.
- */
-export function getWorkspaceSettingsNavigation(
-  businessSlug: string,
-  role: BusinessMemberRole,
-): BusinessSettingsNavigationGroup[] {
-  if (!canManageOperationalBusinessSettings(role)) {
-    return [];
-  }
-
-  const items: BusinessSettingsNavigationItem[] = [];
-
-  items.push({
-    href: getBusinessSettingsPath(businessSlug, "audit-log"),
-    label: "Audit log",
-    icon: "audit-log" as const,
-  });
-
-  if (canManageBusinessAdministration(role)) {
-    items.push({
-      href: getBusinessSettingsPath(businessSlug, "billing"),
-      label: "Billing",
-      icon: "billing" as const,
-    });
-  }
-
-  return [
-    {
-      label: "Account",
-      items,
-    },
-  ];
 }

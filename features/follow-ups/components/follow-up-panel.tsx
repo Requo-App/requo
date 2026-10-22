@@ -32,7 +32,7 @@ import {
   formatFollowUpDate,
   getDefaultFollowUpChannel,
 } from "@/features/follow-ups/utils";
-import type { BusinessPlan } from "@/lib/plans/plans";
+import type { PlanTier } from "@/lib/plans/plans";
 
 type FollowUpCreateAction = (
   state: FollowUpCreateActionState,
@@ -63,7 +63,7 @@ export function FollowUpPanel({
   followUps: FollowUpView[];
   members?: { userId: string; name: string; email: string }[];
   /** Business plan — automatic sending is a paid capability. */
-  plan?: BusinessPlan;
+  plan?: PlanTier;
   /** Business timezone — due dates are read in it. */
   timezone?: string;
   sharedQuoteWithoutFollowUp?: boolean;

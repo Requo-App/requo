@@ -56,7 +56,7 @@ export function InquiryPrintDocument({
               <Badge variant="secondary" className="text-foreground">
                 Ref {inquiry.id}
               </Badge>
-              <Badge variant="outline">{inquiry.inquiryFormName ?? getInquirySourceLabel(inquiry.source)}</Badge>
+              <Badge variant="outline">{inquiry.serviceName ?? getInquirySourceLabel(inquiry.source)}</Badge>
               <Badge variant="outline">
                 {formatInquiryDateTime(inquiry.submittedAt)}
               </Badge>
@@ -99,7 +99,7 @@ export function InquiryPrintDocument({
             <CardContent className="grid gap-2 sm:grid-cols-2">
               <InfoTile
                 label="Service"
-                value={inquiry.inquiryFormName ?? getInquirySourceLabel(inquiry.source)}
+                value={inquiry.serviceName ?? getInquirySourceLabel(inquiry.source)}
               />
               <InfoTile
                 label="Source"
@@ -118,7 +118,7 @@ export function InquiryPrintDocument({
                 value={getInquiryStatusLabel(inquiry.status)}
               />
               {inquiry.subject &&
-              inquiry.subject !== (inquiry.inquiryFormName ?? "") ? (
+              inquiry.subject !== (inquiry.serviceName ?? "") ? (
                 <InfoTile
                   className="sm:col-span-2"
                   label="Subject"

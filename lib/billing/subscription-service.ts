@@ -24,7 +24,7 @@ import {
   type BillingProvider,
   type SubscriptionStatus,
 } from "@/lib/db/schema/subscriptions";
-import type { BusinessPlan } from "@/lib/plans/plans";
+import type { PlanTier } from "@/lib/plans/plans";
 
 type BusinessSubscriptionRow = typeof businessSubscriptions.$inferSelect;
 type AccountSubscriptionRow = typeof accountSubscriptions.$inferSelect;
@@ -48,7 +48,7 @@ type SubscriptionLike = {
  * the inquiry form config are resolved against the plan, so they must
  * converge with the subscription change too.
  */
-function invalidateBusinessPlanCache(businessId: string) {
+function invalidatePlanTierCache(businessId: string) {
   for (const tag of getBusinessBillingCacheTags(businessId)) {
     revalidateTag(tag, "max");
   }
@@ -90,7 +90,7 @@ export async function getCachedBusinessSubscription(
  */
 export async function getEffectivePlanForBusiness(
   businessId: string,
-): Promise<BusinessPlan> {
+): Promise<PlanTier> {
   const subscription = await getBusinessSubscription(businessId);
 
   if (!subscription) {
@@ -102,7 +102,7 @@ export async function getEffectivePlanForBusiness(
 
 export async function getCachedEffectivePlanForBusiness(
   businessId: string,
-): Promise<BusinessPlan> {
+): Promise<PlanTier> {
   "use cache";
 
   cacheLife(billingShellCacheLife);
@@ -123,10 +123,10 @@ export async function getCachedEffectivePlanForBusiness(
  */
 export function resolveEffectivePlanFromSubscription(
   subscription: SubscriptionLike,
-): BusinessPlan {
+): PlanTier {
   switch (subscription.status) {
     case "active":
-      return subscription.plan as BusinessPlan;
+      return subscription.plan as PlanTier;
 
     case "canceled":
       // Still active until end of billing period
@@ -134,13 +134,13 @@ export function resolveEffectivePlanFromSubscription(
         subscription.currentPeriodEnd &&
         subscription.currentPeriodEnd > new Date()
       ) {
-        return subscription.plan as BusinessPlan;
+        return subscription.plan as PlanTier;
       }
       return "free";
 
     case "past_due":
       // Grace period: keep paid access
-      return subscription.plan as BusinessPlan;
+      return subscription.plan as PlanTier;
 
     case "pending":
     case "expired":
@@ -168,7 +168,7 @@ export async function getAccountSubscription(
 
 type ActivateSubscriptionParams = {
   businessId: string;
-  plan: BusinessPlan;
+  plan: PlanTier;
   provider: BillingProvider;
   currency: BillingCurrency;
   status?: SubscriptionStatus;
@@ -281,7 +281,7 @@ export async function activateSubscription(
     return subscription;
   });
 
-  invalidateBusinessPlanCache(params.businessId);
+  invalidatePlanTierCache(params.businessId);
 
   return subscription;
 }
@@ -360,7 +360,7 @@ export async function updateSubscriptionStatus(
   });
 
   if (updated) {
-    invalidateBusinessPlanCache(businessId);
+    invalidatePlanTierCache(businessId);
   }
 
   return updated;
@@ -424,7 +424,7 @@ export async function expireSubscription(
  */
 export async function syncSubscriptionFromPolar(
   businessId: string,
-): Promise<BusinessPlan | false> {
+): Promise<PlanTier | false> {
   const { env: envVars, isPolarConfigured } = await import("@/lib/env");
 
   if (!isPolarConfigured || !envVars.POLAR_ACCESS_TOKEN) {

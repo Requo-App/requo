@@ -650,6 +650,28 @@ export const inquiryAttachmentRouteParamsSchema = z.object({
   attachmentId: z.string().trim().min(1).max(128),
 });
 
+const publicInquiryUploadSlugSchema = z.string().trim().min(1).max(120);
+
+/**
+ * Request body for the public attachment upload route.
+ *
+ * `formSlug` is the pre-Service name for the same value. Keep accepting it
+ * while clients loaded before the rename can still submit an upload.
+ */
+export const publicInquiryUploadRequestSchema = z
+  .object({
+    businessSlug: publicInquiryUploadSlugSchema,
+    serviceSlug: publicInquiryUploadSlugSchema.optional(),
+    formSlug: publicInquiryUploadSlugSchema.optional(),
+    fileName: z.string().trim().min(1).max(255),
+    contentType: z.string().trim().max(255).optional(),
+    size: z.number().int().positive().max(100 * 1024 * 1024),
+  })
+  .transform(({ formSlug, ...value }) => ({
+    ...value,
+    serviceSlug: value.serviceSlug ?? formSlug,
+  }));
+
 export const inquiryListFiltersSchema = z.object({
   q: z
     .preprocess(
@@ -703,7 +725,7 @@ export const inquiryListFiltersSchema = z.object({
 });
 
 export const inquiryFormSelectionSchema = z.object({
-  formSlug: z
+  serviceSlug: z
     .string()
     .trim()
     .min(1, "Choose an inquiry form.")

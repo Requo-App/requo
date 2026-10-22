@@ -25,7 +25,7 @@ import {
   emailTypes,
   emailOutboxStatuses,
 } from "@/lib/db/schema/email";
-import { businessPlans, type BusinessPlan } from "@/lib/plans/plans";
+import { planTiers, type PlanTier } from "@/lib/plans/plans";
 import { inquiryStatuses } from "@/features/inquiries/types";
 import { quoteStatuses } from "@/features/quotes/types";
 import { invoiceStatuses } from "@/features/invoices/types";
@@ -59,9 +59,9 @@ const adminConfirmTokenSchema = z
   .max(512, "Confirmation token is invalid.");
 
 /** Zod enums derived from DB / domain constants. */
-const businessPlanSchema = z.enum(businessPlans);
+const businessPlanSchema = z.enum(planTiers);
 const paidPlanSchema = businessPlanSchema.refine(
-  (plan): plan is Exclude<BusinessPlan, "free"> => plan !== "free",
+  (plan): plan is Exclude<PlanTier, "free"> => plan !== "free",
   "Choose a paid plan (pro or business).",
 );
 const subscriptionStatusSchema = z.enum(subscriptionStatuses);
@@ -164,7 +164,7 @@ export const adminDeleteBusinessSchema = z
 
 /* ── Business subscription mutations (business-scoped) ───────────────────── */
 
-export const adminOverrideBusinessPlanSchema = z
+export const adminOverridePlanTierSchema = z
   .object({
     businessId: adminIdSchema,
     plan: paidPlanSchema,
@@ -604,8 +604,8 @@ export type AdminRestoreBusinessInput = z.infer<
 export type AdminDeleteBusinessInput = z.infer<
   typeof adminDeleteBusinessSchema
 >;
-export type AdminOverrideBusinessPlanInput = z.infer<
-  typeof adminOverrideBusinessPlanSchema
+export type AdminOverridePlanTierInput = z.infer<
+  typeof adminOverridePlanTierSchema
 >;
 export type AdminCancelBusinessSubscriptionInput = z.infer<
   typeof adminCancelBusinessSubscriptionSchema

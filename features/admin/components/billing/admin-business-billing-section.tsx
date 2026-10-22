@@ -5,7 +5,7 @@ import type {
   AdminBusinessSubscriptionSummary,
 } from "@/features/admin/types";
 import type { SubscriptionStatus } from "@/lib/billing/types";
-import { isBusinessPlan, planMeta } from "@/lib/plans";
+import { isPlanTier, planMeta } from "@/lib/plans";
 
 const subscriptionStatusVariant: Record<
   SubscriptionStatus,
@@ -98,7 +98,7 @@ function BusinessSubscriptionRow({
         label="Plan"
         value={
           <Badge variant={subscription.plan === "free" ? "outline" : "secondary"}>
-            {isBusinessPlan(subscription.plan)
+            {isPlanTier(subscription.plan)
               ? planMeta[subscription.plan].label
               : subscription.plan}
           </Badge>

@@ -1,14 +1,14 @@
 import type { InquiryFormConfig } from "@/features/inquiries/form-config";
 import type { InquiryPageConfig } from "@/features/inquiries/page-config";
 import { hasFeatureAccess } from "@/lib/plans/entitlements";
-import type { BusinessPlan as plan } from "@/lib/plans/plans";
+import type { PlanTier as plan } from "@/lib/plans/plans";
 import {
   formatUsageLimitValue,
   getUsageLimit,
 } from "@/lib/plans/usage-limits";
 
 export function getInquiryCustomFieldLimit(plan: plan): number {
-  return getUsageLimit(plan, "customFieldsPerForm") ?? Number.POSITIVE_INFINITY;
+  return getUsageLimit(plan, "customFieldsPerService") ?? Number.POSITIVE_INFINITY;
 }
 
 export function getPublicInquiryAttachmentMaxBytes(
@@ -65,7 +65,7 @@ export function resolveInquiryPageConfigForPlan(
   config: InquiryPageConfig,
   plan: plan,
 ): InquiryPageConfig {
-  if (hasFeatureAccess(plan, "inquiryPageCustomization")) {
+  if (hasFeatureAccess(plan, "servicePageCustomization")) {
     return config;
   }
 
@@ -78,5 +78,5 @@ export function resolveInquiryPageConfigForPlan(
 }
 
 export function isInquiryPageCustomizationLocked(plan: plan): boolean {
-  return !hasFeatureAccess(plan, "inquiryPageCustomization");
+  return !hasFeatureAccess(plan, "servicePageCustomization");
 }

@@ -11,7 +11,7 @@ import type { StarterWorkflowKey } from "@/features/businesses/starter-workflows
 import { getStarterTemplateDefinition } from "@/features/businesses/starter-templates";
 import { assertBusinessQuotaAvailableForUser } from "@/features/businesses/quota";
 import type { BusinessType } from "@/features/inquiries/business-types";
-import { createInquiryFormPreset, normalizeInquiryFormSlug } from "@/features/inquiries/inquiry-forms";
+import { createServicePreset, normalizeServiceSlug } from "@/features/inquiries/service-presets";
 import { newEntityId } from "@/lib/ids";
 import {
   createInquiryFormConfigDefaults,
@@ -20,10 +20,10 @@ import {
 import { createInquiryPageConfigDefaults } from "@/features/inquiries/page-config";
 import { ensureProfileForUser } from "@/lib/auth/business-bootstrap";
 import { db } from "@/lib/db/client";
-import type { BusinessPlan as plan } from "@/lib/plans/plans";
+import type { PlanTier as plan } from "@/lib/plans/plans";
 import {
   activityLogs,
-  businessInquiryForms,
+  services,
   businessMembers,
   businesses,
   } from "@/lib/db/schema";
@@ -100,17 +100,17 @@ async function getAvailableOnboardingServiceSlug(
   businessId: string,
   baseSlug: string,
 ) {
-  const normalizedBaseSlug = normalizeInquiryFormSlug(baseSlug);
+  const normalizedBaseSlug = normalizeServiceSlug(baseSlug);
   let candidate = normalizedBaseSlug;
 
   while (true) {
     const [existingForm] = await tx
-      .select({ id: businessInquiryForms.id })
-      .from(businessInquiryForms)
+      .select({ id: services.id })
+      .from(services)
       .where(
         and(
-          eq(businessInquiryForms.businessId, businessId),
-          eq(businessInquiryForms.slug, candidate),
+          eq(services.businessId, businessId),
+          eq(services.slug, candidate),
         ),
       )
       .limit(1);
@@ -168,12 +168,12 @@ export async function createBusinessRecordForUser({
   }
 
   const slug = await getAvailableBusinessSlug(tx, baseSlug);
-  const defaultInquiryForm = createInquiryFormPreset({
+  const defaultService = createServicePreset({
     businessType,
     businessName: trimmedName,
     plan: plan,
   });
-  const resolvedFormConfig =
+  const resolvedServiceFormConfig =
     inquiryFormConfigOverride ??
     createInquiryFormConfigDefaults({ businessType, starterWorkflow });
 
@@ -181,10 +181,10 @@ export async function createBusinessRecordForUser({
    * The form config actually written to the default service row. This now
    * honors the starter workflow so the public page matches what the owner
    * picked (previously the row silently used the type-derived preset while
-   * `businesses.inquiryFormConfig` was workflow-aware, so the AI Agent and
+   * `businesses.inquiryFormConfig` was workflow-aware, so the Agent and
    * the public page disagreed for recurring/consultation businesses).
    */
-  const defaultFormRowConfig = inquiryFormConfigOverride ?? resolvedFormConfig;
+  const defaultServiceFormConfig = inquiryFormConfigOverride ?? resolvedServiceFormConfig;
 
   await tx.insert(businesses).values({
     id: businessId,
@@ -196,7 +196,7 @@ export async function createBusinessRecordForUser({
     shortDescription: normalizedShortDescription,
     customerContactChannel: normalizedCustomerContactChannel,
     contactEmail: user.email,
-    inquiryFormConfig: resolvedFormConfig,
+    inquiryFormConfig: resolvedServiceFormConfig,
     inquiryPageConfig: createInquiryPageConfigDefaults({
       businessName: trimmedName,
       businessType,
@@ -245,34 +245,34 @@ export async function createBusinessRecordForUser({
     .map((service) => service.name.trim())
     .filter((name) => name.length > 0)
     .map((name) => name.slice(0, 80));
-  const firstServiceName = namedServices[0] ?? defaultInquiryForm.name;
+  const firstServiceName = namedServices[0] ?? defaultService.name;
 
-  await tx.insert(businessInquiryForms).values({
+  await tx.insert(services).values({
     id: newEntityId(),
     businessId,
     name: firstServiceName,
-    slug: defaultInquiryForm.slug,
-    businessType: defaultInquiryForm.businessType,
+    slug: defaultService.slug,
+    businessType: defaultService.businessType,
     isDefault: true,
-    publicInquiryEnabled: defaultInquiryForm.publicInquiryEnabled,
-    inquiryFormConfig: defaultFormRowConfig,
-    inquiryPageConfig: defaultInquiryForm.inquiryPageConfig,
+    publicInquiryEnabled: defaultService.publicInquiryEnabled,
+    inquiryFormConfig: defaultServiceFormConfig,
+    inquiryPageConfig: defaultService.inquiryPageConfig,
     createdAt: now,
     updatedAt: now,
   });
 
   for (const serviceName of namedServices.slice(1)) {
-    const formSlug = await getAvailableOnboardingServiceSlug(
+    const serviceSlug = await getAvailableOnboardingServiceSlug(
       tx,
       businessId,
       serviceName,
     );
 
-    await tx.insert(businessInquiryForms).values({
+    await tx.insert(services).values({
       id: newEntityId(),
       businessId,
       name: serviceName,
-      slug: formSlug,
+      slug: serviceSlug,
       businessType,
       isDefault: false,
       publicInquiryEnabled: true,
@@ -356,7 +356,7 @@ export async function createBusinessForUser({
 }: CreateBusinessForUserInput) {
   await ensureProfileForUser(user);
   const resolvedPlan = plan ?? ("free" as plan);
-  const liveFormLimit = getUsageLimit(resolvedPlan, "liveFormsPerBusiness");
+  const liveFormLimit = getUsageLimit(resolvedPlan, "liveServicesPerBusiness");
   const trimmedServices =
     liveFormLimit === null
       ? (onboardingServices ?? [])
@@ -447,7 +447,7 @@ async function getBusinessLifecycleTarget(businessId: string) {
   return business ?? null;
 }
 
-async function getActiveWorkspaceBusinessCountForOwner(ownerUserId: string) {
+async function getActiveBusinessCountForOwner(ownerUserId: string) {
   const [row] = await db
     .select({
       value: count(),
@@ -669,7 +669,7 @@ export async function trashBusiness({
 
   if (!business.archivedAt) {
     const activeBusinessCount =
-      await getActiveWorkspaceBusinessCountForOwner(actorUserId);
+      await getActiveBusinessCountForOwner(actorUserId);
 
     if (activeBusinessCount <= 1) {
       return {

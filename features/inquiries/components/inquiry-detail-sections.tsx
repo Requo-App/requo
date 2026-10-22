@@ -17,7 +17,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { CustomerHistoryPanel } from "@/features/customers/components/customer-history-panel";
+import { CustomerHistoryPanel } from "@/features/customer-history/components/customer-history-panel";
 import { InquiryNoteForm } from "@/features/inquiries/components/inquiry-note-form";
 import type {
   DashboardInquiryActivity,

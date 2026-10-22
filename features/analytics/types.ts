@@ -89,7 +89,7 @@ export type AnalyticsUsageMeter = {
   hint: string;
   href: string | null;
   /** Feature gate that unlocks more headroom, when the plan caps at zero. */
-  upgradeFeature: "autoFollowUps" | "aiAgent" | null;
+  upgradeFeature: "autoFollowUps" | "agent" | null;
 };
 
 /** A "lower is better" timing metric with an optional prior-period value. */
@@ -226,7 +226,7 @@ export type OverviewData = {
   arAging: AnalyticsAgingBucket[];
   attention: AnalyticsAttentionItem[];
   usage: AnalyticsUsageMeter[];
-  /** False when the workspace has never recorded an inquiry or quote. */
+  /** False when the business has never recorded an inquiry or quote. */
   hasAnyActivity: boolean;
 };
 
@@ -236,7 +236,7 @@ export type OverviewData = {
 
 export type ServicePerformanceRow = {
   /** Service-page slug, used for the inquiries drill-down (`?form=`). */
-  formSlug: string;
+  serviceSlug: string;
   name: string;
   views: number;
   visitors: number;

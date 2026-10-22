@@ -3,11 +3,11 @@ import "server-only";
 import { redirect } from "next/navigation";
 import { isRedirectError } from "next/dist/client/components/redirect-error";
 
-import { getWorkspaceBusinessActionContext } from "@/lib/db/business-access";
+import { getMemberBusinessActionContext } from "@/lib/db/business-access";
 
 /**
  * Shared orchestration for single-record dashboard actions
- * (inquiries, quotes, follow-ups): resolve the workspace context, run the
+ * (inquiries, quotes, follow-ups): resolve the business context, run the
  * feature mutation, invalidate cache tags, and map the outcome to an
  * action state. Domain differences (locked messages, success predicates,
  * tag builders, redirect targets) stay with the caller as explicit inputs;
@@ -92,15 +92,15 @@ export async function runRecordAction<
     messages,
   } = options;
 
-  const ownerAccess = await getWorkspaceBusinessActionContext();
+  const memberAccess = await getMemberBusinessActionContext();
 
-  if (!ownerAccess.ok) {
+  if (!memberAccess.ok) {
     return {
-      error: ownerAccess.error,
+      error: memberAccess.error,
     } as TState;
   }
 
-  const { user, businessContext } = ownerAccess;
+  const { user, businessContext } = memberAccess;
 
   let redirectTarget: string | null = null;
 

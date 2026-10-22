@@ -9,11 +9,11 @@ import { MadeWithRequo } from "@/components/shared/made-with-requo";
 import { hasFeatureAccess } from "@/lib/plans/entitlements";
 import { formatQuoteDate, formatQuoteMoney } from "@/features/quotes/utils";
 import type { PublicQuoteView } from "@/features/quotes/types";
-import type { BusinessPlan } from "@/lib/plans/plans";
+import type { PlanTier } from "@/lib/plans/plans";
 
 type PublicQuotePageRendererProps = {
   quote: PublicQuoteView;
-  businessPlan: BusinessPlan;
+  businessPlan: PlanTier;
   headerAction?: ReactNode;
   beforeContent?: ReactNode;
   interactiveColumn: ReactNode;

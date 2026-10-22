@@ -5,7 +5,7 @@ import { updateTag } from "next/cache";
 
 import { getValidationActionState } from "@/lib/action-state";
 import {
-  getBusinessProductCacheTags,
+  getBusinessQuoteLibraryCacheTags,
   uniqueCacheTags,
 } from "@/lib/cache/business-tags";
 import { getOperationalBusinessActionContext } from "@/lib/db/business-access";
@@ -94,7 +94,7 @@ export async function createQuoteLibraryEntryAction(
 
   const pricingEntryLimit = getUsageLimit(
     businessContext.business.plan,
-    "productEntriesPerBusiness",
+    "quoteLibraryEntriesPerBusiness",
   );
 
   if (pricingEntryLimit !== null) {
@@ -117,7 +117,7 @@ export async function createQuoteLibraryEntryAction(
       entry: validationResult.data,
     });
 
-    updateCacheTags(getBusinessProductCacheTags(businessContext.business.id));
+    updateCacheTags(getBusinessQuoteLibraryCacheTags(businessContext.business.id));
 
     const kindLabel =
       validationResult.data.kind === "block"
@@ -193,7 +193,7 @@ export async function saveQuoteLineItemToPricingLibrary(
 
   const pricingEntryLimit = getUsageLimit(
     businessContext.business.plan,
-    "productEntriesPerBusiness",
+    "quoteLibraryEntriesPerBusiness",
   );
 
   if (pricingEntryLimit !== null) {
@@ -228,7 +228,7 @@ export async function saveQuoteLineItemToPricingLibrary(
       },
     });
 
-    updateCacheTags(getBusinessProductCacheTags(businessContext.business.id));
+    updateCacheTags(getBusinessQuoteLibraryCacheTags(businessContext.business.id));
 
     return {
       ok: true,
@@ -284,7 +284,7 @@ export async function saveQuoteAsTemplateAction(
 
   const pricingEntryLimit = getUsageLimit(
     businessContext.business.plan,
-    "productEntriesPerBusiness",
+    "quoteLibraryEntriesPerBusiness",
   );
 
   if (pricingEntryLimit !== null) {
@@ -320,7 +320,7 @@ export async function saveQuoteAsTemplateAction(
       },
     });
 
-    updateCacheTags(getBusinessProductCacheTags(businessContext.business.id));
+    updateCacheTags(getBusinessQuoteLibraryCacheTags(businessContext.business.id));
 
     return { success: "Quote saved as template." };
   } catch (error) {
@@ -394,7 +394,7 @@ export async function updateQuoteLibraryEntryAction(
       };
     }
 
-    updateCacheTags(getBusinessProductCacheTags(businessContext.business.id));
+    updateCacheTags(getBusinessQuoteLibraryCacheTags(businessContext.business.id));
 
     const kindLabel =
       validationResult.data.kind === "block"
@@ -460,7 +460,7 @@ export async function deleteQuoteLibraryEntryAction(
       };
     }
 
-    updateCacheTags(getBusinessProductCacheTags(businessContext.business.id));
+    updateCacheTags(getBusinessQuoteLibraryCacheTags(businessContext.business.id));
     return {
       success: true,
     };

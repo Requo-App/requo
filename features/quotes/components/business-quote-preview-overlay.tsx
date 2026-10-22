@@ -13,11 +13,11 @@ import { Button } from "@/components/ui/button";
 import { PublicQuotePageRenderer } from "@/features/quotes/components/public-quote-page-renderer";
 import { PublicQuotePreviewInteractiveColumn } from "@/features/quotes/components/public-quote-preview-interactive-column";
 import type { PublicQuoteView } from "@/features/quotes/types";
-import type { BusinessPlan } from "@/lib/plans/plans";
+import type { PlanTier } from "@/lib/plans/plans";
 
 type BusinessQuotePreviewOverlayProps = {
   quote: PublicQuoteView;
-  businessPlan: BusinessPlan;
+  businessPlan: PlanTier;
   businessContactEmail: string | null;
   businessName: string;
   open: boolean;

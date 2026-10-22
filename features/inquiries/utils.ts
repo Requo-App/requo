@@ -137,17 +137,9 @@ export function formatFileSize(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-/** @deprecated Use normalizeInquirySource + inquirySourceLabels instead. */
-export const AI_AGENT_SOURCES = new Set([
-  "ai",
-  "ai_agent",
-  "ai_agent_handoff",
-  "ai_assistant",
-]);
-
 /**
  * Returns a human-readable channel label for a dashboard inquiry source.
- * Canonical values: Service Form / AI Assistant / Manual / API.
+ * Canonical values: Service Form / Agent / Manual / API.
  * Legacy values (public-inquiry-page, manual-dashboard, ai_agent, …) are
  * mapped forward; null/unknown renders as "Unknown".
  */

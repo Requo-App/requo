@@ -5,7 +5,7 @@ import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import { businesses, userRecentBusinesses } from "@/lib/db/schema";
 import { businessSubscriptions } from "@/lib/db/schema/subscriptions";
-import type { BusinessPlan } from "@/lib/plans/plans";
+import type { PlanTier } from "@/lib/plans/plans";
 import { getUsageLimit } from "@/lib/plans/usage-limits";
 
 type DatabaseClient =
@@ -27,7 +27,7 @@ type ActiveBusinessSummary = {
  * The only business-count limit is the one-Free-business-per-owner rule.
  * Paid plans never cap the number of businesses an owner can operate.
  */
-function getActiveBusinessLimit(plan: BusinessPlan) {
+function getActiveBusinessLimit(plan: PlanTier) {
   return getUsageLimit(plan, "freeBusinessesPerOwner");
 }
 
@@ -161,7 +161,7 @@ export async function listLockCandidatesForDowngrade({
   client = db,
 }: {
   ownerUserId: string;
-  targetPlan: BusinessPlan;
+  targetPlan: PlanTier;
   client?: DatabaseClient;
 }) {
   const activeBusinessLimit = getActiveBusinessLimit(targetPlan);
@@ -290,7 +290,7 @@ export async function enforceActiveBusinessLimitOnPlanChange({
   client,
 }: {
   ownerUserId: string;
-  newPlan: BusinessPlan;
+  newPlan: PlanTier;
   keepBusinessId?: string | null;
   actorUserId?: string | null;
   client?: DatabaseClient;

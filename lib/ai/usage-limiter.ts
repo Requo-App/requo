@@ -5,7 +5,7 @@ import { and, eq, gte, isNull, or, sql, sum } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import { aiUsageEvents } from "@/lib/db/schema";
 import type { AiTaskType } from "./types";
-import type { BusinessPlan } from "@/lib/plans/plans";
+import type { PlanTier } from "@/lib/plans/plans";
 import { getUpgradePlan } from "@/lib/plans/plans";
 import { getUsageLimit } from "@/lib/plans/usage-limits";
 import { cacheLayer } from "@/lib/ai/cache-layer";
@@ -50,7 +50,7 @@ import { newEntityId } from "@/lib/ids";
 // that single source of truth.
 // ---------------------------------------------------------------------------
 
-export const PLAN_LIMITS: Record<BusinessPlan, number> = {
+export const PLAN_LIMITS: Record<PlanTier, number> = {
   free: getUsageLimit("free", "aiWeightedCreditsPerMonth") ?? 30,
   pro: getUsageLimit("pro", "aiWeightedCreditsPerMonth") ?? 150,
   business: getUsageLimit("business", "aiWeightedCreditsPerMonth") ?? 500,
@@ -165,7 +165,7 @@ export type UsageLimitCheck = {
   userId: string;
   businessId: string;
   taskType: AiTaskType;
-  plan: BusinessPlan;
+  plan: PlanTier;
 };
 
 export type UsageLimitResult =
@@ -193,7 +193,7 @@ function getCurrentMonthKey(): string {
  */
 export function getBusinessUsageCacheKey(
   businessId: string,
-  plan: BusinessPlan,
+  plan: PlanTier,
 ): string {
   return `ai_usage:business:${businessId}:${plan}:${getCurrentMonthKey()}`;
 }
@@ -214,7 +214,7 @@ function getStartOfCurrentMonthUTC(): Date {
  * toward whichever plan is current, so no business loses its accumulated
  * allowance at deploy time.
  */
-function planScope(plan: BusinessPlan) {
+function planScope(plan: PlanTier) {
   return or(eq(aiUsageEvents.plan, plan), isNull(aiUsageEvents.plan));
 }
 
@@ -280,7 +280,7 @@ async function checkCooldown(
 export type UsageReservation = {
   id: string;
   businessId: string;
-  plan: BusinessPlan;
+  plan: PlanTier;
 };
 
 type UsageReservationResult =
@@ -381,7 +381,7 @@ async function invalidateUsageCache(reservation: UsageReservation): Promise<void
 /** Recompute the cached monthly total from the authoritative DB rows. */
 async function refreshUsageCache(
   businessId: string,
-  plan: BusinessPlan,
+  plan: PlanTier,
 ): Promise<void> {
   try {
     const total = await getBusinessUsageTotal(businessId, plan);
@@ -401,7 +401,7 @@ async function refreshUsageCache(
 /** The authoritative monthly weighted usage for a business under a plan. */
 async function getBusinessUsageTotal(
   businessId: string,
-  plan: BusinessPlan,
+  plan: PlanTier,
 ): Promise<number> {
   const monthStart = getStartOfCurrentMonthUTC();
 
@@ -429,7 +429,7 @@ async function getBusinessUsageTotal(
  */
 async function getCachedOrDbBusinessUsage(
   businessId: string,
-  plan: BusinessPlan,
+  plan: PlanTier,
 ): Promise<number> {
   const businessCacheKey = getBusinessUsageCacheKey(businessId, plan);
 
@@ -486,7 +486,7 @@ export async function recordUsage(
   businessId: string,
   taskType: AiTaskType,
   weight: number,
-  plan: BusinessPlan,
+  plan: PlanTier,
 ): Promise<void> {
   const id = newEntityId();
 
@@ -527,7 +527,7 @@ export async function resetCooldown(userId: string, taskType: AiTaskType): Promi
  */
 export async function getMonthlyUsageSummary(
   businessId: string,
-  plan: BusinessPlan,
+  plan: PlanTier,
 ): Promise<{ used: number; limit: number }> {
   const monthStart = getStartOfCurrentMonthUTC();
   const limit = PLAN_LIMITS[plan];
@@ -565,7 +565,7 @@ export async function getMonthlyUsageSummary(
  */
 async function safeAddToUsageCache(
   businessId: string,
-  plan: BusinessPlan,
+  plan: PlanTier,
   weight: number,
 ): Promise<void> {
   const cacheKey = getBusinessUsageCacheKey(businessId, plan);
@@ -597,7 +597,7 @@ async function safeAddToUsageCache(
 }
 
 function buildQuotaExceededResult(
-  plan: BusinessPlan,
+  plan: PlanTier,
 ): Extract<UsageLimitResult, { allowed: false }> {
   const upgradePlan = getUpgradePlan(plan);
   const upgradeMessage = upgradePlan

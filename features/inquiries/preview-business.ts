@@ -6,7 +6,7 @@ import {
   resolveInquiryPageConfigForPlan,
 } from "@/features/inquiries/plan-rules";
 import type { PublicInquiryBusiness } from "@/features/inquiries/types";
-import type { BusinessPlan as plan } from "@/lib/plans/plans";
+import type { PlanTier as plan } from "@/lib/plans/plans";
 
 type CreatePublicInquiryPreviewBusinessInput = {
   id: string;

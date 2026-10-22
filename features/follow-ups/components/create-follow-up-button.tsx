@@ -24,8 +24,8 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { Spinner } from "@/components/ui/spinner";
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
 import { useProgressRouter } from "@/hooks/use-progress-router";
-import { safeHasFeatureAccess } from "@/features/paywall/lib/utils";
-import type { BusinessPlan } from "@/lib/plans/plans";
+import { hasFeatureAccess } from "@/lib/plans/entitlements";
+import type { PlanTier } from "@/lib/plans/plans";
 import type {
   FollowUpChannel,
   FollowUpCreateActionState,
@@ -56,7 +56,7 @@ type CreateFollowUpButtonProps = {
   businessSlug: string;
   records?: QuickCreateRecord[];
   /** Business plan — automatic sending is a paid capability. */
-  plan?: BusinessPlan;
+  plan?: PlanTier;
   /** Business timezone — the default due date is read in it. */
   timezone?: string;
 };
@@ -91,7 +91,7 @@ export function CreateFollowUpButton({
   timezone,
 }: CreateFollowUpButtonProps) {
   const router = useProgressRouter();
-  const canSendAutomatically = safeHasFeatureAccess(plan, "autoFollowUps");
+  const canSendAutomatically = hasFeatureAccess(plan, "autoFollowUps");
   const availableSendModeOptions = sendModeOptions.filter(
     (option) => option.value !== "automatic" || canSendAutomatically,
   );

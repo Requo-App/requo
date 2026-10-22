@@ -1079,7 +1079,7 @@ export function createInquiryFormConfigDefaults({
 /**
  * Strips the legacy `serviceCategory` customer-facing field from persisted
  * configs. The Service is now owned by the parent Service form
- * (`businessInquiryFormId`), so asking the customer to select it is redundant.
+ * (`serviceId`), so asking the customer to select it is redundant.
  */
 function stripLegacyServiceCategoryField(value: unknown) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {

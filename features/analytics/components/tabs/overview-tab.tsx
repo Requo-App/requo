@@ -2,8 +2,8 @@ import { Suspense } from "react";
 
 import type { AnalyticsWindow } from "@/features/analytics/lib/window";
 import { getOverviewData } from "@/features/analytics/queries";
-import type { UpgradeActionProps } from "@/features/paywall/types";
-import type { BusinessPlan } from "@/lib/plans";
+import type { UpgradeActionProps } from "@/features/entitlements/types";
+import type { PlanTier } from "@/lib/plans";
 
 import {
   AnalyticsRow,
@@ -48,7 +48,7 @@ export function OverviewTab({
   businessId: string;
   businessSlug: string;
   window: AnalyticsWindow;
-  plan: BusinessPlan;
+  plan: PlanTier;
   upgradeAction: UpgradeActionProps;
 }) {
   const dataPromise = getOverviewData({ businessId, businessSlug, window });

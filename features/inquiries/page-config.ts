@@ -7,7 +7,7 @@ import {
   type BusinessType,
 } from "@/features/inquiries/business-types";
 import { hasFeatureAccess } from "@/lib/plans/entitlements";
-import type { BusinessPlan as plan } from "@/lib/plans/plans";
+import type { PlanTier as plan } from "@/lib/plans/plans";
 
 function emptyToUndefined(value: unknown) {
   if (value == null) {
@@ -571,7 +571,7 @@ export function createInquiryPageConfigDefaults(
           ? "showcase"
           : "split";
   const resolvedTemplate =
-    plan && !hasFeatureAccess(plan, "inquiryPageCustomization")
+    plan && !hasFeatureAccess(plan, "servicePageCustomization")
       ? "no_supporting_cards"
       : (template ?? defaultTemplate);
 

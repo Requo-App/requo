@@ -18,7 +18,7 @@ export type PublicInquiryAttachmentToken = {
 
 type InquiryAttachmentUploaderProps = {
   businessSlug: string;
-  formSlug?: string;
+  serviceSlug?: string;
   id: string;
   disabled?: boolean;
   helpText: string;
@@ -49,7 +49,7 @@ type UploadResponse = {
  */
 export function InquiryAttachmentUploader({
   businessSlug,
-  formSlug,
+  serviceSlug,
   id,
   disabled = false,
   helpText,
@@ -86,7 +86,7 @@ export function InquiryAttachmentUploader({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           businessSlug,
-          formSlug,
+          serviceSlug,
           fileName: file.name,
           contentType: file.type,
           size: file.size,

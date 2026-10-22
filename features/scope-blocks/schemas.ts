@@ -63,7 +63,7 @@ export const scopeBlockContentSchemas: Record<ScopeBlockKind, z.ZodTypeAny> = {
     note: z.string().trim().max(1000).optional(),
   }).strict(),
   payment_schedule: z.object({
-    // Pointer to the P5 commercial schedule — no duplication.
+    // Pointer to the P5 payment schedule — no duplication.
     referenceSchedule: z.literal(true),
   }).strict(),
 };

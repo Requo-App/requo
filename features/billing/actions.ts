@@ -6,7 +6,7 @@ export type UpgradeEligibleBusiness = {
   id: string;
   name: string;
   slug: string;
-  plan: import("@/lib/plans/plans").BusinessPlan;
+  plan: import("@/lib/plans/plans").PlanTier;
   logoUrl?: string | null;
   role: import("@/lib/business-members").BusinessMemberRole;
 };

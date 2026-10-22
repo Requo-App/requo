@@ -7,8 +7,8 @@ import { after } from "next/server";
 import { getValidationActionState } from "@/lib/action-state";
 import { getSafeInternalRedirectPath } from "@/lib/actions/run-record-action";
 import {
-  getBusinessInquiryFormCacheTags,
-  getBusinessInquiryFormsCacheTags,
+  getServiceCacheTags,
+  getServicesCacheTags,
   getBusinessSettingsCacheTags,
   getPublicBusinessProfileCacheTags,
   uniqueCacheTags,
@@ -18,42 +18,42 @@ import {
   getUserMembershipsCacheTags,
 } from "@/lib/cache/shell-tags";
 import {
-  businessAiAgentSettingsSchema,
+  businessAgentSettingsSchema,
   emailTemplateKindSchema,
   getEmailTemplateSettingsSchemaForKind,
   businessGeneralSettingsSchema,
-  businessInquiryFormCreateSchema,
-  businessInquiryFormPresetSchema,
-  businessInquiryFormSettingsSchema,
-  businessInquiryFormTargetSchema,
-  businessInquiryPageSettingsSchema,
+  serviceCreateSchema,
+  servicePresetSchema,
+  serviceSettingsSchema,
+  serviceTargetSchema,
+  servicePageSettingsSchema,
   businessNotificationSettingsSchema,
   businessQuoteSettingsSchema,
 } from "@/features/settings/schemas";
 import type {
-  BusinessAiAgentSettingsActionState,
+  BusinessAgentSettingsActionState,
   BusinessEmailTemplateActionState,
-  BusinessInquiryFormActionState,
-  BusinessInquiryFormDangerActionState,
-  BusinessInquiryFormsActionState,
-  BusinessInquiryPageActionState,
+  ServiceActionState,
+  ServiceDangerActionState,
+  ServicesActionState,
+  ServicePageActionState,
   BusinessNotificationSettingsActionState,
   BusinessQuoteSettingsActionState,
   BusinessSettingsActionState,
 } from "@/features/settings/types";
 import {
-  archiveBusinessInquiryForm,
-  unarchiveBusinessInquiryForm,
-  createBusinessInquiryForm,
-  deleteBusinessInquiryForm,
-  duplicateBusinessInquiryForm,
-  setBusinessInquiryFormPublicState,
-  applyBusinessInquiryFormPreset,
-  setDefaultBusinessInquiryForm,
-  updateBusinessAiAgentSettings,
+  archiveService,
+  unarchiveService,
+  createService,
+  deleteService,
+  duplicateService,
+  setServicePublicState,
+  applyServicePreset,
+  setDefaultService,
+  updateBusinessAgentSettings,
   updateBusinessEmailTemplateSettings,
-  updateBusinessInquiryFormSettings,
-  updateBusinessInquiryPageSettings,
+  updateServiceSettings,
+  updateServicePageSettings,
   updateBusinessNotificationSettings,
   updateBusinessQuoteSettings,
   updateBusinessSettings,
@@ -72,15 +72,15 @@ import {
 } from "@/features/businesses/routes";
 import { getBusinessPublicInquiryUrl } from "@/features/settings/utils";
 import {
-  getBusinessInquiryFormsSettingsForBusiness,
-  getBusinessInquiryPageSettingsForBusiness,
+  getServicesSettingsForBusiness,
+  getServicePageSettingsForBusiness,
 } from "@/features/settings/queries";
-import type { BusinessPlan } from "@/lib/plans/plans";
+import type { PlanTier } from "@/lib/plans/plans";
 import { getUsageLimit } from "@/lib/plans/usage-limits";
 import { hasFeatureAccess } from "@/lib/plans/entitlements";
 
-function getLiveFormLimitMessage(plan: BusinessPlan): string {
-  const limit = getUsageLimit(plan, "liveFormsPerBusiness");
+function getLiveFormLimitMessage(plan: PlanTier): string {
+  const limit = getUsageLimit(plan, "liveServicesPerBusiness");
 
   return `This plan supports ${limit ?? "no"} live service${
     limit === 1 ? "" : "s"
@@ -93,14 +93,14 @@ function updateCacheTags(tags: string[]) {
   }
 }
 
-function revalidateBusinessInquiryFormPaths(
+function revalidateServicePaths(
   businessSlug: string,
-  formSlug: string,
+  serviceSlug: string,
 ) {
   revalidatePath(getBusinessServicesPath(businessSlug));
-  revalidatePath(getBusinessServicePath(businessSlug, formSlug));
-  revalidatePath(getBusinessServicePreviewPath(businessSlug, formSlug));
-  revalidatePath(getBusinessPublicInquiryUrl(businessSlug, formSlug));
+  revalidatePath(getBusinessServicePath(businessSlug, serviceSlug));
+  revalidatePath(getBusinessServicePreviewPath(businessSlug, serviceSlug));
+  revalidatePath(getBusinessPublicInquiryUrl(businessSlug, serviceSlug));
 }
 
 function revalidateBusinessDefaultInquiryPaths(businessSlug: string) {
@@ -202,15 +202,15 @@ export async function updateBusinessSettingsAction(
       revalidateBusinessDefaultInquiryPaths(result.previousSlug);
       revalidateBusinessDefaultInquiryPaths(result.nextSlug);
 
-      const inquiryFormsSettings =
-        await getBusinessInquiryFormsSettingsForBusiness(
+      const servicesSettings =
+        await getServicesSettingsForBusiness(
           businessContext.business.id,
         );
 
-      if (inquiryFormsSettings) {
-        for (const form of inquiryFormsSettings.forms) {
-          revalidateBusinessInquiryFormPaths(result.previousSlug, form.slug);
-          revalidateBusinessInquiryFormPaths(result.nextSlug, form.slug);
+      if (servicesSettings) {
+        for (const service of servicesSettings.services) {
+          revalidateServicePaths(result.previousSlug, service.slug);
+          revalidateServicePaths(result.nextSlug, service.slug);
         }
       }
     });
@@ -291,11 +291,11 @@ export async function updateBusinessNotificationSettingsAction(
   };
 }
 
-export async function updateBusinessAiAgentSettingsAction(
+export async function updateBusinessAgentSettingsAction(
   businessSlug: string,
-  _prevState: BusinessAiAgentSettingsActionState,
+  _prevState: BusinessAgentSettingsActionState,
   formData: FormData,
-): Promise<BusinessAiAgentSettingsActionState> {
+): Promise<BusinessAgentSettingsActionState> {
   // The business comes from the route slug, never from the active-business
   // cookie: the cookie is rewritten on every navigation, so a form rendered
   // for one business could otherwise save onto another.
@@ -315,28 +315,28 @@ export async function updateBusinessAiAgentSettingsAction(
   const { user, businessContext } = ownerAccess;
 
   if (
-    !hasFeatureAccess(businessContext.business.plan, "aiAgent")
+    !hasFeatureAccess(businessContext.business.plan, "agent")
   ) {
     return {
-      error: "Your plan does not include the AI agent. Upgrade to enable it.",
+      error: "Your plan does not include the Agent. Upgrade to enable it.",
     };
   }
 
-  const validationResult = businessAiAgentSettingsSchema.safeParse({
-    aiAgentEnabled: formData.get("aiAgentEnabled") === "on",
+  const validationResult = businessAgentSettingsSchema.safeParse({
+    agentEnabled: formData.get("agentEnabled") === "on",
     tone: formData.get("tone"),
-    aiAgentInstructions: formData.get("aiAgentInstructions"),
+    agentInstructions: formData.get("agentInstructions"),
   });
 
   if (!validationResult.success) {
     return getValidationActionState(
       validationResult.error,
-      "Check the AI agent settings and try again.",
+      "Check the Agent settings and try again.",
     );
   }
 
   try {
-    const result = await updateBusinessAiAgentSettings({
+    const result = await updateBusinessAgentSettings({
       businessId: businessContext.business.id,
       actorUserId: user.id,
       values: validationResult.data,
@@ -352,15 +352,15 @@ export async function updateBusinessAiAgentSettingsAction(
 
     revalidatePath(`/b/${businessContext.business.slug}/chat`);
   } catch (error) {
-    console.error("Failed to update AI agent settings.", error);
+    console.error("Failed to update Agent settings.", error);
 
     return {
-      error: "We couldn't save the AI agent settings right now.",
+      error: "We couldn't save the Agent settings right now.",
     };
   }
 
   return {
-    success: "AI agent settings saved.",
+    success: "Agent settings saved.",
   };
 }
 
@@ -537,11 +537,11 @@ export async function updateBusinessEmailTemplateSettingsAction(
   }
 }
 
-export async function updateBusinessInquiryPageAction(
-  formSlug: string,
-  _prevState: BusinessInquiryPageActionState,
+export async function updateServicePageAction(
+  serviceSlug: string,
+  _prevState: ServicePageActionState,
   formData: FormData,
-): Promise<BusinessInquiryPageActionState> {
+): Promise<ServicePageActionState> {
   const ownerAccess = await getOperationalBusinessActionContext();
 
   if (!ownerAccess.ok) {
@@ -552,7 +552,7 @@ export async function updateBusinessInquiryPageAction(
 
   const { user, businessContext } = ownerAccess;
 
-  const validationResult = businessInquiryPageSettingsSchema.safeParse({
+  const validationResult = servicePageSettingsSchema.safeParse({
     name: formData.get("name"),
     slug: formData.get("slug"),
     businessType: formData.get("businessType"),
@@ -596,9 +596,9 @@ export async function updateBusinessInquiryPageAction(
     const values = validationResult.data;
 
     if (businessContext.role !== "owner") {
-      const settings = await getBusinessInquiryPageSettingsForBusiness(
+      const settings = await getServicePageSettingsForBusiness(
         businessContext.business.id,
-        formSlug,
+        serviceSlug,
       );
 
       if (!settings) {
@@ -608,10 +608,10 @@ export async function updateBusinessInquiryPageAction(
       values.publicInquiryEnabled = settings.publicInquiryEnabled;
     }
 
-    const result = await updateBusinessInquiryPageSettings({
+    const result = await updateServicePageSettings({
       businessId: businessContext.business.id,
       actorUserId: user.id,
-      formSlug,
+      serviceSlug,
       values,
     });
 
@@ -644,31 +644,31 @@ export async function updateBusinessInquiryPageAction(
 
     updateCacheTags(
       uniqueCacheTags([
-        ...getBusinessInquiryFormsCacheTags(businessContext.business.id),
-        ...getBusinessInquiryFormCacheTags(
+        ...getServicesCacheTags(businessContext.business.id),
+        ...getServiceCacheTags(
           businessContext.business.id,
-          result.previousFormSlug,
+          result.previousServiceSlug,
         ),
-        ...getBusinessInquiryFormCacheTags(
+        ...getServiceCacheTags(
           businessContext.business.id,
-          result.nextFormSlug,
+          result.nextServiceSlug,
         ),
       ]),
     );
 
     // Defer public-path revalidation — updateTag handles dashboard cache.
     after(() => {
-      revalidateBusinessInquiryFormPaths(result.nextSlug, result.nextFormSlug);
+      revalidateServicePaths(result.nextSlug, result.nextServiceSlug);
       revalidateBusinessDefaultInquiryPaths(result.nextSlug);
     });
 
-    if (result.previousFormSlug !== result.nextFormSlug) {
-      revalidateBusinessInquiryFormPaths(result.nextSlug, result.previousFormSlug);
+    if (result.previousServiceSlug !== result.nextServiceSlug) {
+      revalidateServicePaths(result.nextSlug, result.previousServiceSlug);
       revalidateBusinessDefaultInquiryPaths(result.nextSlug);
 
       nextEditorPath = `${getBusinessServicePath(
         result.nextSlug,
-        result.nextFormSlug,
+        result.nextServiceSlug,
       )}?section=page`;
     }
   } catch (error) {
@@ -688,11 +688,11 @@ export async function updateBusinessInquiryPageAction(
   };
 }
 
-export async function updateBusinessInquiryFormAction(
-  formSlug: string,
-  _prevState: BusinessInquiryFormActionState,
+export async function updateServiceAction(
+  serviceSlug: string,
+  _prevState: ServiceActionState,
   formData: FormData,
-): Promise<BusinessInquiryFormActionState> {
+): Promise<ServiceActionState> {
   const ownerAccess = await getOperationalBusinessActionContext();
 
   if (!ownerAccess.ok) {
@@ -703,7 +703,7 @@ export async function updateBusinessInquiryFormAction(
 
   const { user, businessContext } = ownerAccess;
 
-  const validationResult = businessInquiryFormSettingsSchema.safeParse({
+  const validationResult = serviceSettingsSchema.safeParse({
     businessType: formData.get("businessType"),
     inquiryFormConfig: formData.get("inquiryFormConfig"),
   });
@@ -718,10 +718,10 @@ export async function updateBusinessInquiryFormAction(
   let nextEditorPath: string | null = null;
 
   try {
-    const result = await updateBusinessInquiryFormSettings({
+    const result = await updateServiceSettings({
       businessId: businessContext.business.id,
       actorUserId: user.id,
-      formSlug,
+      serviceSlug,
       values: validationResult.data,
     });
 
@@ -733,35 +733,35 @@ export async function updateBusinessInquiryFormAction(
 
     updateCacheTags(
       uniqueCacheTags([
-        ...getBusinessInquiryFormsCacheTags(businessContext.business.id),
-        ...getBusinessInquiryFormCacheTags(
+        ...getServicesCacheTags(businessContext.business.id),
+        ...getServiceCacheTags(
           businessContext.business.id,
-          result.previousFormSlug,
+          result.previousServiceSlug,
         ),
-        ...getBusinessInquiryFormCacheTags(
+        ...getServiceCacheTags(
           businessContext.business.id,
-          result.nextFormSlug,
+          result.nextServiceSlug,
         ),
       ]),
     );
 
     // Defer public-path revalidation — updateTag handles dashboard cache.
     after(() => {
-      revalidateBusinessInquiryFormPaths(result.nextSlug, result.nextFormSlug);
+      revalidateServicePaths(result.nextSlug, result.nextServiceSlug);
       revalidateBusinessDefaultInquiryPaths(result.nextSlug);
     });
 
-    if (result.previousFormSlug !== result.nextFormSlug) {
-      revalidateBusinessInquiryFormPaths(result.nextSlug, result.previousFormSlug);
-      revalidateBusinessInquiryFormPaths(result.nextSlug, result.nextFormSlug);
+    if (result.previousServiceSlug !== result.nextServiceSlug) {
+      revalidateServicePaths(result.nextSlug, result.previousServiceSlug);
+      revalidateServicePaths(result.nextSlug, result.nextServiceSlug);
       revalidateBusinessDefaultInquiryPaths(result.nextSlug);
       nextEditorPath = getBusinessServicePath(
         result.nextSlug,
-        result.nextFormSlug,
+        result.nextServiceSlug,
       );
     }
   } catch (error) {
-    console.error("Failed to update business inquiry form settings.", error);
+    console.error("Failed to update business service settings.", error);
 
     return {
       error: "We couldn't save the intake form right now.",
@@ -777,11 +777,11 @@ export async function updateBusinessInquiryFormAction(
   };
 }
 
-export async function applyBusinessInquiryFormPresetAction(
-  formSlug: string,
-  _prevState: BusinessInquiryFormActionState,
+export async function applyServicePresetAction(
+  serviceSlug: string,
+  _prevState: ServiceActionState,
   formData: FormData,
-): Promise<BusinessInquiryFormActionState> {
+): Promise<ServiceActionState> {
   const ownerAccess = await getOperationalBusinessActionContext();
 
   if (!ownerAccess.ok) {
@@ -792,7 +792,7 @@ export async function applyBusinessInquiryFormPresetAction(
 
   const { user, businessContext } = ownerAccess;
 
-  const validationResult = businessInquiryFormPresetSchema.safeParse({
+  const validationResult = servicePresetSchema.safeParse({
     businessType: formData.get("businessType"),
   });
 
@@ -804,10 +804,10 @@ export async function applyBusinessInquiryFormPresetAction(
   }
 
   try {
-    const result = await applyBusinessInquiryFormPreset({
+    const result = await applyServicePreset({
       businessId: businessContext.business.id,
       actorUserId: user.id,
-      formSlug,
+      serviceSlug,
       values: validationResult.data,
     });
 
@@ -819,8 +819,8 @@ export async function applyBusinessInquiryFormPresetAction(
 
     updateCacheTags(
       uniqueCacheTags([
-        ...getBusinessInquiryFormsCacheTags(businessContext.business.id),
-        ...getBusinessInquiryFormCacheTags(businessContext.business.id, formSlug),
+        ...getServicesCacheTags(businessContext.business.id),
+        ...getServiceCacheTags(businessContext.business.id, serviceSlug),
       ]),
     );
 
@@ -836,10 +836,10 @@ export async function applyBusinessInquiryFormPresetAction(
   }
 }
 
-export async function createBusinessInquiryFormAction(
-  _prevState: BusinessInquiryFormsActionState,
+export async function createServiceAction(
+  _prevState: ServicesActionState,
   formData: FormData,
-): Promise<BusinessInquiryFormsActionState> {
+): Promise<ServicesActionState> {
   const ownerAccess = await getOperationalBusinessActionContext();
 
   if (!ownerAccess.ok) {
@@ -849,7 +849,7 @@ export async function createBusinessInquiryFormAction(
   }
 
   const { user, businessContext } = ownerAccess;
-  const validationResult = businessInquiryFormCreateSchema.safeParse({
+  const validationResult = serviceCreateSchema.safeParse({
     name: formData.get("name"),
   });
 
@@ -863,7 +863,7 @@ export async function createBusinessInquiryFormAction(
   let editorPath: string | null = null;
 
   try {
-    const result = await createBusinessInquiryForm({
+    const result = await createService({
       businessId: businessContext.business.id,
       actorUserId: user.id,
       values: {
@@ -888,23 +888,23 @@ export async function createBusinessInquiryFormAction(
 
     updateCacheTags(
       uniqueCacheTags([
-        ...getBusinessInquiryFormsCacheTags(businessContext.business.id),
-        ...getBusinessInquiryFormCacheTags(
+        ...getServicesCacheTags(businessContext.business.id),
+        ...getServiceCacheTags(
           businessContext.business.id,
-          result.formSlug,
+          result.serviceSlug,
         ),
       ]),
     );
     after(() => {
-      revalidateBusinessInquiryFormPaths(result.businessSlug, result.formSlug);
+      revalidateServicePaths(result.businessSlug, result.serviceSlug);
       revalidateBusinessDefaultInquiryPaths(result.businessSlug);
     });
     editorPath = getBusinessServicePath(
       result.businessSlug,
-      result.formSlug,
+      result.serviceSlug,
     );
   } catch (error) {
-    console.error("Failed to create inquiry form.", error);
+    console.error("Failed to create service.", error);
 
     return {
       error: "We couldn't create the service right now.",
@@ -920,10 +920,10 @@ export async function createBusinessInquiryFormAction(
   };
 }
 
-export async function duplicateBusinessInquiryFormAction(
-  _prevState: BusinessInquiryFormsActionState,
+export async function duplicateServiceAction(
+  _prevState: ServicesActionState,
   formData: FormData,
-): Promise<BusinessInquiryFormsActionState> {
+): Promise<ServicesActionState> {
   const ownerAccess = await getOperationalBusinessActionContext();
 
   if (!ownerAccess.ok) {
@@ -933,8 +933,8 @@ export async function duplicateBusinessInquiryFormAction(
   }
 
   const { user, businessContext } = ownerAccess;
-  const validationResult = businessInquiryFormTargetSchema.safeParse({
-    targetFormId: formData.get("targetFormId"),
+  const validationResult = serviceTargetSchema.safeParse({
+    targetServiceId: formData.get("targetServiceId"),
   });
 
   if (!validationResult.success) {
@@ -944,10 +944,10 @@ export async function duplicateBusinessInquiryFormAction(
   let editorPath: string | null = null;
 
   try {
-    const result = await duplicateBusinessInquiryForm({
+    const result = await duplicateService({
       businessId: businessContext.business.id,
       actorUserId: user.id,
-      targetFormId: validationResult.data.targetFormId,
+      targetServiceId: validationResult.data.targetServiceId,
     });
 
     if (!result.ok) {
@@ -964,23 +964,23 @@ export async function duplicateBusinessInquiryFormAction(
 
     updateCacheTags(
       uniqueCacheTags([
-        ...getBusinessInquiryFormsCacheTags(businessContext.business.id),
-        ...getBusinessInquiryFormCacheTags(
+        ...getServicesCacheTags(businessContext.business.id),
+        ...getServiceCacheTags(
           businessContext.business.id,
-          result.formSlug,
+          result.serviceSlug,
         ),
       ]),
     );
     after(() => {
-      revalidateBusinessInquiryFormPaths(result.businessSlug, result.formSlug);
+      revalidateServicePaths(result.businessSlug, result.serviceSlug);
       revalidateBusinessDefaultInquiryPaths(result.businessSlug);
     });
     editorPath = getBusinessServicePath(
       result.businessSlug,
-      result.formSlug,
+      result.serviceSlug,
     );
   } catch (error) {
-    console.error("Failed to duplicate inquiry form.", error);
+    console.error("Failed to duplicate service.", error);
 
     return {
       error: "We couldn't duplicate the service right now.",
@@ -996,10 +996,10 @@ export async function duplicateBusinessInquiryFormAction(
   };
 }
 
-export async function setDefaultBusinessInquiryFormAction(
-  _prevState: BusinessInquiryFormsActionState,
+export async function setDefaultServiceAction(
+  _prevState: ServicesActionState,
   formData: FormData,
-): Promise<BusinessInquiryFormsActionState> {
+): Promise<ServicesActionState> {
   const ownerAccess = await getOperationalBusinessActionContext();
 
   if (!ownerAccess.ok) {
@@ -1009,8 +1009,8 @@ export async function setDefaultBusinessInquiryFormAction(
   }
 
   const { user, businessContext } = ownerAccess;
-  const validationResult = businessInquiryFormTargetSchema.safeParse({
-    targetFormId: formData.get("targetFormId"),
+  const validationResult = serviceTargetSchema.safeParse({
+    targetServiceId: formData.get("targetServiceId"),
   });
 
   if (!validationResult.success) {
@@ -1018,10 +1018,10 @@ export async function setDefaultBusinessInquiryFormAction(
   }
 
   try {
-    const result = await setDefaultBusinessInquiryForm({
+    const result = await setDefaultService({
       businessId: businessContext.business.id,
       actorUserId: user.id,
-      targetFormId: validationResult.data.targetFormId,
+      targetServiceId: validationResult.data.targetServiceId,
     });
 
     if (!result.ok) {
@@ -1038,15 +1038,15 @@ export async function setDefaultBusinessInquiryFormAction(
 
     updateCacheTags(
       uniqueCacheTags([
-        ...getBusinessInquiryFormsCacheTags(businessContext.business.id),
-        ...getBusinessInquiryFormCacheTags(
+        ...getServicesCacheTags(businessContext.business.id),
+        ...getServiceCacheTags(
           businessContext.business.id,
-          result.formSlug,
+          result.serviceSlug,
         ),
       ]),
     );
     after(() => {
-      revalidateBusinessInquiryFormPaths(result.businessSlug, result.formSlug);
+      revalidateServicePaths(result.businessSlug, result.serviceSlug);
       revalidateBusinessDefaultInquiryPaths(result.businessSlug);
     });
 
@@ -1054,7 +1054,7 @@ export async function setDefaultBusinessInquiryFormAction(
       success: "Default service updated.",
     };
   } catch (error) {
-    console.error("Failed to set default inquiry form.", error);
+    console.error("Failed to set default service.", error);
 
     return {
       error: "We couldn't change the default service right now.",
@@ -1062,10 +1062,10 @@ export async function setDefaultBusinessInquiryFormAction(
   }
 }
 
-export async function archiveBusinessInquiryFormAction(
-  _prevState: BusinessInquiryFormsActionState,
+export async function archiveServiceAction(
+  _prevState: ServicesActionState,
   formData: FormData,
-): Promise<BusinessInquiryFormsActionState> {
+): Promise<ServicesActionState> {
   const ownerAccess = await getOperationalBusinessActionContext();
 
   if (!ownerAccess.ok) {
@@ -1075,8 +1075,8 @@ export async function archiveBusinessInquiryFormAction(
   }
 
   const { user, businessContext } = ownerAccess;
-  const validationResult = businessInquiryFormTargetSchema.safeParse({
-    targetFormId: formData.get("targetFormId"),
+  const validationResult = serviceTargetSchema.safeParse({
+    targetServiceId: formData.get("targetServiceId"),
   });
 
   if (!validationResult.success) {
@@ -1084,10 +1084,10 @@ export async function archiveBusinessInquiryFormAction(
   }
 
   try {
-    const result = await archiveBusinessInquiryForm({
+    const result = await archiveService({
       businessId: businessContext.business.id,
       actorUserId: user.id,
-      targetFormId: validationResult.data.targetFormId,
+      targetServiceId: validationResult.data.targetServiceId,
     });
 
     if (!result.ok) {
@@ -1110,15 +1110,15 @@ export async function archiveBusinessInquiryFormAction(
 
     updateCacheTags(
       uniqueCacheTags([
-        ...getBusinessInquiryFormsCacheTags(businessContext.business.id),
-        ...getBusinessInquiryFormCacheTags(
+        ...getServicesCacheTags(businessContext.business.id),
+        ...getServiceCacheTags(
           businessContext.business.id,
-          result.formSlug,
+          result.serviceSlug,
         ),
       ]),
     );
     after(() => {
-      revalidateBusinessInquiryFormPaths(result.businessSlug, result.formSlug);
+      revalidateServicePaths(result.businessSlug, result.serviceSlug);
       revalidateBusinessDefaultInquiryPaths(result.businessSlug);
     });
 
@@ -1126,7 +1126,7 @@ export async function archiveBusinessInquiryFormAction(
       success: "Service archived.",
     };
   } catch (error) {
-    console.error("Failed to archive inquiry form.", error);
+    console.error("Failed to archive service.", error);
 
     return {
       error: "We couldn't archive the service right now.",
@@ -1134,10 +1134,10 @@ export async function archiveBusinessInquiryFormAction(
   }
 }
 
-export async function archiveBusinessInquiryFormFromDetailAction(
-  _prevState: BusinessInquiryFormDangerActionState,
+export async function archiveServiceFromDetailAction(
+  _prevState: ServiceDangerActionState,
   formData: FormData,
-): Promise<BusinessInquiryFormDangerActionState> {
+): Promise<ServiceDangerActionState> {
   const ownerAccess = await getOperationalBusinessActionContext();
 
   if (!ownerAccess.ok) {
@@ -1147,21 +1147,21 @@ export async function archiveBusinessInquiryFormFromDetailAction(
   }
 
   const { user, businessContext } = ownerAccess;
-  const validationResult = businessInquiryFormTargetSchema.safeParse({
-    targetFormId: formData.get("targetFormId"),
+  const validationResult = serviceTargetSchema.safeParse({
+    targetServiceId: formData.get("targetServiceId"),
   });
 
   if (!validationResult.success) {
     return {
-      error: "That inquiry form could not be found.",
+      error: "That service could not be found.",
     };
   }
 
   try {
-    const result = await archiveBusinessInquiryForm({
+    const result = await archiveService({
       businessId: businessContext.business.id,
       actorUserId: user.id,
-      targetFormId: validationResult.data.targetFormId,
+      targetServiceId: validationResult.data.targetServiceId,
     });
 
     if (!result.ok) {
@@ -1184,15 +1184,15 @@ export async function archiveBusinessInquiryFormFromDetailAction(
 
     updateCacheTags(
       uniqueCacheTags([
-        ...getBusinessInquiryFormsCacheTags(businessContext.business.id),
-        ...getBusinessInquiryFormCacheTags(
+        ...getServicesCacheTags(businessContext.business.id),
+        ...getServiceCacheTags(
           businessContext.business.id,
-          result.formSlug,
+          result.serviceSlug,
         ),
       ]),
     );
     after(() => {
-      revalidateBusinessInquiryFormPaths(result.businessSlug, result.formSlug);
+      revalidateServicePaths(result.businessSlug, result.serviceSlug);
       revalidateBusinessDefaultInquiryPaths(result.businessSlug);
     });
 
@@ -1200,7 +1200,7 @@ export async function archiveBusinessInquiryFormFromDetailAction(
       success: "Service archived.",
     };
   } catch (error) {
-    console.error("Failed to archive inquiry form.", error);
+    console.error("Failed to archive service.", error);
 
     return {
       error: "We couldn't archive the service right now.",
@@ -1208,10 +1208,10 @@ export async function archiveBusinessInquiryFormFromDetailAction(
   }
 }
 
-export async function deleteBusinessInquiryFormAction(
-  _prevState: BusinessInquiryFormDangerActionState,
+export async function deleteServiceAction(
+  _prevState: ServiceDangerActionState,
   formData: FormData,
-): Promise<BusinessInquiryFormDangerActionState> {
+): Promise<ServiceDangerActionState> {
   const ownerAccess = await getOperationalBusinessActionContext();
   const redirectHref = getSafeInternalRedirectPath(
     formData.get("redirectHref") as string | null,
@@ -1224,8 +1224,8 @@ export async function deleteBusinessInquiryFormAction(
   }
 
   const { user, businessContext } = ownerAccess;
-  const validationResult = businessInquiryFormTargetSchema.safeParse({
-    targetFormId: formData.get("targetFormId"),
+  const validationResult = serviceTargetSchema.safeParse({
+    targetServiceId: formData.get("targetServiceId"),
   });
 
   if (!validationResult.success) {
@@ -1235,10 +1235,10 @@ export async function deleteBusinessInquiryFormAction(
   }
 
   try {
-    const result = await deleteBusinessInquiryForm({
+    const result = await deleteService({
       businessId: businessContext.business.id,
       actorUserId: user.id,
-      targetFormId: validationResult.data.targetFormId,
+      targetServiceId: validationResult.data.targetServiceId,
     });
 
     if (!result.ok) {
@@ -1276,19 +1276,19 @@ export async function deleteBusinessInquiryFormAction(
 
     updateCacheTags(
       uniqueCacheTags([
-        ...getBusinessInquiryFormsCacheTags(businessContext.business.id),
-        ...getBusinessInquiryFormCacheTags(
+        ...getServicesCacheTags(businessContext.business.id),
+        ...getServiceCacheTags(
           businessContext.business.id,
-          result.formSlug,
+          result.serviceSlug,
         ),
       ]),
     );
     after(() => {
-      revalidateBusinessInquiryFormPaths(result.businessSlug, result.formSlug);
+      revalidateServicePaths(result.businessSlug, result.serviceSlug);
       revalidateBusinessDefaultInquiryPaths(result.businessSlug);
     });
   } catch (error) {
-    console.error("Failed to delete inquiry form.", error);
+    console.error("Failed to delete service.", error);
 
     return {
       error: "We couldn't delete the service right now.",
@@ -1304,10 +1304,10 @@ export async function deleteBusinessInquiryFormAction(
   };
 }
 
-export async function toggleBusinessInquiryFormPublicAction(
-  _prevState: BusinessInquiryFormsActionState,
+export async function toggleServicePublicAction(
+  _prevState: ServicesActionState,
   formData: FormData,
-): Promise<BusinessInquiryFormsActionState> {
+): Promise<ServicesActionState> {
   const ownerAccess = await getOwnerBusinessActionContext();
 
   if (!ownerAccess.ok) {
@@ -1317,8 +1317,8 @@ export async function toggleBusinessInquiryFormPublicAction(
   }
 
   const { user, businessContext } = ownerAccess;
-  const validationResult = businessInquiryFormTargetSchema.safeParse({
-    targetFormId: formData.get("targetFormId"),
+  const validationResult = serviceTargetSchema.safeParse({
+    targetServiceId: formData.get("targetServiceId"),
   });
 
   if (!validationResult.success) {
@@ -1328,10 +1328,10 @@ export async function toggleBusinessInquiryFormPublicAction(
   const publicInquiryEnabled = formData.get("publicInquiryEnabled") === "true";
 
   try {
-    const result = await setBusinessInquiryFormPublicState({
+    const result = await setServicePublicState({
       businessId: businessContext.business.id,
       actorUserId: user.id,
-      targetFormId: validationResult.data.targetFormId,
+      targetServiceId: validationResult.data.targetServiceId,
       publicInquiryEnabled,
     });
 
@@ -1349,15 +1349,15 @@ export async function toggleBusinessInquiryFormPublicAction(
 
     updateCacheTags(
       uniqueCacheTags([
-        ...getBusinessInquiryFormsCacheTags(businessContext.business.id),
-        ...getBusinessInquiryFormCacheTags(
+        ...getServicesCacheTags(businessContext.business.id),
+        ...getServiceCacheTags(
           businessContext.business.id,
-          result.formSlug,
+          result.serviceSlug,
         ),
       ]),
     );
     after(() => {
-      revalidateBusinessInquiryFormPaths(result.businessSlug, result.formSlug);
+      revalidateServicePaths(result.businessSlug, result.serviceSlug);
       revalidateBusinessDefaultInquiryPaths(result.businessSlug);
     });
 
@@ -1367,7 +1367,7 @@ export async function toggleBusinessInquiryFormPublicAction(
         : "Service unpublished.",
     };
   } catch (error) {
-    console.error("Failed to toggle public inquiry form state.", error);
+    console.error("Failed to toggle public service state.", error);
 
     return {
       error: "We couldn't update service availability right now.",
@@ -1375,10 +1375,10 @@ export async function toggleBusinessInquiryFormPublicAction(
   }
 }
 
-export async function unarchiveBusinessInquiryFormAction(
-  _prevState: BusinessInquiryFormDangerActionState,
+export async function unarchiveServiceAction(
+  _prevState: ServiceDangerActionState,
   formData: FormData,
-): Promise<BusinessInquiryFormDangerActionState> {
+): Promise<ServiceDangerActionState> {
   const ownerAccess = await getOperationalBusinessActionContext();
 
   if (!ownerAccess.ok) {
@@ -1388,8 +1388,8 @@ export async function unarchiveBusinessInquiryFormAction(
   }
 
   const { user, businessContext } = ownerAccess;
-  const validationResult = businessInquiryFormTargetSchema.safeParse({
-    targetFormId: formData.get("targetFormId"),
+  const validationResult = serviceTargetSchema.safeParse({
+    targetServiceId: formData.get("targetServiceId"),
   });
 
   if (!validationResult.success) {
@@ -1397,10 +1397,10 @@ export async function unarchiveBusinessInquiryFormAction(
   }
 
   try {
-    const result = await unarchiveBusinessInquiryForm({
+    const result = await unarchiveService({
       businessId: businessContext.business.id,
       actorUserId: user.id,
-      targetFormId: validationResult.data.targetFormId,
+      targetServiceId: validationResult.data.targetServiceId,
     });
 
     if (!result.ok) {
@@ -1417,15 +1417,15 @@ export async function unarchiveBusinessInquiryFormAction(
 
     updateCacheTags(
       uniqueCacheTags([
-        ...getBusinessInquiryFormsCacheTags(businessContext.business.id),
-        ...getBusinessInquiryFormCacheTags(
+        ...getServicesCacheTags(businessContext.business.id),
+        ...getServiceCacheTags(
           businessContext.business.id,
-          result.formSlug,
+          result.serviceSlug,
         ),
       ]),
     );
     after(() => {
-      revalidateBusinessInquiryFormPaths(result.businessSlug, result.formSlug);
+      revalidateServicePaths(result.businessSlug, result.serviceSlug);
       revalidateBusinessDefaultInquiryPaths(result.businessSlug);
     });
 
@@ -1433,7 +1433,7 @@ export async function unarchiveBusinessInquiryFormAction(
       success: "Service restored.",
     };
   } catch (error) {
-    console.error("Failed to unarchive inquiry form.", error);
+    console.error("Failed to unarchive service.", error);
 
     return {
       error: "We couldn't unarchive the service right now.",

@@ -1,4 +1,4 @@
-import { processKnowledgeFile } from "@/features/memory/processing";
+import { processKnowledgeFile } from "@/features/knowledge/processing";
 import { inngest } from "@/lib/inngest/client";
 import {
   inngestEvents,

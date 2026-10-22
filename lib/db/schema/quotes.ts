@@ -220,9 +220,9 @@ export const quoteItems = pgTable(
      * Cleared to `owner_set` when the owner edits a generated item.
      */
     aiProductStatus: aiQuoteProductStatusEnum("ai_product_status"),
-    /** Product-library entry that authorized a verified/suggested price. */
+    /** Quote-library entry that authorized a verified/suggested price. */
     aiProductLibraryEntryId: text("ai_product_library_entry_id"),
-    /** Product-library item that authorized a verified/suggested price. */
+    /** Quote-library item that authorized a verified/suggested price. */
     aiProductLibraryItemId: text("ai_product_library_item_id"),
     /** Source references and reason behind the item's price status. */
     aiEvidence: jsonb("ai_evidence").$type<AiQuoteItemEvidence | null>().default(null),

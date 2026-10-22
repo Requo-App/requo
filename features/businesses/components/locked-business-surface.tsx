@@ -3,11 +3,11 @@ import { LockKeyhole, ArrowUpRight } from "lucide-react";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { UpgradeButton } from "@/features/billing/components/upgrade-button";
-import type { AccountBillingOverview } from "@/features/billing/types";
+import type { BusinessBillingOverview } from "@/features/billing/types";
 import type { BusinessContext } from "@/lib/db/business-access";
 
 type LockedBusinessSurfaceProps = {
-  billing: AccountBillingOverview;
+  billing: BusinessBillingOverview;
   businessContext: BusinessContext;
 };
 

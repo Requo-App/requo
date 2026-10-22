@@ -13,7 +13,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { user } from "@/lib/db/schema/auth";
-import { businessInquiryForms } from "@/lib/db/schema/business-inquiry-forms";
+import { services } from "@/lib/db/schema/services";
 import { businesses } from "@/lib/db/schema/businesses";
 import { quotes } from "@/lib/db/schema/quotes";
 
@@ -63,8 +63,8 @@ export const analyticsEvents = pgTable(
     businessId: text("business_id")
       .notNull()
       .references(() => businesses.id, { onDelete: "cascade" }),
-    businessInquiryFormId: text("business_inquiry_form_id").references(
-      () => businessInquiryForms.id,
+    serviceId: text("business_inquiry_form_id").references(
+      () => services.id,
       { onDelete: "set null" },
     ),
     quoteId: text("quote_id").references(() => quotes.id, {
@@ -84,7 +84,7 @@ export const analyticsEvents = pgTable(
       table.occurredAt,
     ),
     index("analytics_events_form_type_occurred_at_idx").on(
-      table.businessInquiryFormId,
+      table.serviceId,
       table.eventType,
       table.occurredAt,
     ),

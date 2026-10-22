@@ -15,8 +15,8 @@ export type ExportRequestContext = Awaited<
 >;
 
 /**
- * Shared auth + paywall gate for business CSV/PDF exports (was copy-pasted
- * across 7 routes: slug parse → slug context → exports paywall).
+ * Shared auth + entitlement gate for business CSV/PDF exports (was copy-pasted
+ * across 7 routes: slug parse → slug context → exports entitlement check).
  * Returns the request context or an error Response.
  */
 export async function requireExportContext(

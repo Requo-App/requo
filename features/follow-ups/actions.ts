@@ -11,7 +11,7 @@ import {
   uniqueCacheTags,
   updateCacheTags,
 } from "@/lib/cache/business-tags";
-import { getWorkspaceBusinessActionContext } from "@/lib/db/business-access";
+import { getMemberBusinessActionContext } from "@/lib/db/business-access";
 import { parseFollowUpDateTimeInput } from "@/features/follow-ups/utils";
 import {
   bulkCompleteFollowUpsForBusiness,
@@ -126,15 +126,15 @@ async function createFollowUpActionForRecord({
   quoteId?: string | null;
   formData: FormData;
 }): Promise<FollowUpCreateActionState> {
-  const ownerAccess = await getWorkspaceBusinessActionContext();
+  const memberAccess = await getMemberBusinessActionContext();
 
-  if (!ownerAccess.ok) {
+  if (!memberAccess.ok) {
     return {
-      error: ownerAccess.error,
+      error: memberAccess.error,
     };
   }
 
-  const { user, businessContext } = ownerAccess;
+  const { user, businessContext } = memberAccess;
   const validationResult = followUpCreateSchema.safeParse({
     title: formData.get("title"),
     reason: formData.get("reason"),
@@ -306,13 +306,13 @@ export async function completeFollowUpAction(
   _prevState: FollowUpCompleteActionState,
   formData: FormData,
 ): Promise<FollowUpCompleteActionState> {
-  const ownerAccess = await getWorkspaceBusinessActionContext();
+  const memberAccess = await getMemberBusinessActionContext();
 
-  if (!ownerAccess.ok) {
-    return { error: ownerAccess.error };
+  if (!memberAccess.ok) {
+    return { error: memberAccess.error };
   }
 
-  const { user, businessContext } = ownerAccess;
+  const { user, businessContext } = memberAccess;
   const parsed = followUpCompleteSchema.safeParse({
     completionNote: formData.get("completionNote"),
   });
@@ -382,15 +382,15 @@ export async function rescheduleFollowUpAction(
   _prevState: FollowUpRescheduleActionState,
   formData: FormData,
 ): Promise<FollowUpRescheduleActionState> {
-  const ownerAccess = await getWorkspaceBusinessActionContext();
+  const memberAccess = await getMemberBusinessActionContext();
 
-  if (!ownerAccess.ok) {
+  if (!memberAccess.ok) {
     return {
-      error: ownerAccess.error,
+      error: memberAccess.error,
     };
   }
 
-  const { user, businessContext } = ownerAccess;
+  const { user, businessContext } = memberAccess;
   const validationResult = followUpRescheduleSchema.safeParse({
     dueDate: formData.get("dueDate"),
   });
@@ -449,15 +449,15 @@ export async function editFollowUpAction(
   _prevState: FollowUpEditActionState,
   formData: FormData,
 ): Promise<FollowUpEditActionState> {
-  const ownerAccess = await getWorkspaceBusinessActionContext();
+  const memberAccess = await getMemberBusinessActionContext();
 
-  if (!ownerAccess.ok) {
+  if (!memberAccess.ok) {
     return {
-      error: ownerAccess.error,
+      error: memberAccess.error,
     };
   }
 
-  const { user, businessContext } = ownerAccess;
+  const { user, businessContext } = memberAccess;
   const validationResult = followUpEditSchema.safeParse({
     title: formData.get("title"),
     reason: formData.get("reason"),
@@ -546,15 +546,15 @@ export async function deleteFollowUpAction(
   void _prevState;
   void _formData;
 
-  const ownerAccess = await getWorkspaceBusinessActionContext();
+  const memberAccess = await getMemberBusinessActionContext();
 
-  if (!ownerAccess.ok) {
+  if (!memberAccess.ok) {
     return {
-      error: ownerAccess.error,
+      error: memberAccess.error,
     };
   }
 
-  const { user, businessContext } = ownerAccess;
+  const { user, businessContext } = memberAccess;
 
   try {
     const result = await deleteFollowUpForBusiness({
@@ -594,15 +594,15 @@ export async function reassignFollowUpAction(
   _prevState: FollowUpReassignActionState,
   formData: FormData,
 ): Promise<FollowUpReassignActionState> {
-  const ownerAccess = await getWorkspaceBusinessActionContext();
+  const memberAccess = await getMemberBusinessActionContext();
 
-  if (!ownerAccess.ok) {
+  if (!memberAccess.ok) {
     return {
-      error: ownerAccess.error,
+      error: memberAccess.error,
     };
   }
 
-  const { user, businessContext } = ownerAccess;
+  const { user, businessContext } = memberAccess;
   const validationResult = followUpReassignSchema.safeParse({
     assignedToUserId: formData.get("assignedToUserId"),
   });
@@ -672,13 +672,13 @@ export async function snoozeFollowUpAction(
   _prevState: FollowUpSnoozeActionState,
   formData: FormData,
 ): Promise<FollowUpSnoozeActionState> {
-  const ownerAccess = await getWorkspaceBusinessActionContext();
+  const memberAccess = await getMemberBusinessActionContext();
 
-  if (!ownerAccess.ok) {
-    return { error: ownerAccess.error };
+  if (!memberAccess.ok) {
+    return { error: memberAccess.error };
   }
 
-  const { user, businessContext } = ownerAccess;
+  const { user, businessContext } = memberAccess;
   const validationResult = followUpSnoozeSchema.safeParse({
     snoozedUntil: formData.get("snoozedUntil"),
   });
@@ -736,13 +736,13 @@ export async function bulkCompleteFollowUpsAction(
   _prevState: FollowUpBulkActionState,
   formData: FormData,
 ): Promise<FollowUpBulkActionState> {
-  const ownerAccess = await getWorkspaceBusinessActionContext();
+  const memberAccess = await getMemberBusinessActionContext();
 
-  if (!ownerAccess.ok) {
-    return { error: ownerAccess.error };
+  if (!memberAccess.ok) {
+    return { error: memberAccess.error };
   }
 
-  const { user, businessContext } = ownerAccess;
+  const { user, businessContext } = memberAccess;
   const rawIds = formData.get("followUpIds") as string;
   const completionNote = (formData.get("completionNote") as string) || undefined;
 
@@ -796,13 +796,13 @@ export async function bulkSkipFollowUpsAction(
   _prevState: FollowUpBulkActionState,
   formData: FormData,
 ): Promise<FollowUpBulkActionState> {
-  const ownerAccess = await getWorkspaceBusinessActionContext();
+  const memberAccess = await getMemberBusinessActionContext();
 
-  if (!ownerAccess.ok) {
-    return { error: ownerAccess.error };
+  if (!memberAccess.ok) {
+    return { error: memberAccess.error };
   }
 
-  const { user, businessContext } = ownerAccess;
+  const { user, businessContext } = memberAccess;
   const rawIds = formData.get("followUpIds") as string;
 
   const parsed = followUpBulkActionSchema.safeParse({

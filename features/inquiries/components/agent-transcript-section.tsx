@@ -1,7 +1,7 @@
 import { MessageSquare } from "lucide-react";
 
 import { DashboardSection } from "@/components/shared/dashboard-layout";
-import { getAgentTranscriptForInquiry } from "@/features/ai-agent/queries";
+import { getAgentTranscriptForInquiry } from "@/features/agent/queries";
 
 /**
  * Read-only public-chat transcript attached to the inquiry that produced it.

@@ -13,7 +13,7 @@
  * is enforced by `features/businesses/quota.ts`.
  */
 
-import type { BusinessPlan } from "@/lib/plans/plans";
+import type { PlanTier } from "@/lib/plans/plans";
 
 export const usageLimitKeys = [
   "aiWeightedCreditsPerMonth",
@@ -28,10 +28,10 @@ export const usageLimitKeys = [
   "activeAutoFollowUpsPerBusiness",
   "freeBusinessesPerOwner",
   "membersPerBusiness",
-  "liveFormsPerBusiness",
-  "productEntriesPerBusiness",
+  "liveServicesPerBusiness",
+  "quoteLibraryEntriesPerBusiness",
   "knowledgeSourcesPerBusiness",
-  "customFieldsPerForm",
+  "customFieldsPerService",
   "publicInquiryAttachmentMaxBytes",
 ] as const;
 
@@ -39,7 +39,7 @@ export type UsageLimitKey = (typeof usageLimitKeys)[number];
 
 type PlanUsageLimits = Record<UsageLimitKey, number | null>;
 
-const planUsageLimits: Record<BusinessPlan, PlanUsageLimits> = {
+const planUsageLimits: Record<PlanTier, PlanUsageLimits> = {
   free: {
     aiWeightedCreditsPerMonth: 30,
     assistantMessagesPerDay: 25,
@@ -54,10 +54,10 @@ const planUsageLimits: Record<BusinessPlan, PlanUsageLimits> = {
     activeAutoFollowUpsPerBusiness: 0,
     freeBusinessesPerOwner: 1,
     membersPerBusiness: 1,
-    liveFormsPerBusiness: 1,
-    productEntriesPerBusiness: 10,
+    liveServicesPerBusiness: 1,
+    quoteLibraryEntriesPerBusiness: 10,
     knowledgeSourcesPerBusiness: 5,
-    customFieldsPerForm: 3,
+    customFieldsPerService: 3,
     publicInquiryAttachmentMaxBytes: 5 * 1024 * 1024,
   },
   pro: {
@@ -73,10 +73,10 @@ const planUsageLimits: Record<BusinessPlan, PlanUsageLimits> = {
     activeAutoFollowUpsPerBusiness: 10,
     freeBusinessesPerOwner: null,
     membersPerBusiness: 1,
-    liveFormsPerBusiness: 5,
-    productEntriesPerBusiness: 50,
+    liveServicesPerBusiness: 5,
+    quoteLibraryEntriesPerBusiness: 50,
     knowledgeSourcesPerBusiness: 25,
-    customFieldsPerForm: 10,
+    customFieldsPerService: 10,
     publicInquiryAttachmentMaxBytes: 25 * 1024 * 1024,
   },
   business: {
@@ -92,10 +92,10 @@ const planUsageLimits: Record<BusinessPlan, PlanUsageLimits> = {
     activeAutoFollowUpsPerBusiness: 25,
     freeBusinessesPerOwner: null,
     membersPerBusiness: 5,
-    liveFormsPerBusiness: 10,
-    productEntriesPerBusiness: null,
+    liveServicesPerBusiness: 10,
+    quoteLibraryEntriesPerBusiness: null,
     knowledgeSourcesPerBusiness: 50,
-    customFieldsPerForm: 24,
+    customFieldsPerService: 24,
     publicInquiryAttachmentMaxBytes: 50 * 1024 * 1024,
   },
 };
@@ -104,7 +104,7 @@ const planUsageLimits: Record<BusinessPlan, PlanUsageLimits> = {
  * Returns the usage limit for a plan and key, or `null` if unlimited.
  */
 export function getUsageLimit(
-  plan: BusinessPlan,
+  plan: PlanTier,
   key: UsageLimitKey,
 ): number | null {
   return planUsageLimits[plan][key];
@@ -114,7 +114,7 @@ export function getUsageLimit(
  * Returns `true` if the plan has a finite limit for the given key.
  */
 export function isUsageLimited(
-  plan: BusinessPlan,
+  plan: PlanTier,
   key: UsageLimitKey,
 ): boolean {
   return planUsageLimits[plan][key] !== null;
@@ -134,10 +134,10 @@ export const usageLimitLabels: Record<UsageLimitKey, string> = {
   activeAutoFollowUpsPerBusiness: "Active auto follow-ups per business",
   freeBusinessesPerOwner: "Free businesses per owner",
   membersPerBusiness: "Members per business",
-  liveFormsPerBusiness: "Live inquiry forms",
-  productEntriesPerBusiness: "Product entries per business",
+  liveServicesPerBusiness: "Live services",
+  quoteLibraryEntriesPerBusiness: "Quote library entries per business",
   knowledgeSourcesPerBusiness: "Knowledge sources per business",
-  customFieldsPerForm: "Custom fields per form",
+  customFieldsPerService: "Custom fields per service",
   publicInquiryAttachmentMaxBytes: "Public inquiry upload size",
 };
 

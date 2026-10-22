@@ -1,18 +1,18 @@
 export type ImporterDestination = "pricing";
 
-export type ImporterPricingLineItem = {
+export type ImporterQuoteLibraryLineItem = {
   draftId: string;
   description: string;
   quantity: number;
   unitPriceInCents: number;
 };
 
-export type ImporterPricingEntry = {
+export type ImporterQuoteLibraryEntry = {
   draftId: string;
   kind: "block" | "package";
   name: string;
   description: string;
-  items: ImporterPricingLineItem[];
+  items: ImporterQuoteLibraryLineItem[];
 };
 
 export type ImporterPlanContext = {
@@ -33,7 +33,7 @@ export type ImporterAnalyzeResult =
       ok: true;
       destination: "pricing";
       sourceName: string;
-      entries: ImporterPricingEntry[];
+      entries: ImporterQuoteLibraryEntry[];
       warnings: string[];
       planContext: ImporterPlanContext;
     }
@@ -50,8 +50,8 @@ export type ImporterCommitResult = {
 
 export const importerMaxFileBytes = 5 * 1024 * 1024; // 5 MB
 export const importerMaxExtractedChars = 20_000;
-export const importerMaxPricingEntries = 30;
-export const importerMaxPricingItemsPerEntry = 25;
+export const importerMaxQuoteLibraryEntries = 30;
+export const importerMaxQuoteLibraryItemsPerEntry = 25;
 
 export const importerAcceptedMimeTypes = [
   "application/pdf",

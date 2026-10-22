@@ -38,7 +38,7 @@ export type EscapeHatchValidationResult =
  *
  * Includes all authenticated dashboard pages under:
  * - app/(business)/[businessSlug]/(main)/ (home, inquiries, quotes, follow-ups,
- *   services, invoices, payments, products, notifications, analytics, assistant)
+ *   services, invoices, payments, quote library, notifications, analytics, assistant)
  * - app/(business)/[businessSlug]/settings/ (including members)
  * - app/admin/
  * - app/onboarding/
@@ -71,7 +71,7 @@ export const IN_SCOPE_ROUTES: ReadonlySet<string> = new Set([
   "app/(business)/[businessSlug]/(main)/payments/[paymentId]/page.tsx",
   "app/(business)/[businessSlug]/(main)/payments/[paymentId]/receipt/page.tsx",
   "app/(business)/[businessSlug]/(main)/notifications/page.tsx",
-  "app/(business)/[businessSlug]/(main)/products/page.tsx",
+  "app/(business)/[businessSlug]/(main)/quote-library/page.tsx",
   "app/(business)/[businessSlug]/(main)/analytics/page.tsx",
   "app/(business)/[businessSlug]/(main)/assistant/page.tsx",
   // assistant/chat/[sessionId] is a redirect to `assistant?session=…`, so it is

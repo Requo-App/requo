@@ -14,7 +14,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { user } from "@/lib/db/schema/auth";
-import { businessInquiryForms } from "@/lib/db/schema/business-inquiry-forms";
+import { services } from "@/lib/db/schema/services";
 import { businesses } from "@/lib/db/schema/businesses";
 import type { InquirySubmittedFieldSnapshot } from "@/features/inquiries/form-config";
 
@@ -47,8 +47,8 @@ export const inquiries = pgTable(
     businessId: text("business_id")
       .notNull()
       .references(() => businesses.id, { onDelete: "cascade" }),
-    businessInquiryFormId: text("business_inquiry_form_id")
-      .references(() => businessInquiryForms.id, { onDelete: "set null" }),
+    serviceId: text("business_inquiry_form_id")
+      .references(() => services.id, { onDelete: "set null" }),
     status: inquiryStatusEnum("status").notNull().default("new"),
     subject: text("subject"),
     customerName: text("customer_name").notNull(),
@@ -97,7 +97,7 @@ export const inquiries = pgTable(
   (table) => [
     index("inquiries_business_id_idx").on(table.businessId),
     index("inquiries_business_inquiry_form_id_idx").on(
-      table.businessInquiryFormId,
+      table.serviceId,
     ),
     index("inquiries_business_status_idx").on(table.businessId, table.status),
     index("inquiries_business_status_created_at_idx").on(

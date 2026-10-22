@@ -6,7 +6,7 @@
  * client controls, so it stays free of runtime dependencies.
  */
 
-import type { BusinessPlan } from "@/lib/plans/plans";
+import type { PlanTier } from "@/lib/plans/plans";
 import { formatRangeLabel } from "@/features/analytics/lib/format";
 
 export const analyticsTabs = [
@@ -31,7 +31,7 @@ export type AnalyticsRangePreset = (typeof analyticsRangePresets)[number];
 export type AnalyticsBucket = "day" | "week" | "month";
 
 /** Maximum browsable history per plan; `null` means all-time. */
-const historyMonthsByPlan: Record<BusinessPlan, number | null> = {
+const historyMonthsByPlan: Record<PlanTier, number | null> = {
   free: 1,
   pro: 24,
   business: null,
@@ -129,7 +129,7 @@ export function resolveAnalyticsWindow({
   now = new Date(),
   earliest,
 }: {
-  plan: BusinessPlan;
+  plan: PlanTier;
   range?: string | null;
   from?: string | null;
   to?: string | null;

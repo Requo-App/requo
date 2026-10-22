@@ -5,14 +5,14 @@
  * the single source of truth for plan identifiers, labels, and metadata.
  */
 
-export const businessPlans = ["free", "pro", "business"] as const;
+export const planTiers = ["free", "pro", "business"] as const;
 
-export type BusinessPlan = (typeof businessPlans)[number];
+export type PlanTier = (typeof planTiers)[number];
 
-export function isBusinessPlan(value: unknown): value is BusinessPlan {
+export function isPlanTier(value: unknown): value is PlanTier {
   return (
     typeof value === "string" &&
-    businessPlans.includes(value as BusinessPlan)
+    planTiers.includes(value as PlanTier)
   );
 }
 
@@ -25,7 +25,7 @@ export type PlanMeta = {
   highlighted: boolean;
 };
 
-export const planMeta: Record<BusinessPlan, PlanMeta> = {
+export const planMeta: Record<PlanTier, PlanMeta> = {
   free: {
     label: "Free",
     description:
@@ -54,8 +54,8 @@ export const planMeta: Record<BusinessPlan, PlanMeta> = {
  * Returns `null` if the business is already on the highest plan.
  */
 export function getUpgradePlan(
-  currentPlan: BusinessPlan,
-): BusinessPlan | null {
+  currentPlan: PlanTier,
+): PlanTier | null {
   switch (currentPlan) {
     case "free":
       return "pro";
@@ -69,7 +69,7 @@ export function getUpgradePlan(
 /**
  * Returns the CTA label for upgrading from a given plan.
  */
-export function getUpgradeCtaLabel(currentPlan: BusinessPlan): string {
+export function getUpgradeCtaLabel(currentPlan: PlanTier): string {
   const upgradePlan = getUpgradePlan(currentPlan);
 
   if (!upgradePlan) {

@@ -11,7 +11,7 @@ import { ensureProfileForUser } from "@/lib/auth/business-bootstrap";
 import { db } from "@/lib/db/client";
 import { businessMembers, businesses, profiles } from "@/lib/db/schema";
 import { getUsageLimit } from "@/lib/plans/usage-limits";
-import type { BusinessPlan as plan } from "@/lib/plans/plans";
+import type { PlanTier as plan } from "@/lib/plans/plans";
 import { newEntityId } from "@/lib/ids";
 
 type CompleteOnboardingForUserInput = {
@@ -100,7 +100,7 @@ export async function completeOnboardingForUser({
       currentPlan = existingMembership.plan as plan;
     }
 
-    const liveFormLimit = getUsageLimit(currentPlan, "liveFormsPerBusiness");
+    const liveFormLimit = getUsageLimit(currentPlan, "liveServicesPerBusiness");
     const trimmedServices =
       liveFormLimit === null
         ? (services ?? [])
