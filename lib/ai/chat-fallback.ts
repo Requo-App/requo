@@ -1,11 +1,11 @@
 import "server-only";
 
-import { CHAT_MAX_ATTEMPTS, correctTokenUsage } from "@/lib/ai/capacity-selector";
+import { CHAT_MAX_ATTEMPTS } from "@/lib/ai/capacity-selector";
 import {
   createFallbackLanguageModel,
   type FallbackAttemptTrailEntry,
 } from "@/lib/ai/fallback-model";
-import { selectModels } from "@/lib/ai/router";
+import { providerTimeoutMs, selectModels } from "@/lib/ai/router";
 import { noModelsAvailableError } from "@/lib/ai/routing-errors";
 import type { AiRoutingProfile } from "@/lib/ai/routing-profiles";
 
@@ -13,11 +13,20 @@ import type { AiRoutingProfile } from "@/lib/ai/routing-profiles";
  * Model resolution with fallback for the AI chat orchestrators.
  *
  * Both chat surfaces run the same sequence: select candidate models for
- * their routing profile, fail fast when none fit, serve the turn through
- * the fallback wrapper, and correct usage counters afterwards. Profiles,
- * budgets, tools, prompts, and persistence stay in the orchestrators —
- * only the identical mechanics live here.
+ * their routing profile, fail fast when none fit, and serve the turn through
+ * the fallback wrapper. The wrapper reserves provider quota per step and
+ * settles it against the provider's reported usage, so the orchestrators do
+ * not correct counters afterwards. Profiles, budgets, tools, prompts, and
+ * persistence stay in the orchestrators — only the identical mechanics live
+ * here.
  */
+
+/**
+ * Budget for one model step, covering every fallback attempt inside it.
+ * A step is one `streamText` model call; a five-step tool turn still gets a
+ * fresh budget per step. Four provider timeouts (15–30 s each) fit inside it.
+ */
+const CHAT_STEP_DEADLINE_MS = 90_000;
 
 export type ChatServingModel = {
   modelId: string;
@@ -30,7 +39,6 @@ export type ChatFallbackResolution = {
   /** Live serving identity; fields mutate as fallback advances steps. */
   serving: ChatServingModel;
   attemptTrail: FallbackAttemptTrailEntry[];
-  correctUsage: (inputTokens: number, outputTokens: number) => void;
 };
 
 export async function resolveChatFallbackModel(input: {
@@ -59,6 +67,8 @@ export async function resolveChatFallbackModel(input: {
     modelIds: selectedModels,
     maxAttempts: CHAT_MAX_ATTEMPTS,
     estimatedTokens: input.estimatedTokens,
+    deadlineMs: CHAT_STEP_DEADLINE_MS,
+    getTimeoutMs: ({ provider }) => providerTimeoutMs(provider),
     onModelSelected: (selected) => {
       serving.modelId = selected.modelId;
       serving.provider = selected.provider;
@@ -73,15 +83,5 @@ export async function resolveChatFallbackModel(input: {
     },
   });
 
-  return {
-    fallbackModel,
-    serving,
-    attemptTrail,
-    correctUsage: (inputTokens, outputTokens) => {
-      void correctTokenUsage(serving.modelId, input.estimatedTokens, {
-        inputTokens,
-        outputTokens,
-      }).catch(() => {});
-    },
-  };
+  return { fallbackModel, serving, attemptTrail };
 }

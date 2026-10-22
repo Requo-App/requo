@@ -53,6 +53,16 @@ import "server-only";
  * is billed at zero; logged cost is list-price equivalent, not spend.
  */
 
+/** The quota dimensions the selector can enforce. */
+export const QUOTA_DIMENSIONS = ["rpm", "rpd", "tpm", "tpd"] as const;
+
+export type QuotaDimension = (typeof QUOTA_DIMENSIONS)[number];
+
+export type ModelQuotaLimits = Record<QuotaDimension, number> & {
+  /** Cloudflare only: neurons per 1M tokens, billed against a daily pool. */
+  neuronsPerMillion?: { input: number; output: number };
+};
+
 export type ModelEntry = {
   modelId: `${string}:${string}`;
   quality: number; // 1-10
@@ -60,22 +70,29 @@ export type ModelEntry = {
   maxOutputTokens: number;
   toolCapable: boolean;
   structuredOutput: boolean;
-  limits: {
-    rpm: number;
-    rpd: number; // 0 = not published / not modelled
-    tpm: number;
-    tpd: number; // 0 = not published / not modelled
-    /** Cloudflare only: neurons per 1M tokens, billed against a daily pool. */
-    neuronsPerMillion?: { input: number; output: number };
-  };
+  limits: ModelQuotaLimits;
   /** Which limits are per-organisation rather than per-model. */
-  sharedWithProvider: Array<"rpm" | "rpd" | "tpm" | "tpd">;
+  sharedWithProvider: QuotaDimension[];
   /** When the day counter resets, so exhaustion cooldowns are accurate. */
   dayResets: "rolling" | "utc-midnight" | "pacific-midnight";
   costCentsPerMillion: { input: number; output: number };
   /** Held back for last: too small an allowance to carry normal traffic. */
   reserve?: boolean;
 };
+
+/**
+ * A positive quota ceiling, or `null` when the dimension is not published or
+ * not modelled. Zero is deliberately not "unlimited": every caller must skip
+ * an unpriced dimension rather than compute a load ratio of zero and pretend
+ * the model has infinite headroom.
+ */
+export function quotaLimit(
+  entry: Pick<ModelEntry, "limits">,
+  dimension: QuotaDimension,
+): number | null {
+  const value = entry.limits[dimension];
+  return Number.isFinite(value) && value > 0 ? value : null;
+}
 
 function envNumber(name: string, fallback: number): number {
   const value = Number(process.env[name]);

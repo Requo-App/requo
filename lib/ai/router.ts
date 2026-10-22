@@ -2,26 +2,16 @@ import "server-only";
 
 import { generateText, streamText } from "ai";
 
-import { registry } from "@/lib/ai/registry";
 import {
-  AiProviderError,
-  getSanitizedErrorInfo,
-  isModelNotFoundError,
-  isOversizedError,
-  wrapProviderError,
-} from "@/lib/ai/errors";
-import {
-  NON_CHAT_MAX_ATTEMPTS,
   CHAT_MAX_ATTEMPTS,
-  correctTokenUsage,
-  markModelDead,
-  recordModelTokenUsageDetailed,
-  recordModelUsage,
-  markModelExhausted,
+  NON_CHAT_MAX_ATTEMPTS,
   selectModels,
 } from "@/lib/ai/capacity-selector";
-import { createFallbackLanguageModel } from "@/lib/ai/fallback-model";
-import { getCatalogEntry } from "@/lib/ai/catalog";
+import { wrapProviderError } from "@/lib/ai/errors";
+import {
+  createFallbackLanguageModel,
+  type FallbackAttemptTrailEntry,
+} from "@/lib/ai/fallback-model";
 import { noModelsAvailableError } from "@/lib/ai/routing-errors";
 import type { AiRoutingProfile } from "@/lib/ai/routing-profiles";
 // Re-exported so feature orchestrators route model selection through the
@@ -40,13 +30,20 @@ import type {
 // AI Provider + Model Fallback Router — Vercel AI SDK
 //
 // Profile-driven selection (see lib/ai/routing-profiles.ts) plus a fallback
-// chain that advances through every candidate. A non-retryable error advances
-// to the next provider — only an exhausted candidate list is a failure.
-// A 404 / model-not-found is skipped (and remembered as dead for hours).
-// Oversized payloads route to a higher-context candidate, not plain rotation.
+// chain that advances through every candidate. Both entry points run through
+// the same `createFallbackLanguageModel` wrapper, so streaming and
+// non-streaming turns cannot drift into different failure, cooldown, or
+// accounting policies.
+//
+// - A non-retryable error advances to the next provider; only an exhausted
+//   candidate list is a failure.
+// - A 404 / model-not-found is skipped (and remembered as dead for hours)
+//   without consuming an attempt.
+// - Oversized payloads route to a higher-context candidate, not plain rotation.
+// - Caller cancellation stops the chain; an end-to-end deadline bounds it.
+// - Every dispatch reserves provider capacity atomically before the provider
+//   call (see capacity-selector.ts).
 // ---------------------------------------------------------------------------
-
-const MAX_RETRY_AFTER_MS = 5_000;
 
 const PROVIDER_TIMEOUTS: Record<AiProviderName, number> = {
   groq: 15_000,
@@ -56,9 +53,18 @@ const PROVIDER_TIMEOUTS: Record<AiProviderName, number> = {
   openrouter: 30_000,
 };
 
+/** End-to-end budgets. Per-candidate timeouts sit inside these. */
+const NON_CHAT_DEADLINE_MS = 90_000;
+const CHAT_DEADLINE_MS = 120_000;
+
 /** The registry prefixes `google` for Gemini; the rest of the code uses `gemini`. */
 function normalizeProviderName(providerPrefix: string): AiProviderName {
   return (providerPrefix === "google" ? "gemini" : providerPrefix) as AiProviderName;
+}
+
+/** Per-candidate provider timeout, keyed by registry prefix. */
+export function providerTimeoutMs(providerPrefix: string): number {
+  return PROVIDER_TIMEOUTS[normalizeProviderName(providerPrefix)] ?? 25_000;
 }
 
 function parseServingModel(modelId: string): {
@@ -72,19 +78,20 @@ function parseServingModel(modelId: string): {
   };
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms);
-  });
-}
-
-/** Settle a bookkeeping write without failing the turn (mock-safe). */
-async function safeSettle(value: unknown): Promise<void> {
-  try {
-    await value;
-  } catch {
-    // Capacity bookkeeping must never fail a turn.
-  }
+/** Combine caller cancellation with an end-to-end deadline. */
+function deadlineSignal(
+  request: AiCompletionRequest,
+  defaultMs: number,
+): AbortSignal {
+  const requested = request.deadlineMs;
+  const deadlineMs =
+    typeof requested === "number" && Number.isFinite(requested) && requested > 0
+      ? requested
+      : defaultMs;
+  const timeout = AbortSignal.timeout(deadlineMs);
+  return request.abortSignal
+    ? AbortSignal.any([request.abortSignal, timeout])
+    : timeout;
 }
 
 function buildMessages(request: AiCompletionRequest) {
@@ -118,15 +125,20 @@ function profileForLegacyTier(
 
 function estimateRequestTokens(request: AiCompletionRequest): number {
   const text = request.messages.map((m) => m.content).join("\n");
-  return estimateTokens(text) + (request.maxOutputTokens ?? 0) + 500;
+  // 15% headroom over the char/4 approximation: provider tokenisers and
+  // non-Latin text routinely run hotter, and an under-estimate is what lets a
+  // "quota-aware" router overshoot. The fixed 500 covers protocol overhead.
+  const raw = estimateTokens(text) * 1.15 + (request.maxOutputTokens ?? 0) + 500;
+  return Math.ceil(raw);
 }
 
-function contextWindowOf(modelId: string): number {
-  try {
-    return getCatalogEntry(modelId)?.contextWindow ?? 0;
-  } catch {
-    return 0;
-  }
+function attemptReason(error: unknown): string {
+  if (error instanceof Error) return error.message.slice(0, 200);
+  return "unknown error";
+}
+
+function trailText(trail: FallbackAttemptTrailEntry[]): string {
+  return trail.map((t) => `${t.modelId} (${t.reason})`).join("; ");
 }
 
 // ---------------------------------------------------------------------------
@@ -139,10 +151,10 @@ function contextWindowOf(modelId: string): number {
  * Strategy:
  * 1. Select via routing profile (explicit `routingProfile` wins; legacy
  *    `qualityTier` maps onto a profile).
- * 2. Try each candidate in order. EVERY failure advances to the next
- *    candidate — including failures previously classified as non-retryable.
- *    A 404 marks the identifier dead for hours. Oversized payloads prefer
- *    larger-context candidates next.
+ * 2. Dispatch through the fallback wrapper, which tries each candidate in
+ *    order. EVERY failure advances to the next candidate — including failures
+ *    previously classified as non-retryable. A 404 marks the identifier dead
+ *    for hours. Oversized payloads prefer larger-context candidates next.
  * 3. If ALL candidates fail, throw with an attempt trail.
  */
 export async function generateWithFallback(
@@ -157,120 +169,76 @@ export async function generateWithFallback(
     throw noModelsAvailableError(profile);
   }
 
-  let lastError: unknown;
   const { system, messages } = buildMessages(request);
-  const trail: Array<{ modelId: string; reason: string }> = [];
-  const maxAttempts = Math.min(NON_CHAT_MAX_ATTEMPTS, modelIds.length);
-  let attemptsUsed = 0;
-  let remaining = [...modelIds];
+  let serving = parseServingModel(modelIds[0]);
+  let lastFailedProvider: AiProviderName | undefined;
+  const trail: FallbackAttemptTrailEntry[] = [];
 
-  while (remaining.length > 0 && attemptsUsed < maxAttempts) {
-    const modelId = remaining.shift() as `${string}:${string}`;
-    const [providerPrefix, ...modelParts] = modelId.split(":");
-    const providerName = (providerPrefix === "google" ? "gemini" : providerPrefix) as AiProviderName;
-    const model = modelParts.join(":");
-    const timeout = PROVIDER_TIMEOUTS[providerName] ?? 25_000;
-
-    try {
-      const result = await generateText({
-        model: registry.languageModel(modelId),
-        system,
-        messages,
-        temperature: request.temperature,
-        maxOutputTokens: request.maxOutputTokens,
-        abortSignal: AbortSignal.timeout(timeout),
-      });
-
-      await recordModelUsage(modelId);
-      const inputTokens = result.usage?.inputTokens ?? 0;
-      const outputTokens = result.usage?.outputTokens ?? 0;
-      if (inputTokens > 0 || outputTokens > 0) {
-        // Charge the estimate first and correct it with the real usage, the
-        // same sequence the chat path uses. Recording the actual and then
-        // applying the correction on top counted the correction twice and
-        // drove the per-minute counter negative, which made a saturated
-        // provider look idle to the capacity selector.
-        await safeSettle(
-          recordModelTokenUsageDetailed(modelId, {
-            inputTokens: estimatedTokens,
-            outputTokens: 0,
-          }),
-        );
-        await safeSettle(
-          correctTokenUsage(modelId, estimatedTokens, {
-            inputTokens,
-            outputTokens,
-          }),
-        );
-      }
-      if (!result.text?.trim()) {
-        console.error(
-          `[ai-router] Zero-text completion (logged as error): model="${modelId}"`,
-        );
-      }
-      console.info(
-        `[ai-router] Completion succeeded: model="${modelId}"`,
-      );
-
-      return {
-        provider: providerName,
-        model,
-        text: result.text,
-        usage: {
-          promptTokens: result.usage?.inputTokens ?? undefined,
-          completionTokens: result.usage?.outputTokens ?? undefined,
-          totalTokens: result.usage
-            ? (result.usage.inputTokens ?? 0) + (result.usage.outputTokens ?? 0)
-            : undefined,
-        },
-        raw: result,
+  const fallbackModel = createFallbackLanguageModel({
+    modelIds,
+    maxAttempts: Math.min(NON_CHAT_MAX_ATTEMPTS, modelIds.length),
+    estimatedTokens,
+    getTimeoutMs: ({ provider }) => providerTimeoutMs(provider),
+    onModelSelected: (selected) => {
+      serving = {
+        provider: normalizeProviderName(selected.provider),
+        model: selected.model,
       };
-    } catch (error) {
-      // Wrap the raw provider error so the retry-after back-off and the
-      // typed error the callers map to a user-facing message both work. The
-      // wrapper keeps the original message and status, so the not-found and
-      // oversized checks below still classify it correctly.
-      const providerError = wrapProviderError(providerName, error);
-      lastError = providerError;
-      const errorInfo = getSanitizedErrorInfo(providerError);
-      const reason = `status=${errorInfo.statusCode ?? "N/A"} ${errorInfo.message}`.slice(0, 200);
-      trail.push({ modelId, reason });
-
+    },
+    onAttemptFailed: (selected, error) => {
+      lastFailedProvider = normalizeProviderName(selected.provider);
+      const reason = attemptReason(error);
+      trail.push({ modelId: selected.modelId, reason });
       console.warn(
-        `[ai-router] Failed (advancing): model="${modelId}" status=${errorInfo.statusCode ?? "N/A"} retryable=${errorInfo.retryable} message="${errorInfo.message}"`,
+        `[ai-router] Failed (advancing): model="${selected.modelId}" reason="${reason}"`,
       );
+    },
+  });
 
-      if (isModelNotFoundError(providerError)) {
-        await safeSettle(markModelDead(modelId));
-        // Dead identifiers cost no attempt.
-        continue;
-      }
-      attemptsUsed += 1;
-      await safeSettle(markModelExhausted(modelId, providerError));
+  try {
+    const result = await generateText({
+      model: fallbackModel,
+      system,
+      messages,
+      temperature: request.temperature,
+      maxOutputTokens: request.maxOutputTokens,
+      abortSignal: deadlineSignal(request, NON_CHAT_DEADLINE_MS),
+      // The fallback wrapper owns retries: an SDK retry would re-dispatch the
+      // same candidate and double-charge the quota reservation.
+      maxRetries: 0,
+    });
 
-      if (isOversizedError(providerError)) {
-        const failedContext = contextWindowOf(modelId);
-        remaining = [
-          ...remaining.filter((id) => contextWindowOf(id) > failedContext),
-          ...remaining.filter((id) => contextWindowOf(id) <= failedContext),
-        ];
-      }
-
-      if (providerError.retryAfterMs) {
-        const waitMs = Math.min(providerError.retryAfterMs, MAX_RETRY_AFTER_MS);
-        await sleep(waitMs);
-      }
+    if (!result.text?.trim()) {
+      console.error(
+        `[ai-router] Zero-text completion (logged as error): model="${serving.provider}:${serving.model}"`,
+      );
     }
-  }
+    console.info(
+      `[ai-router] Completion succeeded: model="${serving.provider}:${serving.model}"`,
+    );
 
-  const trailText = trail.map((t) => `${t.modelId} (${t.reason})`).join("; ");
-  console.error(`[ai-router] All candidates failed: ${trailText}`);
-  if (lastError instanceof AiProviderError) throw lastError;
-  throw new Error(
-    lastError instanceof Error
-      ? `${lastError.message} [tried: ${trailText}]`
-      : `All AI providers failed. [tried: ${trailText}]`,
-  );
+    return {
+      provider: serving.provider,
+      model: serving.model,
+      text: result.text,
+      usage: {
+        promptTokens: result.usage?.inputTokens ?? undefined,
+        completionTokens: result.usage?.outputTokens ?? undefined,
+        totalTokens: result.usage
+          ? (result.usage.inputTokens ?? 0) + (result.usage.outputTokens ?? 0)
+          : undefined,
+      },
+      raw: result,
+    };
+  } catch (error) {
+    const text = trailText(trail);
+    console.error(`[ai-router] All candidates failed: ${text || "no attempt trail"}`);
+    // Preserve the structured provider error contract used by callers that
+    // inspect status/retryability. The wrapper already logged each attempt.
+    const provider =
+      lastFailedProvider ?? parseServingModel(modelIds[0]).provider;
+    throw wrapProviderError(provider, error);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -296,8 +264,6 @@ export async function streamWithFallback(
 
   const { system, messages } = buildMessages(request);
   let serving = parseServingModel(modelIds[0]);
-  let servingModelId = modelIds[0];
-  let served = false;
   let fallbackReported = false;
   // The AI SDK's `streamText` is synchronous: it returns a result object and
   // performs the provider call lazily, when the stream is consumed. A
@@ -310,10 +276,8 @@ export async function streamWithFallback(
     modelIds,
     maxAttempts: CHAT_MAX_ATTEMPTS,
     estimatedTokens,
-    getTimeoutMs: ({ provider }) => PROVIDER_TIMEOUTS[normalizeProviderName(provider)] ?? 25_000,
+    getTimeoutMs: ({ provider }) => providerTimeoutMs(provider),
     onModelSelected: (selected) => {
-      served = true;
-      servingModelId = selected.modelId;
       serving = {
         provider: normalizeProviderName(selected.provider),
         model: selected.model,
@@ -327,6 +291,7 @@ export async function streamWithFallback(
     },
   });
 
+  const turnSignal = deadlineSignal(request, CHAT_DEADLINE_MS);
   let streamFailure: { error: unknown } | undefined;
   const result = streamText({
     model: fallbackModel,
@@ -334,8 +299,14 @@ export async function streamWithFallback(
     messages,
     temperature: request.temperature,
     maxOutputTokens: request.maxOutputTokens,
-    abortSignal: request.abortSignal,
-    onError: ({ error }) => { streamFailure = { error }; },
+    abortSignal: turnSignal,
+    // The fallback wrapper owns the cross-provider walk. The SDK default (2)
+    // would re-run the whole candidate chain and double-charge reservations
+    // whenever every candidate failed before the stream starts.
+    maxRetries: 0,
+    onError: ({ error }) => {
+      streamFailure = { error };
+    },
   });
 
   async function* chunks(): AsyncGenerator<AiStreamChunk> {
@@ -345,28 +316,25 @@ export async function streamWithFallback(
           yield { delta: chunk, finishReason: null };
         }
       }
-      request.abortSignal?.throwIfAborted();
+      turnSignal.throwIfAborted();
       if (streamFailure) throw streamFailure.error;
-    } finally {
-      // The real token spend is only known once the stream ends. Correct the
-      // estimate charged when the model was selected so the counters
-      // converge on the actual spend.
-      const usage = await Promise.resolve(result.usage).catch(() => null);
-      if (served && usage) {
-        await safeSettle(
-          correctTokenUsage(servingModelId, estimatedTokens, {
-            inputTokens: usage.inputTokens ?? 0,
-            outputTokens: usage.outputTokens ?? 0,
-          }),
-        );
-      }
+    } catch (error) {
+      if (streamFailure) throw streamFailure.error;
+      throw error;
     }
     yield { delta: "", finishReason: "stop" };
   }
 
   return {
-    provider: serving.provider as AiProviderName,
-    model: serving.model,
+    // Live getters: the wrapper resolves the serving candidate when the
+    // stream starts, which is after this object is returned. Callers that read
+    // these after consuming the stream observe the model that actually served.
+    get provider() {
+      return serving.provider;
+    },
+    get model() {
+      return serving.model;
+    },
     stream: chunks(),
   };
 }

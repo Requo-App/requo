@@ -128,7 +128,11 @@ async function recordEmbeddingUsage(
 
 async function markEmbeddingExhausted(error: unknown): Promise<void> {
   try {
-    await markModelExhausted(EMBEDDING_MODEL_ID, error);
+    // This path has no caller cancellation: an abort is the provider call's
+    // own timeout, so it should cool the model like any other transient gap.
+    await markModelExhausted(EMBEDDING_MODEL_ID, error, {
+      turnAborted: false,
+    });
   } catch {
     // Capacity bookkeeping must never break the embedding fallback contract.
   }

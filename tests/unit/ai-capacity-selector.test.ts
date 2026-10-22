@@ -1,33 +1,114 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({
-  store: new Map<string, number>(),
-  ttls: new Map<string, number>(),
-  scope: "day" as "day" | "minute",
-}));
+const mocks = vi.hoisted(() => {
+  const store = new Map<string, unknown>();
+  const ttls = new Map<string, number>();
+  const writeAt = new Map<string, number>();
+  const num = (key: string): number => {
+    const value = store.get(key);
+    return typeof value === "number" ? value : 0;
+  };
+  return { store, ttls, writeAt, num };
+});
 
 vi.mock("@/lib/ai/cache-layer", () => ({
   cacheLayer: {
     get: vi.fn(async (key: string) => mocks.store.get(key) ?? null),
+    getMany: vi.fn(async (keys: string[]) =>
+      keys.map((key) => mocks.store.get(key) ?? null),
+    ),
     set: vi.fn(async (key: string, value: number, ttlSeconds: number) => {
       mocks.store.set(key, value);
       mocks.ttls.set(key, ttlSeconds);
+      mocks.writeAt.set(key, Date.now());
     }),
     increment: vi.fn(async (key: string, ttlSeconds: number) => {
-      const next = (mocks.store.get(key) ?? 0) + 1;
+      const next = mocks.num(key) + 1;
       mocks.store.set(key, next);
       mocks.ttls.set(key, ttlSeconds);
+      if (!mocks.writeAt.has(key)) mocks.writeAt.set(key, Date.now());
       return next;
     }),
     incrementBy: vi.fn(async (key: string, delta: number, ttlSeconds: number) => {
-      const next = (mocks.store.get(key) ?? 0) + delta;
+      const next = mocks.num(key) + delta;
       mocks.store.set(key, next);
       mocks.ttls.set(key, ttlSeconds);
+      if (!mocks.writeAt.has(key)) mocks.writeAt.set(key, Date.now());
       return next;
     }),
+    adjustCounter: vi.fn(
+      async (
+        key: string,
+        delta: number,
+        ttlSeconds: number,
+        whenMissing: number,
+        heldForMs = 0,
+      ) => {
+        const now = Date.now();
+        const existing = mocks.store.get(key);
+
+        if (existing === undefined) {
+          const next = Math.max(0, Math.ceil(whenMissing));
+          mocks.store.set(key, next);
+          mocks.ttls.set(key, ttlSeconds);
+          mocks.writeAt.set(key, now);
+          return next;
+        }
+
+        // Mirror the cache layer's newer-window rule: the hold's key can have
+        // at most `ttl − heldForMs` left, so a longer lifetime means the key
+        // was recreated after this hold's window expired.
+        const current = mocks.num(key);
+        const remaining =
+          (mocks.writeAt.get(key) ?? now - ttlSeconds * 1000) +
+          ttlSeconds * 1000 -
+          now;
+        const maxRemaining = ttlSeconds * 1000 - Math.max(0, heldForMs);
+        if (remaining > maxRemaining) {
+          if (delta > 0 && whenMissing > 0) {
+            const next = current + Math.ceil(whenMissing);
+            mocks.store.set(key, next);
+            return next;
+          }
+          return current;
+        }
+
+        const next = Math.max(0, current + delta);
+        mocks.store.set(key, next);
+        return next;
+      },
+    ),
     delete: vi.fn(async (key: string) => {
       mocks.store.delete(key);
     }),
+    reserve: vi.fn(
+      async (
+        counters: Array<{
+          key: string;
+          limit: number;
+          amount: number;
+          ttlSeconds: number;
+        }>,
+      ) => {
+        for (const counter of counters) {
+          const current = mocks.num(counter.key);
+          if (current + counter.amount > counter.limit) {
+            return { ok: false, key: counter.key };
+          }
+        }
+        const values: number[] = [];
+        for (const counter of counters) {
+          const next = mocks.num(counter.key) + counter.amount;
+          mocks.store.set(counter.key, next);
+          mocks.ttls.set(counter.key, counter.ttlSeconds);
+          if (!mocks.writeAt.has(counter.key)) {
+            mocks.writeAt.set(counter.key, Date.now());
+          }
+          values.push(next);
+        }
+        return { ok: true, values };
+      },
+    ),
   },
 }));
 
@@ -39,10 +120,6 @@ vi.mock("@/lib/env", () => ({
   isNvidiaNimConfigured: true,
 }));
 
-vi.mock("@/lib/ai/errors", () => ({
-  classifyExhaustionScope: vi.fn(() => mocks.scope),
-}));
-
 import {
   CLOUDFLARE_DAILY_NEURON_POOL,
   getModelCatalog,
@@ -52,10 +129,13 @@ import {
 import {
   getCapacitySnapshot,
   getModelQuotaState,
+  isModelDead,
   markModelExhausted,
   recordModelUsage,
+  reserveModelCapacity,
   selectModels,
 } from "@/lib/ai/capacity-selector";
+import { cacheLayer } from "@/lib/ai/cache-layer";
 import { EMBEDDING_MODEL_ID } from "@/lib/ai/embedding-constants";
 
 /**
@@ -97,7 +177,7 @@ const EXHAUSTED = 99_999;
 beforeEach(() => {
   mocks.store.clear();
   mocks.ttls.clear();
-  mocks.scope = "day";
+  mocks.writeAt.clear();
 });
 
 afterEach(() => {
@@ -232,7 +312,6 @@ describe("exhaustion cooldowns", () => {
   });
 
   it("shares a minute-scope refusal across a provider's shared buckets", async () => {
-    mocks.scope = "minute";
     const groq = entry("groq:openai/gpt-oss-120b");
     const otherGroq = entry("groq:qwen/qwen3.8-27b");
 
@@ -249,7 +328,6 @@ describe("exhaustion cooldowns", () => {
   });
 
   it("keeps a minute-scope refusal model-local when buckets are not shared", async () => {
-    mocks.scope = "minute";
     const gemini = entry("google:gemini-3.8-flash");
     const otherGemini = entry("google:gemini-3.6-flash");
 
@@ -261,6 +339,163 @@ describe("exhaustion cooldowns", () => {
     await expect(getModelQuotaState(otherGemini.modelId)).resolves.toBe(
       "available",
     );
+  });
+});
+
+describe("atomic capacity reservation", () => {
+  it("refuses the whole reservation when one bucket would exceed its limit", async () => {
+    const gemini = entry("google:gemini-3.8-flash");
+    mocks.store.set(rpdKey(gemini.modelId), gemini.limits.rpd);
+
+    const reservation = await reserveModelCapacity(gemini.modelId, 1_000);
+
+    expect(reservation).toBeNull();
+    // The request and token buckets must not be charged for a request that
+    // was never dispatched.
+    expect(mocks.store.get(rpmKey(gemini.modelId))).toBeUndefined();
+    expect(mocks.store.get(tpmKey(gemini.modelId))).toBeUndefined();
+  });
+
+  it("settles the token hold to the provider's reported usage", async () => {
+    const gemini = entry("google:gemini-3.8-flash");
+    const reservation = await reserveModelCapacity(gemini.modelId, 1_000);
+    expect(reservation).not.toBeNull();
+    expect(mocks.store.get(rpmKey(gemini.modelId))).toBe(1);
+    expect(mocks.store.get(rpdKey(gemini.modelId))).toBe(1);
+    expect(mocks.store.get(tpmKey(gemini.modelId))).toBe(1_000);
+
+    await reservation!.settle({ inputTokens: 400, outputTokens: 100 });
+
+    expect(mocks.store.get(rpmKey(gemini.modelId))).toBe(1);
+    expect(mocks.store.get(rpdKey(gemini.modelId))).toBe(1);
+    expect(mocks.store.get(tpmKey(gemini.modelId))).toBe(500);
+  });
+
+  it("releases the token hold but keeps a refused request counted", async () => {
+    const gemini = entry("google:gemini-3.8-flash");
+    const reservation = await reserveModelCapacity(gemini.modelId, 1_000);
+
+    await reservation!.releaseTokens();
+
+    expect(mocks.store.get(rpmKey(gemini.modelId))).toBe(1);
+    expect(mocks.store.get(rpdKey(gemini.modelId))).toBe(1);
+    expect(mocks.store.get(tpmKey(gemini.modelId))).toBe(0);
+  });
+
+  it("rolls back every counter for a stale model identifier", async () => {
+    const gemini = entry("google:gemini-3.8-flash");
+    const reservation = await reserveModelCapacity(gemini.modelId, 1_000);
+
+    await reservation!.rollback();
+
+    expect(mocks.store.get(rpmKey(gemini.modelId))).toBe(0);
+    expect(mocks.store.get(rpdKey(gemini.modelId))).toBe(0);
+    expect(mocks.store.get(tpmKey(gemini.modelId))).toBe(0);
+  });
+
+  it("settles actual usage even when the preflight estimate was zero", async () => {
+    const gemini = entry("google:gemini-3.8-flash");
+    const reservation = await reserveModelCapacity(gemini.modelId, 0);
+    expect(reservation).not.toBeNull();
+
+    await reservation!.settle({ inputTokens: 300, outputTokens: 50 });
+
+    expect(mocks.store.get(rpmKey(gemini.modelId))).toBe(1);
+    expect(mocks.store.get(tpmKey(gemini.modelId))).toBe(350);
+  });
+
+  it("seeds the new window when a settlement outlives the minute hold", async () => {
+    const gemini = entry("google:gemini-3.8-flash");
+    const reservation = await reserveModelCapacity(gemini.modelId, 1_000);
+    expect(reservation).not.toBeNull();
+
+    // The per-minute counter expired while a long stream was still running.
+    mocks.store.delete(tpmKey(gemini.modelId));
+    await reservation!.settle({ inputTokens: 300, outputTokens: 50 });
+
+    expect(mocks.store.get(tpmKey(gemini.modelId))).toBe(350);
+  });
+
+  it("never lets a late release erase usage recorded by a newer window", async () => {
+    const gemini = entry("google:gemini-3.8-flash");
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-22T12:00:00Z"));
+    const reservation = await reserveModelCapacity(gemini.modelId, 1_000);
+    expect(reservation).not.toBeNull();
+
+    // The minute bucket expired while the request ran, and a newer request
+    // recreated the same key in the next window.
+    vi.setSystemTime(new Date("2026-10-22T12:01:30Z"));
+    mocks.store.set(tpmKey(gemini.modelId), 100);
+    mocks.writeAt.set(tpmKey(gemini.modelId), Date.now());
+
+    await reservation!.releaseTokens();
+
+    // Dropping the late release is conservative: the newer window's real
+    // usage has to survive.
+    expect(mocks.store.get(tpmKey(gemini.modelId))).toBe(100);
+  });
+
+  it("marks a 404 identifier dead when a direct path reports it", async () => {
+    const gemini = entry("google:gemini-3.8-flash");
+    const error = Object.assign(new Error("model not found"), { status: 404 });
+
+    await markModelExhausted(gemini.modelId, error, { turnAborted: false });
+
+    expect(await isModelDead(gemini.modelId)).toBe(true);
+  });
+});
+
+describe("capacity snapshot", () => {
+  it("reads the whole catalog in one batched cache call", async () => {
+    vi.mocked(cacheLayer.getMany).mockClear();
+
+    await getCapacitySnapshot();
+
+    expect(cacheLayer.getMany).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("adaptive ranking", () => {
+  it("demotes a candidate with repeated failures below a healthy one", async () => {
+    const cloudflare = entry("cloudflare:@cf/openai/gpt-oss-20b");
+    const healthier = entry("cloudflare:@cf/zai-org/glm-4.7-flash");
+    mocks.store.set(`cap:health:${cloudflare.modelId}`, {
+      successes: 0,
+      failures: 6,
+      consecutiveFailures: 6,
+      latencyEwmaMs: 20_000,
+      lastFailureKind: "timeout",
+      updatedAt: Date.now(),
+    });
+
+    const selected = await selectModels({
+      profile: "short_text",
+      estimatedTokens: 100,
+    });
+
+    expect(selected.indexOf(healthier.modelId)).toBeLessThan(
+      selected.indexOf(cloudflare.modelId),
+    );
+  });
+
+  it("never removes a candidate for poor health alone", async () => {
+    const cloudflare = entry("cloudflare:@cf/openai/gpt-oss-20b");
+    mocks.store.set(`cap:health:${cloudflare.modelId}`, {
+      successes: 0,
+      failures: 20,
+      consecutiveFailures: 20,
+      latencyEwmaMs: 60_000,
+      lastFailureKind: "server",
+      updatedAt: Date.now(),
+    });
+
+    const selected = await selectModels({
+      profile: "short_text",
+      estimatedTokens: 100,
+    });
+
+    expect(selected).toContain(cloudflare.modelId);
   });
 });
 

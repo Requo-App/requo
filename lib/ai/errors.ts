@@ -69,7 +69,9 @@ const NETWORK_ERROR_PATTERNS = [
 const RETRYABLE_MESSAGE_PATTERNS = [
   "rate_limit_exceeded",
   "rate limit exceeded",
+  "rate limit",
   "rate-limit",
+  "too many requests",
   "quota exceeded",
   "quota_exceeded",
   "tokens per minute",
@@ -95,6 +97,47 @@ const OVERSIZED_MESSAGE_PATTERNS = [
   "prompt too long",
   "exceeds the maximum",
   "context window",
+];
+
+/** Authentication / authorisation failures scope to the provider, not a model. */
+const AUTH_MESSAGE_PATTERNS = [
+  "invalid api key",
+  "incorrect api key",
+  "unauthorized",
+  "permission denied",
+  "authentication",
+  "not authorized",
+  "forbidden",
+  "api key",
+  "access denied",
+];
+
+/** Provider safety refusals: another provider may answer the same prompt. */
+const CONTENT_BLOCKED_MESSAGE_PATTERNS = [
+  "safety",
+  "content policy",
+  "content_policy",
+  "content filter",
+  "moderation",
+  "harmful",
+  "responsible ai",
+  "recitation",
+  "prohibited",
+  "blocked by",
+];
+
+/** Request-shape failures that are not capacity problems. */
+const REQUEST_INVALID_MESSAGE_PATTERNS = [
+  "unsupported",
+  "not supported",
+  "invalid argument",
+  "invalid request",
+  "bad request",
+  "malformed",
+  "schema",
+  "reasoning_content",
+  "unknown field",
+  "unexpected field",
 ];
 
 /** A model identifier the provider no longer serves (404 / not-found). */
@@ -307,37 +350,276 @@ export function classifyExhaustionScope(
   return "minute";
 }
 
+/** Caller cancellation or a turn deadline. Never a reason to fall back. */
+export function isAbortError(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) {
+    return false;
+  }
+  const name = (error as { name?: unknown }).name;
+  if (name === "AbortError" || name === "TimeoutError") return true;
+  const haystack = collectErrorText(error);
+  return (
+    haystack.includes("aborterror") ||
+    haystack.includes("the operation was aborted") ||
+    haystack.includes("request was aborted") ||
+    haystack.includes("signal is aborted")
+  );
+}
+
+/**
+ * One routing decision per failure. Kept in one place so the streaming and
+ * non-streaming paths, the importer, and embeddings cannot drift into
+ * different retry/cooldown policies.
+ *
+ * `advance` answers "may another candidate serve this request?"; `retryable`
+ * answers "is this a transient capacity/server condition?"; `cooldown` answers
+ * "which scope should the selector avoid, and for how long?"; and
+ * `keepTokenEstimate` says whether the failed attempt probably consumed
+ * tokens (a timeout may have been processed; a 429 was refused before
+ * generation).
+ */
+export type AiFailureKind =
+  | "cancelled"
+  | "model_not_found"
+  | "oversized"
+  | "auth"
+  | "rate_limit"
+  | "quota"
+  | "timeout"
+  | "network"
+  | "server"
+  | "request_invalid"
+  | "content_blocked"
+  | "unknown";
+
+export type AiFailureCooldown = "none" | "minute" | "day" | "provider";
+
+export type AiFailureClassification = {
+  kind: AiFailureKind;
+  statusCode: number | null;
+  message: string;
+  retryable: boolean;
+  /** Whether the router should try the next candidate. */
+  advance: boolean;
+  /** Whether the failed dispatch consumes one attempt from the budget. */
+  countsAttempt: boolean;
+  /** Stale catalog identifiers are evicted for hours without an attempt. */
+  markModelDead: boolean;
+  cooldown: AiFailureCooldown;
+  /** Keep the token reservation when the provider may already have spent it. */
+  keepTokenEstimate: boolean;
+};
+
+function classifyByMessage(
+  error: unknown,
+  statusCode: number | null,
+): AiFailureClassification["kind"] {
+  const haystack = collectErrorText(error);
+
+  // Statuses that name a non-capacity cause outrank loose message patterns:
+  // a 404 body that mentions "api key" is still a stale model identifier, and
+  // a 429 body that says "daily" is still a quota refusal (checked below).
+  if (statusCode === 404) return "model_not_found";
+  if (statusCode === 401 || statusCode === 403) return "auth";
+  if (statusCode === 451) return "content_blocked";
+
+  if (isModelNotFoundError(error)) return "model_not_found";
+  if (isOversizedError(error)) return "oversized";
+  if (
+    CONTENT_BLOCKED_MESSAGE_PATTERNS.some((pattern) =>
+      haystack.includes(pattern),
+    )
+  ) {
+    return "content_blocked";
+  }
+  if (DAY_SCOPE_PATTERNS.some((pattern) => haystack.includes(pattern))) {
+    return "quota";
+  }
+  if (isRetryableMessage(error)) {
+    return "rate_limit";
+  }
+  // Auth after the capacity patterns: an "api key" phrase in a quota body
+  // must not hide the limit the provider actually rejected. Explicit 401/403
+  // statuses were already handled above.
+  if (AUTH_MESSAGE_PATTERNS.some((pattern) => haystack.includes(pattern))) {
+    return "auth";
+  }
+  if (
+    REQUEST_INVALID_MESSAGE_PATTERNS.some((pattern) =>
+      haystack.includes(pattern),
+    )
+  ) {
+    return "request_invalid";
+  }
+
+  if (statusCode !== null) {
+    if (statusCode === 408) return "timeout";
+    if (statusCode === 429) return "rate_limit";
+    if (statusCode === 413) return "rate_limit";
+    if (statusCode === 400 || statusCode === 422) return "request_invalid";
+    if (statusCode >= 500) return "server";
+  }
+
+  if (isNetworkError(error)) return "network";
+  return "unknown";
+}
+
+function classificationFor(
+  kind: AiFailureKind,
+  error: unknown,
+  statusCode: number | null,
+): AiFailureClassification {
+  const base = {
+    kind,
+    statusCode,
+    message: error instanceof Error ? error.message : String(error),
+  };
+
+  switch (kind) {
+    case "cancelled":
+      return {
+        ...base,
+        retryable: false,
+        advance: false,
+        countsAttempt: false,
+        markModelDead: false,
+        cooldown: "none",
+        keepTokenEstimate: true,
+      };
+    case "model_not_found":
+      return {
+        ...base,
+        retryable: false,
+        advance: true,
+        countsAttempt: false,
+        markModelDead: true,
+        cooldown: "none",
+        keepTokenEstimate: false,
+      };
+    case "oversized":
+      return {
+        ...base,
+        retryable: false,
+        advance: true,
+        countsAttempt: true,
+        markModelDead: false,
+        cooldown: "none",
+        keepTokenEstimate: false,
+      };
+    case "auth":
+      return {
+        ...base,
+        retryable: false,
+        advance: true,
+        countsAttempt: true,
+        markModelDead: false,
+        cooldown: "provider",
+        keepTokenEstimate: false,
+      };
+    case "rate_limit":
+    case "quota":
+      return {
+        ...base,
+        retryable: true,
+        advance: true,
+        countsAttempt: true,
+        markModelDead: false,
+        cooldown:
+          kind === "quota" || classifyExhaustionScope(error) === "day"
+            ? "day"
+            : "minute",
+        keepTokenEstimate: false,
+      };
+    case "timeout":
+    case "network":
+      return {
+        ...base,
+        retryable: true,
+        advance: true,
+        countsAttempt: true,
+        markModelDead: false,
+        cooldown: "minute",
+        keepTokenEstimate: true,
+      };
+    case "server":
+      return {
+        ...base,
+        retryable: true,
+        advance: true,
+        countsAttempt: true,
+        markModelDead: false,
+        cooldown: "minute",
+        keepTokenEstimate: true,
+      };
+    case "request_invalid":
+    case "content_blocked":
+      return {
+        ...base,
+        retryable: false,
+        advance: true,
+        countsAttempt: true,
+        markModelDead: false,
+        cooldown: "none",
+        keepTokenEstimate: false,
+      };
+    case "unknown":
+    default:
+      return {
+        ...base,
+        retryable: true,
+        advance: true,
+        countsAttempt: true,
+        markModelDead: false,
+        cooldown: "minute",
+        keepTokenEstimate: true,
+      };
+  }
+}
+
+/**
+ * Classify a raw provider failure for routing, cooldown, and accounting.
+ *
+ * `turnAborted` distinguishes caller cancellation (stop the chain) from a
+ * per-candidate timeout (advance to the next candidate). Both surface as an
+ * `AbortError`/`TimeoutError`, so the caller that owns the turn signal has to
+ * supply the context. Omitted means "unknown": treat it as cancellation and
+ * do not poison a model's cooldown on an abort.
+ */
+export function classifyProviderFailure(
+  error: unknown,
+  options?: { turnAborted?: boolean },
+): AiFailureClassification {
+  if (isAbortError(error)) {
+    return classificationFor(
+      options?.turnAborted === false ? "timeout" : "cancelled",
+      error,
+      extractStatusCode(error),
+    );
+  }
+
+  const statusCode = extractStatusCode(error);
+  const kind = classifyByMessage(error, statusCode);
+  return classificationFor(kind, error, statusCode);
+}
+
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
-/** Determine whether an error should advance to the next provider. */
+/**
+ * Determine whether an error is a transient capacity/server condition.
+ *
+ * Routing no longer uses this to decide whether to advance: the fallback
+ * wrapper calls `classifyProviderFailure`, because a non-retryable bad request
+ * can still succeed on a different provider. This predicate remains for
+ * same-provider retry logic and telemetry.
+ */
 export function isRetryableError(error: unknown): boolean {
   if (error instanceof AiProviderError) {
     return error.retryable;
   }
 
-  // Dead identifiers and oversized payloads both advance — the fallback
-  // wrapper distinguishes them (skip-without-cost vs shrink-or-escalate).
-  if (isModelNotFoundError(error)) return true;
-  if (isOversizedError(error)) return true;
-
-  if (isNetworkError(error)) {
-    return true;
-  }
-
-  if (isRetryableMessage(error)) {
-    return true;
-  }
-
-  const status = extractStatusCode(error);
-
-  if (status !== null) {
-    return RETRYABLE_STATUS_CODES.has(status);
-  }
-
-  // If we cannot determine the nature, treat as retryable to be safe
-  return true;
+  return classifyProviderFailure(error).retryable;
 }
 
 /**

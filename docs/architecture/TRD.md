@@ -243,9 +243,14 @@ The customer-facing **Agent** and authenticated owner **Assistant** are
 separate products and data scopes. An Agent session is visible to a business
 only through an inquiry it produced; abandoned sessions have bounded
 retention. Assistant history is scoped to its owner and business. Model
-selection reserves estimated provider token capacity, turns have bounded
-context and tool steps, and retry behavior must not duplicate side effects.
-These constraints are implemented across `features/ai-agent/`,
+selection reserves estimated provider request and token capacity atomically
+before every dispatch, settles the hold against reported usage, and treats
+health/latency as ranking signals rather than circuit breakers. Both the
+streaming and non-streaming entry points run through the same fallback
+wrapper, so failure classification, cooldowns, attempt accounting, deadlines,
+and cancellation cannot drift between them. Turns have bounded context and
+tool steps, and retry behavior must not duplicate side effects. These
+constraints are implemented across `features/ai-agent/`,
 `features/owner-assistant/`, and `lib/ai/`; their tests are the executable
 contract.
 
@@ -310,9 +315,11 @@ Server data uses Next.js Cache Components and tagged invalidation for business,
 membership, and billing views; consult `lib/cache/` and mutation call sites
 before changing invalidation. Upstash Redis is optional for selected AI cache,
 deduplication, capacity, and rate-limit paths; those modules have in-process
-fallbacks. It is not the primary application database. Client state is local
-to feature needs; there is no general global state store. The owner Assistant
-has a tab-local live chat store.
+fallbacks. Atomic capacity reservations are cross-instance only when Redis is
+configured; the in-process fallback is atomic within one process. It is not
+the primary application database. Client state is local to feature needs;
+there is no general global state store. The owner Assistant has a tab-local
+live chat store.
 
 Errors are handled at route/feature boundaries and streamed UI boundaries.
 The root layout wires Vercel Analytics and Speed Insights; server-side
