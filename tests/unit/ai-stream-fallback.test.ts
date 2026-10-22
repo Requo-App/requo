@@ -3,7 +3,6 @@ import type { LanguageModelV3, LanguageModelV3CallOptions, LanguageModelV3Stream
 
 const mocks = vi.hoisted(() => ({
   languageModel: vi.fn(), select: vi.fn(), correct: vi.fn(), recordUsage: vi.fn(), recordTokens: vi.fn(),
-  quotaState: vi.fn(),
 }));
 vi.mock("@/lib/ai/registry", () => ({
   registry: { languageModel: mocks.languageModel }, groq: {}, openrouter: {},
@@ -14,7 +13,6 @@ vi.mock("@/lib/ai/capacity-selector", () => ({
   selectModels: mocks.select, CHAT_MAX_ATTEMPTS: 2, NON_CHAT_MAX_ATTEMPTS: 2,
   correctTokenUsage: mocks.correct, recordModelUsage: mocks.recordUsage,
   recordModelTokenUsage: mocks.recordTokens, isModelDead: async () => false,
-  getModelQuotaState: mocks.quotaState,
   markModelDead: vi.fn(), markModelExhausted: vi.fn(),
 }));
 
@@ -48,7 +46,7 @@ function success() {
   );
 }
 const request: AiCompletionRequest = {
-  model: "", messages: [{ role: "user", content: "Hi" }], temperature: 0.2,
+  messages: [{ role: "user", content: "Hi" }], temperature: 0.2,
   maxOutputTokens: 100, estimatedTokens: 10,
 };
 const callOptions: LanguageModelV3CallOptions = { prompt: [] };
@@ -61,7 +59,6 @@ async function consume(chunks: AsyncIterable<AiStreamChunk>) {
 beforeEach(() => {
   vi.resetAllMocks();
   mocks.select.mockResolvedValue(["groq:first", "openrouter:second"]);
-  mocks.quotaState.mockResolvedValue("available");
 });
 afterEach(() => { vi.restoreAllMocks(); });
 
@@ -106,28 +103,6 @@ describe("stream failure propagation", () => {
     expect(mocks.correct).toHaveBeenCalledWith("openrouter:second", 10, { inputTokens: 4, outputTokens: 2 });
   });
 
-  it("propagates errors on the pinned provider path", async () => {
-    mocks.languageModel.mockReturnValue(model(async () => { throw new Error("pinned failed"); }));
-    const result = await streamWithFallback({ ...request, provider: "groq", model: "openai/gpt-oss-120b" });
-    await expect(consume(result.stream)).rejects.toThrow("pinned failed");
-  });
-
-  it("refuses a pinned model outside the free-tier catalog before calling a provider", async () => {
-    const result = streamWithFallback({
-      ...request, provider: "groq", model: "llama-3.3-70b-versatile",
-    });
-    await expect(result).rejects.toThrow("not in the free-tier catalog");
-    expect(mocks.languageModel).not.toHaveBeenCalled();
-  });
-
-  it("refuses a pinned model at its free-tier quota before calling a provider", async () => {
-    mocks.quotaState.mockResolvedValue("exhausted");
-    const result = streamWithFallback({
-      ...request, provider: "groq", model: "openai/gpt-oss-120b",
-    });
-    await expect(result).rejects.toThrow("free-tier quota");
-    expect(mocks.languageModel).not.toHaveBeenCalled();
-  });
 });
 
 describe("per-candidate timeouts", () => {

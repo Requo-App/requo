@@ -735,7 +735,9 @@ const privacySections: LegalDocumentSection[] = [
           Requo primarily routes through free tiers, with NVIDIA NIM as an
           explicit production exception, and some free tiers may use inputs to
           improve the provider&rsquo;s models. The following table summarizes
-          the data handling practices that apply to the service Requo uses:
+          the providers&rsquo; published practices as of October 22, 2026.
+          Provider terms can change; the subprocessors page and each
+          provider&rsquo;s current agreement control.
         </LegalParagraph>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -760,16 +762,19 @@ const privacySections: LegalDocumentSection[] = [
                 <td className="py-3 pr-4 font-medium text-foreground">Groq</td>
                 <td className="py-3 pr-4 text-muted-foreground">No</td>
                 <td className="py-3 pr-4 text-muted-foreground">
-                  Not retained after processing
+                  Not retained by default; up to 30 days for reliability and
+                  abuse prevention unless ZDR is enabled
                 </td>
-                <td className="py-3 text-muted-foreground">Yes (default)</td>
+                <td className="py-3 text-muted-foreground">
+                  Available (not default)
+                </td>
               </tr>
               <tr className="border-b border-border/40">
                 <td className="py-3 pr-4 font-medium text-foreground">
                   Google / Gemini
                 </td>
                 <td className="py-3 pr-4 text-muted-foreground">
-                  Yes (free tier)
+                  May be used to improve Google products (free tier)
                 </td>
                 <td className="py-3 pr-4 text-muted-foreground">
                   Free-tier content may be stored and used to improve Google
@@ -791,7 +796,7 @@ const privacySections: LegalDocumentSection[] = [
                   provider
                 </td>
                 <td className="py-3 text-muted-foreground">
-                  No (free routes)
+                  Varies by upstream provider
                 </td>
               </tr>
               <tr className="border-b border-border/40">
@@ -800,16 +805,19 @@ const privacySections: LegalDocumentSection[] = [
                 </td>
                 <td className="py-3 pr-4 text-muted-foreground">No</td>
                 <td className="py-3 pr-4 text-muted-foreground">
-                  Not retained after processing
+                  Not retained after standard inference processing
                 </td>
-                <td className="py-3 text-muted-foreground">Yes (default)</td>
+                <td className="py-3 text-muted-foreground">
+                  Yes (standard inference)
+                </td>
               </tr>
               <tr className="border-b border-border/40">
                 <td className="py-3 pr-4 font-medium text-foreground">
                   NVIDIA NIM
                 </td>
                 <td className="py-3 pr-4 text-muted-foreground">
-                  No (NVIDIA API terms)
+                  May be used to improve NVIDIA products and AI models (API
+                  Trial terms)
                 </td>
                 <td className="py-3 pr-4 text-muted-foreground">
                   Governed by NVIDIA&rsquo;s API terms; no ZDR commitment
@@ -842,8 +850,10 @@ const privacySections: LegalDocumentSection[] = [
           states that production use requires an NVIDIA AI Enterprise license.
           Requo&rsquo;s production routing is an explicit deployment exception,
           not a representation that NVIDIA&rsquo;s hosted free tier is licensed
-          for production. Do not submit highly sensitive personal information
-          to AI features.
+          for production. NVIDIA&rsquo;s API Trial Terms also permit NVIDIA to
+          use User Content and Generated Content to improve NVIDIA products and
+          AI models. Do not submit highly sensitive personal information to AI
+          features.
         </LegalParagraph>
       </>
     ),

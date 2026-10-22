@@ -30,9 +30,9 @@ import {
 // explicitly configured to include them. See `lib/ai/catalog.ts` and
 // `docs/setup/ai-provider-limits.md`.
 //
-// `lib/ai/catalog.ts` is the paid-usage allowlist. The router refuses a
-// pinned provider/model that is absent from it, so adding a provider here
-// without a catalog entry cannot route traffic to a paid model.
+// `lib/ai/catalog.ts` is the routing allowlist. Every identifier a routing
+// profile names must exist there, so adding a provider here without a
+// catalog entry cannot route traffic to a paid model.
 // ---------------------------------------------------------------------------
 
 // ── Provider instances (only created if configured) ───────────────────────

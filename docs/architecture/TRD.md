@@ -226,8 +226,8 @@ Providers currently wired through the router are free-tier-first: Groq,
 Gemini, Cloudflare Workers AI, NVIDIA NIM, and OpenRouter. NVIDIA
 NIM is a deliberate production exception: NVIDIA documents its hosted
 endpoints for development/testing, while production use requires NVIDIA AI
-Enterprise. Models absent from `lib/ai/catalog.ts` are not routable,
-including pinned/manual overrides. Agent
+Enterprise. Models absent from `lib/ai/catalog.ts` are not routable;
+routing profiles are the only selection path. Agent
 tools stage an inquiry proposal; only visitor approval creates it. Agent
 sessions are not
 searchable by the business; transcripts become visible only through an

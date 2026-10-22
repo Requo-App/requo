@@ -31,7 +31,7 @@ import "./load-env";
 
 import { getModelCatalog } from "../lib/ai/catalog";
 import { diffCatalogAgainstLive } from "../lib/ai/catalog-drift";
-import { EMBEDDING_MODEL } from "../lib/ai/embedding-constants";
+import { EMBEDDING_MODEL_ID } from "../lib/ai/embedding-constants";
 
 const PROBE = process.argv.includes("--probe");
 const ALLOW_MISSING =
@@ -45,7 +45,7 @@ const ALLOW_MISSING =
  * callers fall back to lexical retrieval, so a model retired upstream disables
  * semantic search silently. Nothing else in this repo would notice.
  */
-const OFF_CATALOG_MODEL_IDS: string[] = [`google:${EMBEDDING_MODEL}`];
+const OFF_CATALOG_MODEL_IDS: string[] = [EMBEDDING_MODEL_ID];
 
 type ProviderSpec = {
   name: string;

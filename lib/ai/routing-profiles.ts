@@ -6,7 +6,7 @@ import "server-only";
  * Each surface declares which kind of work it is doing; the provider order
  * for each kind is data, so changing a chain is an edit to a table rather
  * than to control flow. Every identifier here must also exist in
- * `lib/ai/catalog.ts` — the catalog is the paid-usage allowlist.
+ * `lib/ai/catalog.ts` — the catalog is the routing allowlist.
  */
 
 export type AiRoutingProfile =

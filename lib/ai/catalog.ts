@@ -14,10 +14,10 @@ import "server-only";
  * Gemini entries use `google:` — the cost table previously keyed them under
  * `gemini:`, so every Gemini-served turn was logged as unpriced.
  *
- * This catalog is also the paid-usage allowlist: a pinned provider/model
- * request must match an entry here or the router refuses it before calling
- * any provider. An entry normally belongs here only when the provider offers
- * an ongoing free tier with no card, no expiring trial credits, and no
+ * This catalog is also the routing allowlist: every identifier named by a
+ * routing profile must match an entry here, and the router has no manual
+ * model-override path. An entry normally belongs here only when the provider
+ * offers an ongoing free tier with no card, no expiring trial credits, and no
  * paid-plan requirement. Providers that fail that test are removed, not
  * commented out.
  *
@@ -28,7 +28,10 @@ import "server-only";
  * not a claim that NVIDIA's hosted free tier is licensed for production. See
  * `docs/setup/ai-provider-limits.md` for the operational and legal caveat.
  *
- * Verified 2026-10-22 against:
+ * Reviewed 2026-10-22 against the sources below. Groq's console pages
+ * returned HTTP 403 to the audit environment, so its request ceilings remain
+ * the prior documented figures rather than a fresh verification. See
+ * `docs/setup/ai-provider-limits.md` for the per-provider status.
  * - Groq rate limits + model pages: https://console.groq.com/docs/rate-limits
  * - Gemini pricing/models/rate limits: https://ai.google.dev/gemini-api/docs
  * - Cloudflare Workers AI pricing/limits + model pages:
@@ -92,6 +95,7 @@ function providerOf(modelId: string): string {
  * - AI_RPM_<PROVIDER>, AI_RPD_<PROVIDER>, AI_TPM_<PROVIDER>, AI_TPD_<PROVIDER>
  * - AI_RPD_OPENROUTER (alias: OPENROUTER_DAILY_REQUESTS)
  * - AI_NEURONS_CLOUDFLARE_DAILY (alias: CLOUDFLARE_DAILY_NEURONS)
+ * - AI_*_GEMINI (alias for AI_*_GOOGLE; the registry prefix is `google`)
  */
 export function getProviderOverride(
   provider: string,
@@ -104,6 +108,21 @@ export function getProviderOverride(
   // Dedicated aliases.
   if (provider === "openrouter" && dimension === "rpd") {
     const alias = envNumber("OPENROUTER_DAILY_REQUESTS", fallback);
+    if (alias !== fallback) return alias;
+  }
+  // Gemini's registry prefix is `google`, but operators know the provider as
+  // Gemini and the documented environment names use `AI_*_GEMINI`.
+  const geminiAlias =
+    provider === "google"
+      ? "gemini"
+      : provider === "gemini"
+        ? "google"
+        : null;
+  if (geminiAlias) {
+    const alias = envNumber(
+      `AI_${dimension.toUpperCase()}_${geminiAlias.toUpperCase()}`,
+      fallback,
+    );
     if (alias !== fallback) return alias;
   }
   return fallback;

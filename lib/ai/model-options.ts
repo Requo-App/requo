@@ -14,7 +14,7 @@ export type AiProviderName = (typeof aiProviderNames)[number];
  * Legacy quality tiers. The routing-profile system (`lib/ai/routing-profiles`)
  * replaces the minimum-quality lever, which was inert (every entry scored 7+,
  * so "cheap" and "balanced" selected an identical pool). Retained for backward
- * compatibility with pinned-model callers; new code passes `routingProfile`.
+ * compatibility with legacy callers; new code passes `routingProfile`.
  */
 export const aiQualityTiers = ["balanced", "cheap", "best"] as const;
 
@@ -74,7 +74,7 @@ export function getModelsForProvider(
   provider: AiProviderName,
   tier: AiQualityTier = "balanced",
 ): string[] {
-  // Re-derive from the catalog so pinned-model callers always see live IDs.
+  // Re-derive from the catalog so callers always see live IDs.
   const live = modelsForProvider(provider);
   if (live.length > 0) return live;
   return aiProviderModels[provider][tier] ?? aiProviderModels[provider].balanced;

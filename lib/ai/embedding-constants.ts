@@ -9,6 +9,8 @@
  */
 
 export const EMBEDDING_MODEL = "gemini-embedding-001";
+/** Registry-qualified identifier used by capacity accounting and drift checks. */
+export const EMBEDDING_MODEL_ID = `google:${EMBEDDING_MODEL}` as const;
 export const EMBEDDING_DIMENSIONS = 768;
 export const EMBEDDING_CACHE_TTL_SECONDS = 60 * 60 * 24; // 24 hours
 /** Ingestion: a `null` here is permanent data loss until the backfill runs. */

@@ -4,9 +4,8 @@ Requo routes **free-tier-first**. A provider normally belongs in the catalog
 only when it offers an ongoing no-card free tier with no expiring trial
 credits and no paid-plan requirement. `lib/ai/catalog.ts` is the single
 source of truth for model IDs, capabilities, allowances, reset boundaries,
-and list prices. It is also the allowlist for pinned/manual model overrides:
-a request that names a provider and model is refused before any provider
-call unless the exact identifier is in the catalog.
+and list prices. Every identifier named by a routing profile must exist there;
+the router has no manual model-override path.
 
 **NVIDIA NIM is a deliberate production exception.** NVIDIA documents the
 hosted `build.nvidia.com` endpoints for prototyping and development, and
@@ -16,10 +15,12 @@ that was explicitly requested. This is an operational policy decision, not a
 claim that NVIDIA's hosted free tier is licensed for production; see
 [NVIDIA NIM production exception](#nvidia-nim-production-exception).
 
-Catalog metadata was verified on **2026-10-22** against the official sources
-linked below. Provider dashboards remain authoritative for a specific
-account. Limits are stored as conservative deployment budgets, not as claims
-about a provider's published quota.
+Catalog metadata was reviewed on **2026-10-22**. The sources were not all
+reachable from the audit environment: Groq's rate-limit and model pages
+returned HTTP 403, so its request ceilings were not re-verified that day.
+Provider dashboards remain authoritative for a specific account. Limits are
+stored as conservative deployment budgets, not as claims about a provider's
+published quota.
 
 ## Retained providers
 
@@ -50,6 +51,16 @@ Sources:
 - OpenRouter:
   [limits](https://openrouter.ai/docs/api-reference/limits); live metadata
   from `https://openrouter.ai/api/v1/models`.
+
+### Verification status (2026-10-22)
+
+| Provider | What was checked | Status |
+| --- | --- | --- |
+| Groq | Rate-limit docs and model pages | **Not re-verified.** `console.groq.com` returned HTTP 403 from the audit environment. The request ceilings above are prior documented values; confirm them in the Groq console before relying on them. |
+| Gemini | Pricing, models, and rate-limit docs | Rate limits are per project and the RPD boundary is Pacific midnight. Free RPM/RPD are project-specific; the catalog values are deployment budgets. |
+| Cloudflare Workers AI | Pricing, limits, and model pages | 10,000 neurons/day, 00:00 UTC reset, and per-model neuron rates verified. The per-model output ceiling is not published. |
+| NVIDIA NIM | API catalog, NIM FAQ, and AI Enterprise terms | Hosted endpoints are documented for prototyping/development; production requires NVIDIA AI Enterprise. Quota figures are deployment budgets. |
+| OpenRouter | Limits docs and live model metadata | 20 RPM / 50 RPD while under 10 credits verified. Free-model data handling varies by upstream provider. |
 
 ## Removed providers and models
 
@@ -87,6 +98,10 @@ explicit request. Before enabling `NVIDIA_NIM_API_KEY` in a real deployment,
 confirm that the account has the necessary entitlement; otherwise disable the
 key. The quota guard prevents runaway usage but does not make the use
 compliant with NVIDIA's terms.
+
+NVIDIA's API Trial Terms also permit NVIDIA to use User Content and Generated
+Content to improve NVIDIA products and AI models. That is a separate issue
+from production licensing and is disclosed in the privacy policy.
 
 ## Gemini: conservative budgets, not published quotas
 
@@ -143,10 +158,14 @@ on the free neuron allowance.
   cools until the provider's day boundary; a per-minute error cools for one
   minute and marks the provider bucket when limits are shared. A 404 marks
   the identifier dead for six hours without consuming an attempt.
-- **Pinned overrides are allowlisted.** The router refuses any provider/model
-  absent from `lib/ai/catalog.ts`, any model already at its quota, and any
-  model remembered dead. It does not fall back to a different model, so a
-  stale manual setting cannot silently spend another quota.
+- **Model selection is catalog-only.** The router selects through routing
+  profiles, and every profile identifier must exist in the catalog. There is
+  no manual override path, so a stale setting cannot reach a provider.
+- **Direct provider paths are metered too.** The file importer preflights
+  each extraction model, records the request and actual tokens on success,
+  and cools the model after a provider failure. Embedding calls record their
+  token usage under `google:gemini-embedding-001`. The provider console
+  remains authoritative for usage from other applications sharing the key.
 
 `costCentsPerMillion` stores provider list prices for observability only.
 Free-tier billing is zero; logged cost is a list-price equivalent, not
@@ -188,6 +207,8 @@ The full override pattern is:
 
 - `AI_RPM_<PROVIDER>`, `AI_RPD_<PROVIDER>`, `AI_TPM_<PROVIDER>`,
   `AI_TPD_<PROVIDER>`
+- `AI_*_GEMINI` is an alias for `AI_*_GOOGLE` (the registry prefix is
+  `google`, but the provider and documented key are Gemini)
 - `AI_RPD_OPENROUTER` (alias `OPENROUTER_DAILY_REQUESTS`)
 - `AI_NEURONS_CLOUDFLARE_DAILY` (alias `CLOUDFLARE_DAILY_NEURONS`)
 
@@ -196,11 +217,15 @@ local routing ceilings; they do not change the provider's quota.
 
 ## Embeddings share the Gemini budget
 
-The `AI_TPM_*` budgets cover chat traffic only — there is no separate
-embedding budget. Embeddings are a **second consumer of the same Gemini
-free-tier quota** (`gemini-embedding-001`; roughly 100 RPM / 1,000 RPD, with
-batch enqueued tokens capped at 500,000 on the free tier). Three callers draw
-on it:
+The `AI_TPM_*` budgets cover routing candidates. Embeddings are not routing
+candidates, so `gemini-embedding-001` is deliberately absent from the
+catalog; `scripts/check-model-catalog.ts` still compares it against Gemini's
+live model list. Embedding calls are recorded under the off-catalog
+identifier `google:gemini-embedding-001` with the same Pacific-midnight day
+boundary, and they draw on the same Gemini project quota. The accounting
+budget is a conservative 100 RPM / 1,000 RPD; Google's console is
+authoritative for the project and any batch-token allowance. A cache hit does
+not record provider usage. Three callers draw on it:
 
 - Knowledge file indexing, in batches of 20 texts with `maxParallelCalls: 5`.
 - Manual memory writes, one call each.
@@ -215,12 +240,20 @@ does not burn three attempts.
 
 ## Remaining uncertainties
 
+- Groq's rate-limit and model pages returned HTTP 403 to the audit
+  environment on 2026-10-22. The Groq request ceilings in the table are prior
+  documented values, not a fresh verification; confirm them in the Groq
+  console before tightening the local budgets.
+- Groq's Services Agreement/DPA and data documentation state that Groq does
+  not train on inputs or outputs, and that inference data is not retained by
+  default but may be retained for up to 30 days for reliability and abuse
+  prevention unless zero data retention (ZDR) is enabled. ZDR is available,
+  not the default.
 - On 2026-10-22, the live `models` comparison passed for Gemini, Cloudflare,
-  NVIDIA, and OpenRouter; Groq was skipped because `GROQ_API_KEY` was not
-  configured. Generation smoke tests succeeded through Cloudflare and
-  OpenRouter. Gemini and NVIDIA model listings passed, but inference requests
-  timed out from the audit environment, so their end-to-end generation paths
-  still need validation from a normal network or deployment.
+  NVIDIA, and OpenRouter. Generation smoke tests succeeded through Cloudflare
+  and OpenRouter. Gemini and NVIDIA model listings passed, but inference
+  requests timed out from the audit environment, so their end-to-end
+  generation paths still need validation from a normal network or deployment.
 - Gemini's free RPM/RPD are project-specific and unpublished; the table
   above is a conservative budget.
 - OpenRouter's free RPM/RPD are account-level and change with credit
@@ -231,3 +264,7 @@ does not burn three attempts.
   production use requires NVIDIA AI Enterprise. The direct provider remains
   enabled by explicit request, so treat its terms and account entitlement as
   an open operational risk rather than a resolved compliance question.
+- Provider data terms were reviewed on 2026-10-22 and can change. The privacy
+  policy summarizes the current published terms; it is not a substitute for
+  each provider's agreement. Re-check the table when a provider updates its
+  terms.

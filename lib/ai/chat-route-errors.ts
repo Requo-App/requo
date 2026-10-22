@@ -10,6 +10,7 @@ import {
   decodeRequestAttachments,
   type ChatAttachmentInput,
 } from "@/lib/ai/chat-request";
+import { isNoModelsAvailableMessage } from "@/lib/ai/routing-errors";
 
 /**
  * Shared attachment-decode + 400 helper (was copy-pasted in both AI chats).
@@ -107,9 +108,13 @@ export function mapChatError(
     );
   }
 
-  if (error.message.includes("No suitable AI model")) {
+  if (isNoModelsAvailableMessage(error.message)) {
     return NextResponse.json(
-      { error: "AI service temporarily unavailable. Please try again in a moment." },
+      {
+        error: error.message.includes("No suitable AI model")
+          ? "AI service temporarily unavailable. Please try again in a moment."
+          : error.message,
+      },
       { status: 503 },
     );
   }

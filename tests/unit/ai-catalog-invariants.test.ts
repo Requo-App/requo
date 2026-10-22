@@ -1,9 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   EXTRACTION_MODEL_IDS,
   KNOWN_CATALOG_PROVIDERS,
   getBaseCatalog,
+  getModelCatalog,
+  getProviderOverride,
 } from "@/lib/ai/catalog";
 import { ROUTING_PROFILES } from "@/lib/ai/routing-profiles";
 
@@ -13,7 +15,7 @@ import { ROUTING_PROFILES } from "@/lib/ai/routing-profiles";
  * `lib/ai/catalog.ts` is the single source of truth, and routing profiles are
  * allowed to name only catalog entries. Without these checks a typo in a
  * profile silently drops a candidate, and a stray paid model identifier
- * becomes reachable through the pinned-model path.
+ * becomes reachable through a profile.
  */
 
 const catalog = getBaseCatalog();
@@ -164,5 +166,36 @@ describe("AI routing profile invariants", () => {
     for (const modelId of ROUTING_PROFILES.extraction.order) {
       expect(providerOf(modelId), modelId).toBe("google");
     }
+  });
+});
+
+describe("AI provider quota overrides", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("accepts the documented AI_*_GEMINI aliases for the google provider", () => {
+    vi.stubEnv("AI_TPM_GEMINI", "123456");
+
+    expect(getProviderOverride("google", "tpm", 1_000)).toBe(123_456);
+    expect(getProviderOverride("gemini", "tpm", 1_000)).toBe(123_456);
+    expect(
+      getModelCatalog().find(
+        (entry) => entry.modelId === "google:gemini-3.8-flash",
+      )?.limits.tpm,
+    ).toBe(123_456);
+  });
+
+  it("prefers the catalog-prefix AI_*_GOOGLE name when both are set", () => {
+    vi.stubEnv("AI_TPM_GOOGLE", "222222");
+    vi.stubEnv("AI_TPM_GEMINI", "123456");
+
+    expect(getProviderOverride("google", "tpm", 1_000)).toBe(222_222);
+  });
+
+  it("still reads non-Gemini overrides by provider name", () => {
+    vi.stubEnv("AI_RPD_GROQ", "777");
+
+    expect(getProviderOverride("groq", "rpd", 1_000)).toBe(777);
   });
 });
