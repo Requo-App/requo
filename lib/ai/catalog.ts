@@ -1,8 +1,8 @@
 import "server-only";
 
 /**
- * Unified model catalog — the single source of truth for model identifiers,
- * free-tier allowances, capabilities, and pricing.
+ * Unified free-tier model catalog — the single source of truth for model
+ * identifiers, free-tier allowances, capabilities, and list pricing.
  *
  * Replaces three disagreeing lists:
  * - `lib/ai/model-options.ts` (docs/selection UI)
@@ -10,15 +10,47 @@ import "server-only";
  * - `lib/ai/token-logger.ts` TOKEN_COST_TABLE (pricing)
  *
  * Keyed by the provider prefix the runtime registry uses
- * (`groq`, `cerebras`, `google`, `mistral`, `cloudflare`, `nvidia`,
- * `openrouter`). In particular Gemini entries use `google:` — the cost table
- * previously keyed them under `gemini:`, so every Gemini-served turn was
- * logged as unpriced.
+ * (`groq`, `google`, `cloudflare`, `nvidia`, `openrouter`). In particular
+ * Gemini entries use `google:` — the cost table previously keyed them under
+ * `gemini:`, so every Gemini-served turn was logged as unpriced.
+ *
+ * This catalog is also the routing allowlist: every identifier named by a
+ * routing profile must match an entry here, and the router has no manual
+ * model-override path. An entry normally belongs here only when the provider
+ * offers an ongoing free tier with no card, no expiring trial credits, and no
+ * paid-plan requirement. Providers that fail that test are removed, not
+ * commented out.
+ *
+ * NVIDIA NIM is the deliberate exception: Requo routes it in production even
+ * though NVIDIA documents build.nvidia.com endpoints for prototyping and
+ * development only, with production use requiring NVIDIA AI Enterprise. The
+ * entry is kept because production routing was explicitly requested; it is
+ * not a claim that NVIDIA's hosted free tier is licensed for production. See
+ * `docs/setup/ai-provider-limits.md` for the operational and legal caveat.
+ *
+ * Reviewed 2026-10-22 against the sources below. Groq's console pages
+ * returned HTTP 403 to the audit environment, so its request ceilings remain
+ * the prior documented figures rather than a fresh verification. See
+ * `docs/setup/ai-provider-limits.md` for the per-provider status.
+ * - Groq rate limits + model pages: https://console.groq.com/docs/rate-limits
+ * - Gemini pricing/models/rate limits: https://ai.google.dev/gemini-api/docs
+ * - Cloudflare Workers AI pricing/limits + model pages:
+ *   https://developers.cloudflare.com/workers-ai/platform/pricing/
+ * - NVIDIA NIM API catalog/FAQ + AI Enterprise:
+ *   https://build.nvidia.com/ and
+ *   https://forums.developer.nvidia.com/t/nvidia-nim-faq/300317/1
+ * - OpenRouter limits + live `/api/v1/models` metadata:
+ *   https://openrouter.ai/docs/api-reference/limits
  *
  * Limits were researched from provider documentation and live `models`
- * endpoint probes. Dead identifiers are removed, not commented out.
+ * endpoint probes. Where a provider stopped publishing a static limit
+ * (Gemini's per-model free RPD/RPM), the entry records a conservative
+ * deployment budget and says so; the provider console is authoritative.
  * Every allowance stays overridable from the environment (see below) so a
  * provider changing its free tier is a config change, not a release.
+ *
+ * `costCentsPerMillion` is list price for observability. Free-tier traffic
+ * is billed at zero; logged cost is list-price equivalent, not spend.
  */
 
 export type ModelEntry = {
@@ -61,8 +93,9 @@ function providerOf(modelId: string): string {
  * Cloudflare's daily neuron pool.
  *
  * - AI_RPM_<PROVIDER>, AI_RPD_<PROVIDER>, AI_TPM_<PROVIDER>, AI_TPD_<PROVIDER>
- * - AI_RPD_OPENROUTER (alias: OPENROUTER_DAILY_REQUESTS) — last-resort overflow
+ * - AI_RPD_OPENROUTER (alias: OPENROUTER_DAILY_REQUESTS)
  * - AI_NEURONS_CLOUDFLARE_DAILY (alias: CLOUDFLARE_DAILY_NEURONS)
+ * - AI_*_GEMINI (alias for AI_*_GOOGLE; the registry prefix is `google`)
  */
 export function getProviderOverride(
   provider: string,
@@ -75,6 +108,21 @@ export function getProviderOverride(
   // Dedicated aliases.
   if (provider === "openrouter" && dimension === "rpd") {
     const alias = envNumber("OPENROUTER_DAILY_REQUESTS", fallback);
+    if (alias !== fallback) return alias;
+  }
+  // Gemini's registry prefix is `google`, but operators know the provider as
+  // Gemini and the documented environment names use `AI_*_GEMINI`.
+  const geminiAlias =
+    provider === "google"
+      ? "gemini"
+      : provider === "gemini"
+        ? "google"
+        : null;
+  if (geminiAlias) {
+    const alias = envNumber(
+      `AI_${dimension.toUpperCase()}_${geminiAlias.toUpperCase()}`,
+      fallback,
+    );
     if (alias !== fallback) return alias;
   }
   return fallback;
@@ -95,12 +143,15 @@ export const CLOUDFLARE_DAILY_NEURON_POOL = 10_000;
 
 const BASE_CATALOG: ModelEntry[] = [
   // ─── Groq: 30 RPM · 1K RPD · 8K TPM · 200K TPD, per-organisation ───
-  // All Llama identifiers dropped — now Enterprise-only.
+  // Free tier requires no card. All four dimensions are shared by every Groq
+  // model, so adding a second Groq identifier adds no capacity — only a
+  // different quality/latency point. Llama identifiers are Enterprise-only
+  // and are deliberately absent.
   {
     modelId: "groq:openai/gpt-oss-120b",
     quality: 9,
     contextWindow: 131_072,
-    maxOutputTokens: 8_192,
+    maxOutputTokens: 65_536,
     toolCapable: true,
     structuredOutput: true,
     limits: { rpm: 30, rpd: 1_000, tpm: 8_000, tpd: 200_000 },
@@ -112,7 +163,7 @@ const BASE_CATALOG: ModelEntry[] = [
     modelId: "groq:openai/gpt-oss-20b",
     quality: 7,
     contextWindow: 131_072,
-    maxOutputTokens: 8_192,
+    maxOutputTokens: 65_536,
     toolCapable: true,
     structuredOutput: true,
     limits: { rpm: 30, rpd: 1_000, tpm: 8_000, tpd: 200_000 },
@@ -120,46 +171,64 @@ const BASE_CATALOG: ModelEntry[] = [
     dayResets: "utc-midnight",
     costCentsPerMillion: { input: 7.5, output: 30 },
   },
-
-  // ─── Cerebras: 5 RPM · 30K uncached TPM · 1M TPD ───
   {
-    modelId: "cerebras:gpt-oss-120b",
+    modelId: "groq:qwen/qwen3.8-27b",
     quality: 8,
-    contextWindow: 32_768,
-    maxOutputTokens: 8_192,
+    contextWindow: 131_072,
+    maxOutputTokens: 16_384,
     toolCapable: true,
     structuredOutput: true,
-    limits: { rpm: 5, rpd: 0, tpm: 30_000, tpd: 1_000_000 },
-    sharedWithProvider: [],
+    limits: { rpm: 30, rpd: 1_000, tpm: 8_000, tpd: 200_000 },
+    sharedWithProvider: ["rpm", "rpd", "tpm", "tpd"],
     dayResets: "utc-midnight",
-    costCentsPerMillion: { input: 6, output: 6 },
-  },
-  {
-    modelId: "cerebras:qwen-3.8-27b",
-    quality: 7,
-    contextWindow: 32_768,
-    maxOutputTokens: 8_192,
-    toolCapable: true,
-    structuredOutput: true,
-    limits: { rpm: 5, rpd: 0, tpm: 30_000, tpd: 1_000_000 },
-    sharedWithProvider: [],
-    dayResets: "utc-midnight",
-    costCentsPerMillion: { input: 6, output: 6 },
+    costCentsPerMillion: { input: 80, output: 400 },
   },
 
-  // ─── Gemini: unpublished; conservative estimates, per-project, Pacific reset ───
-  // 2.5 Flash-Lite is retired for this project: the API answers every request
-  // with "no longer available to new users" while the `models` listing still
-  // returns the identifier, so the drift check cannot see the breakage.
-  // 3.5 Flash-Lite is the replacement the API itself names. Capabilities
-  // (context, output cap, tool calling, structured output) were probed live;
-  // RPD is AI Studio's September 2026 free-tier figure. RPM keeps the family's
-  // conservative 15 because Google no longer publishes per-model burst limits.
-  // It is a thinking model, and unlike 2.5 it cannot be told to stop thinking:
-  // `thinkingBudget: 0` is rejected with "Request contains an invalid
-  // argument", so callers pass `thinkingBudget: 1` instead (see the assistant
-  // and agent orchestrators). Reasoning arrives on a separate channel, so the
-  // router's `text`/`textStream` path is unaffected.
+  // ─── Gemini: free tier, per-project, Pacific midnight reset ───
+  // Google no longer publishes static per-model free RPM/RPD. The values
+  // below are conservative deployment budgets, not provider claims; AI
+  // Studio's per-project rate-limit page is authoritative and the AI_* env
+  // overrides win. Free-tier content is used to improve Google products —
+  // see the legal disclosures in `features/legal/`.
+  //
+  // The 2.5 family is absent because 2.5 access is restricted to prior users.
+  // Gemini 4 Argon and 3.1 Pro Preview are paid-only and never belong here.
+  {
+    modelId: "google:gemini-3.8-flash",
+    quality: 9,
+    contextWindow: 1_048_576,
+    maxOutputTokens: 65_536,
+    toolCapable: true,
+    structuredOutput: true,
+    limits: { rpm: 10, rpd: 250, tpm: 250_000, tpd: 0 },
+    sharedWithProvider: [],
+    dayResets: "pacific-midnight",
+    costCentsPerMillion: { input: 75, output: 375 },
+  },
+  {
+    modelId: "google:gemini-3.6-flash",
+    quality: 8,
+    contextWindow: 1_048_576,
+    maxOutputTokens: 65_536,
+    toolCapable: true,
+    structuredOutput: true,
+    limits: { rpm: 10, rpd: 250, tpm: 250_000, tpd: 0 },
+    sharedWithProvider: [],
+    dayResets: "pacific-midnight",
+    costCentsPerMillion: { input: 75, output: 375 },
+  },
+  {
+    modelId: "google:gemini-3.1-flash-lite",
+    quality: 8,
+    contextWindow: 1_048_576,
+    maxOutputTokens: 65_536,
+    toolCapable: true,
+    structuredOutput: true,
+    limits: { rpm: 15, rpd: 500, tpm: 250_000, tpd: 0 },
+    sharedWithProvider: [],
+    dayResets: "pacific-midnight",
+    costCentsPerMillion: { input: 25, output: 150 },
+  },
   {
     modelId: "google:gemini-3.5-flash-lite",
     quality: 8,
@@ -172,141 +241,92 @@ const BASE_CATALOG: ModelEntry[] = [
     dayResets: "pacific-midnight",
     costCentsPerMillion: { input: 30, output: 250 },
   },
-  {
-    modelId: "google:gemini-2.5-flash",
-    quality: 9,
-    contextWindow: 1_048_576,
-    maxOutputTokens: 8_192,
-    toolCapable: true,
-    structuredOutput: true,
-    limits: { rpm: 10, rpd: 250, tpm: 250_000, tpd: 0 },
-    sharedWithProvider: [],
-    dayResets: "pacific-midnight",
-    costCentsPerMillion: { input: 30, output: 250 },
-  },
-  {
-    modelId: "google:gemini-2.5-pro",
-    quality: 10,
-    contextWindow: 1_048_576,
-    maxOutputTokens: 8_192,
-    toolCapable: true,
-    structuredOutput: true,
-    limits: { rpm: 5, rpd: 100, tpm: 250_000, tpd: 0 },
-    sharedWithProvider: [],
-    dayResets: "pacific-midnight",
-    // Standard rate for prompts up to 200K tokens. Beyond that Google charges
-    // 250 input / 1000 output cents, which a single pair cannot express — the
-    // long-prompt case is under-costed here rather than the common one.
-    costCentsPerMillion: { input: 125, output: 1_000 },
-    reserve: true,
-  },
 
-  // ─── Mistral: unpublished free mode; deliberately conservative 30 RPM ───
-  {
-    modelId: "mistral:mistral-medium-latest",
-    quality: 9,
-    contextWindow: 131_072,
-    maxOutputTokens: 8_192,
-    toolCapable: true,
-    structuredOutput: true,
-    limits: { rpm: 30, rpd: 0, tpm: 500_000, tpd: 0 },
-    sharedWithProvider: [],
-    dayResets: "utc-midnight",
-    costCentsPerMillion: { input: 0, output: 0 },
-  },
-  {
-    modelId: "mistral:mistral-small-latest",
-    quality: 8,
-    contextWindow: 131_072,
-    maxOutputTokens: 8_192,
-    toolCapable: true,
-    structuredOutput: true,
-    limits: { rpm: 30, rpd: 0, tpm: 500_000, tpd: 0 },
-    sharedWithProvider: [],
-    dayResets: "utc-midnight",
-    costCentsPerMillion: { input: 0, output: 0 },
-  },
-
-  // ─── Cloudflare: 10,000 neurons/day (00:00 UTC) · ~300 RPM ───
+  // ─── Cloudflare Workers AI: 10,000 neurons/day (00:00 UTC) · 300 RPM ───
+  // The neuron pool is the real daily budget; RPM is account-wide. Models are
+  // function-calling capable. Workers AI exposes `response_format`, but this
+  // catalog only marks strict JSON-schema support as structured output, so
+  // these entries stay false. Workers AI does not publish a per-model output
+  // cap; `maxOutputTokens` is a conservative deployment ceiling.
   {
     modelId: "cloudflare:@cf/openai/gpt-oss-120b",
     quality: 8,
-    contextWindow: 32_768,
-    maxOutputTokens: 4_096,
-    toolCapable: false,
+    contextWindow: 128_000,
+    maxOutputTokens: 8_192,
+    toolCapable: true,
     structuredOutput: false,
     limits: {
       rpm: 300,
       rpd: 0,
       tpm: 10_000,
       tpd: 0,
-      neuronsPerMillion: { input: 12, output: 12 },
+      neuronsPerMillion: { input: 31_818, output: 68_182 },
     },
-    sharedWithProvider: [],
+    sharedWithProvider: ["rpm"],
     dayResets: "utc-midnight",
-    costCentsPerMillion: { input: 0, output: 0 },
+    costCentsPerMillion: { input: 35, output: 75 },
   },
   {
     modelId: "cloudflare:@cf/openai/gpt-oss-20b",
     quality: 7,
-    contextWindow: 32_768,
-    maxOutputTokens: 4_096,
-    toolCapable: false,
+    contextWindow: 128_000,
+    maxOutputTokens: 8_192,
+    toolCapable: true,
     structuredOutput: false,
     limits: {
       rpm: 300,
       rpd: 0,
       tpm: 10_000,
       tpd: 0,
-      neuronsPerMillion: { input: 6, output: 6 },
+      neuronsPerMillion: { input: 18_182, output: 27_273 },
     },
-    sharedWithProvider: [],
+    sharedWithProvider: ["rpm"],
     dayResets: "utc-midnight",
-    costCentsPerMillion: { input: 0, output: 0 },
+    costCentsPerMillion: { input: 20, output: 30 },
   },
   {
     modelId: "cloudflare:@cf/zai-org/glm-4.7-flash",
     quality: 6,
-    contextWindow: 32_768,
-    maxOutputTokens: 4_096,
-    toolCapable: false,
+    contextWindow: 131_072,
+    maxOutputTokens: 8_192,
+    toolCapable: true,
     structuredOutput: false,
     limits: {
       rpm: 300,
       rpd: 0,
       tpm: 10_000,
       tpd: 0,
-      neuronsPerMillion: { input: 8, output: 8 },
+      neuronsPerMillion: { input: 5_500, output: 36_400 },
     },
-    sharedWithProvider: [],
+    sharedWithProvider: ["rpm"],
     dayResets: "utc-midnight",
-    costCentsPerMillion: { input: 0, output: 0 },
+    costCentsPerMillion: { input: 6.05, output: 40 },
   },
   {
     modelId: "cloudflare:@cf/qwen/qwen3-30b-a3b-fp8",
     quality: 5,
     contextWindow: 32_768,
-    maxOutputTokens: 4_096,
-    toolCapable: false,
+    maxOutputTokens: 8_192,
+    toolCapable: true,
     structuredOutput: false,
     limits: {
       rpm: 300,
       rpd: 0,
       tpm: 10_000,
       tpd: 0,
-      neuronsPerMillion: { input: 5, output: 5 },
+      neuronsPerMillion: { input: 4_625, output: 30_475 },
     },
-    sharedWithProvider: [],
+    sharedWithProvider: ["rpm"],
     dayResets: "utc-midnight",
-    costCentsPerMillion: { input: 0, output: 0 },
+    costCentsPerMillion: { input: 5.1, output: 33.5 },
   },
 
   // ─── NVIDIA NIM: 40 RPM hard cap, credit-based; configured at 20 RPM ───
-  // The two Llama 3.1 Nemotron entries are gone: /v1/models still lists them,
-  // but /v1/chat/completions answers 404, so they could never serve a request.
-  // The entry kept here is NVIDIA's gpt-oss-20b host. The callable Nemotron
-  // 3.x generation is reached through OpenRouter, not through this provider,
-  // so no Nemotron identifier belongs in the `nvidia:` block.
+  // Production use is a deliberate exception to the free-tier-only policy:
+  // NVIDIA documents the hosted build.nvidia.com endpoints for prototyping
+  // and development, while production use requires NVIDIA AI Enterprise.
+  // The callable Nemotron 3.x generation is reached through OpenRouter, not
+  // through this provider, so only NVIDIA's gpt-oss-20b host belongs here.
   {
     modelId: "nvidia:openai/gpt-oss-20b",
     quality: 7,
@@ -320,30 +340,37 @@ const BASE_CATALOG: ModelEntry[] = [
     costCentsPerMillion: { input: 0, output: 0 },
   },
 
-  // ─── OpenRouter: 20 RPM · 50 RPD (no credits); last-resort overflow ───
+  // ─── OpenRouter: 20 RPM · 50 RPD while <10 credits purchased ───
+  // Only `:free` identifiers belong here. The account shares one RPM and one
+  // RPD bucket across every free model, and OpenRouter publishes no TPM/TPD
+  // for them. These entries are reserved for last-resort overflow: 50 RPD is
+  // too small to carry normal traffic. `:free` routes may be logged or used
+  // to improve upstream models; see the legal disclosures.
   {
     modelId: "openrouter:nvidia/nemotron-3-ultra-550b-a55b:free",
-    quality: 8,
+    quality: 9,
     contextWindow: 1_000_000,
     maxOutputTokens: 65_536,
     toolCapable: true,
     structuredOutput: false,
-    limits: { rpm: 20, rpd: 50, tpm: 20_000, tpd: 0 },
-    sharedWithProvider: [],
+    limits: { rpm: 20, rpd: 50, tpm: 0, tpd: 0 },
+    sharedWithProvider: ["rpm", "rpd"],
     dayResets: "utc-midnight",
     costCentsPerMillion: { input: 0, output: 0 },
+    reserve: true,
   },
   {
     modelId: "openrouter:nvidia/nemotron-3-super-120b-a12b:free",
     quality: 8,
-    contextWindow: 1_048_576,
-    maxOutputTokens: 8_192,
+    contextWindow: 262_144,
+    maxOutputTokens: 235_929,
     toolCapable: true,
     structuredOutput: true,
-    limits: { rpm: 20, rpd: 50, tpm: 20_000, tpd: 0 },
-    sharedWithProvider: [],
+    limits: { rpm: 20, rpd: 50, tpm: 0, tpd: 0 },
+    sharedWithProvider: ["rpm", "rpd"],
     dayResets: "utc-midnight",
     costCentsPerMillion: { input: 0, output: 0 },
+    reserve: true,
   },
   {
     modelId: "openrouter:nvidia/nemotron-3.5-lightning:free",
@@ -352,10 +379,11 @@ const BASE_CATALOG: ModelEntry[] = [
     maxOutputTokens: 65_536,
     toolCapable: true,
     structuredOutput: false,
-    limits: { rpm: 20, rpd: 50, tpm: 20_000, tpd: 0 },
-    sharedWithProvider: [],
+    limits: { rpm: 20, rpd: 50, tpm: 0, tpd: 0 },
+    sharedWithProvider: ["rpm", "rpd"],
     dayResets: "utc-midnight",
     costCentsPerMillion: { input: 0, output: 0 },
+    reserve: true,
   },
   {
     modelId: "openrouter:google/gemma-4-31b-it:free",
@@ -363,11 +391,12 @@ const BASE_CATALOG: ModelEntry[] = [
     contextWindow: 262_144,
     maxOutputTokens: 32_768,
     toolCapable: true,
-    structuredOutput: true,
-    limits: { rpm: 20, rpd: 50, tpm: 20_000, tpd: 0 },
-    sharedWithProvider: [],
+    structuredOutput: false,
+    limits: { rpm: 20, rpd: 50, tpm: 0, tpd: 0 },
+    sharedWithProvider: ["rpm", "rpd"],
     dayResets: "utc-midnight",
     costCentsPerMillion: { input: 0, output: 0 },
+    reserve: true,
   },
 ];
 
@@ -421,16 +450,16 @@ export function getDerivedCostTable(): Record<
 
 /** Model identifiers used by the importer (multimodal extraction). */
 export const EXTRACTION_MODEL_IDS = [
-  "google:gemini-2.5-flash",
+  "google:gemini-3.8-flash",
+  "google:gemini-3.6-flash",
+  "google:gemini-3.1-flash-lite",
   "google:gemini-3.5-flash-lite",
 ] as const;
 
 /** Registry prefixes the runtime knows. */
 export const KNOWN_CATALOG_PROVIDERS = [
   "groq",
-  "cerebras",
   "google",
-  "mistral",
   "cloudflare",
   "nvidia",
   "openrouter",

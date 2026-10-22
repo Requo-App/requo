@@ -6,7 +6,8 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock("@/lib/ai/registry", () => ({
   registry: { languageModel: mocks.languageModel }, groq: {}, openrouter: {},
-  cerebras: null, google: null, mistral: null, cloudflare: null, nvidia: null,
+  google: null, cloudflare: null, nvidia: null,
+  isAiConfigured: () => true,
 }));
 vi.mock("@/lib/ai/capacity-selector", () => ({
   selectModels: mocks.select, CHAT_MAX_ATTEMPTS: 2, NON_CHAT_MAX_ATTEMPTS: 2,
@@ -45,7 +46,7 @@ function success() {
   );
 }
 const request: AiCompletionRequest = {
-  model: "", messages: [{ role: "user", content: "Hi" }], temperature: 0.2,
+  messages: [{ role: "user", content: "Hi" }], temperature: 0.2,
   maxOutputTokens: 100, estimatedTokens: 10,
 };
 const callOptions: LanguageModelV3CallOptions = { prompt: [] };
@@ -102,11 +103,6 @@ describe("stream failure propagation", () => {
     expect(mocks.correct).toHaveBeenCalledWith("openrouter:second", 10, { inputTokens: 4, outputTokens: 2 });
   });
 
-  it("propagates errors on the pinned provider path", async () => {
-    mocks.languageModel.mockReturnValue(model(async () => { throw new Error("pinned failed"); }));
-    const result = await streamWithFallback({ ...request, provider: "groq", model: "first" });
-    await expect(consume(result.stream)).rejects.toThrow("pinned failed");
-  });
 });
 
 describe("per-candidate timeouts", () => {

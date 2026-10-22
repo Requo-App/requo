@@ -244,7 +244,9 @@ export function AdminAiCapacityTable({
                 ) : null}
               </TableCell>
               <TableCell className="w-[8rem]">
-                {entry.available ? (
+                {entry.quotaExhausted ? (
+                  <Badge variant="destructive">Exhausted</Badge>
+                ) : entry.available ? (
                   <Badge variant="secondary">Available</Badge>
                 ) : (
                   <Badge variant="destructive">Stressed</Badge>

@@ -6,6 +6,12 @@ import { z } from "zod";
 
 import { env, isGeminiConfigured } from "@/lib/env";
 import { EXTRACTION_MODEL_IDS } from "@/lib/ai/catalog";
+import {
+  getModelQuotaState,
+  markModelExhausted,
+  recordModelTokenUsageDetailed,
+  recordModelUsage,
+} from "@/lib/ai/capacity-selector";
 import { filterAiOutput } from "@/lib/ai/output-filter";
 import { getAiCanaryToken } from "@/lib/ai/canary";
 import { sanitizeAiInput } from "@/lib/ai/input-sanitizer";
@@ -29,17 +35,16 @@ import {
 //
 // The deviation is bounded: the document is sanitised before it reaches the
 // model, the response is filtered and validated, and the invocation is
-// metered and logged like every other AI surface.
+// metered against the shared free-tier capacity counters like every other AI
+// surface.
 // ---------------------------------------------------------------------------
 
 const GEMINI_TIMEOUT_MS = 30_000;
 
 // Extraction models live in the unified catalog (`EXTRACTION_MODEL_IDS`) so
 // they are covered by the drift check. The importer keeps its own provider
-// client and retry loop (unifying it into the shared router is out of scope).
-const EXTRACTION_MODELS: string[] = EXTRACTION_MODEL_IDS.map((id) =>
-  id.slice("google:".length),
-);
+// client and retry loop (unifying it into the shared router is out of scope),
+// but it still reads and writes the same free-tier capacity counters.
 
 const PRICING_JSON_SHAPE = `{
   "entries": [
@@ -167,6 +172,25 @@ async function sanitizeDocumentText(payload: ExtractedPayload): Promise<string |
   return sanitized.output;
 }
 
+async function recordExtractionUsage(
+  modelId: string,
+  usage: { inputTokens?: number; outputTokens?: number } | undefined,
+): Promise<void> {
+  try {
+    await recordModelUsage(modelId);
+    const inputTokens = Math.max(0, usage?.inputTokens ?? 0);
+    const outputTokens = Math.max(0, usage?.outputTokens ?? 0);
+    if (inputTokens > 0 || outputTokens > 0) {
+      await recordModelTokenUsageDetailed(modelId, {
+        inputTokens,
+        outputTokens,
+      });
+    }
+  } catch {
+    // Capacity bookkeeping must never fail an extraction.
+  }
+}
+
 export async function aiExtractFromFile(
   input: ExtractionInput,
 ): Promise<AiExtractionResult> {
@@ -200,7 +224,22 @@ export async function aiExtractFromFile(
 
   let lastError: unknown = null;
 
-  for (const model of EXTRACTION_MODELS) {
+  for (const modelId of EXTRACTION_MODEL_IDS) {
+    const model = modelId.slice("google:".length);
+
+    try {
+      const quota = await getModelQuotaState(modelId);
+      if (quota === "dead" || quota === "exhausted") {
+        lastError = new Error(
+          `The extraction model "${modelId}" has no free capacity.`,
+        );
+        continue;
+      }
+    } catch {
+      // If the capacity cache is unavailable, let the provider be the
+      // authority rather than failing the upload before it starts.
+    }
+
     try {
       const result = await generateText({
         model: provider(model),
@@ -214,6 +253,8 @@ export async function aiExtractFromFile(
         temperature: 0.1,
         abortSignal: AbortSignal.timeout(GEMINI_TIMEOUT_MS),
       });
+
+      await recordExtractionUsage(modelId, result.usage);
 
       const text = result.text ?? "";
 
@@ -245,6 +286,11 @@ export async function aiExtractFromFile(
       return normalisePricing(validation.data);
     } catch (error) {
       lastError = error;
+      try {
+        await markModelExhausted(modelId, error);
+      } catch {
+        // Capacity bookkeeping must never fail an extraction.
+      }
       console.warn(
         `[importer] Gemini extraction failed: model="${model}" message="${error instanceof Error ? error.message : String(error)}"`,
       );

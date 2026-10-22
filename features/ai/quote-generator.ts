@@ -1498,7 +1498,6 @@ export async function generateQuoteDraftForBusiness(
   const promptVersionHash = contentHash(systemInstructions);
 
   const completionRequest: AiCompletionRequest = {
-    model: "",
     messages: [
       { role: "system", content: systemInstructions },
       { role: "user", content: userMessage },
@@ -1846,7 +1845,6 @@ export async function generateQuoteImprovementForBusiness(
   const promptVersionHash = contentHash(systemInstructions);
 
   const completionRequest: AiCompletionRequest = {
-    model: "",
     messages: [
       { role: "system", content: systemInstructions },
       { role: "user", content: userMessage },

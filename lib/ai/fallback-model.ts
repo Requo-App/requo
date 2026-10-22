@@ -57,7 +57,7 @@ import {
 //   candidate can serve any step, the prompt must stay portable: `streamText`
 //   replays earlier steps' reasoning parts into later prompts, and the
 //   OpenAI-compatible shape serializes those as `reasoning_content`, which
-//   Cerebras rejects with a 400.
+//   some OpenAI-compatible providers reject with a 400.
 // - On success the serving model is attributed via `recordModelUsage` and
 //   `recordModelTokenUsage`, and reported through `onModelSelected` so the
 //   orchestrator can persist and log the model that actually served the step.

@@ -90,7 +90,6 @@ async function generateRecommendations(
 
   try {
     const response = await generateWithFallback({
-      model: "",
       messages: [{ role: "user", content: prompt }],
       temperature: 0.4,
       maxOutputTokens: 300,

@@ -107,10 +107,8 @@ function friendlyAssistantError(message: string): string {
     lower.includes("an error occurred") ||
     lower.includes("{") ||
     lower.includes("groq") ||
-    lower.includes("cerebras") ||
     lower.includes("gemini") ||
     lower.includes("openrouter") ||
-    lower.includes("mistral") ||
     lower.includes("model_not_found") ||
     lower.includes("429") ||
     lower.includes("500") ||

@@ -47,12 +47,10 @@ pushes to any other branch or PRs build nothing on Vercel.
 - `RESEND_FROM_EMAIL` (legacy fallback)
 - `RESEND_REPLY_TO_EMAIL`
 - `GROQ_API_KEY`
-- `CEREBRAS_API_KEY`
 - `GEMINI_API_KEY`
-- `MISTRAL_API_KEY`
 - `CLOUDFLARE_ACCOUNT_ID`
 - `CLOUDFLARE_API_TOKEN`
-- `NVIDIA_NIM_API_KEY`
+- `NVIDIA_NIM_API_KEY` (production exception: hosted NIM is documented for development/testing)
 - `OPENROUTER_API_KEY`
 - Polar billing variables when checkout is enabled
 - `INNGEST_EVENT_KEY` and `INNGEST_SIGNING_KEY` for Inngest Cloud background jobs
@@ -159,10 +157,10 @@ sites; in-app/push equivalents remain authoritative.
 
 ## AI Provider Checklist
 
-- Configure one or more AI providers: `GROQ_API_KEY`, `CEREBRAS_API_KEY`, `GEMINI_API_KEY`, `MISTRAL_API_KEY`, `CLOUDFLARE_ACCOUNT_ID` + `CLOUDFLARE_API_TOKEN`, `NVIDIA_NIM_API_KEY`, or `OPENROUTER_API_KEY`.
-- The router tries configured providers in this order: Groq, Cerebras, Gemini, Mistral, Cloudflare Workers AI, NVIDIA NIM, then OpenRouter.
+- Configure one or more free-tier-first AI providers: `GROQ_API_KEY`, `GEMINI_API_KEY`, `CLOUDFLARE_ACCOUNT_ID` + `CLOUDFLARE_API_TOKEN`, `NVIDIA_NIM_API_KEY` (production exception), or `OPENROUTER_API_KEY`.
+- The router registers providers in this order: Groq, Gemini, Cloudflare Workers AI, NVIDIA NIM, then OpenRouter. Routing profiles in `lib/ai/routing-profiles.ts` choose the per-task model order. Only models in `lib/ai/catalog.ts` are routable; see `docs/setup/ai-provider-limits.md` for allowances, the NVIDIA exception, and safeguards.
 - Keep all AI API keys server-only.
-- Plan separate monitoring for rate limits, credit usage, and model-availability failures.
+- Plan separate monitoring for rate limits, quota exhaustion, and model-availability failures.
 
 ## Billing Checklist
 

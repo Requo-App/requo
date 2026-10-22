@@ -6,6 +6,7 @@ import {
   type FallbackAttemptTrailEntry,
 } from "@/lib/ai/fallback-model";
 import { selectModels } from "@/lib/ai/router";
+import { noModelsAvailableError } from "@/lib/ai/routing-errors";
 import type { AiRoutingProfile } from "@/lib/ai/routing-profiles";
 
 /**
@@ -42,7 +43,7 @@ export async function resolveChatFallbackModel(input: {
   });
 
   if (selectedModels.length === 0) {
-    throw new Error("No suitable AI model available");
+    throw noModelsAvailableError(input.profile);
   }
 
   const firstId = selectedModels[0];

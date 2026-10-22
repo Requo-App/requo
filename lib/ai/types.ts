@@ -27,22 +27,20 @@ import type { AiRoutingProfile } from "@/lib/ai/routing-profiles";
 
 export type { AiRoutingProfile } from "@/lib/ai/routing-profiles";
 
-/**
- * Each AI surface declares which kind of work it is doing, so routing is a
- * property of the surface rather than a number guessed at the call site.
- * `qualityTier` is retained for backward compatibility and maps onto a
- * profile (cheap → short_text, balanced/best → quote_draft).
- */
 /** Normalized chat message shape sent to every provider. */
 export type AiChatMessage = {
   role: "system" | "user" | "assistant";
   content: string;
 };
 
-/** Normalized request shape passed to each provider. */
+/**
+ * Normalized request shape passed to the router.
+ *
+ * Each AI surface declares the kind of work via `routingProfile`; `qualityTier`
+ * is retained for legacy callers and maps onto a profile (cheap → short_text,
+ * balanced/best → quote_draft).
+ */
 export type AiCompletionRequest = {
-  provider?: AiProviderName;
-  model: string;
   messages: AiChatMessage[];
   temperature: number;
   maxOutputTokens: number;

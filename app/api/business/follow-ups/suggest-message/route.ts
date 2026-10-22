@@ -141,7 +141,6 @@ Write only the message, nothing else.`;
         { role: "system", content: "You are a helpful business assistant that writes follow-up messages." },
         { role: "user", content: prompt },
       ],
-      model: "",
       temperature: 0.7,
       maxOutputTokens: 300,
       qualityTier: "cheap",

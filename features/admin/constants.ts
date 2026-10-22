@@ -125,18 +125,16 @@ export const ADMIN_AI_SECURITY_EVENTS_LIMIT = 20;
 /**
  * Provider ids the admin AI surface knows about.
  *
- * Mirrors the registry in `lib/ai/registry.ts` exactly: groq, cerebras,
- * google (Gemini), openrouter, mistral, cloudflare, nvidia. Whether each
- * one is actually configured is env-driven and resolved per request.
+ * Mirrors the registry in `lib/ai/registry.ts` exactly: groq, google (Gemini),
+ * cloudflare, nvidia, openrouter. Whether each one is actually
+ * configured is env-driven and resolved per request.
  */
 export const ADMIN_AI_PROVIDERS = [
   "groq",
-  "cerebras",
   "google",
-  "openrouter",
-  "mistral",
   "cloudflare",
   "nvidia",
+  "openrouter",
 ] as const;
 
 export type AdminAiProviderId = (typeof ADMIN_AI_PROVIDERS)[number];
@@ -144,12 +142,10 @@ export type AdminAiProviderId = (typeof ADMIN_AI_PROVIDERS)[number];
 /** Display labels matching `getConfiguredAiProviderLabels`. */
 export const ADMIN_AI_PROVIDER_LABELS: Record<AdminAiProviderId, string> = {
   groq: "Groq",
-  cerebras: "Cerebras",
   google: "Gemini",
-  openrouter: "OpenRouter",
-  mistral: "Mistral",
   cloudflare: "Cloudflare",
   nvidia: "NVIDIA NIM",
+  openrouter: "OpenRouter",
 };
 
 /**

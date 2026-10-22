@@ -65,7 +65,7 @@ No dispatch/job management, general calendar or crew scheduling, mobile app, mar
 | Identity | Better Auth (Drizzle adapter) — the only identity provider; every business query is `businessId`-scoped |
 | Storage / realtime | Supabase private storage (via authenticated server routes) and realtime notification plumbing |
 | Email | Resend, with Mailtrap then Brevo fallbacks |
-| AI | Vercel AI SDK with a shared model router (Groq → Cerebras → Gemini → Mistral → Cloudflare → NVIDIA NIM → OpenRouter) |
+| AI | Vercel AI SDK with capacity-aware free-tier-first routing (Groq, Gemini, Cloudflare Workers AI, NVIDIA NIM, OpenRouter; NVIDIA hosted NIM is a documented production exception) |
 | Background work | Inngest (local Dev Server) plus Vercel Cron route handlers |
 | Billing | Polar subscriptions and checkout; role authorization stays separate from plan entitlement, enforced server-side |
 

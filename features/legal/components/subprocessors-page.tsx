@@ -23,13 +23,6 @@ const subprocessors: Subprocessor[] = [
     policyLabel: "Privacy Policy",
   },
   {
-    name: "Cerebras",
-    purpose: "AI inference",
-    dataLocation: "United States",
-    policyUrl: "https://cerebras.ai/privacy-policy",
-    policyLabel: "Privacy Policy",
-  },
-  {
     name: "Google (Gemini)",
     purpose: "AI inference and OAuth",
     dataLocation: "United States",
@@ -41,13 +34,6 @@ const subprocessors: Subprocessor[] = [
     purpose: "AI routing",
     dataLocation: "United States",
     policyUrl: "https://openrouter.ai/privacy",
-    policyLabel: "Privacy Policy",
-  },
-  {
-    name: "Mistral",
-    purpose: "AI inference",
-    dataLocation: "EU / France",
-    policyUrl: "https://mistral.ai/terms/#privacy-policy",
     policyLabel: "Privacy Policy",
   },
   {

@@ -29,7 +29,7 @@ Quote-draft/improvement prompts (`features/ai/prompts/quote-draft.ts`, `quote-im
 
 ## Router boundary
 
-Route all provider calls through `lib/ai/router.ts` (`generateWithFallback`/`streamWithFallback`) + `selectModels` (`lib/ai/capacity-selector.ts`). Providers wired today: Groq, Cerebras, Gemini, Mistral, Cloudflare Workers AI, NVIDIA NIM, OpenRouter. Never import a provider SDK in `features/`. Preserve sanitization, output filtering, limits, and invocation logging in `lib/ai/`.
+Route all provider calls through `lib/ai/router.ts` (`generateWithFallback`/`streamWithFallback`) + `selectModels` (`lib/ai/capacity-selector.ts`). Providers wired today are free-tier-first: Groq, Gemini, Cloudflare Workers AI, NVIDIA NIM, OpenRouter. NVIDIA hosted NIM is a deliberate production exception: NVIDIA documents it for development/testing and requires AI Enterprise for production. `lib/ai/catalog.ts` is the model/capability/quota source of truth and the allowlist for pinned overrides. Never import a provider SDK in `features/`. Preserve sanitization, output filtering, limits, and invocation logging in `lib/ai/`.
 
 ## Confirmation rules
 

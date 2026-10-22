@@ -230,9 +230,9 @@ const privacySections: LegalDocumentSection[] = [
         <LegalSubheading>A. Internal AI drafting</LegalSubheading>
         <LegalParagraph>
           If an authorized user uses AI-powered drafting features in the Service,
-          certain inputs may be processed through our configured AI providers
-          (Groq, Cerebras, Google Gemini, Mistral, Cloudflare Workers AI,
-          NVIDIA NIM, or routed via OpenRouter) and, depending on
+          certain inputs may be processed through our configured AI
+          providers (Groq, Google Gemini, Cloudflare Workers AI, NVIDIA NIM,
+          or routed via OpenRouter) and, depending on
           configuration, by the model provider used to generate drafts,
           summaries, or suggestions.
         </LegalParagraph>
@@ -311,7 +311,7 @@ const privacySections: LegalDocumentSection[] = [
             `${legalConfig.storageProvider}, for database, storage, and related backend infrastructure.`,
             `${legalConfig.paymentProvider}, for subscription billing and payment processing as the merchant of record; subscription changes, cancellations, and refunds are handled through its customer portal.`,
             "Resend (with Mailtrap and Brevo as fallback providers), for transactional email delivery.",
-            "Groq, Cerebras, Google Gemini, Mistral, Cloudflare Workers AI, NVIDIA NIM, and OpenRouter, for AI request routing when AI features are used.",
+            "Groq, Google Gemini, Cloudflare Workers AI, NVIDIA NIM, and OpenRouter, for AI request routing when AI features are used.",
             "Google, for optional OAuth sign-in when enabled, and transactional email providers for magic link sign-in when configured.",
             "Crisp, for support chat when enabled; Inngest, for background jobs and scheduled tasks; Upstash Redis, for rate limiting and AI response caching.",
           ]}
@@ -587,15 +587,6 @@ const privacySections: LegalDocumentSection[] = [
               </tr>
               <tr className="border-b border-border/40">
                 <td className="py-3 pr-4 font-medium text-foreground">
-                  Cerebras
-                </td>
-                <td className="py-3 pr-4 text-muted-foreground">
-                  United States
-                </td>
-                <td className="py-3 text-muted-foreground">AI inference</td>
-              </tr>
-              <tr className="border-b border-border/40">
-                <td className="py-3 pr-4 font-medium text-foreground">
                   Google / Gemini
                 </td>
                 <td className="py-3 pr-4 text-muted-foreground">
@@ -613,15 +604,6 @@ const privacySections: LegalDocumentSection[] = [
                   United States
                 </td>
                 <td className="py-3 text-muted-foreground">AI routing</td>
-              </tr>
-              <tr className="border-b border-border/40">
-                <td className="py-3 pr-4 font-medium text-foreground">
-                  Mistral
-                </td>
-                <td className="py-3 pr-4 text-muted-foreground">
-                  EU / France
-                </td>
-                <td className="py-3 text-muted-foreground">AI inference</td>
               </tr>
               <tr className="border-b border-border/40">
                 <td className="py-3 pr-4 font-medium text-foreground">
@@ -749,9 +731,13 @@ const privacySections: LegalDocumentSection[] = [
         </LegalSectionHeading>
         <LegalParagraph>
           Requo uses multiple AI providers as part of its inference and drafting
-          features. None of these providers use Requo customer data submitted
-          through the API to train their models. The following table summarizes
-          the data handling practices of each provider:
+          features. Data-use terms differ by provider and by service tier.
+          Requo primarily routes through free tiers, with NVIDIA NIM as an
+          explicit production exception, and some free tiers may use inputs to
+          improve the provider&rsquo;s models. The following table summarizes
+          the providers&rsquo; published practices as of October 22, 2026.
+          Provider terms can change; the subprocessors page and each
+          provider&rsquo;s current agreement control.
         </LegalParagraph>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -776,53 +762,42 @@ const privacySections: LegalDocumentSection[] = [
                 <td className="py-3 pr-4 font-medium text-foreground">Groq</td>
                 <td className="py-3 pr-4 text-muted-foreground">No</td>
                 <td className="py-3 pr-4 text-muted-foreground">
-                  Not retained after processing
+                  Not retained by default; up to 30 days for reliability and
+                  abuse prevention unless ZDR is enabled
                 </td>
-                <td className="py-3 text-muted-foreground">Yes (default)</td>
-              </tr>
-              <tr className="border-b border-border/40">
-                <td className="py-3 pr-4 font-medium text-foreground">
-                  Cerebras
+                <td className="py-3 text-muted-foreground">
+                  Available (not default)
                 </td>
-                <td className="py-3 pr-4 text-muted-foreground">No</td>
-                <td className="py-3 pr-4 text-muted-foreground">
-                  Not retained after processing
-                </td>
-                <td className="py-3 text-muted-foreground">Yes (default)</td>
               </tr>
               <tr className="border-b border-border/40">
                 <td className="py-3 pr-4 font-medium text-foreground">
                   Google / Gemini
                 </td>
-                <td className="py-3 pr-4 text-muted-foreground">No</td>
                 <td className="py-3 pr-4 text-muted-foreground">
-                  Transient processing; not stored beyond request
+                  May be used to improve Google products (free tier)
+                </td>
+                <td className="py-3 pr-4 text-muted-foreground">
+                  Free-tier content may be stored and used to improve Google
+                  products
                 </td>
                 <td className="py-3 text-muted-foreground">
-                  Yes (paid API tier)
+                  No (free tier)
                 </td>
               </tr>
               <tr className="border-b border-border/40">
                 <td className="py-3 pr-4 font-medium text-foreground">
                   OpenRouter
                 </td>
-                <td className="py-3 pr-4 text-muted-foreground">No</td>
                 <td className="py-3 pr-4 text-muted-foreground">
-                  Short-term logging for abuse prevention
+                  May be used by upstream free-model providers
+                </td>
+                <td className="py-3 pr-4 text-muted-foreground">
+                  Free routes may be logged; retention varies by upstream
+                  provider
                 </td>
                 <td className="py-3 text-muted-foreground">
-                  Varies by upstream model
+                  Varies by upstream provider
                 </td>
-              </tr>
-              <tr className="border-b border-border/40">
-                <td className="py-3 pr-4 font-medium text-foreground">
-                  Mistral (API / La Plateforme)
-                </td>
-                <td className="py-3 pr-4 text-muted-foreground">No</td>
-                <td className="py-3 pr-4 text-muted-foreground">
-                  Not retained for training; 30-day abuse log
-                </td>
-                <td className="py-3 text-muted-foreground">Yes (API)</td>
               </tr>
               <tr className="border-b border-border/40">
                 <td className="py-3 pr-4 font-medium text-foreground">
@@ -830,39 +805,55 @@ const privacySections: LegalDocumentSection[] = [
                 </td>
                 <td className="py-3 pr-4 text-muted-foreground">No</td>
                 <td className="py-3 pr-4 text-muted-foreground">
-                  Not retained after processing
+                  Not retained after standard inference processing
                 </td>
-                <td className="py-3 text-muted-foreground">Yes (default)</td>
+                <td className="py-3 text-muted-foreground">
+                  Yes (standard inference)
+                </td>
               </tr>
-              <tr className="border-b border-border/40 last:border-b-0">
+              <tr className="border-b border-border/40">
                 <td className="py-3 pr-4 font-medium text-foreground">
                   NVIDIA NIM
                 </td>
-                <td className="py-3 pr-4 text-muted-foreground">No</td>
                 <td className="py-3 pr-4 text-muted-foreground">
-                  Not retained after processing
+                  May be used to improve NVIDIA products and AI models (API
+                  Trial terms)
                 </td>
-                <td className="py-3 text-muted-foreground">Yes (default)</td>
+                <td className="py-3 pr-4 text-muted-foreground">
+                  Governed by NVIDIA&rsquo;s API terms; no ZDR commitment
+                  stated for the hosted prototype endpoint
+                </td>
+                <td className="py-3 text-muted-foreground">Not stated</td>
               </tr>
             </tbody>
           </table>
         </div>
         <LegalParagraph>
-          Requo accesses all AI providers exclusively through their API services.
-          API terms universally prohibit using customer data for model training.
-          This is distinct from consumer-facing chat products offered by the same
-          companies, which may have different data practices.
+          Requo accesses AI providers through their API services, but API
+          terms are not uniform. Some paid API tiers prohibit training on
+          customer data and offer stronger retention commitments; the free
+          and prototype tiers Requo uses may not. Do not submit highly
+          sensitive personal information to AI features.
         </LegalParagraph>
-        <LegalSubheading>Mistral: API vs. Consumer Chat</LegalSubheading>
+        <LegalSubheading>Gemini: free tier vs. paid API</LegalSubheading>
         <LegalParagraph>
-          Mistral is included in Requo&rsquo;s AI provider fallback chain and is
-          accessed through Mistral&rsquo;s API platform (La Plateforme). Per
-          Mistral&rsquo;s API terms, data sent through the API is not used for
-          model training and is subject to a 30-day retention period for abuse
-          and safety monitoring only. This is separate from Mistral&rsquo;s
-          consumer chat product (Le Chat), which may use conversation data for
-          model improvement under different terms. Requo does not use the
-          consumer chat product.
+          Requo uses Gemini&rsquo;s free tier. Google states that free-tier
+          content may be used to improve its products, and zero data retention
+          is not available on that tier. This differs from Gemini&rsquo;s paid
+          API tier. Requo does not represent that free-tier Gemini requests are
+          excluded from product improvement.
+        </LegalParagraph>
+        <LegalSubheading>NVIDIA NIM: production exception</LegalSubheading>
+        <LegalParagraph>
+          Requo sends some prompts to NVIDIA&rsquo;s hosted NIM API. NVIDIA
+          documents that hosted endpoint for prototyping and development and
+          states that production use requires an NVIDIA AI Enterprise license.
+          Requo&rsquo;s production routing is an explicit deployment exception,
+          not a representation that NVIDIA&rsquo;s hosted free tier is licensed
+          for production. NVIDIA&rsquo;s API Trial Terms also permit NVIDIA to
+          use User Content and Generated Content to improve NVIDIA products and
+          AI models. Do not submit highly sensitive personal information to AI
+          features.
         </LegalParagraph>
       </>
     ),

@@ -2905,20 +2905,16 @@ export const getAdminAiProviders = cache(
     const { ROUTING_PROFILES } = await import("@/lib/ai/routing-profiles");
     const {
       isGroqConfigured,
-      isCerebrasConfigured,
       isGeminiConfigured,
       isOpenRouterConfigured,
-      isMistralConfigured,
       isCloudflareAiConfigured,
       isNvidiaNimConfigured,
     } = await import("@/lib/env");
 
     const configuredById: Record<AdminAiProviderId, boolean> = {
       groq: isGroqConfigured,
-      cerebras: isCerebrasConfigured,
       google: isGeminiConfigured,
       openrouter: isOpenRouterConfigured,
-      mistral: isMistralConfigured,
       cloudflare: isCloudflareAiConfigured,
       nvidia: isNvidiaNimConfigured,
     };
@@ -2965,6 +2961,7 @@ export async function getAdminAiCapacity(): Promise<AdminAiCapacityEntry[]> {
       minuteUsage: entry.minuteUsage,
       dayUsage: entry.dayUsage,
       available: entry.available,
+      quotaExhausted: entry.quotaExhausted,
       rpm: entry.rpm,
       rpd: entry.rpd,
       tpm: entry.tpm,

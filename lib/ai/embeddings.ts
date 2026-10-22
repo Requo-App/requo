@@ -8,11 +8,17 @@ import { createGoogleGenerativeAI } from "@ai-sdk/google";
 
 import { cacheLayer } from "@/lib/ai/cache-layer";
 import {
+  markModelExhausted,
+  recordModelTokenUsageDetailed,
+  recordModelUsage,
+} from "@/lib/ai/capacity-selector";
+import {
   EMBEDDING_CACHE_TTL_SECONDS,
   EMBEDDING_DIMENSIONS,
   EMBEDDING_MAX_ATTEMPTS_READ,
   EMBEDDING_MAX_ATTEMPTS_WRITE,
   EMBEDDING_MODEL,
+  EMBEDDING_MODEL_ID,
 } from "@/lib/ai/embedding-constants";
 import {
   AiProviderError,
@@ -42,6 +48,7 @@ export {
   EMBEDDING_MAX_ATTEMPTS_READ,
   EMBEDDING_MAX_ATTEMPTS_WRITE,
   EMBEDDING_MODEL,
+  EMBEDDING_MODEL_ID,
 };
 
 const EMBEDDING_CACHE_PREFIX = "embed:";
@@ -99,6 +106,31 @@ function getEmbeddingModel(): EmbeddingModelV3 | null {
     return provider.embeddingModel(EMBEDDING_MODEL);
   } catch {
     return null;
+  }
+}
+
+async function recordEmbeddingUsage(
+  usage: { tokens?: number } | undefined,
+): Promise<void> {
+  try {
+    await recordModelUsage(EMBEDDING_MODEL_ID);
+    const tokens = Math.max(0, usage?.tokens ?? 0);
+    if (tokens > 0) {
+      await recordModelTokenUsageDetailed(EMBEDDING_MODEL_ID, {
+        inputTokens: tokens,
+        outputTokens: 0,
+      });
+    }
+  } catch {
+    // Capacity bookkeeping must never break the embedding fallback contract.
+  }
+}
+
+async function markEmbeddingExhausted(error: unknown): Promise<void> {
+  try {
+    await markModelExhausted(EMBEDDING_MODEL_ID, error);
+  } catch {
+    // Capacity bookkeeping must never break the embedding fallback contract.
   }
 }
 
@@ -187,7 +219,7 @@ export async function generateEmbedding(
   }
 
   try {
-    const { embedding } = await withEmbeddingRetry(
+    const { embedding, usage } = await withEmbeddingRetry(
       "embed",
       options.maxAttempts ?? EMBEDDING_MAX_ATTEMPTS_WRITE,
       () =>
@@ -197,6 +229,7 @@ export async function generateEmbedding(
           providerOptions: EMBEDDING_PROVIDER_OPTIONS,
         }),
     );
+    await recordEmbeddingUsage(usage);
 
     if (!Array.isArray(embedding) || embedding.length !== EMBEDDING_DIMENSIONS) {
       console.warn(
@@ -217,6 +250,7 @@ export async function generateEmbedding(
 
     return embedding;
   } catch (error) {
+    await markEmbeddingExhausted(error);
     console.warn(
       "[embeddings] Embedding generation failed, falling back to lexical:",
       error instanceof Error ? error.message : error,
@@ -315,7 +349,7 @@ async function generateEmbeddingBatch(
     const slice = texts.slice(offset, offset + BATCH_SIZE);
 
     try {
-      const { embeddings } = await withEmbeddingRetry(
+      const { embeddings, usage } = await withEmbeddingRetry(
         "embedMany",
         maxAttempts,
         () =>
@@ -326,6 +360,7 @@ async function generateEmbeddingBatch(
             providerOptions: EMBEDDING_PROVIDER_OPTIONS,
           }),
       );
+      await recordEmbeddingUsage(usage);
 
       for (let index = 0; index < slice.length; index++) {
         const embedding = embeddings[index];
@@ -355,6 +390,7 @@ async function generateEmbeddingBatch(
         error instanceof AiProviderError
           ? error
           : wrapProviderError("gemini", error);
+      await markEmbeddingExhausted(wrapped);
 
       // A whole slice landing here means those rows persist as `null` and stay
       // lexical-only until the backfill job repairs them, so make it visible

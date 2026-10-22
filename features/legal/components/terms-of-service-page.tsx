@@ -244,7 +244,7 @@ const termsSections: LegalDocumentSection[] = [
             `${legalConfig.storageProvider}, for database, storage, and related backend infrastructure.`,
             `${legalConfig.paymentProvider}, for subscription billing and payment processing as the merchant of record; subscription changes, cancellations, and refunds are handled through its customer portal.`,
             "Resend (with Mailtrap and Brevo as fallback providers), for transactional email delivery.",
-            "Groq, Cerebras, Google Gemini, Mistral, Cloudflare Workers AI, NVIDIA NIM, and OpenRouter, for AI request routing when AI features are used.",
+            "Groq, Google Gemini, Cloudflare Workers AI, NVIDIA NIM, and OpenRouter, for AI request routing when AI features are used.",
             "Google, for optional OAuth sign-in when enabled; transactional email carries magic-link sign-in when configured.",
           ]}
         />
@@ -267,8 +267,8 @@ const termsSections: LegalDocumentSection[] = [
           Requo includes AI-assisted drafting features intended for internal use
           by authorized business users. These features may send
           prompts and related business content through our configured AI
-          providers (Groq, Cerebras, Google Gemini, Mistral, Cloudflare
-          Workers AI, NVIDIA NIM, or routed via OpenRouter) and,
+          providers (Groq, Google Gemini, Cloudflare Workers AI, NVIDIA NIM,
+          or routed via OpenRouter) and,
           depending on configuration, to the model provider used
           to generate drafts, summaries, and suggestions.
         </LegalParagraph>

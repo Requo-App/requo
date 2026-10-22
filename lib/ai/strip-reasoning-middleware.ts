@@ -8,8 +8,8 @@ import type { LanguageModelV3Prompt } from "@ai-sdk/provider";
  * every later step, reasoning parts included. Providers on the
  * OpenAI-compatible shape serialize those parts as `reasoning_content`
  * (see `convertToOpenAICompatibleChatMessages` in
- * `@ai-sdk/openai-compatible`), and Cerebras rejects that property with a
- * 400 naming the offending message indexes:
+ * `@ai-sdk/openai-compatible`), and some OpenAI-compatible providers reject
+ * that property with a 400 naming the offending message indexes:
  *
  *   messages.4.assistant.reasoning_content: property
  *   'messages.4.assistant.reasoning_content' is unsupported

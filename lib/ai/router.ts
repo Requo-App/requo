@@ -2,7 +2,7 @@ import "server-only";
 
 import { generateText, streamText } from "ai";
 
-import { registry, groq, cerebras, google, openrouter, mistral, cloudflare, nvidia } from "@/lib/ai/registry";
+import { registry } from "@/lib/ai/registry";
 import {
   AiProviderError,
   getSanitizedErrorInfo,
@@ -10,7 +10,6 @@ import {
   isOversizedError,
   wrapProviderError,
 } from "@/lib/ai/errors";
-import { getModelsForProvider } from "@/lib/ai/model-options";
 import {
   NON_CHAT_MAX_ATTEMPTS,
   CHAT_MAX_ATTEMPTS,
@@ -23,6 +22,7 @@ import {
 } from "@/lib/ai/capacity-selector";
 import { createFallbackLanguageModel } from "@/lib/ai/fallback-model";
 import { getCatalogEntry } from "@/lib/ai/catalog";
+import { noModelsAvailableError } from "@/lib/ai/routing-errors";
 import type { AiRoutingProfile } from "@/lib/ai/routing-profiles";
 // Re-exported so feature orchestrators route model selection through the
 // router entry-point instead of importing capacity-selector directly.
@@ -50,51 +50,11 @@ const MAX_RETRY_AFTER_MS = 5_000;
 
 const PROVIDER_TIMEOUTS: Record<AiProviderName, number> = {
   groq: 15_000,
-  cerebras: 20_000,
   gemini: 20_000,
-  mistral: 25_000,
   cloudflare: 25_000,
-  nvidia: 30_000,
+  nvidia: 25_000,
   openrouter: 30_000,
 };
-
-/** Ordered list of provider names that are configured. */
-function getConfiguredProviderNames(): AiProviderName[] {
-  const names: AiProviderName[] = [];
-  if (groq) names.push("groq");
-  if (cerebras) names.push("cerebras");
-  if (google) names.push("gemini");
-  if (mistral) names.push("mistral");
-  if (cloudflare) names.push("cloudflare");
-  if (nvidia) names.push("nvidia");
-  if (openrouter) names.push("openrouter");
-  return names;
-}
-
-function getProviderCandidates(
-  requestedProvider: AiProviderName | undefined,
-): AiProviderName[] {
-  const all = getConfiguredProviderNames();
-  return requestedProvider
-    ? all.filter((p) => p === requestedProvider)
-    : all;
-}
-
-function getModelCandidates(
-  request: AiCompletionRequest,
-  providerName: AiProviderName,
-): string[] {
-  if (request.provider === providerName && request.model.trim()) {
-    return [request.model];
-  }
-  return getModelsForProvider(providerName, request.qualityTier ?? "balanced");
-}
-
-/** Get the registry model ID string for a provider + model combination. */
-function getRegistryModelId(providerName: AiProviderName, model: string): `${string}:${string}` {
-  const registryPrefix = providerName === "gemini" ? "google" : providerName;
-  return `${registryPrefix}:${model}` as `${string}:${string}`;
-}
 
 /** The registry prefixes `google` for Gemini; the rest of the code uses `gemini`. */
 function normalizeProviderName(providerPrefix: string): AiProviderName {
@@ -177,31 +137,24 @@ function contextWindowOf(modelId: string): number {
  * Generate a completion using profile-driven selection + fallback chain.
  *
  * Strategy:
- * 1. If a specific provider/model is requested, try only that (pinned).
- * 2. Otherwise, select via routing profile (explicit `routingProfile` wins;
- *    legacy `qualityTier` maps onto a profile).
- * 3. Try each candidate in order. EVERY failure advances to the next
+ * 1. Select via routing profile (explicit `routingProfile` wins; legacy
+ *    `qualityTier` maps onto a profile).
+ * 2. Try each candidate in order. EVERY failure advances to the next
  *    candidate — including failures previously classified as non-retryable.
  *    A 404 marks the identifier dead for hours. Oversized payloads prefer
  *    larger-context candidates next.
- * 4. If ALL candidates fail, throw with an attempt trail.
+ * 3. If ALL candidates fail, throw with an attempt trail.
  */
 export async function generateWithFallback(
   request: AiCompletionRequest,
 ): Promise<AiCompletionResponse> {
-  if (request.provider && request.model.trim()) {
-    return generateWithProviderFallback(request);
-  }
-
   const profile = request.routingProfile ?? profileForLegacyTier(request.qualityTier);
   const estimatedTokens =
     request.estimatedTokens ?? estimateRequestTokens(request);
   const modelIds = await selectModels({ profile, estimatedTokens });
 
   if (modelIds.length === 0) {
-    throw new Error(
-      "No AI providers are configured. Add at least one API key to enable the assistant.",
-    );
+    throw noModelsAvailableError(profile);
   }
 
   let lastError: unknown;
@@ -320,80 +273,6 @@ export async function generateWithFallback(
   );
 }
 
-/**
- * Legacy provider-specific fallback (used when a specific provider is pinned).
- * Advances on every failure (including non-retryable) — only exhaustion fails.
- */
-async function generateWithProviderFallback(
-  request: AiCompletionRequest,
-): Promise<AiCompletionResponse> {
-  const providers = getProviderCandidates(request.provider);
-
-  if (providers.length === 0) {
-    throw new Error(
-      `The selected AI provider "${request.provider}" is not configured.`,
-    );
-  }
-
-  let lastError: unknown;
-  const { system, messages } = buildMessages(request);
-
-  for (const providerName of providers) {
-    const models = getModelCandidates(request, providerName);
-    const timeout = PROVIDER_TIMEOUTS[providerName];
-
-    for (const model of models) {
-      const modelId = getRegistryModelId(providerName, model);
-
-      try {
-        const result = await generateText({
-          model: registry.languageModel(modelId),
-          system,
-          messages,
-          temperature: request.temperature,
-          maxOutputTokens: request.maxOutputTokens,
-          abortSignal: AbortSignal.timeout(timeout),
-        });
-
-        await recordModelUsage(modelId);
-        console.info(
-          `[ai-router] Completion succeeded: provider="${providerName}" model="${model}"`,
-        );
-
-        return {
-          provider: providerName,
-          model,
-          text: result.text,
-          usage: {
-            promptTokens: result.usage?.inputTokens ?? undefined,
-            completionTokens: result.usage?.outputTokens ?? undefined,
-            totalTokens: result.usage
-              ? (result.usage.inputTokens ?? 0) + (result.usage.outputTokens ?? 0)
-              : undefined,
-          },
-          raw: result,
-        };
-      } catch (error) {
-        lastError = error;
-        const errorInfo = getSanitizedErrorInfo(error);
-
-        console.warn(
-          `[ai-router] Failed (advancing): provider="${providerName}" model="${model}" status=${errorInfo.statusCode ?? "N/A"} retryable=${errorInfo.retryable}`,
-        );
-
-        if (isModelNotFoundError(error)) {
-          await safeSettle(markModelDead(modelId));
-          continue;
-        }
-        await safeSettle(markModelExhausted(modelId, error));
-      }
-    }
-  }
-
-  if (lastError instanceof AiProviderError) throw lastError;
-  throw new Error(lastError instanceof Error ? lastError.message : "All AI providers failed.");
-}
-
 // ---------------------------------------------------------------------------
 // streamWithFallback
 // ---------------------------------------------------------------------------
@@ -406,24 +285,19 @@ export async function streamWithFallback(
   request: AiCompletionRequest,
   options?: { onFallback?: () => void },
 ): Promise<AiStreamResponse> {
-  if (request.provider && request.model.trim()) {
-    return streamWithProviderFallback(request, options);
-  }
-
   const profile = request.routingProfile ?? profileForLegacyTier(request.qualityTier);
   const estimatedTokens =
     request.estimatedTokens ?? estimateRequestTokens(request);
   const modelIds = await selectModels({ profile, estimatedTokens });
 
   if (modelIds.length === 0) {
-    throw new Error(
-      "No AI providers are configured. Add at least one API key to enable the assistant.",
-    );
+    throw noModelsAvailableError(profile);
   }
 
   const { system, messages } = buildMessages(request);
   let serving = parseServingModel(modelIds[0]);
   let servingModelId = modelIds[0];
+  let served = false;
   let fallbackReported = false;
   // The AI SDK's `streamText` is synchronous: it returns a result object and
   // performs the provider call lazily, when the stream is consumed. A
@@ -438,6 +312,7 @@ export async function streamWithFallback(
     estimatedTokens,
     getTimeoutMs: ({ provider }) => PROVIDER_TIMEOUTS[normalizeProviderName(provider)] ?? 25_000,
     onModelSelected: (selected) => {
+      served = true;
       servingModelId = selected.modelId;
       serving = {
         provider: normalizeProviderName(selected.provider),
@@ -477,7 +352,7 @@ export async function streamWithFallback(
       // estimate charged when the model was selected so the counters
       // converge on the actual spend.
       const usage = await Promise.resolve(result.usage).catch(() => null);
-      if (usage) {
+      if (served && usage) {
         await safeSettle(
           correctTokenUsage(servingModelId, estimatedTokens, {
             inputTokens: usage.inputTokens ?? 0,
@@ -494,78 +369,4 @@ export async function streamWithFallback(
     model: serving.model,
     stream: chunks(),
   };
-}
-
-/**
- * Legacy provider-specific streaming fallback (pinned path).
- */
-async function streamWithProviderFallback(
-  request: AiCompletionRequest,
-  options?: { onFallback?: () => void },
-): Promise<AiStreamResponse> {
-  const providers = getProviderCandidates(request.provider);
-
-  if (providers.length === 0) {
-    throw new Error(
-      `The selected AI provider "${request.provider}" is not configured.`,
-    );
-  }
-
-  const { system, messages } = buildMessages(request);
-  let fallbackReported = false;
-
-  for (const providerName of providers) {
-    const models = getModelCandidates(request, providerName);
-
-    for (const model of models) {
-      const modelId = getRegistryModelId(providerName, model);
-
-      // The fallback wrapper is what makes the chain work: `streamText` is
-      // synchronous and performs the provider call lazily, so only a wrapper
-      // that resolves the candidate inside `doStream` can observe and
-      // recover from a provider failure.
-      const fallbackModel = createFallbackLanguageModel({
-        modelIds: [modelId],
-        maxAttempts: 1,
-        getTimeoutMs: ({ provider }) => PROVIDER_TIMEOUTS[normalizeProviderName(provider)] ?? 25_000,
-        estimatedTokens: request.estimatedTokens ?? estimateRequestTokens(request),
-        onAttemptFailed: () => {
-          if (!fallbackReported) {
-            fallbackReported = true;
-            options?.onFallback?.();
-          }
-        },
-      });
-
-      let streamFailure: { error: unknown } | undefined;
-      const result = streamText({
-        model: fallbackModel,
-        system,
-        messages,
-        temperature: request.temperature,
-        maxOutputTokens: request.maxOutputTokens,
-        abortSignal: request.abortSignal,
-        onError: ({ error }) => { streamFailure = { error }; },
-      });
-
-      async function* chunks(): AsyncGenerator<AiStreamChunk> {
-        for await (const chunk of result.textStream) {
-          if (chunk) {
-            yield { delta: chunk, finishReason: null };
-          }
-        }
-        request.abortSignal?.throwIfAborted();
-        if (streamFailure) throw streamFailure.error;
-        yield { delta: "", finishReason: "stop" };
-      }
-
-      return {
-        provider: providerName,
-        model,
-        stream: chunks(),
-      };
-    }
-  }
-
-  throw new Error("All AI providers failed.");
 }
