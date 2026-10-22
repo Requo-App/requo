@@ -2672,7 +2672,7 @@ html[data-reload-loading="fade-out"] #app-root-content {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
- * Chat surface — shared by the owner assistant and the customer chat.
+ * Chat surface — shared by the Assistant and the customer Agent.
  *
  * The transcript is the only scroller. In an active conversation the composer
  * overlays the bottom of that scroller: the footer itself is transparent so

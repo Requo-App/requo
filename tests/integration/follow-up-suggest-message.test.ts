@@ -5,7 +5,7 @@ vi.mock("@/lib/db/client", async () => ({
   db: (await import("../support/db")).testDb,
 }));
 vi.mock("@/lib/db/business-access", () => ({
-  getWorkspaceBusinessActionContext: vi.fn(),
+  getMemberBusinessActionContext: vi.fn(),
 }));
 vi.mock("@/lib/billing/subscription-service", () => ({
   getEffectivePlanForBusiness: vi.fn().mockResolvedValue("free"),
@@ -25,7 +25,7 @@ vi.mock("@/lib/ai/input-sanitizer", () => ({
 }));
 
 import { POST } from "@/app/api/business/follow-ups/suggest-message/route";
-import { getWorkspaceBusinessActionContext } from "@/lib/db/business-access";
+import { getMemberBusinessActionContext } from "@/lib/db/business-access";
 import { generateWithFallback } from "@/lib/ai/router";
 import { cacheLayer } from "@/lib/ai/cache-layer";
 import {
@@ -55,10 +55,10 @@ describe("follow-up message credit reservations", () => {
     await testDb.delete(aiUsageEvents).where(eq(aiUsageEvents.businessId, businessId));
     await resetCooldown(userId, "follow_up_message");
     await cacheLayer.delete(getBusinessUsageCacheKey(businessId, "free"));
-    vi.mocked(getWorkspaceBusinessActionContext).mockResolvedValue({
+    vi.mocked(getMemberBusinessActionContext).mockResolvedValue({
       ok: true, user: { id: userId },
       businessContext: { business: { id: businessId, name: "Acme" } },
-    } as Awaited<ReturnType<typeof getWorkspaceBusinessActionContext>>);
+    } as Awaited<ReturnType<typeof getMemberBusinessActionContext>>);
     vi.mocked(generateWithFallback).mockResolvedValue(result);
     await testDb.insert(aiUsageEvents).values({
       id: `${prefix}_usage`, businessId, userId, taskType: "follow_up_message",

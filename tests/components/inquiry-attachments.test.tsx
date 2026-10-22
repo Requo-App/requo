@@ -33,8 +33,8 @@ async function renderForm(kind: "public" | "manual") {
   const user = userEvent.setup({ applyAccept: false });
   const { container } = render(kind === "public" ? <PublicInquiryForm action={action} business={business} /> : (
     <ManualInquiryEditor action={action} businessName={business.name} businessSlug={business.slug}
-      forms={[{ ...business.form, inquiryFormConfig: business.inquiryFormConfig }]}
-      initialFormSlug={business.form.slug} uploadHelpText="Upload a file" />
+      services={[{ ...business.form, inquiryFormConfig: business.inquiryFormConfig }]}
+      initialServiceSlug={business.form.slug} uploadHelpText="Upload a file" />
   ));
   await user.type(container.querySelector<HTMLInputElement>('[name="customerName"]')!, "Taylor Nguyen");
   await user.type(container.querySelector<HTMLInputElement>('[name="customerEmail"]')!, "taylor@example.com");

@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { ChatInterface } from "@/features/ai-agent/components/chat-interface";
+import { ChatInterface } from "@/features/agent/components/chat-interface";
 import {
   buildAgentRecommendations,
   getPublicAgentBusiness,
-  getPublicAgentStarterForms,
-} from "@/features/ai-agent/queries";
+  getPublicAgentStarterServices,
+} from "@/features/agent/queries";
 import { getBusinessPublicInquiryUrl } from "@/features/settings/utils";
 import { hasFeatureAccess } from "@/lib/plans/entitlements";
 
@@ -23,8 +23,8 @@ export async function generateMetadata({
   // stays discoverable and the visitor gets a chat whose first send fails.
   if (
     !business ||
-    !business.aiAgentEnabled ||
-    !hasFeatureAccess(business.plan, "aiAgent")
+    !business.agentEnabled ||
+    !hasFeatureAccess(business.plan, "agent")
   ) {
     return { title: "Chat" };
   }
@@ -39,7 +39,7 @@ export async function generateMetadata({
 }
 
 /**
- * Public AI agent chat page at `/b/[slug]/chat`.
+ * Public Agent chat page at `/b/[slug]/chat`.
  *
  * Only renders when `ai_agent_enabled` is true for the business.
  * Returns 404 otherwise so the route is not discoverable for disabled agents.
@@ -57,13 +57,13 @@ export default async function AgentChatPage({
   // stays discoverable and the visitor gets a chat whose first send fails.
   if (
     !business ||
-    !business.aiAgentEnabled ||
-    !hasFeatureAccess(business.plan, "aiAgent")
+    !business.agentEnabled ||
+    !hasFeatureAccess(business.plan, "agent")
   ) {
     notFound();
   }
 
-  const starterForms = await getPublicAgentStarterForms(business.id);
+  const starterServices = await getPublicAgentStarterServices(business.id);
 
   return (
     <ChatInterface
@@ -72,7 +72,7 @@ export default async function AgentChatPage({
       businessLogoUrl={business.logoUrl}
       recommendations={buildAgentRecommendations({
         businessName: business.name,
-        forms: starterForms,
+        services: starterServices,
       })}
       showWatermark={!hasFeatureAccess(business.plan, "removeWatermark")}
       fallbackFormHref={getBusinessPublicInquiryUrl(business.slug)}

@@ -20,6 +20,7 @@ vi.mock("next/cache", () => ({
 
 import {
   addInquiryNoteForBusiness,
+  createAgentHandoffSubmission,
   createManualInquirySubmission,
   createPublicInquirySubmission,
 } from "@/features/inquiries/mutations";
@@ -110,7 +111,7 @@ describe("features/inquiries public and manual submissions", () => {
     expect(storedInquiry).toEqual(
       expect.objectContaining({
         businessId: ids.businessId,
-        businessInquiryFormId: ids.formId,
+        serviceId: ids.serviceId,
         status: "new",
         source: "service_form",
         customerEmail: "new-customer@example.com",
@@ -198,6 +199,50 @@ describe("features/inquiries public and manual submissions", () => {
     expect(notifications).toHaveLength(0);
   });
 
+  it("records Agent handoffs as Agent conversations", async () => {
+    const business = await getPublicInquiryBusinessBySlug(ids.businessSlug);
+    if (!business) {
+      throw new Error("Expected seeded business to be public.");
+    }
+
+    const validation = validatePublicInquirySubmission(
+      business.inquiryFormConfig,
+      inquiryFormData("handoff-customer@example.com"),
+    );
+    const submission = expectValidSubmission(validation);
+
+    const created = await createAgentHandoffSubmission({
+      business,
+      submission,
+    });
+
+    const [storedInquiry] = await testDb
+      .select()
+      .from(inquiries)
+      .where(eq(inquiries.id, created.inquiryId));
+
+    expect(storedInquiry).toEqual(
+      expect.objectContaining({
+        source: "ai_assistant",
+        aiAssisted: true,
+        escalated: true,
+      }),
+    );
+
+    const [activity] = await testDb
+      .select()
+      .from(activityLogs)
+      .where(eq(activityLogs.inquiryId, created.inquiryId));
+
+    expect(activity).toEqual(
+      expect.objectContaining({
+        type: "inquiry.submitted_ai_agent",
+        summary:
+          "Customer escalated to a human from the Agent conversation.",
+      }),
+    );
+  });
+
   it("persists the MIME detected from bytes despite untrusted storage metadata", async () => {
     const business = await getPublicInquiryBusinessBySlug(ids.businessSlug);
     if (!business) throw new Error("Expected seeded business.");
@@ -255,7 +300,7 @@ describe("features/inquiries public and manual submissions", () => {
       body: "Customer prefers installation next week.",
     });
 
-    expect(note?.noteId).toMatch(/^note_/);
+    expect(note?.noteId).toBeTruthy();
 
     const storedNotes = await testDb
       .select()

@@ -167,10 +167,19 @@ const nextConfig: NextConfig = {
   async redirects() {
     return [
       {
+        source: "/account/billing/checkout",
+        destination: "/billing/checkout",
+        permanent: true,
+      },
+      {
         source: "/b/:slug",
         destination: "/b/:slug/inquire",
         permanent: true,
       },
+      // The legacy `/products` redirect lives in the authenticated business
+      // dashboard route, not here. A global `/:businessSlug/products` rule
+      // also matches `/b/products` and `/inquire/products` for a business
+      // whose slug is `products`, breaking its public inquiry pages.
       {
         source: "/dashboard",
         destination: "/home",
@@ -263,6 +272,14 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  async rewrites() {
+    return [
+      {
+        source: "/api/account/billing/checkout",
+        destination: "/api/billing/checkout",
+      },
+    ];
+  },
   async headers() {
     return [
       {
@@ -283,6 +300,10 @@ const nextConfig: NextConfig = {
       },
       {
         source: "/account/:path*",
+        headers: authenticatedAppShellHeaders,
+      },
+      {
+        source: "/billing/checkout",
         headers: authenticatedAppShellHeaders,
       },
       {

@@ -14,7 +14,7 @@ import { Button } from "@/components/shared/button";
 import { ChevronUpDownSmall } from "@/components/shared/chevrons";
 
 /**
- * Dropdown opened from the sidebar's workspace switcher (avatar + name +
+ * Dropdown opened from the sidebar's business switcher (avatar + name +
  * chevron) at the top. Floats to the right of the sidebar with the same panel
  * surface and appear animation as the team menu: white, 1px border, radius 16,
  * p 10, dropdown shadow. Lists the users with access (20px tinted-initial

@@ -9,7 +9,7 @@ import { NeedsAttentionTabs } from "@/features/businesses/components/needs-atten
 import { EmptyQueueState } from "@/features/businesses/components/empty-queue-state";
 import { buildNeedsAttentionItems } from "@/features/businesses/needs-attention-items";
 import { buildHomeKpiStats } from "@/features/businesses/home-content";
-import { OwnerAssistantHomeWidget } from "@/features/owner-assistant/components/owner-assistant-home-widget";
+import { AssistantHomeWidget } from "@/features/assistant/components/assistant-home-widget";
 import {
   getBusinessOverviewData,
   getBusinessDashboardSummaryData,
@@ -54,10 +54,10 @@ export const instant = true;
 export default function BusinessHomePage({ params }: HomePageProps) {
   return (
     <div className="home-page-container home-entrance">
-      {/* Owner Assistant — centred greeting, stats, and composer */}
+      {/* Assistant — centred greeting, stats, and composer */}
       <section className="home-entrance-section w-full max-w-5xl mx-auto">
         <Suspense fallback={null}>
-          <OwnerAssistantWidgetRegion params={params} />
+          <AssistantWidgetRegion params={params} />
         </Suspense>
       </section>
 
@@ -100,7 +100,7 @@ export default function BusinessHomePage({ params }: HomePageProps) {
 // Suspense-wrapped async child server components
 // ---------------------------------------------------------------------------
 
-async function OwnerAssistantWidgetRegion({
+async function AssistantWidgetRegion({
   params,
 }: {
   params: Promise<{ businessSlug: string }>;
@@ -118,7 +118,7 @@ async function OwnerAssistantWidgetRegion({
   ]);
 
   return (
-    <OwnerAssistantHomeWidget
+    <AssistantHomeWidget
       businessSlug={businessSlug}
       counts={overview.counts}
       followUpCounts={followUpOverview.counts}

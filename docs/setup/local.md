@@ -247,7 +247,7 @@ DATABASE_MIGRATION_URL=postgresql://postgres.<project-ref>:<db-password>@aws-<re
 
 `npm run db:local:setup` (or `npm run db:seed` directly) resets local
 application data and creates deterministic sample accounts for Free, Pro, and
-Business plans, multiple businesses, inquiry forms, inquiries, quotes,
+Business plans, multiple businesses, services, inquiries, quotes,
 follow-ups, notifications, and billing records. Both scripts refuse
 non-local databases (`ALLOW_REMOTE_SEED=1` overrides, for disposable remote
 dev databases only).
@@ -316,15 +316,15 @@ Use one canonical route set in docs and tests:
 - Business home: `/<slug>/home` (or `/<slug>` redirects here)
 - Inquiries: `/<slug>/inquiries`
 - Quotes: `/<slug>/quotes`
-- Forms: `/<slug>/forms`
+- Services: `/<slug>/services`
 - Members: `/<slug>/settings/members`
 - Settings hub: `/<slug>/settings`
 - Settings sections:
   - General: `/<slug>/settings/general`
   - Profile: `/<slug>/settings/profile`
   - Quote defaults: `/<slug>/settings/quote`
-  - Products: `/<slug>/products`
-  - Knowledge files: managed from the inquiry and quote workflows when enabled
+  - Quote library: `/<slug>/quote-library`
+  - Assistant and knowledge: `/<slug>/settings/ai`
   - Billing: `/<slug>/settings/billing`
 
 ### Product Notes
@@ -337,4 +337,4 @@ Use one canonical route set in docs and tests:
   - `General Service Business`
 - Public inquiry pages can include supporting cards, optional showcase images, and editable intro copy.
 
-Products and Members are main dashboard destinations. Do not document the removed settings pricing or settings members routes.
+The quote library and members are main dashboard destinations. Do not document the removed settings pricing or settings members routes.

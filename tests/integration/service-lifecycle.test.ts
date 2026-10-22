@@ -46,29 +46,29 @@ vi.mock("next/headers", async () => {
 vi.mock("next/server", () => ({ after: vi.fn() }));
 
 import {
-  deleteBusinessInquiryFormAction,
-  updateBusinessInquiryPageAction,
+  deleteServiceAction,
+  updateServicePageAction,
 } from "@/features/settings/actions";
 
 import {
-  archiveBusinessInquiryForm,
-  createBusinessInquiryForm,
-  deleteBusinessInquiryForm,
-  duplicateBusinessInquiryForm,
-  setBusinessInquiryFormPublicState,
-  setDefaultBusinessInquiryForm,
-  unarchiveBusinessInquiryForm,
-  updateBusinessInquiryFormSettings,
-  updateBusinessInquiryPageSettings,
+  archiveService,
+  createService,
+  deleteService,
+  duplicateService,
+  setServicePublicState,
+  setDefaultService,
+  unarchiveService,
+  updateServiceSettings,
+  updateServicePageSettings,
 } from "@/features/settings/mutations";
-import { businessInquiryPageSettingsSchema } from "@/features/settings/schemas";
+import { servicePageSettingsSchema } from "@/features/settings/schemas";
 import {
   createInquiryFormConfigDefaults,
   inquiryFormConfigSchema,
   type InquiryFormFieldDefinition,
 } from "@/features/inquiries/form-config";
 import {
-  businessInquiryForms,
+  services,
   businessSubscriptions,
   inquiries,
 } from "@/lib/db/schema";
@@ -119,11 +119,11 @@ async function revokePlan(businessId: string) {
 async function getFormBySlug(businessId: string, slug: string) {
   const [row] = await testDb
     .select()
-    .from(businessInquiryForms)
+    .from(services)
     .where(
       and(
-        eq(businessInquiryForms.businessId, businessId),
-        eq(businessInquiryForms.slug, slug),
+        eq(services.businessId, businessId),
+        eq(services.slug, slug),
       ),
     )
     .limit(1);
@@ -139,21 +139,21 @@ async function getFormIdBySlug(businessId: string, slug: string) {
 
 async function countForms(businessId: string) {
   const rows = await testDb
-    .select({ id: businessInquiryForms.id })
-    .from(businessInquiryForms)
-    .where(eq(businessInquiryForms.businessId, businessId));
+    .select({ id: services.id })
+    .from(services)
+    .where(eq(services.businessId, businessId));
 
   return rows.length;
 }
 
 async function listDefaultFormIds(businessId: string) {
   return testDb
-    .select({ id: businessInquiryForms.id })
-    .from(businessInquiryForms)
+    .select({ id: services.id })
+    .from(services)
     .where(
       and(
-        eq(businessInquiryForms.businessId, businessId),
-        eq(businessInquiryForms.isDefault, true),
+        eq(services.businessId, businessId),
+        eq(services.isDefault, true),
       ),
     );
 }
@@ -161,8 +161,8 @@ async function listDefaultFormIds(businessId: string) {
 function buildPageSettings(
   overrides: Record<string, unknown> = {},
 ) {
-  return businessInquiryPageSettingsSchema.parse({
-    name: "Workflow Form",
+  return servicePageSettingsSchema.parse({
+    name: "Workflow Service",
     slug: "workflow-form",
     businessType: BUSINESS_TYPE,
     publicInquiryEnabled: "true",
@@ -224,7 +224,7 @@ describe("service lifecycle mutations", () => {
 
   describe("create", () => {
     it("creates a service that is not the default and has a unique slug", async () => {
-      const result = await createBusinessInquiryForm({
+      const result = await createService({
         businessId: ids.businessId,
         actorUserId: ACTOR_USER_ID,
         values: { name: "Deck resurfacing", businessType: BUSINESS_TYPE },
@@ -233,7 +233,7 @@ describe("service lifecycle mutations", () => {
       expect(result.ok).toBe(true);
       if (!result.ok) return;
 
-      const created = await getFormBySlug(ids.businessId, result.formSlug);
+      const created = await getFormBySlug(ids.businessId, result.serviceSlug);
       expect(created).not.toBeNull();
       expect(created?.isDefault).toBe(false);
       expect(created?.archivedAt).toBeNull();
@@ -241,12 +241,12 @@ describe("service lifecycle mutations", () => {
     });
 
     it("gives a second service with the same name a distinct slug", async () => {
-      const first = await createBusinessInquiryForm({
+      const first = await createService({
         businessId: ids.businessId,
         actorUserId: ACTOR_USER_ID,
         values: { name: "Deck resurfacing", businessType: BUSINESS_TYPE },
       });
-      const second = await createBusinessInquiryForm({
+      const second = await createService({
         businessId: ids.businessId,
         actorUserId: ACTOR_USER_ID,
         values: { name: "Deck resurfacing", businessType: BUSINESS_TYPE },
@@ -256,14 +256,14 @@ describe("service lifecycle mutations", () => {
       expect(second.ok).toBe(true);
       if (!first.ok || !second.ok) return;
 
-      expect(second.formSlug).not.toBe(first.formSlug);
+      expect(second.serviceSlug).not.toBe(first.serviceSlug);
     });
 
     it("refuses to exceed the plan's live-service allowance", async () => {
       // No subscription row means the free plan, which allows one live service.
       await revokePlan(ids.otherBusinessId);
 
-      const result = await createBusinessInquiryForm({
+      const result = await createService({
         businessId: ids.otherBusinessId,
         actorUserId: ACTOR_USER_ID,
         values: { name: "Second service", businessType: BUSINESS_TYPE },
@@ -275,7 +275,7 @@ describe("service lifecycle mutations", () => {
     });
 
     it("rejects a business that does not exist", async () => {
-      const result = await createBusinessInquiryForm({
+      const result = await createService({
         businessId: "does-not-exist",
         actorUserId: ACTOR_USER_ID,
         values: { name: "Deck resurfacing", businessType: BUSINESS_TYPE },
@@ -289,12 +289,12 @@ describe("service lifecycle mutations", () => {
 
   describe("page publication", () => {
     it.each([true, false])("preserves a manager's stored publication state (%s)", async (published) => {
-      await testDb.update(businessInquiryForms)
+      await testDb.update(services)
         .set({ isDefault: false, publicInquiryEnabled: published })
-        .where(eq(businessInquiryForms.id, ids.formId));
+        .where(eq(services.id, ids.serviceId));
       authState.userId = ids.managerUserId;
 
-      const result = await updateBusinessInquiryPageAction("workflow-form", {}, buildPageFormData({
+      const result = await updateServicePageAction("workflow-form", {}, buildPageFormData({
         publicInquiryEnabled: String(!published),
         headline: "Manager's updated headline",
       }));
@@ -306,11 +306,11 @@ describe("service lifecycle mutations", () => {
     });
 
     it.each([true, false])("allows an owner to change publication from %s", async (published) => {
-      await testDb.update(businessInquiryForms)
+      await testDb.update(services)
         .set({ isDefault: false, publicInquiryEnabled: published })
-        .where(eq(businessInquiryForms.id, ids.formId));
+        .where(eq(services.id, ids.serviceId));
 
-      const result = await updateBusinessInquiryPageAction("workflow-form", {}, buildPageFormData({
+      const result = await updateServicePageAction("workflow-form", {}, buildPageFormData({
         publicInquiryEnabled: String(!published),
       }));
 
@@ -319,7 +319,7 @@ describe("service lifecycle mutations", () => {
     });
 
     it("allows editing a published service after a downgrade below current usage", async () => {
-      const created = await createBusinessInquiryForm({
+      const created = await createService({
         businessId: ids.businessId,
         actorUserId: ACTOR_USER_ID,
         values: { name: "Second live service", businessType: BUSINESS_TYPE },
@@ -327,10 +327,10 @@ describe("service lifecycle mutations", () => {
       expect(created.ok).toBe(true);
       await revokePlan(ids.businessId);
 
-      const result = await updateBusinessInquiryPageSettings({
+      const result = await updateServicePageSettings({
         businessId: ids.businessId,
         actorUserId: ACTOR_USER_ID,
-        formSlug: "workflow-form",
+        serviceSlug: "workflow-form",
         values: buildPageSettings({ headline: "Updated after downgrade" }),
       });
 
@@ -339,35 +339,35 @@ describe("service lifecycle mutations", () => {
     });
 
     it("enforces the live-service allowance when an owner publishes a draft through page save", async () => {
-      const created = await createBusinessInquiryForm({
+      const created = await createService({
         businessId: ids.businessId,
         actorUserId: ACTOR_USER_ID,
         values: { name: "Draft service", businessType: BUSINESS_TYPE },
       });
       expect(created.ok).toBe(true);
       if (!created.ok) return;
-      await testDb.update(businessInquiryForms)
+      await testDb.update(services)
         .set({ publicInquiryEnabled: false })
-        .where(eq(businessInquiryForms.slug, created.formSlug));
+        .where(eq(services.slug, created.serviceSlug));
       await revokePlan(ids.businessId);
 
-      const result = await updateBusinessInquiryPageAction(created.formSlug, {}, buildPageFormData({
+      const result = await updateServicePageAction(created.serviceSlug, {}, buildPageFormData({
         name: "Draft service",
-        slug: created.formSlug,
+        slug: created.serviceSlug,
       }));
 
       expect(result.error).toContain("This plan supports 1 live service");
-      expect((await getFormBySlug(ids.businessId, created.formSlug))?.publicInquiryEnabled).toBe(false);
+      expect((await getFormBySlug(ids.businessId, created.serviceSlug))?.publicInquiryEnabled).toBe(false);
     });
   });
 
   describe("duplicate", () => {
     it("refuses to duplicate the only live service on the free plan", async () => {
       const before = await countForms(ids.otherBusinessId);
-      const result = await duplicateBusinessInquiryForm({
+      const result = await duplicateService({
         businessId: ids.otherBusinessId,
         actorUserId: ids.outsiderUserId,
-        targetFormId: ids.otherFormId,
+        targetServiceId: ids.otherServiceId,
       });
 
       expect(result).toEqual({ ok: false, reason: "live-form-limit" });
@@ -375,10 +375,10 @@ describe("service lifecycle mutations", () => {
     });
 
     it("can duplicate a draft when the live-service allowance is full", async () => {
-      await testDb.update(businessInquiryForms)
+      await testDb.update(services)
         .set({ isDefault: false, publicInquiryEnabled: false })
-        .where(eq(businessInquiryForms.id, ids.formId));
-      const live = await createBusinessInquiryForm({
+        .where(eq(services.id, ids.serviceId));
+      const live = await createService({
         businessId: ids.businessId,
         actorUserId: ACTOR_USER_ID,
         values: { name: "Live service", businessType: BUSINESS_TYPE },
@@ -386,24 +386,24 @@ describe("service lifecycle mutations", () => {
       expect(live.ok).toBe(true);
       await revokePlan(ids.businessId);
 
-      const result = await duplicateBusinessInquiryForm({
+      const result = await duplicateService({
         businessId: ids.businessId,
         actorUserId: ACTOR_USER_ID,
-        targetFormId: ids.formId,
+        targetServiceId: ids.serviceId,
       });
 
       expect(result.ok).toBe(true);
       if (!result.ok) return;
-      expect((await getFormBySlug(ids.businessId, result.formSlug))?.publicInquiryEnabled).toBe(false);
+      expect((await getFormBySlug(ids.businessId, result.serviceSlug))?.publicInquiryEnabled).toBe(false);
     });
   });
 
   describe("the default service stays published", () => {
     it("refuses to unpublish the default service through the page action", async () => {
-      const result = await updateBusinessInquiryPageSettings({
+      const result = await updateServicePageSettings({
         businessId: ids.businessId,
         actorUserId: ACTOR_USER_ID,
-        formSlug: "workflow-form",
+        serviceSlug: "workflow-form",
         values: buildPageSettings({ publicInquiryEnabled: "false" }),
       });
 
@@ -413,10 +413,10 @@ describe("service lifecycle mutations", () => {
     });
 
     it("refuses to unpublish the default service through the publish action", async () => {
-      const result = await setBusinessInquiryFormPublicState({
+      const result = await setServicePublicState({
         businessId: ids.businessId,
         actorUserId: ACTOR_USER_ID,
-        targetFormId: ids.formId,
+        targetServiceId: ids.serviceId,
         publicInquiryEnabled: false,
       });
 
@@ -426,7 +426,7 @@ describe("service lifecycle mutations", () => {
     });
 
     it("refuses to make an unpublished service the default", async () => {
-      const created = await createBusinessInquiryForm({
+      const created = await createService({
         businessId: ids.businessId,
         actorUserId: ACTOR_USER_ID,
         values: { name: "Draft service", businessType: BUSINESS_TYPE },
@@ -435,21 +435,21 @@ describe("service lifecycle mutations", () => {
       expect(created.ok).toBe(true);
       if (!created.ok) return;
 
-      const formId = await getFormIdBySlug(ids.businessId, created.formSlug);
-      expect(formId).not.toBeNull();
+      const serviceId = await getFormIdBySlug(ids.businessId, created.serviceSlug);
+      expect(serviceId).not.toBeNull();
 
-      const unpublished = await setBusinessInquiryFormPublicState({
+      const unpublished = await setServicePublicState({
         businessId: ids.businessId,
         actorUserId: ACTOR_USER_ID,
-        targetFormId: formId as string,
+        targetServiceId: serviceId as string,
         publicInquiryEnabled: false,
       });
       expect(unpublished.ok).toBe(true);
 
-      const result = await setDefaultBusinessInquiryForm({
+      const result = await setDefaultService({
         businessId: ids.businessId,
         actorUserId: ACTOR_USER_ID,
-        targetFormId: formId as string,
+        targetServiceId: serviceId as string,
       });
 
       expect(result.ok).toBe(false);
@@ -460,7 +460,7 @@ describe("service lifecycle mutations", () => {
 
   describe("default service bookkeeping", () => {
     it("leaves exactly one default service after switching", async () => {
-      const created = await createBusinessInquiryForm({
+      const created = await createService({
         businessId: ids.businessId,
         actorUserId: ACTOR_USER_ID,
         values: { name: "Second service", businessType: BUSINESS_TYPE },
@@ -469,27 +469,27 @@ describe("service lifecycle mutations", () => {
       expect(created.ok).toBe(true);
       if (!created.ok) return;
 
-      const formId = await getFormIdBySlug(ids.businessId, created.formSlug);
-      expect(formId).not.toBeNull();
+      const serviceId = await getFormIdBySlug(ids.businessId, created.serviceSlug);
+      expect(serviceId).not.toBeNull();
 
-      const result = await setDefaultBusinessInquiryForm({
+      const result = await setDefaultService({
         businessId: ids.businessId,
         actorUserId: ACTOR_USER_ID,
-        targetFormId: formId as string,
+        targetServiceId: serviceId as string,
       });
 
       expect(result.ok).toBe(true);
 
       const defaults = await listDefaultFormIds(ids.businessId);
       expect(defaults).toHaveLength(1);
-      expect(defaults[0].id).toBe(formId);
+      expect(defaults[0].id).toBe(serviceId);
     });
 
     it("does not let one business change another business's default", async () => {
-      const result = await setDefaultBusinessInquiryForm({
+      const result = await setDefaultService({
         businessId: ids.otherBusinessId,
         actorUserId: ACTOR_USER_ID,
-        targetFormId: ids.formId,
+        targetServiceId: ids.serviceId,
       });
 
       expect(result.ok).toBe(false);
@@ -500,10 +500,10 @@ describe("service lifecycle mutations", () => {
 
   describe("archive and unarchive", () => {
     it("refuses to archive the default service", async () => {
-      const result = await archiveBusinessInquiryForm({
+      const result = await archiveService({
         businessId: ids.businessId,
         actorUserId: ACTOR_USER_ID,
-        targetFormId: ids.formId,
+        targetServiceId: ids.serviceId,
       });
 
       expect(result.ok).toBe(false);
@@ -515,14 +515,14 @@ describe("service lifecycle mutations", () => {
       // The only active service is not the default, so the last-active guard
       // is the one that fires (the default guard would fire first).
       await testDb
-        .update(businessInquiryForms)
+        .update(services)
         .set({ isDefault: false })
-        .where(eq(businessInquiryForms.id, ids.otherFormId));
+        .where(eq(services.id, ids.otherServiceId));
 
-      const result = await archiveBusinessInquiryForm({
+      const result = await archiveService({
         businessId: ids.otherBusinessId,
         actorUserId: ACTOR_USER_ID,
-        targetFormId: ids.otherFormId,
+        targetServiceId: ids.otherServiceId,
       });
 
       expect(result.ok).toBe(false);
@@ -531,7 +531,7 @@ describe("service lifecycle mutations", () => {
     });
 
     it("archives a non-default service and restores it", async () => {
-      const created = await createBusinessInquiryForm({
+      const created = await createService({
         businessId: ids.businessId,
         actorUserId: ACTOR_USER_ID,
         values: { name: "Temporary service", businessType: BUSINESS_TYPE },
@@ -540,96 +540,96 @@ describe("service lifecycle mutations", () => {
       expect(created.ok).toBe(true);
       if (!created.ok) return;
 
-      const formId = await getFormIdBySlug(ids.businessId, created.formSlug);
-      expect(formId).not.toBeNull();
+      const serviceId = await getFormIdBySlug(ids.businessId, created.serviceSlug);
+      expect(serviceId).not.toBeNull();
 
-      const archived = await archiveBusinessInquiryForm({
+      const archived = await archiveService({
         businessId: ids.businessId,
         actorUserId: ACTOR_USER_ID,
-        targetFormId: formId as string,
+        targetServiceId: serviceId as string,
       });
 
       expect(archived.ok).toBe(true);
 
-      const afterArchive = await getFormBySlug(ids.businessId, created.formSlug);
+      const afterArchive = await getFormBySlug(ids.businessId, created.serviceSlug);
       expect(afterArchive?.archivedAt).not.toBeNull();
 
-      const restored = await unarchiveBusinessInquiryForm({
+      const restored = await unarchiveService({
         businessId: ids.businessId,
         actorUserId: ACTOR_USER_ID,
-        targetFormId: formId as string,
+        targetServiceId: serviceId as string,
       });
 
       expect(restored.ok).toBe(true);
 
-      const afterRestore = await getFormBySlug(ids.businessId, created.formSlug);
+      const afterRestore = await getFormBySlug(ids.businessId, created.serviceSlug);
       expect(afterRestore?.archivedAt).toBeNull();
     });
   });
 
   describe("delete", () => {
     it("deletes an archived service when only one active service remains", async () => {
-      const created = await createBusinessInquiryForm({
+      const created = await createService({
         businessId: ids.businessId,
         actorUserId: ACTOR_USER_ID,
         values: { name: "Archived service", businessType: BUSINESS_TYPE },
       });
       expect(created.ok).toBe(true);
       if (!created.ok) return;
-      const targetFormId = (await getFormIdBySlug(ids.businessId, created.formSlug))!;
-      const archived = await archiveBusinessInquiryForm({
+      const targetServiceId = (await getFormIdBySlug(ids.businessId, created.serviceSlug))!;
+      const archived = await archiveService({
         businessId: ids.businessId,
         actorUserId: ACTOR_USER_ID,
-        targetFormId,
+        targetServiceId,
       });
       expect(archived.ok).toBe(true);
 
-      const result = await deleteBusinessInquiryForm({
+      const result = await deleteService({
         businessId: ids.businessId,
         actorUserId: ACTOR_USER_ID,
-        targetFormId,
+        targetServiceId,
       });
 
       expect(result.ok).toBe(true);
-      expect(await getFormBySlug(ids.businessId, created.formSlug)).toBeNull();
-      expect(await listDefaultFormIds(ids.businessId)).toEqual([{ id: ids.formId }]);
+      expect(await getFormBySlug(ids.businessId, created.serviceSlug)).toBeNull();
+      expect(await listDefaultFormIds(ids.businessId)).toEqual([{ id: ids.serviceId }]);
     });
 
     it("preserves the default and asks for a published replacement when only drafts remain", async () => {
-      const created = await createBusinessInquiryForm({
+      const created = await createService({
         businessId: ids.businessId,
         actorUserId: ACTOR_USER_ID,
         values: { name: "Draft replacement", businessType: BUSINESS_TYPE },
       });
       expect(created.ok).toBe(true);
       if (!created.ok) return;
-      await testDb.update(businessInquiryForms)
+      await testDb.update(services)
         .set({ publicInquiryEnabled: false })
-        .where(and(eq(businessInquiryForms.businessId, ids.businessId), eq(businessInquiryForms.slug, created.formSlug)));
-      await testDb.update(inquiries).set({ businessInquiryFormId: null })
+        .where(and(eq(services.businessId, ids.businessId), eq(services.slug, created.serviceSlug)));
+      await testDb.update(inquiries).set({ serviceId: null })
         .where(eq(inquiries.businessId, ids.businessId));
       const before = await getFormBySlug(ids.businessId, "workflow-form");
 
-      const result = await deleteBusinessInquiryForm({
+      const result = await deleteService({
         businessId: ids.businessId,
         actorUserId: ACTOR_USER_ID,
-        targetFormId: ids.formId,
+        targetServiceId: ids.serviceId,
       });
       expect(result).toEqual({ ok: false, reason: "invalid-target" });
 
       const formData = new FormData();
-      formData.set("targetFormId", ids.formId);
-      const actionResult = await deleteBusinessInquiryFormAction({}, formData);
+      formData.set("targetServiceId", ids.serviceId);
+      const actionResult = await deleteServiceAction({}, formData);
       expect(actionResult.error).toBe("Publish another service before deleting the default service.");
       expect(await getFormBySlug(ids.businessId, "workflow-form")).toEqual(before);
-      expect(await listDefaultFormIds(ids.businessId)).toEqual([{ id: ids.formId }]);
+      expect(await listDefaultFormIds(ids.businessId)).toEqual([{ id: ids.serviceId }]);
     });
 
     it("refuses to delete the last active service", async () => {
-      const result = await deleteBusinessInquiryForm({
+      const result = await deleteService({
         businessId: ids.otherBusinessId,
         actorUserId: ACTOR_USER_ID,
-        targetFormId: ids.otherFormId,
+        targetServiceId: ids.otherServiceId,
       });
 
       expect(result.ok).toBe(false);
@@ -638,7 +638,7 @@ describe("service lifecycle mutations", () => {
     });
 
     it("refuses to delete a service with linked inquiries", async () => {
-      const created = await createBusinessInquiryForm({
+      const created = await createService({
         businessId: ids.businessId,
         actorUserId: ACTOR_USER_ID,
         values: { name: "Service with inquiries", businessType: BUSINESS_TYPE },
@@ -647,18 +647,18 @@ describe("service lifecycle mutations", () => {
       expect(created.ok).toBe(true);
       if (!created.ok) return;
 
-      const formId = await getFormIdBySlug(ids.businessId, created.formSlug);
-      expect(formId).not.toBeNull();
+      const serviceId = await getFormIdBySlug(ids.businessId, created.serviceSlug);
+      expect(serviceId).not.toBeNull();
 
       await testDb
         .update(inquiries)
-        .set({ businessInquiryFormId: formId })
+        .set({ serviceId: serviceId })
         .where(eq(inquiries.id, ids.inquiryId));
 
-      const result = await deleteBusinessInquiryForm({
+      const result = await deleteService({
         businessId: ids.businessId,
         actorUserId: ACTOR_USER_ID,
-        targetFormId: formId as string,
+        targetServiceId: serviceId as string,
       });
 
       expect(result.ok).toBe(false);
@@ -667,7 +667,7 @@ describe("service lifecycle mutations", () => {
     });
 
     it("promotes a published service when the default is deleted", async () => {
-      const created = await createBusinessInquiryForm({
+      const created = await createService({
         businessId: ids.businessId,
         actorUserId: ACTOR_USER_ID,
         values: { name: "Replacement service", businessType: BUSINESS_TYPE },
@@ -679,15 +679,15 @@ describe("service lifecycle mutations", () => {
       // The fixture default has linked inquiries, so detach them first.
       await testDb
         .update(inquiries)
-        .set({ businessInquiryFormId: null })
+        .set({ serviceId: null })
         .where(
           eq(inquiries.businessId, ids.businessId),
         );
 
-      const result = await deleteBusinessInquiryForm({
+      const result = await deleteService({
         businessId: ids.businessId,
         actorUserId: ACTOR_USER_ID,
-        targetFormId: ids.formId,
+        targetServiceId: ids.serviceId,
       });
 
       expect(result.ok).toBe(true);
@@ -695,14 +695,14 @@ describe("service lifecycle mutations", () => {
       const defaults = await listDefaultFormIds(ids.businessId);
       expect(defaults).toHaveLength(1);
       expect(defaults[0].id).toBe(
-        await getFormIdBySlug(ids.businessId, created.formSlug),
+        await getFormIdBySlug(ids.businessId, created.serviceSlug),
       );
     });
   });
 
   describe("business scoping", () => {
     it("does not update a service that belongs to another business", async () => {
-      const created = await createBusinessInquiryForm({
+      const created = await createService({
         businessId: ids.businessId,
         actorUserId: ACTOR_USER_ID,
         values: { name: "Scoped update", businessType: BUSINESS_TYPE },
@@ -711,13 +711,13 @@ describe("service lifecycle mutations", () => {
       expect(created.ok).toBe(true);
       if (!created.ok) return;
 
-      const before = await getFormBySlug(ids.businessId, created.formSlug);
+      const before = await getFormBySlug(ids.businessId, created.serviceSlug);
 
       // The same slug does not exist in the other business.
-      const result = await updateBusinessInquiryFormSettings({
+      const result = await updateServiceSettings({
         businessId: ids.otherBusinessId,
         actorUserId: ACTOR_USER_ID,
-        formSlug: created.formSlug,
+        serviceSlug: created.serviceSlug,
         values: {
           businessType: BUSINESS_TYPE,
           inquiryFormConfig: inquiryFormConfigSchema.parse(
@@ -732,7 +732,7 @@ describe("service lifecycle mutations", () => {
       if (result.ok) return;
       expect(result.reason).toBe("not-found");
 
-      const after = await getFormBySlug(ids.businessId, created.formSlug);
+      const after = await getFormBySlug(ids.businessId, created.serviceSlug);
       expect(after?.updatedAt.getTime()).toBe(before?.updatedAt.getTime());
     });
 
@@ -740,7 +740,7 @@ describe("service lifecycle mutations", () => {
       const before = await countForms(ids.businessId);
       const otherBefore = await countForms(ids.otherBusinessId);
 
-      await createBusinessInquiryForm({
+      await createService({
         businessId: ids.businessId,
         actorUserId: ACTOR_USER_ID,
         values: { name: "Scoped service", businessType: BUSINESS_TYPE },
@@ -774,10 +774,10 @@ describe("service lifecycle mutations", () => {
         projectFields: [...config.projectFields, ...customFields],
       });
 
-      const result = await updateBusinessInquiryFormSettings({
+      const result = await updateServiceSettings({
         businessId: ids.businessId,
         actorUserId: ACTOR_USER_ID,
-        formSlug: "workflow-form",
+        serviceSlug: "workflow-form",
         values: {
           businessType: BUSINESS_TYPE,
           inquiryFormConfig: withCustomFields,

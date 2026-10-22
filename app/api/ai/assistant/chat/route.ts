@@ -11,7 +11,7 @@ import {
   extractUiMessageText,
   uiMessageSchema,
 } from "@/lib/ai/chat-request";
-import { runOwnerAssistant } from "@/features/owner-assistant/orchestrator";
+import { runAssistant } from "@/features/assistant/orchestrator";
 import { getBusinessSettingsForBusiness } from "@/features/settings/queries";
 
 // Ephemeral chat attachments ride along as data URLs in the JSON body (never
@@ -23,7 +23,7 @@ const chatAttachmentSchema = z.object({
   dataUrl: z.string().min(1).max(4_000_000),
 });
 
-const ownerAssistantChatRequestSchema = z.object({
+const assistantChatRequestSchema = z.object({
   businessSlug: z.string().min(1),
   sessionId: z.string().optional(),
   // AI SDK UI messages (sent by useChat) — the latest user turn is the input.
@@ -36,9 +36,9 @@ function extractText(message: z.infer<typeof uiMessageSchema>): string {
 }
 
 /**
- * Owner Assistant Chat API Route
+ * Assistant Chat API Route
  *
- * POST /api/ai/owner-assistant/chat
+ * POST /api/ai/assistant/chat
  * Body: { businessSlug, sessionId?, messages: UIMessage[] }
  * Returns: UI message stream (tool calls/results as structured parts)
  *
@@ -56,7 +56,7 @@ export async function POST(request: Request) {
 
     // Parse and validate request body
     const body = await request.json().catch(() => null);
-    const parsed = ownerAssistantChatRequestSchema.safeParse(body);
+    const parsed = assistantChatRequestSchema.safeParse(body);
 
     if (!parsed.success) {
       return NextResponse.json(
@@ -100,7 +100,7 @@ export async function POST(request: Request) {
     // bursts from a compromised account).
     const burstAllowed = await assertBusinessActionRateLimit({
       action: "ai-file-import",
-      scope: `owner-assistant:${business.id}:${session.user.id}`,
+      scope: `assistant:${business.id}:${session.user.id}`,
       limit: 20,
       windowMs: 60_000,
     });
@@ -117,8 +117,8 @@ export async function POST(request: Request) {
     // context, so read them here (already normalized and capped at 1k chars).
     const settings = await getBusinessSettingsForBusiness(business.id);
 
-    // Run the owner assistant (handles all business logic, tool execution, streaming)
-    const { response, sessionId: canonicalSessionId } = await runOwnerAssistant({
+    // Run the assistant (handles all business logic, tool execution, streaming)
+    const { response, sessionId: canonicalSessionId } = await runAssistant({
       businessId: business.id,
       businessName: business.name,
       businessSlug: business.slug,
@@ -126,7 +126,7 @@ export async function POST(request: Request) {
       userRole: role,
       plan: business.plan,
       businessTimezone: business.timezone,
-      businessInstructions: settings?.aiAgentInstructions,
+      businessInstructions: settings?.agentInstructions,
       sessionId,
       messages: messages.map((message) => ({
         role: message.role as "user" | "assistant",

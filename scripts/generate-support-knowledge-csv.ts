@@ -8,10 +8,10 @@ const outputDirectory = path.join(process.cwd(), "support", "knowledge");
 const faqRows: CsvRow[] = [
   {
     category: "Onboarding",
-    question: "How do I create my first business workspace?",
+    question: "How do I create my first business business?",
     answer:
       "After signup, complete onboarding to create your first business. You can rename it any time in Settings > General.",
-    tags: "onboarding,business-setup,workspace",
+    tags: "onboarding,business-setup,business",
     channel: "chat",
   },
   {
@@ -86,7 +86,7 @@ const faqRows: CsvRow[] = [
   },
   {
     category: "Security",
-    question: "How do I secure access to my workspace?",
+    question: "How do I secure access to my business?",
     answer:
       "Use strong account passwords, review team member roles regularly, and remove old members from Settings > Members.",
     tags: "security,members,access-control",
@@ -256,7 +256,7 @@ const onboardingGuideRows: CsvRow[] = [
     title: "Publish your inquiry form",
     steps:
       "Go to Forms, choose your business type, customize fields, and publish the form link.",
-    expected_outcome: "Customers can submit inquiries to your workspace",
+    expected_outcome: "Customers can submit inquiries to your business",
     related_feature: "forms",
   },
   {

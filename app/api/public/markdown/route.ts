@@ -6,8 +6,8 @@ Requo is quote and inquiry management software for service businesses. It connec
 
 ## Capabilities
 
-- **Inquiries**: Capture requests through public forms, a customer-facing Agent, or manual entry; search, filter, qualify, and detect potential duplicates.
-- **Quotes**: Create professional quotes from inquiries, use products and quote templates, share by public link or Requo email, and track draft, sent, viewed, accepted, rejected, expired, and voided states.
+- **Inquiries**: Capture requests through public service pages, a customer-facing Agent, or manual entry; search, filter, qualify, and detect potential duplicates.
+- **Quotes**: Create professional quotes from inquiries, use your quote library and quote templates, share by public link or Requo email, and track draft, sent, viewed, accepted, rejected, expired, and voided states.
 - **Follow-ups**: Create reminders for inquiries and quotes, or automatically send follow-up emails on Pro and Business plans.
 - **AI drafting**: Generate reviewable quote drafts grounded in your pricing library, past quotes, templates, and business knowledge.
 - **Analytics and exports**: Review conversion and workflow performance, schedule reports on paid plans, and export inquiries and quotes as CSV.

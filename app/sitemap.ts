@@ -11,7 +11,7 @@ import { absoluteUrl } from "@/lib/seo/site";
 
 
 
-/** Static marketing and legal routes. Dynamic inquiry form URLs are added below. */
+/** Static marketing and legal routes. Dynamic service URLs are added below. */
 
 const staticPages = [
 

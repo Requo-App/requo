@@ -37,9 +37,9 @@ function buildConfigWithCustomFields(count: number): InquiryFormConfig {
 
 describe("live service limits", () => {
   it("gives every plan a finite live-service allowance", () => {
-    expect(getUsageLimit("free", "liveFormsPerBusiness")).toBe(1);
-    expect(getUsageLimit("pro", "liveFormsPerBusiness")).toBe(5);
-    expect(getUsageLimit("business", "liveFormsPerBusiness")).toBe(10);
+    expect(getUsageLimit("free", "liveServicesPerBusiness")).toBe(1);
+    expect(getUsageLimit("pro", "liveServicesPerBusiness")).toBe(5);
+    expect(getUsageLimit("business", "liveServicesPerBusiness")).toBe(10);
   });
 });
 

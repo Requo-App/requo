@@ -97,7 +97,7 @@ code; do not copy legacy variants described in
 ### TypeScript and validation
 
 - `tsconfig.json` enforces `strict: true`. Prefer `unknown` with guards over
-  `any` (see `features/ai-agent/schemas.ts`, `lib/action-state.ts`).
+  `any` (see `features/agent/schemas.ts`, `lib/action-state.ts`).
 - Validate external input with Zod at the boundary: `schema.safeParse(...)`
   then `getValidationActionState(...)` from
   [`lib/action-state.ts`](../../lib/action-state.ts). Representative form:
@@ -162,8 +162,8 @@ Canonical action shape (`"use server"` at the top of `features/*/actions.ts`):
 ### Domain invariants to preserve
 
 - **Agent vs Assistant:** Agent is anonymous customer chat
-  (`features/ai-agent/`, 4 tools, proposal requires visitor approval);
-  Assistant is authenticated owner chat (`features/owner-assistant/`,
+  (`features/agent/`, 4 tools, proposal requires visitor approval);
+  Assistant is authenticated owner chat (`features/assistant/`,
   confirmation for customer-visible or pipeline-mutating writes). Never swap
   the terms (see [`CONTEXT.md`](../../CONTEXT.md)).
 - **Models never emit money:** quote-draft prompts return candidates with

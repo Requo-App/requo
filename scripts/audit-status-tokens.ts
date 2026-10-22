@@ -31,7 +31,7 @@
  *
  * - Rule 3 is deliberately limited to status-badge modules. Raw palette colours
  *   also appear in marketing chrome (`components/marketing/*`), the archived
- *   record banner, and the paywall accent; those are surfaces and brand
+ *   record banner, and the upgrade accent; those are surfaces and brand
  *   accents, not status pills, and are tracked in `docs/technical-debt.md`.
  * - `components/` is out of scope for rules 1 and 2: it is design-system and
  *   marketing territory, where the canonical classes are defined in the first

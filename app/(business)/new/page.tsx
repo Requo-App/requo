@@ -14,13 +14,13 @@ import { getBusinessQuotaForUser } from "@/features/businesses/quota";
 import { homePath } from "@/features/businesses/routes";
 import { newEntityId } from "@/lib/ids";
 import { onboardingPath } from "@/features/onboarding/routes";
-import { UpgradePrompt } from "@/features/paywall";
+import { UpgradePrompt } from "@/features/entitlements";
 import { requireSession } from "@/lib/auth/session";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 
 export const metadata: Metadata = createNoIndexMetadata({
   absoluteTitle: "New Business - Requo",
-  description: "Create a new business workspace.",
+  description: "Create a new business on Requo.",
 });
 
 export const instant = true;
@@ -76,7 +76,7 @@ async function NewBusinessPageContent() {
             Create a new business
           </h1>
           <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-            Set up a new workspace with inquiry capture, quote defaults, and
+            Set up a new business with inquiry capture, quote defaults, and
             follow-up basics.
           </p>
         </div>
@@ -136,7 +136,7 @@ function NewBusinessPageSkeleton() {
             Create a new business
           </h1>
           <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-            Set up a new workspace with inquiry capture, quote defaults, and
+            Set up a new business with inquiry capture, quote defaults, and
             follow-up basics.
           </p>
         </div>

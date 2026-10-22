@@ -21,7 +21,7 @@ const rows: readonly { label: string; sheets: string; requo: string }[] = [
   {
     label: "Inquiry capture",
     sheets: "A tab you fill in by hand",
-    requo: "Public forms plus manual entries",
+    requo: "Public service pages plus manual entries",
   },
   {
     label: "Photos and files",

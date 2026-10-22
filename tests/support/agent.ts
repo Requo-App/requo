@@ -1,8 +1,8 @@
-import { createAgentSession, loadSessionByToken } from "@/features/ai-agent/session-service";
+import { createAgentSession, loadSessionByToken } from "@/features/agent/session-service";
 import type {
   AgentToolContext,
   QualificationState,
-} from "@/features/ai-agent/types";
+} from "@/features/agent/types";
 
 /**
  * Creates an active agent session for a business.

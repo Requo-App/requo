@@ -25,7 +25,7 @@ import { requireSession } from "@/lib/auth/session";
  * a content inset area. No back button — navigation is handled by the
  * sidebar itself.
  *
- * Mounts BusinessCheckoutProvider so paywall components inside settings
+ * Mounts BusinessCheckoutProvider so entitlement components inside settings
  * (knowledge, pricing, email, members, billing, etc.) can open the plan
  * selection sheet through the same shared state used in the main shell.
  *

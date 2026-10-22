@@ -401,10 +401,10 @@ export function BusinessQuoteDefaultsStaticFallback() {
 /**
  * Static shell fallback for the assistant (public chat) settings tab.
  *
- * Mirrors BusinessAiAgentSettingsForm's real layout (max-w-xl, bare sections)
+ * Mirrors BusinessAgentSettingsForm's real layout (max-w-xl, bare sections)
  * with real static copy. Only the enable switch, tone selector, chat link,
  * and instructions textarea (which need DB values) render as skeletons. Copy
- * duplicated from business-ai-agent-settings-form.tsx — keep in sync.
+ * duplicated from business-agent-settings-form.tsx — keep in sync.
  */
 export function BusinessAssistantStaticFallback() {
   return (

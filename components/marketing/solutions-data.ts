@@ -327,7 +327,7 @@ export const solutionDetails: Record<string, SolutionDetail> = {
       {
         icon: FileText,
         title: "Price from line items, not memory",
-        body: "Build the estimate from your Products library or custom lines. Every send and revision is snapshotted as a version, and expiry dates keep old prices from lingering.",
+        body: "Build the estimate from your quote library or custom lines. Every send and revision is snapshotted as a version, and expiry dates keep old prices from lingering.",
       },
       {
         icon: BellRing,
@@ -368,7 +368,7 @@ export const solutionDetails: Record<string, SolutionDetail> = {
       {
         question: "Can I create quotes from project requests?",
         answer:
-          "Yes. Build the quote from line items using your Products library or custom lines. AI can draft a starting point from the inquiry that you review and adjust — it never sets prices. Every send and revision is saved as a version, and you can set an expiry date.",
+          "Yes. Build the quote from line items using your quote library or custom lines. AI can draft a starting point from the inquiry that you review and adjust — it never sets prices. Every send and revision is saved as a version, and you can set an expiry date.",
       },
       {
         question: "Can I keep customer and project information together?",

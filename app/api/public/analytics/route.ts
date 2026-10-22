@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 
-import { publicAnalyticsEventSchema } from "@/features/analytics/schemas";
+import {
+  normalizeLegacyPublicAnalyticsEventPayload,
+  publicAnalyticsEventSchema,
+} from "@/features/analytics/schemas";
 import {
   createBusinessScopedVisitorHash,
   isTrackablePublicInquiryForm,
@@ -66,7 +69,9 @@ function buildEventMetadata(
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
-  const parsedBody = publicAnalyticsEventSchema.safeParse(body);
+  const parsedBody = publicAnalyticsEventSchema.safeParse(
+    normalizeLegacyPublicAnalyticsEventPayload(body),
+  );
 
   if (!parsedBody.success) {
     return NextResponse.json(
@@ -137,7 +142,7 @@ export async function POST(request: Request) {
 
     const result = await recordPublicInquiryFormView({
       businessId: parsedBody.data.businessId,
-      businessInquiryFormId: parsedBody.data.businessInquiryFormId,
+      serviceId: parsedBody.data.serviceId,
       visitorHash,
       metadata: buildEventMetadata(parsedBody.data.metadata),
     });

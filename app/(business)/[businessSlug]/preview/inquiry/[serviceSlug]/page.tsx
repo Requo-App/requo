@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { BusinessInquiryPreviewShell } from "@/features/inquiries/components/business-inquiry-preview-shell";
+import { ServicePreviewShell } from "@/features/inquiries/components/service-preview-shell";
 import { submitPublicInquiryAction } from "@/features/inquiries/actions";
-import { getInquiryBusinessPreviewByFormSlug } from "@/features/inquiries/queries";
+import { getInquiryBusinessPreviewByServiceSlug } from "@/features/inquiries/queries";
 import { getBusinessOperationalPageContext } from "../../../settings/_lib/page-context";
 import { timed } from "@/lib/dev/server-timing";
 import { getBusinessServicePath } from "@/features/businesses/routes";
@@ -15,19 +15,19 @@ export const metadata: Metadata = createNoIndexMetadata({
 });
 
 
-export default async function BusinessInquiryFormPreviewPage({
+export default async function ServicePreviewPage({
   params,
 }: {
-  params: Promise<{ businessSlug: string; formSlug: string }>;
+  params: Promise<{ businessSlug: string; serviceSlug: string }>;
 }) {
-  const { businessSlug, formSlug } = await params;
+  const { businessSlug, serviceSlug } = await params;
   const [, business] = await timed(
     "previewInquiryForm.parallelContextAndBusiness",
     Promise.all([
       getBusinessOperationalPageContext(businessSlug),
-      getInquiryBusinessPreviewByFormSlug({
+      getInquiryBusinessPreviewByServiceSlug({
         businessSlug: businessSlug,
-        formSlug,
+        serviceSlug,
       }),
     ]),
   );
@@ -36,7 +36,7 @@ export default async function BusinessInquiryFormPreviewPage({
     notFound();
   }
 
-  const settingsHref = getBusinessServicePath(businessSlug, formSlug);
+  const settingsHref = getBusinessServicePath(businessSlug, serviceSlug);
   const submitPublicInquiry = submitPublicInquiryAction.bind(
     null,
     business.slug,
@@ -44,7 +44,7 @@ export default async function BusinessInquiryFormPreviewPage({
   );
 
   return (
-    <BusinessInquiryPreviewShell
+    <ServicePreviewShell
       action={submitPublicInquiry}
       business={business}
       settingsHref={settingsHref}

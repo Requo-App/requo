@@ -32,7 +32,7 @@ const hubFaqs = [
   {
     question: "Can I use Requo for more than one trade?",
     answer:
-      "Yes. One login can manage multiple businesses with separate inquiries, quotes, forms, pricing libraries, and branding for each.",
+      "Yes. One login can manage multiple businesses with separate inquiries, quotes, services, quote libraries, and branding for each.",
   },
 ] as const;
 

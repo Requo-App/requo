@@ -27,25 +27,25 @@
 
 ## Who It's For
 
-- **Business owners and operators** — qualify requests, prepare quotes, and see what needs action in one workspace.
+- **Business owners and operators** — qualify requests, prepare quotes, and see what needs action across their business.
 - **Business members** — work inquiries, quotes, and invoices according to their assigned role.
 - **Prospective customers** — submit inquiries and respond to shared quotes without needing a Requo account.
 
 ## How It Works
 
 1. An owner creates a business during onboarding (guided starter templates), configures services and inquiry forms, and publishes public intake pages.
-2. A customer submits an inquiry through a public form or chat — or the owner enters it manually. The owner reviews, qualifies, and prepares a quote from reusable products and quote-library data.
+2. A customer submits an inquiry through a public service page or the Agent — or a member enters it manually. The owner reviews, qualifies, and prepares a quote from reusable quote-library entries.
 3. The quote is shared by public link or email. The customer views, accepts, rejects, or requests a revision; the owner follows up manually or with supported automated follow-up emails.
 4. An accepted quote continues into an invoice. Money received outside Requo is recorded as a manual payment entry, and a record/receipt can be issued.
-5. Analytics, notifications, audit history, members, and settings keep the workspace managed. Optional AI surfaces help customers qualify requests and help members work with business data.
+5. Analytics, notifications, audit history, members, and settings keep the business running. Optional Agent and Assistant surfaces help customers qualify requests and help members work with business data.
 
 ## What Requo Does
 
 - **Customer intake:** public business/service pages, configurable forms, manual inquiry creation, attachments, duplicate signals, qualification, and status tracking.
 - **Quote work:** drafting and revisions, reusable product/quote library, version snapshots, public quote pages, customer responses (accept / reject / revision), and email templates.
 - **Follow-up and visibility:** owner reminder tasks, supported automatic follow-up emails, conversion and workflow analytics, CSV exports, in-app notifications, web push, activity/audit records, and business membership.
-- **Commercial continuation:** invoices from accepted quotes, manually recorded payments, quote acceptance records, approval flows, typed scope blocks, commercial schedules, and change orders.
-- **Workspace management:** business onboarding templates, multiple businesses per account, role-aware membership, plan entitlements, and Polar subscriptions (Free, Pro, Business).
+- **Commercial continuation:** invoices from accepted quotes, manually recorded payments, quote acceptance records, approval flows, typed scope blocks, payment schedules, and change orders.
+- **Business management:** business onboarding templates, multiple businesses per account, role-aware membership, plan entitlements, and Polar subscriptions (Free, Pro, Business).
 
 > **Agent vs Assistant:** the **Agent** is public customer-facing chat — its proposed inquiry needs customer confirmation before creation. The **Assistant** is the authenticated, business-scoped owner chat — it needs confirmation for customer-visible or pipeline-mutating work. AI drafts quote text grounded in business knowledge files, but **models never emit prices**: quote candidates return `unitPriceInCents: 0` and the server hydrates real prices from the database.
 

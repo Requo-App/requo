@@ -40,7 +40,7 @@ import {
 import { InfoTile } from "@/components/shared/info-tile";
 import { DashboardDetailPageSkeleton } from "@/components/shell/dashboard-detail-page-skeleton";
 import { InquiryWorkflowSteps } from "@/features/businesses/components/workflow-steps";
-import { getCustomerHistoryForBusiness } from "@/features/customers/queries";
+import { getCustomerHistoryForBusiness } from "@/features/customer-history/queries";
 import { createInquiryFollowUpAction } from "@/features/follow-ups/actions";
 import { FollowUpPanel } from "@/features/follow-ups/components/follow-up-panel";
 import { getFollowUpsForInquiry } from "@/features/follow-ups/queries";
@@ -115,7 +115,7 @@ import {
 } from "@/features/inquiries/components/inquiry-detail-sections";
 import { getAppShellContext } from "@/lib/app-shell/context";
 import { hasFeatureAccess } from "@/lib/plans";
-import type { BusinessPlan } from "@/lib/plans/plans";
+import type { PlanTier } from "@/lib/plans/plans";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 import type { Metadata } from "next";
 
@@ -615,7 +615,7 @@ async function InquiryFollowUpsRegion({
   customerName,
 }: {
   businessId: string;
-  businessPlan: BusinessPlan;
+  businessPlan: PlanTier;
   businessSlug: string;
   businessTimezone: string;
   createAction: React.ComponentProps<typeof FollowUpPanel>["createAction"];
@@ -664,19 +664,19 @@ function InquiryOverviewSection({
           icon={Briefcase}
           label="Service"
           value={
-            inquiry.inquiryFormSlug ? (
+            inquiry.serviceSlug ? (
               <Link
                 href={getBusinessServicePath(
                   businessSlug,
-                  inquiry.inquiryFormSlug,
+                  inquiry.serviceSlug,
                 )}
                 className="hover:underline"
               >
-                {inquiry.inquiryFormName ??
+                {inquiry.serviceName ??
                   getInquirySourceLabel(inquiry.source)}
               </Link>
             ) : (
-              inquiry.inquiryFormName ??
+              inquiry.serviceName ??
               getInquirySourceLabel(inquiry.source)
             )
           }
@@ -703,7 +703,7 @@ function InquiryOverviewSection({
       </div>
 
       {inquiry.subject &&
-      inquiry.subject !== (inquiry.inquiryFormName ?? "") ? (
+      inquiry.subject !== (inquiry.serviceName ?? "") ? (
         <div className="soft-panel shadow-none">
           <p className="meta-label">Subject</p>
           <p className="mt-2 text-sm leading-6 text-foreground">

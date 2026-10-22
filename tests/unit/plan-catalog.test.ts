@@ -7,12 +7,12 @@ import {
   planCatalog,
   pricingComparison,
 } from "@/lib/plans/catalog";
-import { businessPlans } from "@/lib/plans/plans";
+import { planTiers } from "@/lib/plans/plans";
 import { getUsageLimit } from "@/lib/plans/usage-limits";
 
 describe("plan catalog", () => {
   it("exposes an entry for every plan", () => {
-    for (const plan of businessPlans) {
+    for (const plan of planTiers) {
       expect(planCatalog[plan]).toBeDefined();
       expect(planCatalog[plan].id).toBe(plan);
       expect(planCatalog[plan].highlights.length).toBeGreaterThan(0);
@@ -56,7 +56,7 @@ describe("plan catalog", () => {
     const team = pricingComparison[3].features;
 
     const liveForms = core.find((row) => row.label === "Live services");
-    expect(liveForms?.free).toBe(getUsageLimit("free", "liveFormsPerBusiness"));
+    expect(liveForms?.free).toBe(getUsageLimit("free", "liveServicesPerBusiness"));
     expect(liveForms?.business).toBe(10);
 
     const sends = time.find(

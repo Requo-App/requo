@@ -8,17 +8,17 @@ import {
 } from "@/components/shell/settings-body-skeletons";
 import { getBusinessPublicChatPath } from "@/features/businesses/routes";
 import {
-  createMemoryEntryAction,
+  createKnowledgeEntryAction,
   deleteKnowledgeFileAction,
-  deleteMemoryEntryAction,
+  deleteKnowledgeEntryAction,
   retryKnowledgeFileAction,
-  updateMemoryEntryAction,
+  updateKnowledgeEntryAction,
   uploadKnowledgeFileAction,
-} from "@/features/memory/actions";
-import { KnowledgeManager } from "@/features/memory/components/knowledge-manager";
-import { updateBusinessAiAgentSettingsAction } from "@/features/settings/actions";
+} from "@/features/knowledge/actions";
+import { KnowledgeManager } from "@/features/knowledge/components/knowledge-manager";
+import { updateBusinessAgentSettingsAction } from "@/features/settings/actions";
 import { AssistantSettingsTabs } from "@/features/settings/components/assistant-settings-tabs";
-import { BusinessAiAgentSettingsForm } from "@/features/settings/components/business-ai-agent-settings-form";
+import { BusinessAgentSettingsForm } from "@/features/settings/components/business-agent-settings-form";
 import { getBusinessSettingsForBusiness } from "@/features/settings/queries";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 import { getBusinessOperationalPageContext } from "../_lib/page-context";
@@ -80,8 +80,8 @@ async function AssistantTab({ params }: AiSettingsPageProps) {
   }
 
   return (
-    <BusinessAiAgentSettingsForm
-      action={updateBusinessAiAgentSettingsAction.bind(null, slug)}
+    <BusinessAgentSettingsForm
+      action={updateBusinessAgentSettingsAction.bind(null, slug)}
       chatPath={getBusinessPublicChatPath(slug)}
       key={`assistant-settings-${settings.updatedAt.getTime()}`}
       settings={settings}
@@ -97,9 +97,9 @@ async function KnowledgeTab({ params }: AiSettingsPageProps) {
   const slug = business.slug;
 
   // Bind slug into server actions so components only receive (prevState, formData)
-  const boundCreateEntry = createMemoryEntryAction.bind(null, slug);
-  const boundUpdateEntry = updateMemoryEntryAction.bind(null, slug);
-  const boundDeleteEntry = deleteMemoryEntryAction.bind(null, slug);
+  const boundCreateEntry = createKnowledgeEntryAction.bind(null, slug);
+  const boundUpdateEntry = updateKnowledgeEntryAction.bind(null, slug);
+  const boundDeleteEntry = deleteKnowledgeEntryAction.bind(null, slug);
   const boundUploadFile = uploadKnowledgeFileAction.bind(null, slug);
   const boundDeleteFile = deleteKnowledgeFileAction.bind(null, slug);
   const boundRetryFile = retryKnowledgeFileAction.bind(null, slug);

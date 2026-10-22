@@ -15,7 +15,7 @@ root [`SECURITY.md`](../../SECURITY.md).
 - Business records must be scoped through verified membership and
   `businessId`-aware helpers such as `getBusinessActionContext()`. Never trust
   a client-supplied business identifier as authorization.
-- Roles govern workspace permissions; plan entitlements govern paid access.
+- Roles govern business permissions; plan entitlements govern paid access.
   Check paid access server-side before expensive or state-changing work; hiding
   navigation or UI is not an authorization check.
 - [`0007_enable_rls_all_tables.sql`](../../drizzle/0007_enable_rls_all_tables.sql)

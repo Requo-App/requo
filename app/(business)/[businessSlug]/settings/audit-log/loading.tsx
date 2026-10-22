@@ -1,7 +1,7 @@
 import {
   AuditLogFiltersFallback,
   AuditLogTableFallback,
-} from "@/features/audit/components/workspace-audit-log-fallbacks";
+} from "@/features/audit/components/business-audit-log-fallbacks";
 
 /**
  * Loading skeleton for the business audit log settings page.

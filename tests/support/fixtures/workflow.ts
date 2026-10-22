@@ -1,12 +1,12 @@
 import { eq, inArray } from "drizzle-orm";
 
-import { createInquiryFormPreset } from "@/features/inquiries/inquiry-forms";
+import { createServicePreset } from "@/features/inquiries/service-presets";
 import {
   accountSubscriptions,
   activityLogs,
   analyticsEvents,
   auditLogs,
-  businessInquiryForms,
+  services,
   businessMembers,
   businessNotificationStates,
   businessNotifications,
@@ -29,9 +29,9 @@ export type WorkflowFixtureIds = {
   businessId: string;
   otherBusinessId: string;
   archivedBusinessId: string;
-  formId: string;
-  otherFormId: string;
-  archivedFormId: string;
+  serviceId: string;
+  otherServiceId: string;
+  archivedServiceId: string;
   inquiryId: string;
   waitingInquiryId: string;
   otherInquiryId: string;
@@ -55,9 +55,9 @@ export function getWorkflowFixtureIds(prefix: string): WorkflowFixtureIds {
     businessId: `${prefix}_business`,
     otherBusinessId: `${prefix}_business_other`,
     archivedBusinessId: `${prefix}_business_archived`,
-    formId: `${prefix}_form`,
-    otherFormId: `${prefix}_form_other`,
-    archivedFormId: `${prefix}_form_archived`,
+    serviceId: `${prefix}_form`,
+    otherServiceId: `${prefix}_form_other`,
+    archivedServiceId: `${prefix}_form_archived`,
     inquiryId: `${prefix}_inquiry`,
     waitingInquiryId: `${prefix}_inquiry_waiting`,
     otherInquiryId: `${prefix}_inquiry_other`,
@@ -107,8 +107,8 @@ export async function cleanupWorkflowFixture(prefix: string) {
     .delete(accountSubscriptions)
     .where(inArray(accountSubscriptions.userId, userIds));
   await testDb
-    .delete(businessInquiryForms)
-    .where(inArray(businessInquiryForms.businessId, businessIds));
+    .delete(services)
+    .where(inArray(services.businessId, businessIds));
   await testDb
     .delete(businessMembers)
     .where(inArray(businessMembers.businessId, businessIds));
@@ -244,20 +244,20 @@ export async function createWorkflowFixture(prefix: string) {
     },
   ]);
 
-  const preset = createInquiryFormPreset({
+  const preset = createServicePreset({
     businessType: "general_project_services",
     businessName: "Workflow Business",
   });
-  const otherPreset = createInquiryFormPreset({
+  const otherPreset = createServicePreset({
     businessType: "general_project_services",
     businessName: "Other Workflow Business",
   });
 
-  await testDb.insert(businessInquiryForms).values([
+  await testDb.insert(services).values([
     {
-      id: ids.formId,
+      id: ids.serviceId,
       businessId: ids.businessId,
-      name: "Workflow Form",
+      name: "Workflow Service",
       slug: "workflow-form",
       businessType: preset.businessType,
       isDefault: true,
@@ -268,9 +268,9 @@ export async function createWorkflowFixture(prefix: string) {
       updatedAt: now,
     },
     {
-      id: ids.otherFormId,
+      id: ids.otherServiceId,
       businessId: ids.otherBusinessId,
-      name: "Other Workflow Form",
+      name: "Other Workflow Service",
       slug: "workflow-form",
       businessType: otherPreset.businessType,
       isDefault: true,
@@ -281,9 +281,9 @@ export async function createWorkflowFixture(prefix: string) {
       updatedAt: now,
     },
     {
-      id: ids.archivedFormId,
+      id: ids.archivedServiceId,
       businessId: ids.archivedBusinessId,
-      name: "Archived Workflow Form",
+      name: "Archived Workflow Service",
       slug: "workflow-form",
       businessType: preset.businessType,
       isDefault: true,
@@ -299,7 +299,7 @@ export async function createWorkflowFixture(prefix: string) {
     {
       id: ids.inquiryId,
       businessId: ids.businessId,
-      businessInquiryFormId: ids.formId,
+      serviceId: ids.serviceId,
       status: "new",
       subject: "Window graphics",
       customerName: "Taylor Nguyen",
@@ -321,7 +321,7 @@ export async function createWorkflowFixture(prefix: string) {
     {
       id: ids.waitingInquiryId,
       businessId: ids.businessId,
-      businessInquiryFormId: ids.formId,
+      serviceId: ids.serviceId,
       status: "waiting",
       subject: "Vehicle wrap",
       customerName: "Jordan Lee",
@@ -343,7 +343,7 @@ export async function createWorkflowFixture(prefix: string) {
     {
       id: ids.otherInquiryId,
       businessId: ids.otherBusinessId,
-      businessInquiryFormId: ids.otherFormId,
+      serviceId: ids.otherServiceId,
       status: "new",
       subject: "Other inquiry",
       customerName: "Other Customer",

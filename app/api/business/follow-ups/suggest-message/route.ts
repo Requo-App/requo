@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { getWorkspaceBusinessActionContext } from "@/lib/db/business-access";
+import { getMemberBusinessActionContext } from "@/lib/db/business-access";
 import { generateWithFallback } from "@/lib/ai/router";
 import { sanitizeAiInput } from "@/lib/ai/input-sanitizer";
 import { filterAiOutput } from "@/lib/ai/output-filter";
@@ -23,10 +23,10 @@ const requestSchema = z.object({
 });
 
 export async function POST(request: Request) {
-  const ownerAccess = await getWorkspaceBusinessActionContext();
+  const memberAccess = await getMemberBusinessActionContext();
 
-  if (!ownerAccess.ok) {
-    return NextResponse.json({ error: ownerAccess.error }, { status: 401 });
+  if (!memberAccess.ok) {
+    return NextResponse.json({ error: memberAccess.error }, { status: 401 });
   }
 
   const body = await request.json().catch(() => null);
@@ -40,7 +40,7 @@ export async function POST(request: Request) {
   }
 
   const { followUpId, aiTone = "balanced" } = parsed.data;
-  const businessId = ownerAccess.businessContext.business.id;
+  const businessId = memberAccess.businessContext.business.id;
 
   // Business-scoped abuse backstop for this AI endpoint (fail-open for UX,
   // quota still enforced by provider budgets).
@@ -96,7 +96,7 @@ export async function POST(request: Request) {
     formal: "Use a formal, polished business tone.",
   }[aiTone];
 
-  const businessName = ownerAccess.businessContext.business.name;
+  const businessName = memberAccess.businessContext.business.name;
 
   const prompt = `Write a short follow-up message (2-3 sentences max) for a ${context.channel} message to the customer named in <customer_data>.
 
@@ -122,7 +122,7 @@ Rules:
 Write only the message, nothing else.`;
 
   const usageCheck = await reserveUsage({
-    userId: ownerAccess.user.id,
+    userId: memberAccess.user.id,
     businessId,
     taskType: "follow_up_message",
     plan,
@@ -135,7 +135,7 @@ Write only the message, nothing else.`;
   let settled = false;
 
   try {
-    await startCooldown(ownerAccess.user.id, "follow_up_message");
+    await startCooldown(memberAccess.user.id, "follow_up_message");
     const result = await generateWithFallback({
       messages: [
         { role: "system", content: "You are a helpful business assistant that writes follow-up messages." },

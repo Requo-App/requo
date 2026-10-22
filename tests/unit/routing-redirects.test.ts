@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import nextConfig from "@/next.config";
 import { redirectToPath } from "@/lib/routing/redirects";
 
 describe("redirectToPath", () => {
@@ -38,6 +39,18 @@ describe("redirectToPath", () => {
     );
     expect(() => redirectToPath("relative/path")).toThrow(
       "same-origin path",
+    );
+  });
+});
+
+describe("legacy dashboard redirects", () => {
+  it("keeps the products redirect scoped away from public business routes", async () => {
+    const redirects = await nextConfig.redirects?.();
+
+    expect(redirects).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ source: "/:businessSlug/products" }),
+      ]),
     );
   });
 });

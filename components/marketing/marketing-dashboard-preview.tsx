@@ -73,7 +73,7 @@ const primaryNavItems: readonly {
   { label: "Follow-ups", icon: BellRing },
   { label: "Assistant", icon: Astroid },
   { label: "Services", icon: PencilRuler },
-  { label: "Products", icon: Package },
+  { label: "Quote library", icon: Package },
   { label: "Analytics", icon: BarChart3 },
 ];
 

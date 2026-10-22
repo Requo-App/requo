@@ -170,7 +170,7 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
-  const baseSuccessUrl = new URL("/account/billing/checkout", origin);
+  const baseSuccessUrl = new URL("/billing/checkout", origin);
   if (returnTo) baseSuccessUrl.searchParams.set("returnTo", returnTo);
 
   const polar = getPolarClient();

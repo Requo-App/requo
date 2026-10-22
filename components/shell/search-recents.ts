@@ -2,7 +2,7 @@ export type SearchRecordType =
   | "inquiry"
   | "quote"
   | "invoice"
-  | "product"
+  | "quote-library"
   | "service"
   | "follow-up";
 
@@ -16,22 +16,46 @@ export type RecentSearchRecord = {
 
 const MAX_RECENTS = 8;
 
+const recentSearchRecordTypes = new Set<SearchRecordType>([
+  "inquiry",
+  "quote",
+  "invoice",
+  "quote-library",
+  "service",
+  "follow-up",
+]);
+
 function recentsKey(businessSlug: string) {
   return `requo:recent-records:${businessSlug}`;
 }
 
-function isRecentRecord(value: unknown): value is RecentSearchRecord {
+function normalizeRecentRecord(value: unknown): RecentSearchRecord | null {
   if (typeof value !== "object" || value === null) {
-    return false;
+    return null;
   }
+
   const record = value as Record<string, unknown>;
-  return (
-    typeof record.id === "string" &&
-    typeof record.type === "string" &&
-    typeof record.title === "string" &&
-    typeof record.href === "string" &&
-    (record.subtitle === null || typeof record.subtitle === "string")
-  );
+  const type = record.type === "product" ? "quote-library" : record.type;
+  const subtitle = record.subtitle;
+
+  if (
+    typeof record.id !== "string" ||
+    typeof type !== "string" ||
+    !recentSearchRecordTypes.has(type as SearchRecordType) ||
+    typeof record.title !== "string" ||
+    typeof record.href !== "string" ||
+    (subtitle !== null && typeof subtitle !== "string")
+  ) {
+    return null;
+  }
+
+  return {
+    id: record.id,
+    type: type as SearchRecordType,
+    title: record.title,
+    subtitle,
+    href: record.href,
+  };
 }
 
 export function getRecentSearchRecords(
@@ -49,7 +73,10 @@ export function getRecentSearchRecords(
     if (!Array.isArray(parsed)) {
       return [];
     }
-    return parsed.filter(isRecentRecord).slice(0, MAX_RECENTS);
+    return parsed
+      .map(normalizeRecentRecord)
+      .filter((record): record is RecentSearchRecord => record !== null)
+      .slice(0, MAX_RECENTS);
   } catch {
     return [];
   }

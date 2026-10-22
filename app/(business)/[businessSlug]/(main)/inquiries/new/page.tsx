@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { createManualInquiryAction } from "@/features/inquiries/actions";
 import { ManualInquiryEditor } from "@/features/inquiries/components/manual-inquiry-editor";
 import { getPublicInquiryAttachmentHelpText } from "@/features/inquiries/plan-rules";
-import { getInquiryEditorFormsForBusiness } from "@/features/inquiries/queries";
+import { getInquiryEditorServicesForBusiness } from "@/features/inquiries/queries";
 import { getBusinessServicesPath } from "@/features/businesses/routes";
 import { getAppShellContext } from "@/lib/app-shell/context";
 import { createNoIndexMetadata } from "@/lib/seo/site";
@@ -23,7 +23,7 @@ type NewInquiryPageProps = {
 
 export const metadata: Metadata = createNoIndexMetadata({
   title: "New inquiry",
-  description: "Quick-add an inquiry captured outside of a public form.",
+  description: "Quick-add an inquiry captured outside of a public service page.",
 });
 
 export const instant = true;
@@ -44,7 +44,7 @@ export default function NewInquiryPage({
       <PageHeader
         eyebrow="New inquiry"
         title="Quick-add inquiry"
-        description="Capture the essentials from a call, chat, walk-in, or forwarded message. You can add deeper form details later."
+        description="Capture the essentials from a call, chat, walk-in, or forwarded message. You can add deeper intake details later."
       />
       <RegionErrorBoundary fallback={<ManagerBodySkeleton />}>
         <Suspense fallback={<ManagerBodySkeleton />}>
@@ -64,20 +64,20 @@ async function NewInquiryContent({
     searchParams,
   ]);
   const { businessContext } = await getAppShellContext(businessSlug);
-  const inquiryForms = await getInquiryEditorFormsForBusiness(
+  const services = await getInquiryEditorServicesForBusiness(
     businessContext.business.id,
   );
 
-  const requestedFormSlug = Array.isArray(resolvedSearchParams.form)
+  const requestedServiceSlug = Array.isArray(resolvedSearchParams.form)
     ? resolvedSearchParams.form[0]
     : resolvedSearchParams.form;
-  const initialFormSlug =
-    (requestedFormSlug &&
-      inquiryForms.find((form) => form.slug === requestedFormSlug)?.slug) ??
-    inquiryForms[0]?.slug;
+  const initialServiceSlug =
+    (requestedServiceSlug &&
+      services.find((service) => service.slug === requestedServiceSlug)?.slug) ??
+    services[0]?.slug;
   const uploadHelpText = getPublicInquiryAttachmentHelpText(businessContext.business.plan);
 
-  if (!initialFormSlug) {
+  if (!initialServiceSlug) {
     return (
       <DashboardEmptyState
         action={
@@ -100,8 +100,8 @@ async function NewInquiryContent({
       action={createManualInquiryAction}
       businessName={businessContext.business.name}
       businessSlug={businessContext.business.slug}
-      forms={inquiryForms}
-      initialFormSlug={initialFormSlug}
+      services={services}
+      initialServiceSlug={initialServiceSlug}
       uploadHelpText={uploadHelpText}
     />
   );

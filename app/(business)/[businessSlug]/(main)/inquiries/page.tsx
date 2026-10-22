@@ -13,7 +13,7 @@ import {
 } from "@/features/inquiries/components/inquiry-list-page-sections";
 import { inquiryListFiltersSchema } from "@/features/inquiries/schemas";
 import {
-  getBusinessInquiryFormOptionsForBusiness,
+  getServiceOptionsForBusiness,
   getInquiryListCountForBusiness,
   getInquiryListPageForBusiness,
 } from "@/features/inquiries/queries";
@@ -153,7 +153,7 @@ async function InquiriesHeaderActionsRegion({
       unread: false,
     },
   });
-  const inquiryFormOptionsPromise = getBusinessInquiryFormOptionsForBusiness(
+  const inquiryFormOptionsPromise = getServiceOptionsForBusiness(
     businessContext.business.id,
   );
   const archivedItemsPromise = getInquiryListPageForBusiness({
@@ -213,7 +213,7 @@ async function InquiriesControlsRegion({
     businessId: businessContext.business.id,
     filters: baseFilters,
   });
-  const inquiryFormOptionsPromise = getBusinessInquiryFormOptionsForBusiness(
+  const inquiryFormOptionsPromise = getServiceOptionsForBusiness(
     businessContext.business.id,
   );
 

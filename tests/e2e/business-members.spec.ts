@@ -97,14 +97,14 @@ test("manager can view members read-only in settings", async ({
 }) => {
   await signIn(page, demoManagerEmail, demoManagerPassword);
 
-  await page.goto(`/${demoBusinessSlug}/products`);
+  await page.goto(`/${demoBusinessSlug}/quote-library`);
   await expect(page).toHaveURL(
-    new RegExp(`/${demoBusinessSlug}/products$`),
+    new RegExp(`/${demoBusinessSlug}/quote-library$`),
     { timeout: 20_000 },
   );
   await expect(
     page.getByRole("heading", {
-      name: "Pricing",
+      name: "Quote library",
       level: 1,
     }),
   ).toBeVisible();
@@ -140,7 +140,7 @@ test("staff can access inquiry work but not forms or operational settings", asyn
     { timeout: 20_000 },
   );
 
-  await page.goto(`/${demoBusinessSlug}/products`);
+  await page.goto(`/${demoBusinessSlug}/quote-library`);
   await expect(page).toHaveURL(
     new RegExp(`/${demoBusinessSlug}/home$`),
     { timeout: 20_000 },

@@ -4,8 +4,8 @@ import { z } from "zod";
 import {
   getBusinessKnowledgeSummary,
   listBusinessKnowledgeFiles,
-  listBusinessMemories,
-} from "@/features/memory/queries";
+  listKnowledgeEntries,
+} from "@/features/knowledge/queries";
 import { getBusinessActionContext } from "@/lib/db/business-access";
 
 const querySchema = z.object({
@@ -54,15 +54,15 @@ export async function GET(request: Request) {
     const businessId = access.businessContext.business.id;
     const plan = access.businessContext.business.plan;
 
-    const [memories, knowledgeFiles, summary] = await Promise.all([
-      listBusinessMemories(businessId),
+    const [entries, knowledgeFiles, summary] = await Promise.all([
+      listKnowledgeEntries(businessId),
       listBusinessKnowledgeFiles(businessId),
       getBusinessKnowledgeSummary(businessId, plan),
     ]);
 
     return NextResponse.json(
       {
-        memories,
+        entries,
         knowledgeFiles,
         sourceCount: summary.sourceCount,
         sourceLimit: summary.sourceLimit,

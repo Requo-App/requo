@@ -6,7 +6,7 @@ import { StructuredData } from "@/components/seo/structured-data";
 import { planPricing } from "@/lib/billing/plans";
 import { detectDisplayCurrency } from "@/lib/billing/region";
 import type { BillingCurrency, BillingInterval, PaidPlan } from "@/lib/billing/types";
-import { businessPlans, planMeta, type BusinessPlan } from "@/lib/plans/plans";
+import { planTiers, planMeta, type PlanTier } from "@/lib/plans/plans";
 import { absoluteUrl, createPageMetadata } from "@/lib/seo/site";
 import {
   buildBreadcrumbsForPathname,
@@ -43,7 +43,7 @@ function buildPricingOffers() {
   // Structured data always uses USD for consistency with schema.org.
   const sdCurrency = "USD";
 
-  return businessPlans.flatMap((plan) =>
+  return planTiers.flatMap((plan) =>
     intervals.map((interval) => {
       const price =
         plan === "free"
@@ -52,7 +52,7 @@ function buildPricingOffers() {
 
       return {
         billingIncrement: INTERVAL_TO_INCREMENT[interval],
-        name: `${planMeta[plan as BusinessPlan].label} (${INTERVAL_SUFFIX[interval]})`,
+        name: `${planMeta[plan as PlanTier].label} (${INTERVAL_SUFFIX[interval]})`,
         price,
         priceCurrency: sdCurrency,
       };

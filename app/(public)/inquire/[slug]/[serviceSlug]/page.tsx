@@ -9,7 +9,7 @@ import {
   getMissingPublicInquiryMetadata,
   getPublicInquiryPageMetadata,
 } from "@/features/inquiries/metadata";
-import { getPublicInquiryBusinessByFormSlug } from "@/features/inquiries/queries";
+import { getPublicInquiryBusinessByServiceSlug } from "@/features/inquiries/queries";
 import { getBusinessPublicInquiryUrl } from "@/features/settings/utils";
 import { timed } from "@/lib/dev/server-timing";
 
@@ -20,16 +20,16 @@ export async function generateMetadata({
   params,
   searchParams,
 }: {
-  params: Promise<{ slug: string; formSlug: string }>;
+  params: Promise<{ slug: string; serviceSlug: string }>;
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }): Promise<Metadata> {
-  const [{ formSlug, slug }, resolvedSearchParams] = await Promise.all([
+  const [{ serviceSlug, slug }, resolvedSearchParams] = await Promise.all([
     params,
     searchParams,
   ]);
-  const business = await getPublicInquiryBusinessByFormSlug({
+  const business = await getPublicInquiryBusinessByServiceSlug({
     businessSlug: slug,
-    formSlug,
+    serviceSlug,
   });
 
   return business
@@ -43,19 +43,19 @@ export default async function PublicInquiryFormPage({
   params,
   searchParams,
 }: {
-  params: Promise<{ slug: string; formSlug: string }>;
+  params: Promise<{ slug: string; serviceSlug: string }>;
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  const [{ slug, formSlug }, resolvedSearchParams] = await Promise.all([
+  const [{ slug, serviceSlug }, resolvedSearchParams] = await Promise.all([
     params,
     searchParams,
   ]);
   const submitted = parseSubmittedParam(resolvedSearchParams.submitted);
   const business = await timed(
-    "publicInquiryForm.getPublicInquiryBusinessByFormSlug",
-    getPublicInquiryBusinessByFormSlug({
+    "publicInquiryForm.getPublicInquiryBusinessByServiceSlug",
+    getPublicInquiryBusinessByServiceSlug({
       businessSlug: slug,
-      formSlug,
+      serviceSlug,
     }),
   );
 
@@ -71,11 +71,11 @@ export default async function PublicInquiryFormPage({
     <PublicInquiryPageContent
       business={business}
       submitted={submitted}
-      pathname={`/inquire/${slug}/${formSlug}`}
+      pathname={`/inquire/${slug}/${serviceSlug}`}
       breadcrumbLabels={{
         "/inquire": "Inquire",
         [`/inquire/${slug}`]: business.name,
-        [`/inquire/${slug}/${formSlug}`]: business.form.name,
+        [`/inquire/${slug}/${serviceSlug}`]: business.form.name,
       }}
     />
   );

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getSession } from "@/lib/auth/session";
 import { getBusinessActionContext } from "@/lib/db/business-access";
-import { loadAssistantSession } from "@/features/owner-assistant/session-service";
+import { loadAssistantSession } from "@/features/assistant/session-service";
 
 const sessionParamsSchema = z.object({
   sessionId: z.string().trim().min(1).max(128),
@@ -16,9 +16,9 @@ type RouteParams = {
 };
 
 /**
- * Owner Assistant Session Load API Route
+ * Assistant Session Load API Route
  *
- * GET /api/ai/owner-assistant/session/[sessionId]
+ * GET /api/ai/assistant/session/[sessionId]
  * Returns: Session metadata + messages (user, assistant, and tool rows so
  * structured tool results rehydrate after a reload).
  *
@@ -65,7 +65,7 @@ export async function GET(request: Request, { params }: RouteParams) {
     const { business } = result.businessContext;
 
     // Load session read-only (enforces businessId + userId scoping;
-    // messages come from features/owner-assistant/session-service).
+    // messages come from features/assistant/session-service).
     const sessionData = await loadAssistantSession({
       businessId: business.id,
       userId: session.user.id,

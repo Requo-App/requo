@@ -29,7 +29,7 @@ import {
 } from "@/features/analytics/lib/window";
 import { getAnalyticsBusinessMeta } from "@/features/analytics/queries";
 import { getBusinessHomePath } from "@/features/businesses/routes";
-import type { UpgradeActionProps } from "@/features/paywall/types";
+import type { UpgradeActionProps } from "@/features/entitlements/types";
 import { getAppShellContext } from "@/lib/app-shell/context";
 import { canViewBusinessAnalytics } from "@/lib/business-members";
 import { hasFeatureAccess } from "@/lib/plans";

@@ -6,8 +6,8 @@ vi.mock("@/lib/db/client", () => ({
 }));
 vi.mock("@/features/quotes/mutations", () => ({ createQuoteForBusiness: mocks.createQuote }));
 
-import { createAutoDraftQuote } from "@/features/ai/auto-draft";
-import type { AiQuoteDraft } from "@/features/ai/types";
+import { createAutoDraftQuote } from "@/features/quote-drafting/auto-draft";
+import type { AiQuoteDraft } from "@/features/quote-drafting/types";
 
 beforeEach(() => {
   vi.resetAllMocks();

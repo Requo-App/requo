@@ -36,7 +36,7 @@ import { DashboardUserMenu } from "./dashboard-user-menu";
  * Floating sidebar panel. Expanded: 260px wide, p 12, radius/3xl (24px),
  * white 1px border, sidebar-elevation shadow, secondary bg. Collapsed: 60px
  * wide (36px icon items + 12px padding); collapse button sits centered above
- * the workspace avatar, quick search becomes a 36px square, nav items become
+ * the business avatar, quick search becomes a 36px square, nav items become
  * icon-only squares, the team card reduces to its avatar.
  *
  * The two states morph into each other: the panel width animates while
@@ -188,7 +188,7 @@ export interface DashboardNavItem {
   badgeLabel?: string;
 }
 
-/** A labeled section of navigation rows (e.g. User / Workspace / Other). */
+/** A labeled section of navigation rows (e.g. User / Business / Other). */
 export interface DashboardNavGroup {
   label: string;
   items: DashboardNavItem[];
@@ -341,12 +341,12 @@ export function DashboardSidebar({
   selected?: DashboardNavKey;
   /** Primary navigation rows. The Pro dashboard's set unless a screen brings its own. */
   items?: DashboardNavItem[];
-  /** Grouped navigation sections (e.g. User / Workspace / Other). Takes precedence over `items` when provided. */
+  /** Grouped navigation sections (e.g. User / Business / Other). Takes precedence over `items` when provided. */
   groups?: DashboardNavGroup[];
   /** Removes the floating panel treatment for a sidebar revealed beneath mobile content. */
   flat?: boolean;
   className?: string;
-  /** Replaces the demo workspace switcher at the top (e.g. with a business switcher). */
+  /** Replaces the demo business switcher at the top (e.g. with a business switcher). */
   topSlot?: ReactNode;
   /** Replaces the demo team card at the bottom (e.g. with the app user menu). */
   bottomSlot?: ReactNode;
@@ -447,7 +447,7 @@ export function DashboardSidebar({
         className,
       )}
     >
-      {/* Pinned header: the workspace switcher and search stay put while
+      {/* Pinned header: the business switcher and search stay put while
           only the primary nav below scrolls. Horizontal bleed (`-mx-2` +
           `w-[calc(100%+1rem)]` + `px-2`) matches the nav scroller so all rows
           align; no vertical negative margin here so it never overlaps the
@@ -455,7 +455,7 @@ export function DashboardSidebar({
       <div
         className="-mx-2 flex w-[calc(100%+1rem)] shrink-0 flex-col gap-3 px-2 pt-2 pb-1"
       >
-        {/* Workspace switcher / collapse control */}
+        {/* Business switcher / collapse control */}
         <div
           className={cn(
             "flex w-full transition-[gap] duration-300 ease-in-out",

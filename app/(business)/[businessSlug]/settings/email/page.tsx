@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
-import { FeatureGate } from "@/features/paywall";
+import { FeatureGate } from "@/features/entitlements";
 import { BusinessEmailTemplateStaticFallback } from "@/components/shell/settings-body-skeletons";
 import { getBusinessBillingOverview } from "@/features/billing/queries";
 import { updateBusinessEmailTemplateSettingsAction } from "@/features/settings/actions";

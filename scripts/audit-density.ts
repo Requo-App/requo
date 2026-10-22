@@ -78,7 +78,7 @@ function isOutOfScope(rel: string): boolean {
   if (normalized.startsWith("components/seo/")) return true;
   if (normalized.endsWith("components/shell/auth-shell.tsx")) return true;
   if (normalized.startsWith("components/ui/")) return true;
-  if (normalized.startsWith("features/ai-agent/")) return true;
+  if (normalized.startsWith("features/agent/")) return true;
   if (normalized.startsWith("features/legal/")) return true;
   if (normalized.startsWith("features/auth/")) return true;
   if (normalized.startsWith("features/dev-tools/")) return true;

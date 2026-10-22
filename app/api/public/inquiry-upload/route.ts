@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
 
 import {
   buildPublicInquiryAttachmentUploadPath,
@@ -12,10 +11,11 @@ import {
 } from "@/features/inquiries/attachment-tokens";
 import { getPublicInquiryAttachmentMaxBytes } from "@/features/inquiries/plan-rules";
 import { publicInquiryRateLimit } from "@/features/inquiries/rate-limits";
+import { publicInquiryUploadRequestSchema } from "@/features/inquiries/schemas";
 import {
-  getInquiryEditorFormForBusiness,
-  getInquiryEditorFormsForBusiness,
-  getPublicInquiryBusinessByFormSlug,
+  getInquiryEditorServiceForBusiness,
+  getInquiryEditorServicesForBusiness,
+  getPublicInquiryBusinessByServiceSlug,
   getPublicInquiryBusinessBySlug,
 } from "@/features/inquiries/queries";
 import { getEffectivePlanForBusiness } from "@/lib/billing/subscription-service";
@@ -34,35 +34,27 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
  * this business when the inquiry is submitted.
  */
 
-const requestSchema = z.object({
-  businessSlug: z.string().trim().min(1).max(120),
-  formSlug: z.string().trim().min(1).max(120).optional(),
-  fileName: z.string().trim().min(1).max(255),
-  contentType: z.string().trim().max(255).optional(),
-  size: z.number().int().positive().max(100 * 1024 * 1024),
-});
-
 /** How long the signed upload URL and the upload token stay valid. */
 const uploadTokenLifetimeSeconds = 60 * 60;
 
 /**
  * Resolves the business an upload belongs to.
  *
- * A visitor uploads through a public inquiry form. A workspace member may
+ * A visitor uploads through a public inquiry form. A business member may
  * also attach a file to a manually created inquiry, and their business does
  * not need a public form — so a membership-scoped fallback is allowed.
  */
 async function resolveUploadBusiness({
   businessSlug,
-  formSlug,
+  serviceSlug,
 }: {
   businessSlug: string;
-  formSlug?: string;
+  serviceSlug?: string;
 }) {
-  const publicBusiness = formSlug
-    ? await getPublicInquiryBusinessByFormSlug({
+  const publicBusiness = serviceSlug
+    ? await getPublicInquiryBusinessByServiceSlug({
         businessSlug,
-        formSlug,
+        serviceSlug,
       })
     : await getPublicInquiryBusinessBySlug(businessSlug);
 
@@ -77,13 +69,13 @@ async function resolveUploadBusiness({
   }
 
   const businessId = memberContext.businessContext.business.id;
-  const form = formSlug
-    ? await getInquiryEditorFormForBusiness({ businessId, formSlug })
+  const service = serviceSlug
+    ? await getInquiryEditorServiceForBusiness({ businessId, serviceSlug })
     : (
-        await getInquiryEditorFormsForBusiness(businessId)
+        await getInquiryEditorServicesForBusiness(businessId)
       ).find((candidate) => candidate.isDefault);
 
-  if (!form) {
+  if (!service) {
     return null;
   }
 
@@ -94,9 +86,9 @@ async function resolveUploadBusiness({
     name: business.name,
     slug: business.slug,
     form: {
-      id: form.id,
-      name: form.name,
-      slug: form.slug,
+      id: service.id,
+      name: service.name,
+      slug: service.slug,
     },
   };
 }
@@ -110,17 +102,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   }
 
-  const parsed = requestSchema.safeParse(body);
+  const parsed = publicInquiryUploadRequestSchema.safeParse(body);
 
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   }
 
-  const { businessSlug, formSlug, fileName, contentType, size } = parsed.data;
+  const { businessSlug, serviceSlug, fileName, contentType, size } = parsed.data;
 
   const business = await resolveUploadBusiness({
     businessSlug,
-    formSlug,
+    serviceSlug,
   });
 
   if (!business) {

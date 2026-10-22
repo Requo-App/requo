@@ -207,7 +207,7 @@ export function MarketingHero() {
       >
         <InViewReveal className="relative z-10 mx-auto grid w-full max-w-6xl gap-4 px-4 sm:gap-5 sm:px-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-end lg:px-8 xl:px-0">
           <div className="relative z-10 flex flex-col gap-3 sm:gap-4">
-            <p className="relative z-10 meta-label-plain text-primary">THE REQUO WORKSPACE</p>
+            <p className="relative z-10 meta-label-plain text-primary">THE REQUO BUSINESS</p>
             <h2 className="relative z-10 max-w-3xl font-heading text-2xl font-semibold tracking-tight text-balance sm:text-3xl lg:text-4xl xl:text-5xl">
               One connected workflow from inquiry to accepted quote.
             </h2>

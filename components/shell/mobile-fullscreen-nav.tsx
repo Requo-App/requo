@@ -28,7 +28,7 @@ export type MobileFullscreenNavProps = {
  * Fullscreen navigation overlay for mobile (below `lg`).
  *
  * Reuses the same sidebar UI as desktop (`BoarduiMainSidebar` for the main
- * workspace nav, `BoarduiSettingsSidebar` for settings) stretched fullscreen,
+ * business nav, `BoarduiSettingsSidebar` for settings) stretched fullscreen,
  * but strips the chrome that already lives elsewhere on mobile: no theme
  * toggle, and no Support/Settings secondary rows. The user profile menu
  * renders at the bottom, same as desktop.
@@ -148,7 +148,7 @@ export function MobileFullscreenNav({
       role="dialog"
       aria-modal="true"
       tabIndex={-1}
-      aria-label={variant === "main" ? "Workspace navigation" : "Settings navigation"}
+      aria-label={variant === "main" ? "Business navigation" : "Settings navigation"}
       data-state={visible ? "open" : "closed"}
       className={cn(
         "fixed inset-0 z-50 flex flex-col bg-sidebar outline-none lg:hidden",

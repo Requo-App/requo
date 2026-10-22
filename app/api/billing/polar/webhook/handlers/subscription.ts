@@ -49,7 +49,7 @@ import {
   expireSubscription,
   updateSubscriptionStatus,
 } from "@/lib/billing/subscription-service";
-import type { BusinessPlan } from "@/lib/plans/plans";
+import type { PlanTier } from "@/lib/plans/plans";
 
 import { resolvePolarBusinessId } from "../identity";
 import { withIdempotency } from "../idempotency";
@@ -63,7 +63,7 @@ import { withIdempotency } from "../idempotency";
  * 7.7) by failing the event so Polar retries.
  */
 function resolvePlanFromPayload(data: Subscription): {
-  plan: BusinessPlan;
+  plan: PlanTier;
 } {
   const mapping = reversePolarProductId(data.productId, getPolarProductIds());
 
@@ -279,7 +279,7 @@ async function applySubscriptionState(
  */
 async function activateForPayload(
   businessId: string,
-  plan: BusinessPlan,
+  plan: PlanTier,
   data: Subscription,
 ): Promise<void> {
   await activateSubscription({

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
-import { LockedFeaturePage } from "@/components/shared/paywall";
+import { FeatureGate } from "@/features/entitlements";
 import {
   BusinessQuoteDefaultsStaticFallback,
   SettingsCollectionBodySkeleton,
@@ -115,7 +115,7 @@ async function QuoteTemplatesTab() {
         }
         createAction={createQuoteLibraryEntryAction}
         deleteAction={deleteQuoteLibraryEntryAction}
-        pricingLimit={getUsageLimit(businessPlan, "productEntriesPerBusiness")}
+        pricingLimit={getUsageLimit(businessPlan, "quoteLibraryEntriesPerBusiness")}
         templates={templates}
         totalLibraryCount={quoteLibrary.length}
         updateAction={updateQuoteLibraryEntryAction}
@@ -128,7 +128,8 @@ async function QuoteTemplatesTab() {
   );
 
   return (
-    <LockedFeaturePage
+    <FeatureGate
+      variant="page"
       feature="quoteLibrary"
       plan={businessPlan}
       description="Upgrade to create reusable quote templates and speed up quoting."
@@ -143,6 +144,8 @@ async function QuoteTemplatesTab() {
             }
           : undefined
       }
-    />
+    >
+      {null}
+    </FeatureGate>
   );
 }

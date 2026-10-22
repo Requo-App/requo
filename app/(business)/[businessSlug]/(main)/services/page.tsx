@@ -6,11 +6,11 @@ import { DashboardPage } from "@/components/shared/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
 import { ServicesPageSkeleton } from "@/components/shell/services-page-skeleton";
 import {
-  createBusinessInquiryFormAction,
-  unarchiveBusinessInquiryFormAction,
+  createServiceAction,
+  unarchiveServiceAction,
 } from "@/features/settings/actions";
 import { ServicesList } from "@/features/settings/components/services-list";
-import { getBusinessInquiryFormsSettingsForBusiness } from "@/features/settings/queries";
+import { getServicesSettingsForBusiness } from "@/features/settings/queries";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 import { getBusinessOperationalPageContext } from "../../settings/_lib/page-context";
 
@@ -54,7 +54,7 @@ async function ServicesRegion({
 }) {
   const { businessSlug } = await params;
   const { businessContext } = await getBusinessOperationalPageContext(businessSlug);
-  const settings = await getBusinessInquiryFormsSettingsForBusiness(
+  const settings = await getServicesSettingsForBusiness(
     businessContext.business.id,
   );
 
@@ -64,8 +64,8 @@ async function ServicesRegion({
 
   return (
     <ServicesList
-      createAction={createBusinessInquiryFormAction}
-      unarchiveAction={unarchiveBusinessInquiryFormAction}
+      createAction={createServiceAction}
+      unarchiveAction={unarchiveServiceAction}
       settings={settings}
       plan={businessContext.business.plan}
     />
