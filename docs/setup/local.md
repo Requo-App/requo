@@ -6,8 +6,8 @@ values in `.env.local` differ:
 1. **Cloud Supabase (default)** — point env values at a hosted Supabase
    project, then `npm run dev`. No Docker required.
 2. **Full local (Docker)** — the Supabase CLI stack (database, storage,
-   realtime, Studio) plus `docker compose` for the app and Inngest. Fully
-   offline.
+   realtime, Studio) plus `docker compose` for the app, Inngest, and Redis.
+   Fully offline.
 
 ## Prerequisites
 
@@ -73,6 +73,10 @@ SUPABASE_SERVICE_ROLE_KEY=<SERVICE_ROLE_KEY from status>
 SUPABASE_JWT_SECRET=<JWT_SECRET from status>
 BETTER_AUTH_SECRET=<generate: openssl rand -hex 32>
 BETTER_AUTH_URL=http://localhost:3000
+# Host `npm run dev`: use the compose Redis proxy on the host port.
+# The compose `app` service overrides this to http://redis-http:80.
+UPSTASH_REDIS_REST_URL=http://127.0.0.1:8079
+UPSTASH_REDIS_REST_TOKEN=local-dev-token
 ```
 
 Prepare the database and start the app:
@@ -93,11 +97,25 @@ or new migrations).
 
 - `app` — Next.js dev server with hot reload on http://localhost:3000
 - `inngest` — Inngest Dev Server on http://localhost:8288
+- `redis` — Redis 7 with append-only persistence on `localhost:6379`
+- `redis-http` — Upstash-compatible REST proxy on http://localhost:8079
 
 Inside the app container, Postgres is reached over the Supabase CLI Docker
 network by container hostname (`supabase_db_requo:5432`, with
-`sslmode=disable`), and browser-facing storage/realtime use
-`host.docker.internal:54321`.
+`sslmode=disable`), browser-facing storage/realtime use
+`host.docker.internal:54321`, and Redis is reached through the
+`redis-http` service. The app keeps using `@upstash/redis`; the proxy exposes
+the same REST API as Upstash.
+
+If you run the app on the host instead of the Compose `app` container, start
+only the Redis services and use the `127.0.0.1` values from the env block
+above:
+
+```bash
+docker compose up -d redis redis-http
+npm run dev
+docker compose stop redis redis-http   # when finished
+```
 
 Notes:
 
@@ -116,6 +134,8 @@ Notes:
 | --- | --- |
 | 3000 | Requo (compose `app`) |
 | 8288 | Inngest Dev Server (compose `inngest`) |
+| 6379 | Redis (compose `redis`, loopback only, for `redis-cli`) |
+| 8079 | Upstash-compatible Redis REST proxy (compose `redis-http`, loopback only) |
 | 54321 | Supabase API gateway — storage + realtime |
 | 54322 | Postgres (direct connection for the app and migrations) |
 | 54323 | Supabase Studio — `http://127.0.0.1:54323` |

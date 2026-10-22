@@ -6,6 +6,7 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ### Added
 
+- The full-local Docker stack now includes Redis behind an Upstash-compatible REST proxy. The app keeps using `@upstash/redis`, so cache, quota, cooldown, and rate-limit behavior can be exercised locally without a hosted Redis database.
 - Rebuilt business analytics as four tabs — Overview, Performance, Operations, and Team — with fresh KPI, funnel, trend, money, attention, usage, timing, cohort, benchmark, and member-workload sections. Free plans see a fixed last-30-days Overview with real numbers; Pro plans unlock 7/30/90-day and 12-month/custom ranges plus Performance and Operations; Business plans add all-time history and team analytics. Locked tabs show static previews and their premium queries never run.
 - Rebuilt analytics CSV export with summary and daily-series scopes, and re-resolve the date range and plan entitlement on the server so export cannot bypass the picker's range cap.
 - Added goals, tracking annotations, and scheduled reports to the analytics reports surface, including a recipient cap of one for Pro and five for Business.
