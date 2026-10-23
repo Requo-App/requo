@@ -1,6 +1,6 @@
 "use server";
 
-import { and, count, desc, eq } from "drizzle-orm";
+import { and, count, desc, eq, isNull, sql } from "drizzle-orm";
 import { revalidateTag } from "next/cache";
 import { headers } from "next/headers";
 
@@ -1124,7 +1124,8 @@ async function recordSubscriptionOverrideAudit(
  * value stay in sync (Property 12).
  *
  * The action is user-keyed for the admin UI, but billing is business-scoped:
- * it resolves the user's oldest owned business and updates that business's
+ * it selects the non-deleted owned business with the newest subscription,
+ * falling back to the newest non-deleted owned business if none has a
  * subscription. No direct writes to `account_subscriptions`.
  *
  * Self-target guard intentionally omitted: the destructive-action
@@ -1178,11 +1179,19 @@ export async function manualPlanOverrideAction(
   const [targetBusiness] = await db
     .select({ id: businesses.id })
     .from(businesses)
-    .where(eq(businesses.ownerUserId, userId))
-    // Match the admin detail/activity queries, which show the newest
-    // business. Overriding an older business while the UI displays a newer
-    // one would make the audit trail misleading.
-    .orderBy(desc(businesses.createdAt))
+    .leftJoin(
+      businessSubscriptions,
+      eq(businessSubscriptions.businessId, businesses.id),
+    )
+    .where(
+      and(eq(businesses.ownerUserId, userId), isNull(businesses.deletedAt)),
+    )
+    // Match the subscription shown by the admin detail/activity queries.
+    .orderBy(
+      sql`${businessSubscriptions.createdAt} desc nulls last`,
+      desc(businessSubscriptions.id),
+      desc(businesses.createdAt),
+    )
     .limit(1);
 
   if (!targetBusiness) {

@@ -775,8 +775,10 @@ async function getAdminUserDetailCoreInner(
         businesses,
         eq(businesses.id, businessSubscriptions.businessId),
       )
-      .where(eq(businesses.ownerUserId, userId))
-      .orderBy(desc(businessSubscriptions.createdAt))
+      .where(
+        and(eq(businesses.ownerUserId, userId), isNull(businesses.deletedAt)),
+      )
+      .orderBy(desc(businessSubscriptions.createdAt), desc(businessSubscriptions.id))
       .limit(1),
     db
       .select({ count: count() })
@@ -2501,7 +2503,7 @@ export const getAdminUserBillingActivity = cache(
     await requireAdminUser();
 
     const row = await selectAdminSubscriptionBaseRow(
-      eq(businesses.ownerUserId, userId),
+      and(eq(businesses.ownerUserId, userId), isNull(businesses.deletedAt))!,
     );
 
     return {
