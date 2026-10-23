@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { getBusinessSettingsPath, homePath } from "@/features/businesses/routes";
 import { requireUser } from "@/lib/auth/session";
+import { detectDisplayCurrency } from "@/lib/billing/region";
 import { startBusinessTrial } from "@/lib/billing/subscription-service";
 import { getBusinessActionContext } from "@/lib/db/business-access";
 import { PRO_TRIAL_DAYS } from "@/lib/plans/plans";
@@ -78,10 +79,13 @@ export async function startBusinessTrialAction(
     return { error: "That business could not be found." };
   }
 
+  // Match the currency checkout will use for this visitor. The business's
+  // quote currency (`defaultCurrency`) is not a billing-market signal.
+  const currency = await detectDisplayCurrency();
   const result = await startBusinessTrial({
     businessId,
     userId: access.user.id,
-    currency: access.businessContext.business.defaultCurrency,
+    currency,
   });
 
   if (!result.ok) {

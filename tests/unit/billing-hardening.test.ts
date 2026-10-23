@@ -48,10 +48,11 @@ describe("normalizeBillingCurrency", () => {
   it("normalizes Polar's lowercase currency codes", () => {
     expect(normalizeBillingCurrency("usd")).toBe("USD");
     expect(normalizeBillingCurrency("php")).toBe("PHP");
+    expect(normalizeBillingCurrency("eur")).toBe("EUR");
   });
 
   it("defaults unsupported currencies to USD", () => {
-    expect(normalizeBillingCurrency("eur")).toBe("USD");
+    expect(normalizeBillingCurrency("jpy")).toBe("USD");
     expect(normalizeBillingCurrency(null)).toBe("USD");
   });
 });

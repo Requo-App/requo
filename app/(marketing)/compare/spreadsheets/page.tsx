@@ -56,7 +56,7 @@ const rows: readonly { label: string; sheets: string; requo: string }[] = [
   {
     label: "Price",
     sheets: "Free, plus your evenings",
-    requo: "Free plan; Pro $9/mo; Business $24/mo",
+    requo: "Free plan; Pro $9/mo and Business $24/mo (USD)",
   },
 ];
 
@@ -69,7 +69,7 @@ const compareFaqs = [
   {
     question: "Can I import my spreadsheet data?",
     answer:
-      "Yes. Requo includes CSV exports for inquiries, quotes, and invoices, and you can rebuild your price list as products and pricing entries so future quotes start from the library instead of a tab.",
+      "Yes. Requo includes CSV, PDF, and PNG exports for inquiries, quotes, and invoices, and you can rebuild your price list as products and pricing entries so future quotes start from the library instead of a tab.",
   },
   {
     question: "What do spreadsheets still do better?",

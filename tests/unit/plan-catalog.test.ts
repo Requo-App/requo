@@ -7,6 +7,7 @@ import {
   planCatalog,
   pricingComparison,
 } from "@/lib/plans/catalog";
+import { hasFeatureAccess } from "@/lib/plans/entitlements";
 import { planTiers } from "@/lib/plans/plans";
 import { getUsageLimit } from "@/lib/plans/usage-limits";
 
@@ -72,6 +73,26 @@ describe("plan catalog", () => {
 
     const members = team.find((row) => row.label === "Members");
     expect(members?.business).toBe("Up to 5");
+  });
+
+  it("includes record exports on every plan", () => {
+    const exportRow = pricingComparison
+      .flatMap((section) => section.features)
+      .find((row) => row.label.toLowerCase().includes("exports"));
+
+    expect(exportRow?.label).toContain("CSV");
+    expect(exportRow?.label).toContain("PDF");
+    expect(exportRow?.label).toContain("PNG");
+    expect(exportRow).toMatchObject({
+      free: true,
+      pro: true,
+      business: true,
+    });
+    expect(planCatalog.free.highlights.join(" ")).toContain("PDF");
+
+    for (const plan of planTiers) {
+      expect(hasFeatureAccess(plan, "exports")).toBe(true);
+    }
   });
 
   it("does not advertise removed or sold-separately capabilities", () => {

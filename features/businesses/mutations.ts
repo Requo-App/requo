@@ -47,6 +47,12 @@ type CreateBusinessForUserInput = {
   };
   businessId: string;
   defaultCurrency: string;
+  /**
+   * Billing-market currency detected for the visitor. Trial rows use it so plan
+   * prices match the market Polar checkout will use. Falls back to
+   * `defaultCurrency` for non-request callers and tests.
+   */
+  billingCurrency?: string | null;
   name: string;
   preferredSlug?: string;
   businessType: BusinessType;
@@ -142,6 +148,7 @@ export async function createBusinessRecordForUser({
   tx,
   businessId,
   defaultCurrency,
+  billingCurrency,
   user,
   name,
   preferredSlug,
@@ -256,7 +263,7 @@ export async function createBusinessRecordForUser({
     const trial = await startBusinessTrial({
       businessId,
       userId: user.id,
-      currency: defaultCurrency,
+      currency: billingCurrency ?? defaultCurrency,
       client: tx,
       now,
     });
@@ -391,6 +398,7 @@ export async function createBusinessRecordForUser({
 export async function createBusinessForUser({
   businessId,
   defaultCurrency,
+  billingCurrency,
   user,
   name,
   preferredSlug,
@@ -412,6 +420,7 @@ export async function createBusinessForUser({
       tx,
       businessId,
       defaultCurrency,
+      billingCurrency,
       user,
       name,
       preferredSlug,

@@ -9,8 +9,14 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 
+import {
+  billingCurrencies,
+  type BillingCurrency,
+} from "@/lib/billing/currencies";
 import { user } from "@/lib/db/schema/auth";
 import { businesses } from "@/lib/db/schema/businesses";
+
+export { billingCurrencies, type BillingCurrency };
 
 /* ── Enums ────────────────────────────────────────────────────────────────── */
 
@@ -37,9 +43,6 @@ export type SubscriptionStatus = (typeof subscriptionStatuses)[number];
 export const subscriptionStatusEnum = pgEnum("subscription_status", [
   ...subscriptionStatuses,
 ]);
-
-export const billingCurrencies = ["USD", "PHP"] as const;
-export type BillingCurrency = (typeof billingCurrencies)[number];
 
 export const billingCurrencyEnum = pgEnum("billing_currency", [
   ...billingCurrencies,

@@ -371,7 +371,7 @@ export const featureDetails: Record<string, FeatureDetail> = {
       },
       {
         title: "Export the raw numbers",
-        body: "CSV exports for inquiries, quotes, and invoices keep a copy of operational data for analysis anywhere.",
+        body: "Export inquiries, quotes, and invoices as CSV, PDF, or PNG — plus analytics CSVs on eligible plans — so your data can travel.",
       },
     ],
     workflow: ["Capture", "Measure", "Find stalls", "Fix", "Convert"],
@@ -389,7 +389,7 @@ export const featureDetails: Record<string, FeatureDetail> = {
       {
         question: "Can I export my data?",
         answer:
-          "Yes. Requo includes CSV exports for inquiries, quotes, and invoices, so you can analyze operational data anywhere.",
+          "Yes. Requo includes CSV, PDF, and PNG exports for inquiries, quotes, and invoices, so you can analyze operational data anywhere.",
       },
       {
         question: "Does analytics include team performance?",

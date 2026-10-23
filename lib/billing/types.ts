@@ -5,11 +5,12 @@
  * for region detection, checkout creation, and webhook processing.
  */
 
+import type { BillingCurrency } from "@/lib/billing/currencies";
 import type { PlanTier } from "@/lib/plans/plans";
 
+export type { BillingCurrency } from "@/lib/billing/currencies";
 export type {
   BillingProvider,
-  BillingCurrency,
   SubscriptionStatus,
   PaymentAttemptStatus,
 } from "@/lib/db/schema/subscriptions";
@@ -18,16 +19,11 @@ export type BillingInterval = "monthly" | "yearly";
 
 export type PaidPlan = Exclude<PlanTier, "free">;
 
-export type PlanPricing = {
-  USD: number; // cents
-  /**
-   * Optional PHP approximation in centavos. Display-only — the
-   * authoritative billing currency is USD and Polar handles any
-   * local-currency conversion at checkout. Populated by display
-   * helpers, never used as a base price.
-   */
-  PHP?: number;
-};
+/**
+ * A complete set of fixed local prices, in each currency's smallest unit
+ * (for example cents, centavos, pence, paise, and fils).
+ */
+export type PlanPricing = Record<BillingCurrency, number>;
 
 export type CheckoutResult =
   | {

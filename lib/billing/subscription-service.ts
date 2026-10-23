@@ -11,6 +11,7 @@ import { eq, sql } from "drizzle-orm";
 import { cacheLife, cacheTag, revalidateTag } from "next/cache";
 
 import { normalizeBillingCurrency } from "@/lib/billing/currency";
+import { enforceLiveServiceLimit } from "@/lib/billing/live-service-enforcement";
 import { db } from "@/lib/db/client";
 import { businesses } from "@/lib/db/schema/businesses";
 import { newEntityId } from "@/lib/ids";
@@ -94,6 +95,29 @@ function isStaleProviderEvent(
   return !!incoming && !!existing && incoming.getTime() < existing.getTime();
 }
 
+/**
+ * A provider event timestamped before the current local trial started belongs
+ * to a previous subscription state. Polar can deliver those events late; they
+ * must not expire or replace the trial.
+ */
+function isPreTrialPeriodEvent(
+  eventAt: Date | null | undefined,
+  existing:
+    | {
+        status: SubscriptionStatus;
+        currentPeriodStart: Date | null;
+      }
+    | null
+    | undefined,
+): boolean {
+  return (
+    existing?.status === "trialing" &&
+    !!eventAt &&
+    !!existing.currentPeriodStart &&
+    eventAt.getTime() < existing.currentPeriodStart.getTime()
+  );
+}
+
 /* ── Read ──────────────────────────────────────────────────────────────────── */
 
 /**
@@ -162,12 +186,11 @@ export async function getEffectivePlanForBusiness(
 export async function getCachedEffectivePlanForBusiness(
   businessId: string,
 ): Promise<PlanTier> {
-  "use cache";
-
-  cacheLife(billingShellCacheLife);
-  cacheTag(...getBusinessBillingCacheTags(businessId));
-
-  const subscription = await getBusinessSubscription(businessId);
+  // Resolve the effective plan outside the cache boundary. The subscription
+  // row is cached, but trial end and period-end calculations depend on the
+  // current time, so caching the result would keep granting Pro after a trial
+  // or billing period ended.
+  const subscription = await getCachedBusinessSubscription(businessId);
 
   if (!subscription) {
     return "free";
@@ -288,6 +311,13 @@ export async function activateSubscription(
 
     if (
       existing &&
+      isPreTrialPeriodEvent(params.providerEventAt, existing)
+    ) {
+      return existing;
+    }
+
+    if (
+      existing &&
       isStaleProviderEvent(params.providerEventAt, existing.providerEventAt)
     ) {
       return existing;
@@ -372,13 +402,17 @@ export async function activateSubscription(
     // The value is the *effective* plan derived from the subscription row,
     // not the requested plan: a non-active status (pending, incomplete)
     // must never leave a paid plan behind in the read cache.
+    const effectivePlan = resolveEffectivePlanFromSubscription(subscription);
+
     await tx
       .update(businesses)
       .set({
-        plan: resolveEffectivePlanFromSubscription(subscription),
+        plan: effectivePlan,
         updatedAt: now,
       })
       .where(eq(businesses.id, params.businessId));
+
+    await enforceLiveServiceLimit(tx, params.businessId, effectivePlan);
 
     return subscription;
   });
@@ -445,6 +479,10 @@ export async function updateSubscriptionStatus(
       return null;
     }
 
+    if (isPreTrialPeriodEvent(updates?.providerEventAt, existing)) {
+      return { row: existing, changed: false };
+    }
+
     if (isStaleProviderEvent(updates?.providerEventAt, existing.providerEventAt)) {
       return { row: existing, changed: false };
     }
@@ -502,13 +540,17 @@ export async function updateSubscriptionStatus(
       return null;
     }
 
+    const effectivePlan = resolveEffectivePlanFromSubscription(row);
+
     await tx
       .update(businesses)
       .set({
-        plan: resolveEffectivePlanFromSubscription(row),
+        plan: effectivePlan,
         updatedAt: now,
       })
       .where(eq(businesses.id, businessId));
+
+    await enforceLiveServiceLimit(tx, businessId, effectivePlan);
 
     return { row, changed: true };
   });
@@ -748,6 +790,9 @@ export async function startBusinessTrial({
           currentPeriodStart: now,
           currentPeriodEnd: trialEndsAt,
           canceledAt: null,
+          // Record the local trial start as the event-ordering barrier so
+          // delayed provider events from a previous term are ignored.
+          providerEventAt: now,
           updatedAt: now,
         })
         .where(eq(businessSubscriptions.id, existing.id))
@@ -769,6 +814,7 @@ export async function startBusinessTrial({
           trialEndsAt,
           currentPeriodStart: now,
           currentPeriodEnd: trialEndsAt,
+          providerEventAt: now,
           createdAt: now,
           updatedAt: now,
         })
@@ -781,6 +827,8 @@ export async function startBusinessTrial({
       .update(businesses)
       .set({ plan: "pro", updatedAt: now })
       .where(eq(businesses.id, businessId));
+
+    await enforceLiveServiceLimit(tx, businessId, "pro");
 
     return { ok: true, subscription, trialEndsAt };
   };

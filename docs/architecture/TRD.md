@@ -306,6 +306,10 @@ The plan's live-service allowance is checked inside the write transaction
 under a per-business advisory lock, and resolves the effective plan from the
 subscription rather than the denormalized `businesses.plan` cache — the same
 plan the public inquiry pages resolve, so the two surfaces cannot disagree.
+When a subscription status change lowers the effective plan, the same
+transaction unpublishes live services above the new allowance (keeping the
+default service and the oldest services live), so a trial expiry or downgrade
+webhook leaves the public surface within the new plan.
 The plan's custom-field allowance is applied when the intake form is saved,
 so a crafted request cannot persist fields the plan does not include. Public
 surfaces for a business — the inquiry pages and the public Agent — all

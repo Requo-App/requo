@@ -15,7 +15,6 @@ import {
 } from "lucide-react";
 import { toast } from "@/components/shared/notify";
 
-import { UpgradeNoticeButton } from "@/features/entitlements/components/upgrade-notice-button";
 import { Button } from "@/components/ui/button";
 import { mobileNavbarIconButtonClassName } from "@/components/shell/mobile-header-slot";
 import { cn } from "@/lib/utils";
@@ -102,7 +101,6 @@ type SendQuoteDialogProps = {
   businessName: string;
   isRequoEmailAvailable: boolean;
   pdfExportHref?: string;
-  pdfExportLocked?: boolean;
   disabled?: boolean;
   /**
    * Whether auto follow-up is available (plan-gated and under the plan's
@@ -184,7 +182,6 @@ export function SendQuoteDialog({
   businessName,
   isRequoEmailAvailable,
   pdfExportHref,
-  pdfExportLocked = false,
   disabled = false,
   canAutoFollowUp = false,
   autoFollowUpUnavailableNote,
@@ -609,17 +606,6 @@ export function SendQuoteDialog({
                       PDF
                     </a>
                   </Button>
-                ) : pdfExportLocked ? (
-                  <UpgradeNoticeButton
-                    className="flex-1"
-                    noticeDescription="Upgrade your plan to download quote PDFs."
-                    noticeTitle="PDF export requires an upgrade."
-                    size="sm"
-                    variant="outline"
-                  >
-                    <ExternalLink data-icon="inline-start" className="size-3.5" />
-                    PDF
-                  </UpgradeNoticeButton>
                 ) : null}
               </div>
 

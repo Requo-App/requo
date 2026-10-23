@@ -99,12 +99,10 @@ export function BillingStatusCard({
 
   const [creditsDialogOpen, setCreditsDialogOpen] = useState(false);
 
-  const renewalDate = isTrialing
+  const renewalDate = isTrialing || isLapsedTrial
     ? (subscription?.trialEndsAt ?? subscription?.currentPeriodEnd ?? null)
-    : isLapsedTrial
-      ? null
-      : (subscription?.currentPeriodEnd ?? null);
-  const currency = subscription?.currency ?? "USD";
+    : (subscription?.currentPeriodEnd ?? null);
+  const currency = billing.billingCurrency;
   const priceLabel = isFreePlan
     ? "Free"
     : getPlanPriceLabel(currentPlan as PaidPlan, currency, "monthly");
@@ -118,7 +116,11 @@ export function BillingStatusCard({
   )}&businessSlug=${encodeURIComponent(businessSlug)}`;
 
   let subscriptionLine: string;
-  if (isTrialing && renewalDate) {
+  if (isLapsedTrial) {
+    subscriptionLine = renewalDate
+      ? `Your Pro trial ended ${formatBillingDate(renewalDate)}. The business is now on Free and your data stays available.`
+      : "Your Pro trial has ended. The business is now on Free and your data stays available.";
+  } else if (isTrialing && renewalDate) {
     subscriptionLine = `Your Pro trial ends ${formatBillingDate(renewalDate)}. Choose a plan to keep Pro features; otherwise the business moves to Free and your data stays available.`;
   } else if (
     subscription?.canceledAt &&
@@ -181,6 +183,7 @@ export function BillingStatusCard({
                 currentPlan !== "business" ? (
                   <div className="flex flex-wrap items-center gap-2">
                     <UpgradeButton
+                      currency={currency}
                       currentPlan={currentPlan}
                       userId={userId}
                       businessId={businessId}
@@ -191,6 +194,7 @@ export function BillingStatusCard({
                     </UpgradeButton>
                     {isTrialing ? (
                       <UpgradeButton
+                        currency={currency}
                         currentPlan={currentPlan}
                         userId={userId}
                         businessId={businessId}
@@ -207,6 +211,7 @@ export function BillingStatusCard({
                       />
                     ) : (
                       <UpgradeButton
+                        currency={currency}
                         currentPlan={currentPlan}
                         userId={userId}
                         businessId={businessId}
@@ -234,7 +239,13 @@ export function BillingStatusCard({
                 />
                 <DetailRow
                   icon={CalendarDays}
-                  label={isTrialing ? "Trial ends" : "Renewal date"}
+                  label={
+                    isTrialing
+                      ? "Trial ends"
+                      : isLapsedTrial
+                        ? "Trial ended"
+                        : "Renewal date"
+                  }
                   value={formatBillingDate(renewalDate)}
                 />
                 <DetailRow
@@ -343,6 +354,7 @@ export function BillingStatusCard({
                   </Button>
                 ) : currentPlan !== "business" ? (
                   <UpgradeButton
+                    currency={currency}
                     currentPlan={currentPlan}
                     userId={userId}
                     businessId={businessId}

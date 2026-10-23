@@ -191,12 +191,12 @@ export const faqItems = [
   {
     question: "Is there a free plan?",
     answer:
-      "Yes. Free includes the complete inquiry-to-payment workflow: unlimited inquiries, quotes, invoices, and manual payment records, manual follow-up reminders, customer-facing quote acceptance, CSV exports, two live services, 20 Requo email sends per month, and about 10 AI quote drafts per month. New business owners also get a one-time 14-day Pro trial. Upgrade when you need automatic follow-ups, more live services, advanced analytics, or team access.",
+      "Yes. Free includes the complete inquiry-to-payment workflow: unlimited inquiries, quotes, invoices, and manual payment records, manual follow-up reminders, customer-facing quote acceptance, CSV, PDF, and PNG exports, two live services, 20 Requo email sends per month, and about 10 AI quote drafts per month. New business owners also get a one-time 14-day Pro trial. Upgrade when you need automatic follow-ups, more live services, advanced analytics, or team access.",
   },
   {
     question: "What does a Requo subscription cost?",
     answer:
-      "Requo has three business plans. Free is $0. Pro is $9 per month or $90 per year. Business is $24 per month or $240 per year. Annual billing includes two months free. Paid subscriptions are billed per business, and the pricing page shows the current plan limits and included features.",
+      "Requo has three business plans. Free is $0. In USD, Pro is $9 per month or $90 per year, and Business is $24 per month or $240 per year. Visitors in supported countries see fixed local prices instead. Annual billing includes two months free. Paid subscriptions are billed per business, and the pricing page shows the current plan limits and included features.",
   },
   {
     question: "Does Requo include an Assistant or customer chat?",
@@ -211,6 +211,6 @@ export const faqItems = [
   {
     question: "Can I export my inquiries, quotes, and invoices?",
     answer:
-      "Yes. Requo includes CSV exports for inquiries, quotes, and invoices, so you can keep a copy of your operational data or analyze it elsewhere.",
+      "Yes. Requo includes CSV, PDF, and PNG exports for inquiries, quotes, and invoices, so you can keep a copy of your operational data or analyze it elsewhere.",
   },
 ] as const;

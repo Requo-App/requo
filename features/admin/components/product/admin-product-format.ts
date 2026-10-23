@@ -1,3 +1,4 @@
+import { isBillingCurrency } from "@/lib/billing/currencies";
 import { formatPrice } from "@/lib/billing/plans";
 import type { EmailOutboxStatus } from "@/lib/db/schema/email";
 
@@ -44,8 +45,8 @@ export function formatProductDateTime(value: Date | null): string {
  * Money for quote totals.
  *
  * Quote currency is free text (default USD), not the billing enum, so only
- * USD/PHP route through the billing formatter — anything else renders as
- * `<amount> <CODE>` rather than guessing a symbol.
+ * currencies Requo also bills in route through the billing formatter —
+ * anything else renders as `<amount> <CODE>` rather than guessing a symbol.
  */
 export function formatAdminMoney(
   amountInCents: number,
@@ -53,7 +54,7 @@ export function formatAdminMoney(
 ): string {
   const code = (currency || "USD").toUpperCase();
 
-  if (code === "USD" || code === "PHP") {
+  if (isBillingCurrency(code)) {
     return formatPrice(amountInCents, code);
   }
 

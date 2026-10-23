@@ -40,7 +40,6 @@ type InquiryFormOption = {
 
 type InquiryListControlsSectionProps = {
   businessSlug: string;
-  canExport: boolean;
   filters: InquiryListFilters;
   searchParams: SearchParamsRecord;
   totalItemsPromise: Promise<number>;
@@ -59,7 +58,6 @@ type InquiryListHeaderActionsProps = InquiryListControlsSectionProps & {
 
 export async function InquiryListHeaderActions({
   businessSlug,
-  canExport,
   filters,
   totalItemsPromise,
   formOptionsPromise,
@@ -89,7 +87,6 @@ export async function InquiryListHeaderActions({
     <MobileHeaderSlot>
       <InquiryExportCsvDropdown
         businessSlug={businessSlug}
-        canExport={canExport}
         filters={filters}
         formOptions={formOptions}
         resultCount={exportableCount}
@@ -117,7 +114,6 @@ export async function InquiryListHeaderActions({
 
 export async function InquiryListControlsSection({
   businessSlug: _businessSlug,
-  canExport: _canExport,
   filters,
   searchParams: _searchParams,
   totalItemsPromise,

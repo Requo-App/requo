@@ -41,7 +41,7 @@ export const planCatalog: Record<PlanTier, PlanCatalogEntry> = {
       "About 10 AI quote drafts per month",
       "20 Requo email sends per month",
       "2 live services",
-      "Inquiry, quote, and invoice CSV exports",
+      "Inquiry, quote, and invoice CSV, PDF, and PNG exports",
       `One-time ${PRO_TRIAL_DAYS}-day Pro trial; no card required`,
     ],
   },
@@ -100,7 +100,7 @@ export const pricingFaqs = [
   {
     question: "What does a Requo subscription cost?",
     answer:
-      "Free is $0. Pro is $9 per month or $90 per year. Business is $24 per month or $240 per year. Annual billing includes two months free, and paid subscriptions are billed per business.",
+      "Free is $0. In USD, Pro is $9 per month or $90 per year, and Business is $24 per month or $240 per year. Visitors in supported countries see fixed local prices instead of USD, and annual billing includes two months free. Paid subscriptions are billed per business.",
   },
   {
     question: "Is there a free trial?",
@@ -110,7 +110,17 @@ export const pricingFaqs = [
   {
     question: "Which currency am I billed in?",
     answer:
-      "Subscriptions are billed in USD through Polar. This page may show approximate local pricing for reference, but checkout and invoices use USD.",
+      "Subscriptions are billed in the fixed local currency shown at checkout for your billing country. Requo supports USD, PHP, GBP, CAD, AUD, EUR, NZD, SGD, AED, INR, and ZAR. These are fixed local prices, not runtime conversions, and countries without a local price use USD.",
+  },
+  {
+    question: "Where is local pricing available?",
+    answer:
+      "Local pricing is shown for the United Kingdom, Canada, Australia, the eurozone, New Zealand, Singapore, the United Arab Emirates, the Philippines, India, and South Africa. Other countries use USD. Polar selects the currency from your location and shows the final amount before payment.",
+  },
+  {
+    question: "Are taxes included in the price?",
+    answer:
+      "Taxes are calculated by Polar at checkout based on your billing country. Some countries show tax-inclusive prices, while others add tax to the listed price. The checkout total is the final amount charged.",
   },
   {
     question: "Can I start free and upgrade later?",
@@ -120,7 +130,7 @@ export const pricingFaqs = [
   {
     question: "What is included in the free plan?",
     answer:
-      "The complete inquiry-to-payment workflow: unlimited inquiries, quotes, invoices, and manual payment records, manual follow-up reminders, customer-facing quote acceptance, CSV exports, two live services, 20 Requo email sends per month, and about 10 AI quote drafts per month.",
+      "The complete inquiry-to-payment workflow: unlimited inquiries, quotes, invoices, and manual payment records, manual follow-up reminders, customer-facing quote acceptance, CSV, PDF, and PNG exports, two live services, 20 Requo email sends per month, and about 10 AI quote drafts per month.",
   },
   {
     question: "What happens when the trial ends?",
@@ -185,7 +195,7 @@ export const pricingComparison: PricingComparisonCategory[] = [
       { label: "Manual link sharing", free: "Unlimited", pro: "Unlimited", business: "Unlimited" },
       { label: "Customer history", free: true, pro: true, business: true },
       { label: "Manual follow-ups", free: true, pro: true, business: true },
-      { label: "Inquiry, quote, and invoice CSV exports", free: true, pro: true, business: true },
+      { label: "Inquiry, quote, and invoice exports (CSV, PDF, PNG)", free: true, pro: true, business: true },
       {
         label: "Live services",
         free: limitCell("free", "liveServicesPerBusiness"),

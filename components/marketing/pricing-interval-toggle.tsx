@@ -11,6 +11,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { SelectBusinessDialog } from "@/components/marketing/select-business-dialog";
 import { cn } from "@/lib/utils";
 import {
+  formatPrice,
   getYearlySavingsPercent,
   getMonthlyEquivalentLabel,
   getPlanPriceLabel,
@@ -184,7 +185,7 @@ function PricingPlans({
             Free
           </p>
           <p className="mt-4 font-heading text-4xl font-semibold tracking-tight text-foreground">
-            {currency === "PHP" ? "₱" : "$"}0
+            {formatPrice(0, currency)}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
             No card required
@@ -222,7 +223,7 @@ function PricingPlans({
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
             {proMonthly
-              ? `${proMonthly} billed monthly`
+              ? `${proMonthly} billed yearly`
               : "Cancel anytime"}
           </p>
           <p className="mt-4 min-h-12 text-sm leading-relaxed text-muted-foreground lg:min-h-18">
@@ -266,7 +267,7 @@ function PricingPlans({
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
             {businessMonthly
-              ? `${businessMonthly} billed monthly`
+              ? `${businessMonthly} billed yearly`
               : "Cancel anytime"}
           </p>
           <p className="mt-4 min-h-12 text-sm leading-relaxed text-muted-foreground lg:min-h-18">
@@ -302,7 +303,8 @@ function PricingPlans({
       <p className="mx-auto mt-8 max-w-2xl text-center text-sm leading-relaxed text-muted-foreground">
         Subscriptions are billed per business. Free includes one free business;
         additional businesses need their own paid subscription. Annual billing
-        includes two months free.
+        includes two months free. Taxes, where applicable, are calculated at
+        checkout based on your billing country.
       </p>
 
       <SelectBusinessDialog

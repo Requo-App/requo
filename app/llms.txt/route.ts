@@ -9,12 +9,12 @@ const planLines = planTiers
     const entry = planCatalog[plan];
     const price =
       plan === "free"
-        ? "$0 for one business"
+        ? "Free for one business"
         : `${getPlanPriceLabel(plan, "USD", "monthly")} or ${getPlanPriceLabel(
             plan,
             "USD",
             "yearly",
-          )} per business`;
+          )} per business in USD`;
 
     return `- ${entry.label}: ${price}. ${entry.description} Includes: ${entry.highlights.join("; ")}.`;
   })
@@ -39,7 +39,7 @@ Requo is inquiry, quote, and invoice management software for service businesses.
 ${proTrialSummary}. When the trial ends, the business returns to Free and its data stays available.
 ${planLines}
 
-Annual billing includes two months free. Paid subscriptions are billed per business.
+Annual billing includes two months free. Paid subscriptions are billed per business in the fixed local currency shown at checkout. Local pricing is available in USD, PHP, GBP, CAD, AUD, EUR, NZD, SGD, AED, INR, and ZAR; other countries use USD. The checkout total includes or adds tax based on the billing country.
 
 ## Key pages
 

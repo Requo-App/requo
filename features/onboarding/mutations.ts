@@ -29,6 +29,8 @@ type CompleteOnboardingForUserInput = {
   starterWorkflow: StarterWorkflowKey;
   countryCode: string;
   defaultCurrency: string;
+  /** Billing-market currency detected for the visitor. */
+  billingCurrency?: string | null;
   customerContactChannel: string;
   /**
    * Named services from onboarding. Business creation trims them to the
@@ -52,6 +54,7 @@ export async function completeOnboardingForUser({
   starterWorkflow,
   countryCode,
   defaultCurrency,
+  billingCurrency,
   customerContactChannel,
   services,
   inquiryFormConfigOverride,
@@ -91,6 +94,7 @@ export async function completeOnboardingForUser({
       tx,
       businessId: newEntityId(),
       defaultCurrency,
+      billingCurrency,
       countryCode,
       user,
       name: businessName,

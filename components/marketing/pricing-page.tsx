@@ -54,7 +54,9 @@ export function PricingPage({
           Requo pricing is per business: start free with the complete
           inquiry-to-payment workflow, then upgrade for automatic follow-ups,
           more live services, more AI drafting, and team access.{" "}
-          {proTrialSummary}. Subscriptions are billed in USD.
+          {proTrialSummary}. Local pricing is shown for supported countries;
+          subscriptions are billed per business in the currency shown at
+          checkout.
         </p>
       </div>
 

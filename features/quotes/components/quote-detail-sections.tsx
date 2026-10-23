@@ -52,7 +52,6 @@ export type SendDialogContext = {
   businessPlan: Parameters<typeof hasFeatureAccess>[0];
   businessSlug: string;
   businessLogoStoragePath: string | null;
-  canExportData: boolean;
   customerQuoteUrl: string | null;
   needsAiConfirmation: boolean;
   acknowledgeAction?: React.ComponentProps<typeof SendQuoteDialog>["acknowledgeAction"];
@@ -511,7 +510,6 @@ export function buildSendDialogProps({
   businessPlan,
   businessSlug,
   canAutoFollowUp,
-  canExportData,
   createFollowUpAction,
   customerQuoteUrl,
   items,
@@ -536,10 +534,7 @@ export function buildSendDialogProps({
       isEmailConfigured &&
       quote.customerContactMethod === "email" &&
       !!quote.customerEmail,
-    pdfExportHref: canExportData
-      ? getBusinessQuoteExportPath(businessSlug, quote.id, "pdf")
-      : undefined,
-    pdfExportLocked: !canExportData,
+    pdfExportHref: getBusinessQuoteExportPath(businessSlug, quote.id, "pdf"),
     canAutoFollowUp,
     autoFollowUpUnavailableNote,
     unpricedItemCount: items.filter((item) => item.unitPriceInCents <= 0).length,

@@ -25,7 +25,6 @@ import {
   getBusinessInvoicePrintPath,
 } from "@/features/businesses/routes";
 import { formatQuoteDate } from "@/features/quotes/utils";
-import { hasFeatureAccess } from "@/lib/plans/entitlements";
 import {
   recordPaymentAction,
   sendInvoiceAction,
@@ -134,7 +133,6 @@ async function InvoiceHeaderRegion({ params }: InvoiceDetailPageProps) {
   const isDraft = invoice.status === "draft";
   const canEditDraft = canManageFinancials && isDraft;
   const canMarkSent = canManageFinancials && isDraft;
-  const canExportData = hasFeatureAccess(businessContext.business.plan, "exports");
   const canVoidInvoice = canManageFinancials && !isVoided && invoice.paidInCents === 0;
   const canRecordPayment =
     canManageFinancials && !isDraft && !isVoided && invoice.balanceInCents > 0;
@@ -228,7 +226,6 @@ async function InvoiceHeaderRegion({ params }: InvoiceDetailPageProps) {
             printHref={showPrimaryPrint || showSecondaryPrint ? null : printHref}
             canVoid={canVoidInvoice}
             voidAction={voidInvoiceAction.bind(null, invoice.id)}
-            canExport={canExportData}
             pdfHref={getBusinessInvoiceExportPath(businessSlug, invoice.id, "pdf")}
             pngHref={getBusinessInvoiceExportPath(businessSlug, invoice.id, "png")}
           />

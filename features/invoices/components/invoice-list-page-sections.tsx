@@ -31,7 +31,6 @@ type InvoiceListResultsData = {
 
 type InvoiceListControlsSectionProps = {
   businessSlug: string;
-  canExport: boolean;
   filters: InvoiceListFiltersValue;
   searchParams: SearchParamsRecord;
   totalItemsPromise: Promise<number>;
@@ -39,7 +38,6 @@ type InvoiceListControlsSectionProps = {
 
 export async function InvoiceListHeaderActions({
   businessSlug,
-  canExport,
   filters,
   totalItemsPromise,
 }: InvoiceListControlsSectionProps) {
@@ -49,7 +47,6 @@ export async function InvoiceListHeaderActions({
     <MobileHeaderSlot>
       <InvoiceExportCsvDropdown
         businessSlug={businessSlug}
-        canExport={canExport}
         filters={filters}
         resultCount={totalItems}
       />
@@ -71,7 +68,6 @@ export async function InvoiceListHeaderActions({
 
 export async function InvoiceListControlsSection({
   businessSlug: _businessSlug,
-  canExport: _canExport,
   filters,
   searchParams: _searchParams,
   totalItemsPromise,

@@ -35,7 +35,6 @@ type QuoteRecordActionState = { error?: string; success?: string };
 
 type QuoteListControlsSectionProps = {
   businessSlug: string;
-  canExport: boolean;
   filters: QuoteListFiltersValue;
   searchParams: SearchParamsRecord;
   totalItemsPromise: Promise<number>;
@@ -49,7 +48,6 @@ type QuoteListControlsSectionProps = {
 
 export async function QuoteListHeaderActions({
   businessSlug,
-  canExport,
   filters,
   totalItemsPromise,
   archivedItemsPromise,
@@ -64,7 +62,6 @@ export async function QuoteListHeaderActions({
     <MobileHeaderSlot>
       <QuoteExportCsvDropdown
         businessSlug={businessSlug}
-        canExport={canExport}
         filters={filters}
         resultCount={totalItems}
       />
@@ -91,7 +88,6 @@ export async function QuoteListHeaderActions({
 
 export async function QuoteListControlsSection({
   businessSlug: _businessSlug,
-  canExport: _canExport,
   filters,
   searchParams: _searchParams,
   totalItemsPromise,

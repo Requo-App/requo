@@ -13,11 +13,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  formatPrice,
   getMonthlyEquivalentLabel,
   getPlanPriceLabel,
   getYearlySavingsPercent,
 } from "@/lib/billing/plans";
-import type { BillingInterval, PaidPlan } from "@/lib/billing/types";
+import type {
+  BillingCurrency,
+  BillingInterval,
+  PaidPlan,
+} from "@/lib/billing/types";
 import { planMeta, planTiers } from "@/lib/plans";
 import { planCatalog } from "@/lib/plans/catalog";
 import type { PlanTier } from "@/lib/plans/plans";
@@ -43,6 +48,8 @@ type PlanSelectionSheetProps = {
   isTrialing?: boolean;
   targetPlan?: PaidPlan;
   onSelectPlan: (plan: PaidPlan, interval: BillingInterval) => void;
+  /** Billing currency for the business; defaults to USD for a new business. */
+  currency?: BillingCurrency;
   businessId?: string;
   businessSlug?: string;
 };
@@ -54,6 +61,7 @@ export function PlanSelectionSheet({
   isTrialing = false,
   targetPlan,
   onSelectPlan,
+  currency = "USD",
   businessId,
   businessSlug,
 }: PlanSelectionSheetProps) {
@@ -108,10 +116,7 @@ export function PlanSelectionSheet({
                   prorated on your next billing cycle.
                 </p>
                 <p className="mt-3 font-heading text-lg font-semibold text-foreground">
-                  {getPlanPriceLabel(confirmingPlan, "USD", interval)}
-                  <span className="text-sm font-normal text-muted-foreground">
-                    {" "}/{interval === "monthly" ? "mo" : "yr"}
-                  </span>
+                  {getPlanPriceLabel(confirmingPlan, currency, interval)}
                 </p>
               </div>
               <div className="flex flex-col items-center gap-3">
@@ -163,7 +168,7 @@ export function PlanSelectionSheet({
               >
                 Annual
                 <Badge variant="secondary" className="px-1 font-medium text-xs">
-                  -{getYearlySavingsPercent("pro", "USD")}%
+                  -{getYearlySavingsPercent("pro", currency)}%
                 </Badge>
               </button>
               <button
@@ -218,11 +223,11 @@ export function PlanSelectionSheet({
                     {isPaidPlan ? (
                       <>
                         <p className="font-heading text-xl font-semibold tracking-tight text-foreground">
-                          {getPlanPriceLabel(card.id as PaidPlan, "USD", interval)}
+                          {getPlanPriceLabel(card.id as PaidPlan, currency, interval)}
                         </p>
                         {interval === "yearly" ? (
                           <p className="mt-0.5 text-xs text-muted-foreground">
-                            {getMonthlyEquivalentLabel(card.id as PaidPlan, "USD")} per month
+                            {getMonthlyEquivalentLabel(card.id as PaidPlan, currency)} billed yearly
                           </p>
                         ) : (
                           <p className="mt-0.5 text-xs text-muted-foreground">
@@ -233,7 +238,7 @@ export function PlanSelectionSheet({
                     ) : (
                       <>
                         <p className="font-heading text-xl font-semibold tracking-tight text-foreground">
-                          $0
+                          {formatPrice(0, currency)}
                         </p>
                         <p className="mt-0.5 text-xs text-muted-foreground">
                           free forever

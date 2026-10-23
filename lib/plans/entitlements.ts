@@ -150,7 +150,7 @@ export const planFeatureDescriptions: Record<PlanFeature, string> = {
   knowledgeBase:
     "Save business knowledge and files so AI quote drafts stay grounded in how you work.",
   exports:
-    "Export inquiries, quotes, and invoices as CSV from your dashboard.",
+    "Export inquiries, quotes, and invoices as CSV, PDF, or PNG from your dashboard.",
   removeWatermark:
     "Remove the Requo watermark from public inquiry and quote pages.",
   followUps:

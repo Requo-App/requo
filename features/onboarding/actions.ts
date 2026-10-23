@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { getValidationActionState } from "@/lib/action-state";
 import { requireUser } from "@/lib/auth/session";
+import { detectDisplayCurrency } from "@/lib/billing/region";
 import { uniqueCacheTags } from "@/lib/cache/business-tags";
 import {
   getUserBusinessContextCacheTags,
@@ -208,6 +209,7 @@ export async function completeOnboardingAction(
       businessType: validationResult.data.businessType,
       countryCode: validationResult.data.countryCode,
       defaultCurrency: validationResult.data.defaultCurrency,
+      billingCurrency: await detectDisplayCurrency(),
       customerContactChannel: validationResult.data.customerContactChannel,
       starterWorkflow: validationResult.data.starterWorkflow,
       services: rawServices,

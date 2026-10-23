@@ -30,10 +30,12 @@ vi.mock("next/cache", () => ({
 }));
 
 import { hasPaidBusinessSubscriptionSql } from "@/lib/billing/entitlement-sql";
+import { createServicePreset } from "@/features/inquiries/service-presets";
 import { businesses } from "@/lib/db/schema/businesses";
 import {
   businessSubscriptions,
   businessTrialClaims,
+  services,
   user,
 } from "@/lib/db/schema";
 import {
@@ -591,5 +593,92 @@ describe("activateSubscription atomicity", () => {
     const state = await readState(businessId);
     expect(state.sub?.status).toBe("trialing");
     expect(resolveEffectivePlanFromSubscription(state.sub!)).toBe("pro");
+  });
+
+  it("ignores a provider event from before the current trial started", async () => {
+    const { businessId, userId } = await seedBusiness("trialbarrier");
+    const startedAt = new Date();
+
+    expect(
+      (await startBusinessTrial({ businessId, userId, now: startedAt })).ok,
+    ).toBe(true);
+
+    // Simulate a legacy trial row written before the trial-start barrier was
+    // recorded. The event timestamp itself must still be rejected.
+    await testDb
+      .update(businessSubscriptions)
+      .set({ providerEventAt: null })
+      .where(eq(businessSubscriptions.businessId, businessId));
+
+    await expireSubscription(
+      businessId,
+      new Date(startedAt.getTime() - 1_000),
+    );
+
+    const duringTrial = await readState(businessId);
+    expect(duringTrial.sub?.status).toBe("trialing");
+    expect(duringTrial.plan).toBe("pro");
+
+    // A genuine provider event after the trial start is still applied.
+    await expireSubscription(
+      businessId,
+      new Date(startedAt.getTime() + 1_000),
+    );
+
+    const afterEvent = await readState(businessId);
+    expect(afterEvent.sub?.status).toBe("expired");
+    expect(afterEvent.plan).toBe("free");
+  });
+
+  it("moves live services above the Free limit offline when a trial expires", async () => {
+    const { businessId, userId } = await seedBusiness("trialservices");
+    const startedAt = new Date(Date.now() - PRO_TRIAL_MS - 1_000);
+
+    expect(
+      (await startBusinessTrial({ businessId, userId, now: startedAt })).ok,
+    ).toBe(true);
+
+    const preset = createServicePreset({
+      businessType: "general_project_services",
+      businessName: "Trial Services Test",
+    });
+    const createdAt = new Date(Date.now() - 60 * 60 * 1000).getTime();
+    const defaultIndex = 5;
+    const forms = Array.from({ length: 10 }, (_, index) => ({
+      id: `${PREFIX}_trialservices_form_${index}`,
+      businessId,
+      name: `Service ${index}`,
+      slug: `service-${index}`,
+      businessType: preset.businessType,
+      isDefault: index === defaultIndex,
+      publicInquiryEnabled: true,
+      inquiryFormConfig: preset.inquiryFormConfig,
+      inquiryPageConfig: preset.inquiryPageConfig,
+      createdAt: new Date(createdAt + index * 1_000),
+      updatedAt: new Date(createdAt + index * 1_000),
+    }));
+
+    await testDb.insert(services).values(forms);
+
+    await expireSubscription(businessId, undefined, {
+      status: "trialing",
+      trialEndsAtBefore: new Date(),
+    });
+
+    const live = await testDb
+      .select({ id: services.id })
+      .from(services)
+      .where(
+        and(
+          eq(services.businessId, businessId),
+          eq(services.publicInquiryEnabled, true),
+        ),
+      );
+
+    // Free keeps two live services: the default service plus the oldest one.
+    expect(live.map((form) => form.id).sort()).toEqual(
+      [forms[defaultIndex].id, forms[0].id].sort(),
+    );
+    expect((await readState(businessId)).plan).toBe("free");
   });
 });

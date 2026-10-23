@@ -17,10 +17,10 @@ import {
   canManageBusinessAdministration,
   canManageOperationalBusinessSettings,
 } from "@/lib/business-members";
+import { getEffectivePlanForBusiness } from "@/lib/billing/subscription-service";
 import { getBusinessPackCacheTags } from "@/lib/cache/business-tags";
 import { db } from "@/lib/db/client";
 import {
-  businesses,
   packRecipes,
   type PackRecipe,
   type PackRecipeKind,
@@ -28,7 +28,6 @@ import {
 import { packRecipeKinds } from "@/lib/db/schema/pack-recipes";
 import { newEntityId } from "@/lib/ids";
 import { hasFeatureAccess } from "@/lib/plans";
-import type { PlanTier } from "@/lib/plans/plans";
 
 type DatabaseTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -203,13 +202,9 @@ export function validateRecipeConfig(kind: PackRecipeKind, config: unknown) {
 }
 
 async function assertRecipeCustomizationAllowed(businessId: string) {
-  const [business] = await db
-    .select({ plan: businesses.plan })
-    .from(businesses)
-    .where(eq(businesses.id, businessId))
-    .limit(1);
+  const plan = await getEffectivePlanForBusiness(businessId);
 
-  if (!business || !hasFeatureAccess(business.plan as PlanTier, "customWorkflowRecipes")) {
+  if (!hasFeatureAccess(plan, "customWorkflowRecipes")) {
     throw new Error("Recipe customization requires a Pro plan or higher.");
   }
 }

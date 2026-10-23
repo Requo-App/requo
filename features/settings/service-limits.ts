@@ -1,7 +1,8 @@
 import "server-only";
 
-import { and, count, eq, isNull, ne, sql } from "drizzle-orm";
+import { and, count, eq, isNull, ne } from "drizzle-orm";
 
+import { lockLiveServiceLimit } from "@/lib/billing/live-service-enforcement";
 import { getEffectivePlanForBusiness } from "@/lib/billing/subscription-service";
 import { db } from "@/lib/db/client";
 import { services } from "@/lib/db/schema";
@@ -11,12 +12,6 @@ import { getUsageLimit } from "@/lib/plans/usage-limits";
 type DatabaseClient =
   | typeof db
   | Parameters<Parameters<typeof db.transaction>[0]>[0];
-
-/**
- * Advisory-lock namespace for the live-service limit. Kept distinct from the
- * business plan-enforcement namespace so the two locks never contend.
- */
-const serviceLimitLockNamespace = 1_928_406_517;
 
 /**
  * Resolves the plan that actually governs a business's entitlements.
@@ -38,9 +33,7 @@ export async function lockServiceLimitEnforcement(
   client: DatabaseClient,
   businessId: string,
 ) {
-  await client.execute(
-    sql`select pg_advisory_xact_lock(${serviceLimitLockNamespace}, hashtext(${businessId}))`,
-  );
+  await lockLiveServiceLimit(client, businessId);
 }
 
 /**
