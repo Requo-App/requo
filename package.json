@@ -4,7 +4,7 @@
   "private": true,
   "license": "AGPL-3.0-only",
   "engines": {
-    "node": ">=22"
+    "node": ">=24"
   },
   "browserslist": [
     "chrome 111",
@@ -26,7 +26,10 @@
     "dev:check": "tsx scripts/dev-health-check.ts",
     "dev:app": "tsx scripts/dev-health-check.ts && node --max-old-space-size=4096 ./node_modules/next/dist/bin/next dev",
     "dev:inngest": "npx inngest-cli@latest dev",
-    "dev:tunnel": "concurrently \"npm run dev:app\" \"npm run dev:inngest\" \"ngrok http 3000\"",
+    "dev:ngrok": "tsx scripts/dev-tunnel.ts",
+    "dev:tunnel": "concurrently \"npm run dev:app\" \"npm run dev:inngest\" \"npm run dev:ngrok\"",
+    "dev:docker": "docker compose up --build",
+    "dev:docker:tunnel": "docker compose --profile tunnel up --build",
     "build": "next build",
     "vercel-build": "npm run db:migrate:strict && next build",
     "start": "next start",
@@ -88,8 +91,8 @@
     "@internationalized/date": "^3.12.1",
     "@openrouter/ai-sdk-provider": "^2.9.0",
     "@opentelemetry/api": "^1.9.1",
-    "@polar-sh/nextjs": "0.9.6",
-    "@polar-sh/sdk": "0.47.1",
+    "@polar-sh/nextjs": "1.1.0",
+    "@polar-sh/sdk": "1.0.2",
     "@remixicon/react": "^4.9.0",
     "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "^2.101.1",

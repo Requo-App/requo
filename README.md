@@ -11,7 +11,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Next.js-16.3-black" alt="Next.js 16.3" />
   <img src="https://img.shields.io/badge/React-19-61dafb" alt="React 19" />
-  <img src="https://img.shields.io/badge/Node-%3E%3D22-339933" alt="Node 22 or newer" />
+  <img src="https://img.shields.io/badge/Node-%3E%3D24-339933" alt="Node 24 or newer" />
   <img src="https://img.shields.io/badge/License-AGPL--3.0-blue" alt="AGPL-3.0-only" />
 </p>
 
@@ -59,7 +59,7 @@ No dispatch/job management, general calendar or crew scheduling, mobile app, mar
 
 | Area | Implementation |
 | --- | --- |
-| Runtime | Node.js 22+, Next.js 16.3.8 App Router, React 19, TypeScript (strict) |
+| Runtime | Node.js 24+, Next.js 16.3.8 App Router, React 19, TypeScript (strict) |
 | UI | React Server Components by default, Tailwind CSS v4, shadcn/ui, Radix UI |
 | Data | PostgreSQL, Drizzle ORM, `postgres-js`; committed SQL migrations under `drizzle/` |
 | Identity | Better Auth (Drizzle adapter) — the only identity provider; every business query is `businessId`-scoped |
@@ -71,7 +71,7 @@ No dispatch/job management, general calendar or crew scheduling, mobile app, mar
 
 ## Quick Start
 
-Prerequisites: Node.js 22+ and npm, plus either a cloud Supabase project or
+Prerequisites: Node.js 24+ and npm, plus either a cloud Supabase project or
 Docker for the full-local stack. Copy `.env.example` to `.env.local` first.
 
 ### Cloud Supabase
@@ -80,13 +80,16 @@ Docker for the full-local stack. Copy `.env.example` to `.env.local` first.
 cp .env.example .env.local   # fill in cloud Supabase + database values
 npm install
 npm run db:migrate           # first run, or after pulling new migrations
-npm run dev                  # app on http://localhost:3000
+npm run dev                  # app + Inngest
 ```
+
+Need inbound webhooks? Set `NGROK_AUTHTOKEN` in `.env.local` (and optionally
+`NGROK_DOMAIN` so the public URL stays stable), then run `npm run dev:tunnel`.
 
 ### Full local (Docker)
 
 ```bash
-cp .env.example .env.local   # set local database/Supabase values from `npx supabase status`
+cp .env.example .env.local   # local Supabase values
 npx supabase start           # one-time: local Postgres, Storage, realtime (data persists)
 npm run db:local:setup       # migrate + demo seed + local realtime setup
 docker compose up --build    # app, Inngest, Redis (see Local ports)
@@ -94,7 +97,10 @@ docker compose up --build    # app, Inngest, Redis (see Local ports)
 
 Compose also starts Redis (`6379`) and an Upstash-compatible REST proxy
 (`8079`); the app uses the proxy so the existing `@upstash/redis` client and
-cache code run unchanged.
+cache code run unchanged. For webhook testing, set `NGROK_AUTHTOKEN` in
+`.env.local` and run `npm run dev:docker:tunnel` (or
+`docker compose --profile tunnel up --build`). Set `NGROK_DOMAIN` if you have a
+reserved domain and want a stable webhook URL.
 
 `npm run db:local:setup` resets application data and creates deterministic
 local accounts and businesses — development only, and it refuses non-local
@@ -106,8 +112,10 @@ use those credentials outside a local environment. See
 
 | Command | Purpose |
 | --- | --- |
-| `npm run dev` | Start the Next.js development server and Inngest Dev Server |
-| `npm run dev:tunnel` | `npm run dev` plus an ngrok tunnel for inbound callbacks |
+| `npm run dev` | Start the Next.js server and Inngest Dev Server |
+| `npm run dev:tunnel` | `npm run dev` plus the ngrok tunnel |
+| `npm run dev:docker` | Start the full-local Docker stack without ngrok |
+| `npm run dev:docker:tunnel` | Start the full-local Docker stack plus ngrok |
 | `npm run dev:app` | Start only the Next.js development server |
 | `npm run check` | Lint, typecheck, and repository audits |
 | `npm run test` | Unit and component tests |

@@ -7,9 +7,10 @@ import "server-only";
  * implicitly on the free plan.
  */
 
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { cacheLife, cacheTag, revalidateTag } from "next/cache";
 
+import { normalizeBillingCurrency } from "@/lib/billing/currency";
 import { db } from "@/lib/db/client";
 import { businesses } from "@/lib/db/schema/businesses";
 import { newEntityId } from "@/lib/ids";
@@ -18,7 +19,6 @@ import {
   getBusinessBillingCacheTags,
 } from "@/lib/cache/shell-tags";
 import {
-  accountSubscriptions,
   businessSubscriptions,
   type BillingCurrency,
   type BillingProvider,
@@ -27,13 +27,49 @@ import {
 import type { PlanTier } from "@/lib/plans/plans";
 
 type BusinessSubscriptionRow = typeof businessSubscriptions.$inferSelect;
-type AccountSubscriptionRow = typeof accountSubscriptions.$inferSelect;
 
 type SubscriptionLike = {
   status: SubscriptionStatus;
   plan: string;
   currentPeriodEnd: Date | null;
 };
+
+/**
+ * Local grace window after a failed renewal. Polar retries dunning on its
+ * own schedule, but paid access must not last forever if the webhook route
+ * or dunning never recovers.
+ */
+export const PAST_DUE_GRACE_DAYS = 7;
+export const PAST_DUE_GRACE_MS =
+  PAST_DUE_GRACE_DAYS * 24 * 60 * 60 * 1000;
+
+const businessSubscriptionLockNamespace = 903_118_247;
+
+export function getPastDueGraceEnd(currentPeriodEnd: Date | null): Date | null {
+  if (!currentPeriodEnd) return null;
+  return new Date(currentPeriodEnd.getTime() + PAST_DUE_GRACE_MS);
+}
+
+/**
+ * Serializes subscription writes per business. `SELECT ... FOR UPDATE`
+ * cannot lock a row that does not exist yet, so two first events could
+ * otherwise both pass the stale check and race the unique insert.
+ */
+async function lockBusinessSubscription(
+  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+  businessId: string,
+) {
+  await tx.execute(
+    sql`select pg_advisory_xact_lock(${businessSubscriptionLockNamespace}, hashtext(${businessId}))`,
+  );
+}
+
+function isStaleProviderEvent(
+  incoming: Date | null | undefined,
+  existing: Date | null | undefined,
+): boolean {
+  return !!incoming && !!existing && incoming.getTime() < existing.getTime();
+}
 
 /* ── Read ──────────────────────────────────────────────────────────────────── */
 
@@ -138,11 +174,15 @@ export function resolveEffectivePlanFromSubscription(
       }
       return "free";
 
-    case "past_due":
-      // Grace period: keep paid access
-      return subscription.plan as PlanTier;
+    case "past_due": {
+      const graceEnd = getPastDueGraceEnd(subscription.currentPeriodEnd);
+      return graceEnd && graceEnd > new Date()
+        ? (subscription.plan as PlanTier)
+        : "free";
+    }
 
     case "pending":
+    case "paused":
     case "expired":
     case "incomplete":
     case "free":
@@ -151,17 +191,29 @@ export function resolveEffectivePlanFromSubscription(
   }
 }
 
-/** Legacy account row retained for admin override metadata and history. */
-export async function getAccountSubscription(
-  userId: string,
-): Promise<AccountSubscriptionRow | null> {
-  const [row] = await db
-    .select()
-    .from(accountSubscriptions)
-    .where(eq(accountSubscriptions.userId, userId))
-    .limit(1);
+/**
+ * Null-safe variant for queries that left-join `business_subscriptions`.
+ * A business without a subscription row is on the free plan.
+ */
+export function resolveEffectivePlanFromSubscriptionFields(
+  subscription:
+    | {
+        status: SubscriptionStatus | null;
+        plan: string | null;
+        currentPeriodEnd: Date | null;
+      }
+    | null
+    | undefined,
+): PlanTier {
+  if (!subscription?.status || !subscription.plan) {
+    return "free";
+  }
 
-  return row ?? null;
+  return resolveEffectivePlanFromSubscription({
+    status: subscription.status,
+    plan: subscription.plan,
+    currentPeriodEnd: subscription.currentPeriodEnd,
+  });
 }
 
 /* ── Write ─────────────────────────────────────────────────────────────────── */
@@ -178,6 +230,7 @@ type ActivateSubscriptionParams = {
   paymentMethod?: string | null;
   currentPeriodStart?: Date | null;
   currentPeriodEnd?: Date | null;
+  providerEventAt?: Date | null;
 };
 
 /**
@@ -193,11 +246,21 @@ export async function activateSubscription(
   const now = new Date();
 
   const subscription = await db.transaction(async (tx) => {
+    await lockBusinessSubscription(tx, params.businessId);
+
     const [existing] = await tx
       .select()
       .from(businessSubscriptions)
       .where(eq(businessSubscriptions.businessId, params.businessId))
-      .limit(1);
+      .limit(1)
+      .for("update");
+
+    if (
+      existing &&
+      isStaleProviderEvent(params.providerEventAt, existing.providerEventAt)
+    ) {
+      return existing;
+    }
 
     let subscription: BusinessSubscriptionRow;
 
@@ -218,6 +281,8 @@ export async function activateSubscription(
           currentPeriodStart: params.currentPeriodStart ?? now,
           currentPeriodEnd: params.currentPeriodEnd ?? null,
           canceledAt: null,
+          providerEventAt:
+            params.providerEventAt ?? existing.providerEventAt,
           updatedAt: now,
         })
         .where(eq(businessSubscriptions.id, existing.id))
@@ -240,6 +305,7 @@ export async function activateSubscription(
           paymentMethod: params.paymentMethod ?? null,
           currentPeriodStart: params.currentPeriodStart ?? now,
           currentPeriodEnd: params.currentPeriodEnd ?? null,
+          providerEventAt: params.providerEventAt ?? null,
           createdAt: now,
           updatedAt: now,
         })
@@ -257,6 +323,7 @@ export async function activateSubscription(
             currentPeriodStart: params.currentPeriodStart ?? now,
             currentPeriodEnd: params.currentPeriodEnd ?? null,
             canceledAt: null,
+            providerEventAt: params.providerEventAt ?? null,
             updatedAt: now,
           },
         })
@@ -314,17 +381,53 @@ export async function updateSubscriptionStatus(
     currentPeriodStart?: Date | null;
     currentPeriodEnd?: Date | null;
     canceledAt?: Date | null;
+    providerEventAt?: Date | null;
+    /**
+     * Conditional expiry guard for the scheduled job. The row is re-read
+     * under lock, so a recovery webhook that landed after the job's scan
+     * must win instead of being overwritten by the stale batch row.
+     */
+    guard?: {
+      status?: SubscriptionStatus;
+      currentPeriodEndBefore?: Date;
+    };
   },
 ): Promise<BusinessSubscriptionRow | null> {
-  const existing = await getBusinessSubscription(businessId);
-
-  if (!existing) {
-    return null;
-  }
-
   const now = new Date();
 
-  const updated = await db.transaction(async (tx) => {
+  const result = await db.transaction(async (tx) => {
+    await lockBusinessSubscription(tx, businessId);
+
+    const [existing] = await tx
+      .select()
+      .from(businessSubscriptions)
+      .where(eq(businessSubscriptions.businessId, businessId))
+      .limit(1)
+      .for("update");
+
+    if (!existing) {
+      return null;
+    }
+
+    if (isStaleProviderEvent(updates?.providerEventAt, existing.providerEventAt)) {
+      return { row: existing, changed: false };
+    }
+
+    if (
+      updates?.guard?.status &&
+      existing.status !== updates.guard.status
+    ) {
+      return { row: existing, changed: false };
+    }
+
+    if (
+      updates?.guard?.currentPeriodEndBefore &&
+      existing.currentPeriodEnd &&
+      existing.currentPeriodEnd >= updates.guard.currentPeriodEndBefore
+    ) {
+      return { row: existing, changed: false };
+    }
+
     const [row] = await tx
       .update(businessSubscriptions)
       .set({
@@ -338,7 +441,12 @@ export async function updateSubscriptionStatus(
           updates?.currentPeriodStart ?? existing.currentPeriodStart,
         currentPeriodEnd:
           updates?.currentPeriodEnd ?? existing.currentPeriodEnd,
-        canceledAt: updates?.canceledAt ?? existing.canceledAt,
+        canceledAt:
+          status === "active"
+            ? null
+            : updates?.canceledAt ?? existing.canceledAt,
+        providerEventAt:
+          updates?.providerEventAt ?? existing.providerEventAt,
         updatedAt: now,
       })
       .where(eq(businessSubscriptions.id, existing.id))
@@ -356,14 +464,14 @@ export async function updateSubscriptionStatus(
       })
       .where(eq(businesses.id, businessId));
 
-    return row;
+    return { row, changed: true };
   });
 
-  if (updated) {
+  if (result?.changed) {
     invalidatePlanTierCache(businessId);
   }
 
-  return updated;
+  return result?.row ?? null;
 }
 
 /**
@@ -404,12 +512,21 @@ export async function cancelSubscription(
 }
 
 /**
- * Marks a subscription as expired and downgrades all businesses to free.
+ * Marks a business subscription as expired and downgrades that business's
+ * denormalized plan to free.
  */
 export async function expireSubscription(
   businessId: string,
+  providerEventAt?: Date | null,
+  guard?: {
+    status?: SubscriptionStatus;
+    currentPeriodEndBefore?: Date;
+  },
 ): Promise<BusinessSubscriptionRow | null> {
-  return updateSubscriptionStatus(businessId, "expired");
+  return updateSubscriptionStatus(businessId, "expired", {
+    providerEventAt,
+    guard,
+  });
 }
 
 /* ── Polar sync ───────────────────────────────────────────────────────────── */
@@ -431,48 +548,27 @@ export async function syncSubscriptionFromPolar(
     return false;
   }
 
-  const { Polar } = await import("@polar-sh/sdk");
-  const { reversePolarProductId } = await import(
-    "@/lib/billing/polar-products"
-  );
+  const [{ getPolarClient }, { reversePolarProductId }] = await Promise.all([
+    import("@/lib/billing/polar-client"),
+    import("@/lib/billing/polar-products"),
+  ]);
 
-  const polar = new Polar({
-    accessToken: envVars.POLAR_ACCESS_TOKEN,
-    server: envVars.POLAR_SERVER,
-  });
+  const polar = getPolarClient();
 
   try {
-    // PageIterator — grab the first active subscription for this business.
-    let subscription: {
-      id: string;
-      status: string;
-      productId: string;
-      customerId: string;
-      checkoutId: string | null;
-      currency: string;
-      currentPeriodStart: Date | string | null;
-      currentPeriodEnd: Date | string | null;
-    } | null = null;
-
-    const pages = await polar.subscriptions.list({
-      externalCustomerId: businessId,
+    const page = await polar.subscriptions.list({
+      external_customer_id: businessId,
       active: true,
       limit: 1,
     });
 
-    for await (const page of pages) {
-      const item = page.result?.items?.[0];
-      if (item) {
-        subscription = item;
-      }
-      break;
-    }
+    const subscription = page.items[0];
 
     if (!subscription || subscription.status !== "active") {
       return false;
     }
 
-    const mapping = reversePolarProductId(subscription.productId);
+    const mapping = reversePolarProductId(subscription.product_id);
 
     if (!mapping) {
       return false;
@@ -482,15 +578,21 @@ export async function syncSubscriptionFromPolar(
       businessId,
       plan: mapping.plan,
       provider: "polar",
-      currency: (subscription.currency ?? "usd") as BillingCurrency,
-      providerCustomerId: subscription.customerId,
+      currency: normalizeBillingCurrency(subscription.currency),
+      providerCustomerId: subscription.customer_id,
       providerSubscriptionId: subscription.id,
-      providerCheckoutId: subscription.checkoutId ?? null,
-      currentPeriodStart: subscription.currentPeriodStart
-        ? new Date(subscription.currentPeriodStart)
+      providerCheckoutId: subscription.checkout_id ?? null,
+      currentPeriodStart: subscription.current_period_start
+        ? new Date(subscription.current_period_start)
         : null,
-      currentPeriodEnd: subscription.currentPeriodEnd
-        ? new Date(subscription.currentPeriodEnd)
+      currentPeriodEnd: subscription.current_period_end
+        ? new Date(subscription.current_period_end)
+        : null,
+      // Respect webhook ordering: Polar's `modified_at` is the
+      // subscription's own occurrence timestamp, so a slow post-checkout
+      // sync cannot roll back a newer webhook write.
+      providerEventAt: subscription.modified_at
+        ? new Date(subscription.modified_at)
         : null,
     });
 

@@ -301,6 +301,41 @@ describe("manual payment lifecycle", () => {
     expect(rows).toHaveLength(1);
   });
 
+  it("rejects a concurrent idempotency key reused on another invoice", async () => {
+    const firstInvoiceId = await createSentInvoice(5000);
+    const secondInvoiceId = await createSentInvoice(5000);
+    const key = "123e4567-e89b-12d3-a456-426614174002";
+    const params = {
+      businessId: ids.businessId,
+      actorUserId: ids.ownerUserId,
+      amountInCents: 5000,
+      paymentDate: "2026-06-02",
+      method: "cash" as const,
+      idempotencyKey: key,
+    };
+
+    const results = await Promise.all([
+      recordPaymentForBusiness({ ...params, invoiceId: firstInvoiceId }),
+      recordPaymentForBusiness({ ...params, invoiceId: secondInvoiceId }),
+    ]);
+
+    const success = results.filter((result) => !("error" in result));
+    const failures = results.filter(
+      (result) =>
+        "error" in result &&
+        result.error ===
+          "This idempotency key was already used for another invoice.",
+    );
+    expect(success).toHaveLength(1);
+    expect(failures).toHaveLength(1);
+
+    const rows = await testDb
+      .select()
+      .from(payments)
+      .where(eq(payments.idempotencyKey, key));
+    expect(rows).toHaveLength(1);
+  });
+
   it("lets exactly one concurrent payment win when both cover the balance", async () => {
     const invoiceId = await createSentInvoice(10000);
     const [a, b] = await Promise.all([

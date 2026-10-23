@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, eq } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { writeAuditLog } from "@/features/audit/mutations";
@@ -89,7 +89,10 @@ export async function saveScheduleForQuote(input: {
     }
 
     const [existing] = await tx
-      .select({ id: paymentSchedules.id })
+      .select({
+        id: paymentSchedules.id,
+        state: paymentSchedules.state,
+      })
       .from(paymentSchedules)
       .where(
         and(
@@ -97,18 +100,13 @@ export async function saveScheduleForQuote(input: {
           eq(paymentSchedules.quoteId, input.quoteId),
         ),
       )
+      .orderBy(desc(paymentSchedules.version))
       .limit(1);
 
     let scheduleId: string;
 
     if (existing) {
-      const [current] = await tx
-        .select({ state: paymentSchedules.state })
-        .from(paymentSchedules)
-        .where(eq(paymentSchedules.id, existing.id))
-        .limit(1);
-
-      if (current && (current.state === "accepted" || current.state === "superseded")) {
+      if (existing.state === "accepted" || existing.state === "superseded") {
         throw new Error("Accepted schedules are immutable; change them via a change order.");
       }
 
@@ -208,6 +206,7 @@ export async function acceptScheduleForQuote(
         eq(paymentSchedules.quoteId, input.quoteId),
       ),
     )
+    .orderBy(desc(paymentSchedules.version))
     .limit(1);
 
   if (!schedule) return null;
@@ -216,7 +215,8 @@ export async function acceptScheduleForQuote(
   const items = await tx
     .select()
     .from(paymentScheduleItems)
-    .where(eq(paymentScheduleItems.scheduleId, schedule.id));
+    .where(eq(paymentScheduleItems.scheduleId, schedule.id))
+    .orderBy(asc(paymentScheduleItems.position));
 
   const coherence = computeScheduleCoherence(
     items.map((item) => ({

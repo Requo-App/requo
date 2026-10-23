@@ -1,8 +1,11 @@
 import "server-only";
 
-import { and, eq, isNotNull, lt } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, lt, or } from "drizzle-orm";
 
-import { expireSubscription } from "@/lib/billing/subscription-service";
+import {
+  expireSubscription,
+  PAST_DUE_GRACE_MS,
+} from "@/lib/billing/subscription-service";
 import { db } from "@/lib/db/client";
 import { businessSubscriptions } from "@/lib/db/schema/subscriptions";
 
@@ -19,24 +22,40 @@ export async function processExpiredSubscriptions(): Promise<ExpireSubscriptions
   let failed = 0;
   const errors: string[] = [];
 
+  const pastDueCutoff = new Date(now.getTime() - PAST_DUE_GRACE_MS);
+
   const stale = await db
     .select({
       id: businessSubscriptions.id,
       businessId: businessSubscriptions.businessId,
+      status: businessSubscriptions.status,
       currentPeriodEnd: businessSubscriptions.currentPeriodEnd,
     })
     .from(businessSubscriptions)
     .where(
-      and(
-        eq(businessSubscriptions.status, "canceled"),
-        isNotNull(businessSubscriptions.currentPeriodEnd),
-        lt(businessSubscriptions.currentPeriodEnd, now),
+      or(
+        and(
+          eq(businessSubscriptions.status, "canceled"),
+          isNotNull(businessSubscriptions.currentPeriodEnd),
+          lt(businessSubscriptions.currentPeriodEnd, now),
+        ),
+        and(
+          eq(businessSubscriptions.status, "past_due"),
+          or(
+            isNull(businessSubscriptions.currentPeriodEnd),
+            lt(businessSubscriptions.currentPeriodEnd, pastDueCutoff),
+          ),
+        ),
       ),
     );
 
   for (const row of stale) {
     try {
-      await expireSubscription(row.businessId);
+      await expireSubscription(row.businessId, undefined, {
+        status: row.status,
+        currentPeriodEndBefore:
+          row.status === "past_due" ? pastDueCutoff : now,
+      });
       succeeded++;
     } catch (error) {
       failed++;

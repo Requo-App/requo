@@ -3,6 +3,7 @@ import "server-only";
 import { and, count, eq, isNull, sql } from "drizzle-orm";
 
 import type { BusinessQuotaSnapshot } from "@/features/businesses/types";
+import { hasPaidBusinessSubscriptionSql } from "@/lib/billing/entitlement-sql";
 import { db } from "@/lib/db/client";
 import { businesses } from "@/lib/db/schema";
 import { getUpgradePlan, planMeta, type PlanTier as plan } from "@/lib/plans/plans";
@@ -92,13 +93,7 @@ export async function getBusinessQuotaForUser({
           isNull(businesses.deletedAt),
           isNull(businesses.archivedAt),
           isNull(businesses.lockedAt),
-          sql`(
-            ${businessSubscriptions.status} in ('active','past_due')
-            or (
-              ${businessSubscriptions.status} = 'canceled'
-              and ${businessSubscriptions.currentPeriodEnd} > now()
-            )
-          )`,
+          hasPaidBusinessSubscriptionSql(),
         ),
       );
 

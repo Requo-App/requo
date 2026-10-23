@@ -1,6 +1,15 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
 
+vi.mock("react", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("react")>();
+
+  return {
+    ...actual,
+    cache: <T extends (...args: never[]) => unknown>(fn: T) => fn,
+  };
+});
+
 vi.mock("@/lib/db/client", async () => {
   const { testDb: mockedDb } = await import("../support/db");
 
@@ -18,6 +27,8 @@ vi.mock("@/features/knowledge/retrieval", async (importOriginal) => {
 });
 
 import { services } from "@/lib/db/schema";
+import { businessSubscriptions } from "@/lib/db/schema/subscriptions";
+import { getPublicAgentBusiness } from "@/features/agent/queries";
 import { loadSessionByToken } from "@/features/agent/session-service";
 import { retrieveBusinessKnowledge } from "@/features/knowledge/retrieval";
 import {
@@ -69,6 +80,35 @@ describe("agent tenant isolation", () => {
     expect(businessA.publicToken).not.toBe(businessB.publicToken);
     expect(a?.business.plan).toBe("pro");
     expect(b?.business.plan).toBe("free");
+  });
+
+  it("resolves the public agent plan from the subscription, not the denormalized cache", async () => {
+    const now = new Date();
+
+    await testDb.insert(businessSubscriptions).values({
+      id: `${prefix}_past_due_subscription`,
+      businessId: ids.businessId,
+      plan: "pro",
+      status: "past_due",
+      billingProvider: "polar",
+      billingCurrency: "USD",
+      currentPeriodStart: new Date(now.getTime() - 60_000),
+      // Grace is seven days past the period end; this is well outside it.
+      currentPeriodEnd: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000),
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    try {
+      const business = await getPublicAgentBusiness(ids.businessSlug);
+
+      // `businesses.plan` is still "pro"; the effective plan is free.
+      expect(business?.plan).toBe("free");
+    } finally {
+      await testDb
+        .delete(businessSubscriptions)
+        .where(eq(businessSubscriptions.businessId, ids.businessId));
+    }
   });
 
   it("returns only public business info from the session's own business", async () => {

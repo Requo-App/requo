@@ -26,6 +26,7 @@ export const subscriptionStatuses = [
   "pending",
   "active",
   "past_due",
+  "paused",
   "canceled",
   "expired",
   "incomplete",
@@ -63,8 +64,9 @@ export const refundStatusEnum = pgEnum("refund_status", [...refundStatuses]);
 /* ── account_subscriptions ──────────────────────────────────────────────── */
 
 /**
- * Legacy account-level subscription records retained for existing data and
- * admin reporting. Business entitlements resolve from `business_subscriptions`.
+ * Legacy account-level subscription records retained for historical data only.
+ * No application code reads or writes this table; business entitlements and
+ * admin billing surfaces resolve from `business_subscriptions`.
  */
 export const accountSubscriptions = pgTable(
   "account_subscriptions",
@@ -132,6 +134,11 @@ export const businessSubscriptions = pgTable(
     currentPeriodEnd: timestamp("current_period_end", { withTimezone: true }),
     canceledAt: timestamp("canceled_at", { withTimezone: true }),
     trialEndsAt: timestamp("trial_ends_at", { withTimezone: true }),
+    /**
+     * Occurrence timestamp of the provider event that last wrote this row.
+     * Used to reject stale/out-of-order webhook deliveries.
+     */
+    providerEventAt: timestamp("provider_event_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -181,6 +188,9 @@ export const billingEvents = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (table) => [
     uniqueIndex("billing_events_provider_event_id_unique").on(
@@ -218,6 +228,10 @@ export const paymentAttempts = pgTable(
       .defaultNow(),
   },
   (table) => [
+    uniqueIndex("payment_attempts_provider_payment_id_unique").on(
+      table.provider,
+      table.providerPaymentId,
+    ),
     index("payment_attempts_user_id_idx").on(table.userId),
     index("payment_attempts_business_id_idx").on(table.businessId),
     index("payment_attempts_provider_payment_id_idx").on(

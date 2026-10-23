@@ -60,7 +60,7 @@ export async function POST(
     "analyticsPerformance",
   );
   if (!gate.ok) return gate.response;
-  const { requestContext } = gate;
+  const { requestContext, effectivePlan } = gate;
 
   const body = await request.json().catch(() => null);
   const parsedBody = exportBodySchema.safeParse(body);
@@ -75,7 +75,7 @@ export async function POST(
   const { scope, since, until } = parsedBody.data;
   const { business } = requestContext.businessContext;
 
-  if (scope === "daily" && !hasFeatureAccess(business.plan, "analyticsTeam")) {
+  if (scope === "daily" && !hasFeatureAccess(effectivePlan, "analyticsTeam")) {
     return NextResponse.json(
       { error: "Upgrade to Business to export the daily series." },
       { status: 403 },
@@ -84,7 +84,7 @@ export async function POST(
 
   const meta = await getAnalyticsBusinessMeta(business.id);
   const window = resolveAnalyticsWindow({
-    plan: business.plan,
+    plan: effectivePlan,
     range: "custom",
     from: since,
     to: until,
@@ -126,7 +126,7 @@ export async function POST(
     businessId: business.id,
     businessSlug: business.slug,
     window,
-    plan: business.plan,
+    plan: effectivePlan,
   });
 
   const { current, receivables } = overview;

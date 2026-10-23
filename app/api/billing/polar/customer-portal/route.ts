@@ -4,9 +4,13 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { requireUser } from "@/lib/auth/session";
-import { getPolarClient } from "@/lib/billing/polar-client";
+import {
+  getPolarClient,
+  resolveAppOrigin,
+} from "@/lib/billing/polar-client";
 import { getBusinessSubscription } from "@/lib/billing/subscription-service";
-import { env, isPolarConfigured } from "@/lib/env";
+import { canManageBusinessAdministration } from "@/lib/business-members";
+import { isPolarConfigured } from "@/lib/env";
 import { getBusinessRequestContextForSlug } from "@/lib/db/business-access";
 import { db } from "@/lib/db/client";
 import { businessMembers, businesses } from "@/lib/db/schema";
@@ -20,13 +24,12 @@ const portalQuerySchema = z.object({
 /**
  * Polar Customer Portal route.
  *
- * Resolves the authenticated user's `providerCustomerId` from
- * `account_subscriptions`, then creates a customer-portal session via
+ * Resolves the business owner's `providerCustomerId` from
+ * `business_subscriptions`, then creates a customer-portal session via
  * the Polar SDK and redirects the browser to the portal URL.
  *
- * UI callers are gated separately on `subscription.providerCustomerId`
- * being non-null, so this route is only reachable for users with an
- * active billing relationship.
+ * Billing is owner-only: members and managers must not be able to open
+ * the payment portal or change the payment method.
  *
  * Usage: GET /api/billing/polar/customer-portal
  */
@@ -78,6 +81,13 @@ export async function GET(request: Request): Promise<Response> {
       return NextResponse.json({ error: "Not found." }, { status: 404 });
     }
 
+    if (!canManageBusinessAdministration(requestContext.businessContext.role)) {
+      return NextResponse.json(
+        { error: "Only the business owner can manage billing." },
+        { status: 403 },
+      );
+    }
+
     businessId = requestContext.businessContext.business.id;
     businessSlug = requestContext.businessContext.business.slug;
 
@@ -88,7 +98,10 @@ export async function GET(request: Request): Promise<Response> {
     const candidateId = businessIdParam as string;
 
     const [membership] = await db
-      .select({ businessId: businessMembers.businessId })
+      .select({
+        businessId: businessMembers.businessId,
+        role: businessMembers.role,
+      })
       .from(businessMembers)
       .where(
         and(
@@ -100,6 +113,13 @@ export async function GET(request: Request): Promise<Response> {
 
     if (!membership) {
       return NextResponse.json({ error: "Not found." }, { status: 404 });
+    }
+
+    if (!canManageBusinessAdministration(membership.role)) {
+      return NextResponse.json(
+        { error: "Only the business owner can manage billing." },
+        { status: 403 },
+      );
     }
 
     businessId = candidateId;
@@ -122,7 +142,15 @@ export async function GET(request: Request): Promise<Response> {
     );
   }
 
-  const returnUrl = `${env.NEXT_PUBLIC_APP_URL ?? ""}/${encodeURIComponent(
+  const appOrigin = resolveAppOrigin(request.url);
+  if (!appOrigin) {
+    return NextResponse.json(
+      { error: "Application URL is not configured." },
+      { status: 503 },
+    );
+  }
+
+  const returnUrl = `${appOrigin}/${encodeURIComponent(
     businessSlug,
   )}/settings/billing`;
 
@@ -130,11 +158,11 @@ export async function GET(request: Request): Promise<Response> {
 
   try {
     const session = await polar.customerSessions.create({
-      customerId: subscription.providerCustomerId,
-      returnUrl,
+      customer_id: subscription.providerCustomerId,
+      return_url: returnUrl,
     });
 
-    return NextResponse.redirect(session.customerPortalUrl);
+    return NextResponse.redirect(session.customer_portal_url);
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Could not open billing portal.";

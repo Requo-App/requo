@@ -6,7 +6,7 @@ details, use [Local Setup](../setup/local.md); for test tiers, see
 
 ## Prerequisites
 
-- Node.js 22 or newer (`.nvmrc`), npm, and either a cloud Supabase project or
+- Node.js 24 or newer (`.nvmrc`), npm, and either a cloud Supabase project or
   Docker for the full-local stack. Copy `.env.example` to `.env.local`;
   `lib/env.ts` defines required and optional names. Do not commit secrets.
   Storage, email, AI, billing, and background-job credentials are needed only
@@ -20,16 +20,17 @@ Cloud Supabase:
 ```bash
 npm ci
 npm run db:migrate   # first run, or after pulling new migrations
-npm run dev          # app + Inngest Dev Server
+npm run dev          # app + Inngest
 ```
 
 Full local (Supabase CLI + Docker): see [Local Setup](../setup/local.md) for
-the `npx supabase start` → `npm run db:local:setup` → `docker compose up
---build` flow.
+the `npx supabase start` → `npm run db:local:setup` → `npm run dev:docker` flow.
+The default compose stack runs app, Inngest, and Redis.
 
-`npm run dev:tunnel` adds an ngrok tunnel when testing inbound callbacks or
-webhooks. `npm run dev:check` runs the repository health check without starting
-the app.
+`npm run dev:tunnel` adds the optional ngrok tunnel for inbound callbacks or
+webhooks; set `NGROK_AUTHTOKEN` in `.env.local` (and optionally `NGROK_DOMAIN`).
+`npm run dev:docker:tunnel` adds the same tunnel to the Docker stack.
+`npm run dev:check` runs the repository health check without starting the app.
 
 ## Database changes
 

@@ -11,13 +11,16 @@ import "server-only";
  * Behaviour summary (mirrors the design's `withIdempotency` shape
  * section, Requirements 5.3, 5.5, 6.1–6.5, 11.4):
  *
- *  1. `providerEventId = `${eventType}:${stableId}`` where `stableId`
- *     is `payload.id ?? payload.data.id ?? randomUUID()`.
- *  2. `recordWebhookEvent(...)` — duplicate deliveries short-circuit.
- *  3. `userId === null` -> mark `failed("User not found")` and return
- *     without throwing. Polar receives 200 and stops retrying an
+ *  1. `providerEventId = `${eventType}:${stableId}:${occurrence}`` where
+ *     `stableId` is `payload.id ?? payload.data.id` and `occurrence` is the
+ *     event's top-level `timestamp`. Repeated `subscription.updated` events
+ *     for the same subscription at different times are therefore distinct,
+ *     while redelivery of the same occurrence deduplicates.
+ *  2. `recordWebhookEvent(...)` claims new, failed, or stale events.
+ *  3. `businessId === null` -> mark `failed("Business not found")` and
+ *     return without throwing. Polar receives 200 and stops retrying an
  *     unfixable data problem.
- *  4. Run `handler(userId, eventId)`. Mark `processed` on success;
+ *  4. Run `handler(businessId, eventId)`. Mark `processed` on success;
  *     mark `failed(error.message)` and re-throw on error so the
  *     adapter returns 5xx and Polar retries.
  */
@@ -32,7 +35,8 @@ import {
 
 type IdempotencyPayload = {
   id?: unknown;
-  data?: { id?: unknown } | unknown;
+  timestamp?: unknown;
+  data?: { id?: unknown; modified_at?: unknown } | unknown;
 };
 
 type ResolveBusinessId<TPayload> = (
@@ -48,28 +52,29 @@ function readId(value: unknown): string | undefined {
   return typeof value === "string" && value.length > 0 ? value : undefined;
 }
 
-function deriveStableId(payload: IdempotencyPayload, eventType: string): string {
+function deriveStableId(payload: IdempotencyPayload): string {
   const topLevel = readId(payload.id);
   if (topLevel) return topLevel;
 
   const data = payload.data;
   if (data && typeof data === "object" && "id" in data) {
     const nested = readId((data as { id?: unknown }).id);
-    if (nested) {
-      // For subscription.updated events, the data.id is the subscription ID
-      // which is the same across all updates. We need to differentiate by
-      // including the productId so plan upgrades aren't treated as duplicates.
-      if (eventType === "subscription.updated" && "productId" in data) {
-        const productId = (data as { productId?: unknown }).productId;
-        if (typeof productId === "string" && productId.length > 0) {
-          return `${nested}:${productId}`;
-        }
-      }
-      return nested;
-    }
+    if (nested) return nested;
   }
 
   return randomUUID();
+}
+
+function deriveOccurrence(payload: IdempotencyPayload): string | undefined {
+  const timestamp = readId(payload.timestamp);
+  if (timestamp) return timestamp;
+
+  const data = payload.data;
+  if (data && typeof data === "object" && "modified_at" in data) {
+    return readId((data as { modified_at?: unknown }).modified_at);
+  }
+
+  return undefined;
 }
 
 /**
@@ -88,8 +93,11 @@ export async function withIdempotency<TPayload extends IdempotencyPayload>(
   resolveBusinessId: ResolveBusinessId<TPayload>,
   handler: IdempotencyHandler,
 ): Promise<void> {
-  const stableId = deriveStableId(payload, eventType);
-  const providerEventId = `${eventType}:${stableId}`;
+  const stableId = deriveStableId(payload);
+  const occurrence = deriveOccurrence(payload);
+  const providerEventId = occurrence
+    ? `${eventType}:${stableId}:${occurrence}`
+    : `${eventType}:${stableId}`;
 
   const businessId = await resolveBusinessId(payload);
 
@@ -101,26 +109,27 @@ export async function withIdempotency<TPayload extends IdempotencyPayload>(
     payload,
   });
 
-  if (!recordResult.isNew) {
-    // Duplicate delivery — already processed.
+  if (!recordResult.claimed || !recordResult.claimToken) {
+    // Duplicate delivery already processed, ignored, or currently in flight.
     return;
   }
 
   const eventId = recordResult.eventId;
+  const claimToken = recordResult.claimToken;
 
   if (businessId === null) {
-    await markEventFailed(eventId, "Business not found");
+    await markEventFailed(eventId, claimToken, "Business not found");
     return;
   }
 
   try {
     await handler(businessId, eventId);
-    await markEventProcessed(eventId);
+    await markEventProcessed(eventId, claimToken);
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Unexpected webhook error.";
     console.error("[polar webhook] processing error", message, { eventType });
-    await markEventFailed(eventId, message);
+    await markEventFailed(eventId, claimToken, message);
     throw error;
   }
 }

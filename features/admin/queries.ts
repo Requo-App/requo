@@ -162,7 +162,6 @@ import {
 import { type BusinessMemberRole } from "@/lib/business-members";
 import { db } from "@/lib/db/client";
 import {
-  accountSubscriptions,
   adminAuditLogs,
   agentSessions,
   aiSecurityEvents,
@@ -256,12 +255,21 @@ async function getCachedAdminDashboardCounts(): Promise<AdminDashboardCounts> {
       .where(isNull(businesses.deletedAt)),
     db
       .select({
-        plan: accountSubscriptions.plan,
+        plan: businessSubscriptions.plan,
         count: count(),
       })
-      .from(accountSubscriptions)
-      .where(eq(accountSubscriptions.status, "active"))
-      .groupBy(accountSubscriptions.plan),
+      .from(businessSubscriptions)
+      .innerJoin(
+        businesses,
+        eq(businesses.id, businessSubscriptions.businessId),
+      )
+      .where(
+        and(
+          eq(businessSubscriptions.status, "active"),
+          isNull(businesses.deletedAt),
+        ),
+      )
+      .groupBy(businessSubscriptions.plan),
     db
       .select({ count: count() })
       .from(user)
@@ -757,13 +765,20 @@ async function getAdminUserDetailCoreInner(
     await Promise.all([
     db
       .select({
-        plan: accountSubscriptions.plan,
-        status: accountSubscriptions.status,
-        currentPeriodEnd: accountSubscriptions.currentPeriodEnd,
-        id: accountSubscriptions.id,
+        plan: businessSubscriptions.plan,
+        status: businessSubscriptions.status,
+        currentPeriodEnd: businessSubscriptions.currentPeriodEnd,
+        id: businessSubscriptions.id,
       })
-      .from(accountSubscriptions)
-      .where(eq(accountSubscriptions.userId, userId))
+      .from(businessSubscriptions)
+      .innerJoin(
+        businesses,
+        eq(businesses.id, businessSubscriptions.businessId),
+      )
+      .where(
+        and(eq(businesses.ownerUserId, userId), isNull(businesses.deletedAt)),
+      )
+      .orderBy(desc(businessSubscriptions.createdAt), desc(businessSubscriptions.id))
       .limit(1),
     db
       .select({ count: count() })
@@ -2227,11 +2242,11 @@ async function listAdminSubscriptionsInner(
   const conditions = [] as Array<ReturnType<typeof eq> | ReturnType<typeof or>>;
 
   if (status) {
-    conditions.push(eq(accountSubscriptions.status, status));
+    conditions.push(eq(businessSubscriptions.status, status));
   }
 
   if (provider) {
-    conditions.push(eq(accountSubscriptions.billingProvider, provider));
+    conditions.push(eq(businessSubscriptions.billingProvider, provider));
   }
 
   if (search) {
@@ -2244,28 +2259,39 @@ async function listAdminSubscriptionsInner(
   const [rows, totalRows] = await Promise.all([
     db
       .select({
-        id: accountSubscriptions.id,
-        userId: accountSubscriptions.userId,
+        id: businessSubscriptions.id,
+        businessId: businessSubscriptions.businessId,
+        businessName: businesses.name,
+        userId: businesses.ownerUserId,
         ownerEmail: user.email,
-        plan: accountSubscriptions.plan,
-        status: accountSubscriptions.status,
-        provider: accountSubscriptions.billingProvider,
-        currentPeriodEnd: accountSubscriptions.currentPeriodEnd,
-        canceledAt: accountSubscriptions.canceledAt,
-        createdAt: accountSubscriptions.createdAt,
+        plan: businessSubscriptions.plan,
+        status: businessSubscriptions.status,
+        provider: businessSubscriptions.billingProvider,
+        currentPeriodEnd: businessSubscriptions.currentPeriodEnd,
+        canceledAt: businessSubscriptions.canceledAt,
+        createdAt: businessSubscriptions.createdAt,
       })
-      .from(accountSubscriptions)
-      .innerJoin(user, eq(user.id, accountSubscriptions.userId))
+      .from(businessSubscriptions)
+      .innerJoin(
+        businesses,
+        eq(businesses.id, businessSubscriptions.businessId),
+      )
+      .innerJoin(user, eq(user.id, businesses.ownerUserId))
       .where(where)
       .orderBy(
-        desc(accountSubscriptions.createdAt),
-        desc(accountSubscriptions.id),
+        desc(businessSubscriptions.createdAt),
+        desc(businessSubscriptions.id),
       )
       .limit(pageSize)
       .offset(offset),
     db
       .select({ count: count() })
-      .from(accountSubscriptions)
+      .from(businessSubscriptions)
+      .innerJoin(
+        businesses,
+        eq(businesses.id, businessSubscriptions.businessId),
+      )
+      .innerJoin(user, eq(user.id, businesses.ownerUserId))
       .where(where),
   ]);
 
@@ -2273,6 +2299,8 @@ async function listAdminSubscriptionsInner(
     items: rows.map(
       (row): AdminSubscriptionRow => ({
         id: row.id,
+        businessId: row.businessId,
+        businessName: row.businessName,
         userId: row.userId,
         ownerEmail: row.ownerEmail,
         plan: row.plan,
@@ -2303,8 +2331,8 @@ export const listAdminSubscriptions = cache(
 );
 
 /**
- * Base `account_subscriptions` row (joined to its owner) shared by every
- * subscription-detail query.
+ * Base `business_subscriptions` row (joined to its owner) shared by
+ * every subscription-detail query.
  *
  * The `WHERE` clause is the only thing that differs between "by id", "by
  * user", and the business-billing lookup, so it is a parameter rather than
@@ -2313,27 +2341,34 @@ export const listAdminSubscriptions = cache(
 async function selectAdminSubscriptionBaseRow(where: SQL) {
   const [row] = await db
     .select({
-      id: accountSubscriptions.id,
-      userId: accountSubscriptions.userId,
+      id: businessSubscriptions.id,
+      businessId: businessSubscriptions.businessId,
+      businessName: businesses.name,
+      userId: businesses.ownerUserId,
       ownerEmail: user.email,
-      plan: accountSubscriptions.plan,
-      status: accountSubscriptions.status,
-      provider: accountSubscriptions.billingProvider,
-      billingCurrency: accountSubscriptions.billingCurrency,
-      providerCustomerId: accountSubscriptions.providerCustomerId,
-      providerSubscriptionId: accountSubscriptions.providerSubscriptionId,
-      providerCheckoutId: accountSubscriptions.providerCheckoutId,
-      paymentMethod: accountSubscriptions.paymentMethod,
-      currentPeriodStart: accountSubscriptions.currentPeriodStart,
-      currentPeriodEnd: accountSubscriptions.currentPeriodEnd,
-      canceledAt: accountSubscriptions.canceledAt,
-      trialEndsAt: accountSubscriptions.trialEndsAt,
-      createdAt: accountSubscriptions.createdAt,
-      updatedAt: accountSubscriptions.updatedAt,
+      plan: businessSubscriptions.plan,
+      status: businessSubscriptions.status,
+      provider: businessSubscriptions.billingProvider,
+      billingCurrency: businessSubscriptions.billingCurrency,
+      providerCustomerId: businessSubscriptions.providerCustomerId,
+      providerSubscriptionId: businessSubscriptions.providerSubscriptionId,
+      providerCheckoutId: businessSubscriptions.providerCheckoutId,
+      paymentMethod: businessSubscriptions.paymentMethod,
+      currentPeriodStart: businessSubscriptions.currentPeriodStart,
+      currentPeriodEnd: businessSubscriptions.currentPeriodEnd,
+      canceledAt: businessSubscriptions.canceledAt,
+      trialEndsAt: businessSubscriptions.trialEndsAt,
+      createdAt: businessSubscriptions.createdAt,
+      updatedAt: businessSubscriptions.updatedAt,
     })
-    .from(accountSubscriptions)
-    .innerJoin(user, eq(user.id, accountSubscriptions.userId))
+    .from(businessSubscriptions)
+    .innerJoin(
+      businesses,
+      eq(businesses.id, businessSubscriptions.businessId),
+    )
+    .innerJoin(user, eq(user.id, businesses.ownerUserId))
     .where(where)
+    .orderBy(desc(businessSubscriptions.createdAt), desc(businessSubscriptions.id))
     .limit(1);
 
   return row ?? null;
@@ -2346,9 +2381,9 @@ type AdminSubscriptionBaseRow = NonNullable<
 /**
  * Assemble the full detail payload from a base row.
  *
- * Recent payments and billing events are keyed by the owning `userId` (via
- * `payment_attempts_user_id_idx` / `billing_events_user_id_idx`), newest
- * first, capped at 10 each.
+ * Recent payments and billing events are business-scoped (via
+ * `payment_attempts_business_id_idx` / `billing_events_business_id_idx`),
+ * newest first, capped at 10 each.
  */
 async function assembleAdminSubscriptionDetail(
   row: AdminSubscriptionBaseRow,
@@ -2366,7 +2401,7 @@ async function assembleAdminSubscriptionDetail(
         createdAt: paymentAttempts.createdAt,
       })
       .from(paymentAttempts)
-      .where(eq(paymentAttempts.userId, row.userId))
+      .where(eq(paymentAttempts.businessId, row.businessId))
       .orderBy(desc(paymentAttempts.createdAt), desc(paymentAttempts.id))
       .limit(10),
     db
@@ -2379,7 +2414,7 @@ async function assembleAdminSubscriptionDetail(
         createdAt: billingEvents.createdAt,
       })
       .from(billingEvents)
-      .where(eq(billingEvents.userId, row.userId))
+      .where(eq(billingEvents.businessId, row.businessId))
       .orderBy(desc(billingEvents.createdAt), desc(billingEvents.id))
       .limit(10),
   ]);
@@ -2408,6 +2443,8 @@ async function assembleAdminSubscriptionDetail(
 
   return {
     id: row.id,
+    businessId: row.businessId,
+    businessName: row.businessName,
     userId: row.userId,
     ownerEmail: row.ownerEmail,
     plan: row.plan,
@@ -2433,7 +2470,7 @@ async function getAdminSubscriptionDetailInner(
   subscriptionId: string,
 ): Promise<AdminSubscriptionDetail | null> {
   const row = await selectAdminSubscriptionBaseRow(
-    eq(accountSubscriptions.id, subscriptionId),
+    eq(businessSubscriptions.id, subscriptionId),
   );
 
   if (!row) {
@@ -2455,19 +2492,18 @@ export const getAdminSubscriptionDetail = cache(
 /**
  * Complete billing picture for `/admin/users/[userId]`.
  *
- * Resolves the user's `account_subscriptions` row (via
- * `account_subscriptions_user_id_unique`) and assembles the same full
- * detail the subscription page used to render — details grid, recent
- * payment attempts, recent billing events. Users without a row are
- * implicitly on the free plan, so `subscription` is null rather than an
- * error.
+ * Resolves the subscription for a business the target user owns and
+ * assembles the same full detail the subscription page used to render —
+ * details grid, recent payment attempts, recent billing events. Users
+ * without a business subscription are implicitly on the free plan, so
+ * `subscription` is null rather than an error.
  */
 export const getAdminUserBillingActivity = cache(
   async (userId: string): Promise<AdminUserBillingActivity> => {
     await requireAdminUser();
 
     const row = await selectAdminSubscriptionBaseRow(
-      eq(accountSubscriptions.userId, userId),
+      and(eq(businesses.ownerUserId, userId), isNull(businesses.deletedAt))!,
     );
 
     return {

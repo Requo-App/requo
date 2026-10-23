@@ -218,7 +218,7 @@ export async function recordPaymentAction(invoiceId: string, _prev: PaymentActio
   }
 }
 
-export async function voidPaymentAction(paymentId: string, invoiceId: string, _prev: PaymentActionState, formData: FormData): Promise<PaymentActionState> {
+export async function voidPaymentAction(paymentId: string, _invoiceId: string, _prev: PaymentActionState, formData: FormData): Promise<PaymentActionState> {
   const access = await getOperationalBusinessActionContext();
   if (!access.ok) return { error: access.error };
   const parsed = voidPaymentSchema.safeParse({ reason: text(formData, "reason"), reasonDetail: text(formData, "reasonDetail") });
@@ -228,7 +228,7 @@ export async function voidPaymentAction(paymentId: string, invoiceId: string, _p
     const result = await voidPaymentForBusiness({ businessId: access.businessContext.business.id, paymentId, actorUserId: access.user.id, reason });
     if (!result) return { error: "Payment not found or already voided." };
     if ("error" in result) return { error: result.error };
-    invalidate(access.businessContext.business.id, invoiceId);
+    invalidate(access.businessContext.business.id, result.invoiceId);
     return { success: "Payment voided." };
   } catch (error) {
     return { error: getUserSafeErrorMessage(error, "Unable to void payment. Please try again.") };

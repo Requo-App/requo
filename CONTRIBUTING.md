@@ -19,7 +19,7 @@ Cloud Supabase (fill `.env.local` with cloud Supabase + database values):
 cp .env.example .env.local
 npm install
 npm run db:migrate
-npm run dev
+npm run dev   # app + Inngest
 ```
 
 Full local (Supabase CLI + Docker):
@@ -28,10 +28,13 @@ Full local (Supabase CLI + Docker):
 cp .env.example .env.local   # local values from `npx supabase status`
 npx supabase start
 npm run db:local:setup
-docker compose up --build
+npm run dev:docker           # app + Inngest + Redis
 ```
 
-See `docs/setup/local.md` for full setup, `docs/setup/deployment.md` for deploy, `docs/setup/billing.md` for Polar.
+For inbound webhooks, add `NGROK_AUTHTOKEN` to `.env.local` and use
+`npm run dev:tunnel` or `npm run dev:docker:tunnel`. See `docs/setup/local.md`
+for full setup, `docs/setup/deployment.md` for deploy, and
+`docs/setup/billing.md` for Polar.
 
 ## Verification
 

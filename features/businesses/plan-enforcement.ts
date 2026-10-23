@@ -2,6 +2,7 @@ import "server-only";
 
 import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 
+import { hasPaidBusinessSubscriptionSql } from "@/lib/billing/entitlement-sql";
 import { db } from "@/lib/db/client";
 import { businesses, userRecentBusinesses } from "@/lib/db/schema";
 import { businessSubscriptions } from "@/lib/db/schema/subscriptions";
@@ -140,13 +141,7 @@ export async function listActiveFreeBusinessesForOwner(
           businesses.id,
           activeBusinesses.map((business) => business.id),
         ),
-        sql`(
-          ${businessSubscriptions.status} in ('active','past_due')
-          or (
-            ${businessSubscriptions.status} = 'canceled'
-            and ${businessSubscriptions.currentPeriodEnd} > now()
-          )
-        )`,
+        hasPaidBusinessSubscriptionSql(),
       ),
     );
 
@@ -209,13 +204,7 @@ export async function unlockBusinessIfAllowed({
     .where(
       and(
         eq(businessSubscriptions.businessId, businessId),
-        sql`(
-          ${businessSubscriptions.status} in ('active','past_due')
-          or (
-            ${businessSubscriptions.status} = 'canceled'
-            and ${businessSubscriptions.currentPeriodEnd} > now()
-          )
-        )`,
+        hasPaidBusinessSubscriptionSql(),
       ),
     )
     .limit(1);

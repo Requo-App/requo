@@ -10,7 +10,7 @@ import {
 } from "@/lib/plans/usage";
 import { getMonthlyUsageSummary } from "@/lib/ai/usage-limiter";
 import { createNoIndexMetadata } from "@/lib/seo/site";
-import { getBusinessOwnerPageContext } from "../_lib/page-context";
+import { getBusinessSettingsPageContext } from "../_lib/page-context";
 
 export const metadata: Metadata = createNoIndexMetadata({
   title: "Billing",
@@ -34,8 +34,11 @@ export default function BillingSettingsPage() {
 }
 
 async function BillingStatusSection() {
-  const { businessContext } = await getBusinessOwnerPageContext();
+  // Every member can view the billing summary; only the owner can change it.
+  // Mutations remain owner-only on the server (checkout/portal routes).
+  const { businessContext } = await getBusinessSettingsPageContext();
   const businessId = businessContext.business.id;
+  const canManageBilling = businessContext.role === "owner";
 
   const billingOverview = await getBusinessBillingOverview(businessId);
 
@@ -52,6 +55,7 @@ async function BillingStatusSection() {
   return (
     <BillingStatusCard
       billing={billingOverview}
+      canManageBilling={canManageBilling}
       planUsage={{
         aiCredits: { used: aiUsage.used, limit: aiUsage.limit },
         emailsSent: requoDocumentEmailsThisMonth,

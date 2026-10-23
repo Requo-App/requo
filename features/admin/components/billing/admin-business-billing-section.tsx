@@ -15,6 +15,7 @@ const subscriptionStatusVariant: Record<
   pending: "secondary",
   active: "default",
   past_due: "destructive",
+  paused: "outline",
   canceled: "outline",
   expired: "outline",
   incomplete: "secondary",

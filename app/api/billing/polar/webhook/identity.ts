@@ -14,7 +14,7 @@ import "server-only";
  *   4. `data.metadata.businessId` (legacy fallback for older sessions).
  *
  * Returns `null` when no source resolves; the caller is expected to
- * record the event in `billing_events` with `userId = null` and status
+ * record the event in `billing_events` with `businessId = null` and status
  * `failed` so the issue is visible for operator follow-up.
  */
 
@@ -31,10 +31,9 @@ import { businessSubscriptions } from "@/lib/db/schema/subscriptions";
  * accept a structurally-typed superset so the resolver stays resilient to
  * missing fields and forward-compatible with new event variants.
  *
- * Both casings are accepted — the SDK validator emits camelCase
- * (`externalId`, `subscriptionId`) on typed payloads, while raw
- * Standard-Webhooks bodies (and our test fixtures) keep snake_case
- * (`external_id`, `subscription_id`).
+ * Both casings are accepted — current SDK types use snake_case
+ * (`external_id`, `subscription_id`), while older SDK versions and some
+ * persisted payloads used camelCase (`externalId`, `subscriptionId`).
  */
 export type PolarEventPayload = {
   type: string;

@@ -11,6 +11,7 @@ import {
   businessNotificationStates,
   businessNotifications,
   businesses,
+  businessSubscriptions,
   followUps,
   inquiries,
   quoteItems,
@@ -112,6 +113,9 @@ export async function cleanupWorkflowFixture(prefix: string) {
   await testDb
     .delete(businessMembers)
     .where(inArray(businessMembers.businessId, businessIds));
+  await testDb
+    .delete(businessSubscriptions)
+    .where(inArray(businessSubscriptions.businessId, businessIds));
   await testDb.delete(businesses).where(inArray(businesses.id, businessIds));
   await testDb.delete(user).where(inArray(user.id, userIds));
 }

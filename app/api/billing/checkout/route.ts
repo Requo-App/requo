@@ -12,6 +12,7 @@ import { getPolarProductId } from "@/lib/billing/polar-products";
 import { getBusinessSubscription } from "@/lib/billing/subscription-service";
 import { env, isPolarConfigured } from "@/lib/env";
 import { getBusinessMembershipsForUser } from "@/lib/db/business-access";
+import { canManageBusinessAdministration } from "@/lib/business-members";
 
 /**
  * Authed checkout route. Runs eligibility gates, resolves
@@ -78,7 +79,19 @@ export async function POST(request: Request): Promise<Response> {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
 
+  if (!canManageBusinessAdministration(businessContext.role)) {
+    return NextResponse.json(
+      { error: "Only the business owner can manage billing." },
+      { status: 403 },
+    );
+  }
+
   const existing = await getBusinessSubscription(businessId);
+  const now = new Date();
+  const canceledButActive =
+    existing?.status === "canceled" &&
+    existing.currentPeriodEnd !== null &&
+    existing.currentPeriodEnd > now;
 
   if (
     existing &&
@@ -87,6 +100,22 @@ export async function POST(request: Request): Promise<Response> {
   ) {
     return NextResponse.json(
       { error: "You're already subscribed to this plan." },
+      { status: 409 },
+    );
+  }
+
+  // Paused and canceled-but-in-period subscriptions still exist at Polar.
+  // Starting a second checkout would create a duplicate subscription and
+  // double-charge the business; send the owner to the portal instead.
+  if (
+    existing?.providerSubscriptionId &&
+    (existing.status === "paused" || canceledButActive)
+  ) {
+    return NextResponse.json(
+      {
+        error:
+          "You already have a subscription. Manage it from the billing portal.",
+      },
       { status: 409 },
     );
   }
@@ -111,6 +140,15 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
+  const origin = resolveAppOrigin(request.url);
+
+  if (!origin) {
+    return NextResponse.json(
+      { error: "Application URL is not configured." },
+      { status: 503 },
+    );
+  }
+
   // ── Upgrade path: update the existing subscription's product ──────────
   // When the business already has an active subscription on a different plan,
   // Polar won't allow a new checkout. Instead, we update the existing
@@ -131,11 +169,9 @@ export async function POST(request: Request): Promise<Response> {
     const polar = getPolarClient();
 
     try {
-      await polar.subscriptions.update({
-        id: existing.providerSubscriptionId,
-        subscriptionUpdate: {
-          productId,
-        },
+      await polar.subscriptions.update(existing.providerSubscriptionId, {
+        product_id: productId,
+        metadata: { plan, businessId },
       });
     } catch (error) {
       const message =
@@ -146,8 +182,7 @@ export async function POST(request: Request): Promise<Response> {
 
     // Return a success response — the webhook will handle the plan change.
     // Redirect to the return path with upgrade flag.
-    const origin = resolveAppOrigin(request.url);
-    const successUrl = new URL(returnTo || "/", origin ?? request.url);
+    const successUrl = new URL(returnTo || "/", origin);
     successUrl.searchParams.set("upgrade", "success");
     successUrl.searchParams.set("plan", plan);
 
@@ -161,15 +196,6 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
-  const origin = resolveAppOrigin(request.url);
-
-  if (!origin) {
-    return NextResponse.json(
-      { error: "Application URL is not configured." },
-      { status: 503 },
-    );
-  }
-
   const baseSuccessUrl = new URL("/billing/checkout", origin);
   if (returnTo) baseSuccessUrl.searchParams.set("returnTo", returnTo);
 
@@ -179,10 +205,11 @@ export async function POST(request: Request): Promise<Response> {
   try {
     const checkout = await polar.checkouts.create({
       products: [productId],
-      successUrl: baseSuccessUrl.toString(),
-      externalCustomerId: businessId,
-      customerEmail: userEmail,
-      ...(clientIp ? { customerIpAddress: clientIp } : {}),
+      success_url: baseSuccessUrl.toString(),
+      external_customer_id: businessId,
+      customer_email: userEmail,
+      metadata: { plan, businessId },
+      ...(clientIp ? { customer_ip_address: clientIp } : {}),
     });
     return NextResponse.json({ checkoutUrl: checkout.url });
   } catch (error) {

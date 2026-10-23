@@ -1,22 +1,10 @@
+import { sanitizeSameOriginPath } from "@/lib/routing/safe-return-path";
+
 export function getSafeAuthRedirectPath(
   value: string | null | undefined,
   fallback = "/home",
 ) {
-  if (!value) {
-    return fallback;
-  }
-
-  const normalized = value.trim();
-
-  if (!normalized.startsWith("/") || normalized.startsWith("//")) {
-    return fallback;
-  }
-
-  if (normalized.startsWith("/api/")) {
-    return fallback;
-  }
-
-  return normalized;
+  return sanitizeSameOriginPath(value) ?? fallback;
 }
 
 /**

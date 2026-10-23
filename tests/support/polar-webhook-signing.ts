@@ -13,12 +13,10 @@
  *   4. `signature`        = `base64(HMAC_SHA256(secret, toSign))`.
  *   5. `webhook-signature` header = `v1,${signature}`.
  *
- * The Polar SDK `validateEvent` helper takes the raw webhook secret
- * (the value of `POLAR_WEBHOOK_SECRET`) and base64-encodes it before
- * handing it to the `standardwebhooks` `Webhook` class, which then
- * base64-decodes it to recover the original bytes for HMAC. The
- * round-trip cancels out: the actual HMAC key is the raw secret
- * UTF-8 bytes, so we sign with that directly here.
+ * The SDK accepts both the raw webhook secret (the historical value of
+ * `POLAR_WEBHOOK_SECRET`) and Polar's current `whsec_`-prefixed form.
+ * The actual HMAC key is the raw secret bytes after removing the
+ * prefix, so we sign with that directly here.
  */
 
 import { createHmac, randomUUID } from "node:crypto";

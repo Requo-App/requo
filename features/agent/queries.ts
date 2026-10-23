@@ -4,6 +4,7 @@ import { and, asc, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { cache } from "react";
 
 import { getOperationalBusinessCondition } from "@/features/businesses/lifecycle";
+import { getEffectivePlanForBusiness } from "@/lib/billing/subscription-service";
 import { db } from "@/lib/db/client";
 import {
   agentSessions,
@@ -41,7 +42,6 @@ export const getPublicAgentBusiness = cache(
         logoStoragePath: businesses.logoStoragePath,
         updatedAt: businesses.updatedAt,
         agentEnabled: businesses.agentEnabled,
-        plan: businesses.plan,
       })
       .from(businesses)
       .where(and(eq(businesses.slug, slug), getOperationalBusinessCondition()))
@@ -52,6 +52,10 @@ export const getPublicAgentBusiness = cache(
     const { logoStoragePath, updatedAt, ...business } = row;
     return {
       ...business,
+      // Resolve from the subscription row, not the denormalized
+      // `businesses.plan` cache, so grace/cancellation cutoffs apply without
+      // waiting for the daily expiry cron.
+      plan: await getEffectivePlanForBusiness(row.id),
       logoUrl: logoStoragePath
         ? `/api/public/businesses/${row.slug}/logo?v=${updatedAt.getTime()}`
         : null,

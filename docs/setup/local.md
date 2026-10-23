@@ -7,11 +7,12 @@ values in `.env.local` differ:
    project, then `npm run dev`. No Docker required.
 2. **Full local (Docker)** — the Supabase CLI stack (database, storage,
    realtime, Studio) plus `docker compose` for the app, Inngest, and Redis.
-   Fully offline.
+   Fully offline by default; `npm run dev:docker:tunnel` adds an ngrok tunnel
+   when you need a public webhook URL.
 
 ## Prerequisites
 
-- Node.js 22 or newer and npm
+- Node.js 24 or newer and npm
 - Cloud Supabase: a Supabase project
 - Full local: a container runtime (Docker Desktop with WSL integration on
   Windows, Docker Engine on Linux); `docker ps` must work from your shell
@@ -22,7 +23,7 @@ values in `.env.local` differ:
 cp .env.example .env.local
 npm install
 npm run db:migrate   # first run, or after pulling new migrations
-npm run dev          # app + Inngest Dev Server
+npm run dev          # app + Inngest
 ```
 
 Fill `.env.local` with at least:
@@ -45,8 +46,9 @@ Notes:
   Live push additionally needs a hosted project configured with the
   `supabase_realtime` publication and RLS policies for the bell tables; the
   committed migrations deliberately leave RLS deny-all.
-- `npm run dev:tunnel` adds an ngrok tunnel when testing inbound callbacks or
-  webhooks (for example Polar webhooks).
+- `npm run dev:tunnel` adds the optional ngrok tunnel for inbound callbacks or
+  webhooks (for example Polar webhooks). Set `NGROK_AUTHTOKEN` in `.env.local`,
+  or use an authtoken already saved by `npx ngrok config add-authtoken`.
 
 ## Mode 2: Full local (Docker)
 
@@ -73,6 +75,10 @@ SUPABASE_SERVICE_ROLE_KEY=<SERVICE_ROLE_KEY from status>
 SUPABASE_JWT_SECRET=<JWT_SECRET from status>
 BETTER_AUTH_SECRET=<generate: openssl rand -hex 32>
 BETTER_AUTH_URL=http://localhost:3000
+# Only needed for the optional tunnel commands.
+NGROK_AUTHTOKEN=<token from https://dashboard.ngrok.com/get-started/your-authtoken>
+# Optional reserved domain. Use the hostname or the full tunnel URL.
+# NGROK_DOMAIN=requo-dev.ngrok.app
 # Host `npm run dev`: use the compose Redis proxy on the host port.
 # The compose `app` service overrides this to http://redis-http:80.
 UPSTASH_REDIS_REST_URL=http://127.0.0.1:8079
@@ -84,7 +90,7 @@ Prepare the database and start the app:
 ```bash
 npm install
 npm run db:local:setup   # migrations + demo data + local realtime setup
-docker compose up --build
+npm run dev:docker       # docker compose up --build
 ```
 
 `db:local:setup` applies pending migrations, resets and re-seeds demo data,
@@ -93,12 +99,19 @@ policies the notification bell needs. It refuses non-local hosts and is safe
 to re-run (for example after `npm run db:reset`, a fresh `npx supabase start`,
 or new migrations).
 
-`docker compose up --build` starts:
+`npm run dev:docker` (or `docker compose up --build`) starts:
 
 - `app` — Next.js dev server with hot reload on http://localhost:3000
 - `inngest` — Inngest Dev Server on http://localhost:8288
 - `redis` — Redis 7 with append-only persistence on `localhost:6379`
 - `redis-http` — Upstash-compatible REST proxy on http://localhost:8079
+
+For inbound webhooks, run `npm run dev:docker:tunnel` (or
+`docker compose --profile tunnel up --build`). That adds the `ngrok` service,
+which reads `NGROK_AUTHTOKEN` from `.env.local`. With a reserved domain, set
+`NGROK_DOMAIN` and use `https://<domain>/api/billing/polar/webhook` as the
+Polar endpoint. Without a reserved domain, copy the assigned URL from the ngrok
+inspector (`http://localhost:4040`) or its container logs into the endpoint.
 
 Inside the app container, Postgres is reached over the Supabase CLI Docker
 network by container hostname (`supabase_db_requo:5432`, with
@@ -113,7 +126,7 @@ above:
 
 ```bash
 docker compose up -d redis redis-http
-npm run dev
+npm run dev          # or `npm run dev:tunnel` for ngrok
 docker compose stop redis redis-http   # when finished
 ```
 
@@ -127,12 +140,16 @@ Notes:
   --build`); code edits hot-reload without a rebuild.
 - Bind mounts use polling for hot reload (`WATCHPACK_POLLING` is set in
   `docker-compose.yml`).
+- The default `npm run dev:docker` leaves ngrok out. If you already run ngrok
+  on the host, stop one of the two before using the reserved domain or port
+  `4040`.
 
 ### Local ports
 
 | Port | Service |
 | --- | --- |
 | 3000 | Requo (compose `app`) |
+| 4040 | ngrok inspector (optional `tunnel` profile, loopback only) |
 | 8288 | Inngest Dev Server (compose `inngest`) |
 | 6379 | Redis (compose `redis`, loopback only, for `redis-cli`) |
 | 8079 | Upstash-compatible Redis REST proxy (compose `redis-http`, loopback only) |
@@ -160,6 +177,7 @@ Minimum requirements:
 Optional but commonly needed:
 
 - `NEXT_PUBLIC_BETTER_AUTH_URL`
+- `NGROK_AUTHTOKEN` and `NGROK_DOMAIN` for the optional tunnel commands
 - `APP_TOKEN_HASH_SECRET`
 - `NEXT_PUBLIC_VAPID_PUBLIC_KEY`
 - `VAPID_PRIVATE_KEY`

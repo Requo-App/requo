@@ -3,6 +3,7 @@ import "server-only";
 import { and, asc, eq, gte, isNotNull, isNull, lt, sql } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
 
+import { resolveEffectivePlanFromSubscriptionFields } from "@/lib/billing/subscription-service";
 import {
   getBusinessAnalyticsCacheTags,
   hotBusinessCacheLife,
@@ -36,6 +37,7 @@ import {
   quotes,
   user,
 } from "@/lib/db/schema";
+import { businessSubscriptions } from "@/lib/db/schema/subscriptions";
 import type { PlanTier } from "@/lib/plans/plans";
 import { getUsageLimit } from "@/lib/plans/usage-limits";
 import {
@@ -187,17 +189,30 @@ async function getAnalyticsBusinessMetaUncached(
   const [row] = await db
     .select({
       currency: businesses.defaultCurrency,
-      plan: businesses.plan,
+      subscriptionStatus: businessSubscriptions.status,
+      subscriptionPlan: businessSubscriptions.plan,
+      subscriptionCurrentPeriodEnd: businessSubscriptions.currentPeriodEnd,
       industryCategory: businesses.industryCategory,
       createdAt: businesses.createdAt,
     })
     .from(businesses)
+    .leftJoin(
+      businessSubscriptions,
+      eq(businessSubscriptions.businessId, businesses.id),
+    )
     .where(eq(businesses.id, businessId))
     .limit(1);
 
   return {
     currency: row?.currency ?? "USD",
-    plan: (row?.plan as PlanTier | null) ?? "free",
+    // Resolve from the subscription row so time-based grace/cancellation
+    // cutoffs are reflected even before the daily expiry cron updates the
+    // denormalized `businesses.plan` cache.
+    plan: resolveEffectivePlanFromSubscriptionFields({
+      status: row?.subscriptionStatus ?? null,
+      plan: row?.subscriptionPlan ?? null,
+      currentPeriodEnd: row?.subscriptionCurrentPeriodEnd ?? null,
+    }),
     industryCategory: row?.industryCategory ?? null,
     createdAt: row?.createdAt ?? new Date(),
   };

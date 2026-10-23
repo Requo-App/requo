@@ -11,7 +11,7 @@ import "server-only";
  *   "processing" → "processed" | "failed" | "ignored"
  */
 
-import { eq } from "drizzle-orm";
+import { and, eq, lt, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
 import { newEntityId } from "@/lib/ids";
@@ -23,21 +23,44 @@ import {
 } from "@/lib/db/schema/subscriptions";
 import type { WebhookProcessResult } from "@/lib/billing/types";
 
+/** A `processing` event older than this is assumed abandoned by a crashed request. */
+export const STALE_PROCESSING_EVENT_MS = 5 * 60 * 1000;
+
+export type WebhookEventStatus = "processing" | "processed" | "failed" | "ignored";
+
+export type RecordWebhookEventResult = {
+  /** True only when this delivery inserted the event row. */
+  isNew: boolean;
+  /** True when this delivery owns processing of the event. */
+  claimed: boolean;
+  eventId: string;
+  status: WebhookEventStatus;
+  /**
+   * Timestamp of this delivery's claim. Terminal updates must present it so
+   * a slow original request cannot overwrite a newer retry's result.
+   * `null` when this delivery did not claim the event.
+   */
+  claimToken: Date | null;
+};
+
 /* ── Event recording ──────────────────────────────────────────────────────── */
 
 /**
- * Records a webhook event and returns whether it should be processed.
- * Returns `isNew: false` if the event has already been recorded (duplicate).
+ * Records a webhook event and claims it for processing when appropriate.
  *
- * New rows are inserted with `status: "processing"`. Callers should
- * transition the row to `"processed"`, `"failed"`, or `"ignored"` via
- * the corresponding helpers below once the event is handled.
+ * New rows are inserted with `status: "processing"`. Duplicate deliveries
+ * normally skip processing, but two recoverable states can be claimed:
  *
- * The insert is atomic (`onConflictDoNothing` on the provider-event unique
- * index): concurrent duplicate deliveries race to insert, exactly one wins,
- * and losers resolve to the winner via the follow-up select instead of
- * surfacing a uniqueness violation. The winner's payload and status are
- * never overwritten by a duplicate.
+ *   - `failed`: a previous delivery recorded an error and returned 5xx, or
+ *     the adapter did not get a chance to retry. The next delivery retries.
+ *   - stale `processing`: a previous request crashed before marking the row
+ *     terminal. Only requests older than `STALE_PROCESSING_EVENT_MS` are
+ *     reclaimable, so an in-flight delivery is never processed twice.
+ *
+ * `processed` and `ignored` rows are terminal and are never reclaimed.
+ *
+ * The insert and claim updates are atomic. Concurrent duplicate deliveries
+ * race to claim; exactly one wins and the losers return `claimed: false`.
  */
 export async function recordWebhookEvent(params: {
   providerEventId: string;
@@ -46,8 +69,10 @@ export async function recordWebhookEvent(params: {
   userId?: string | null;
   businessId?: string | null;
   payload: unknown;
-}): Promise<{ isNew: boolean; eventId: string }> {
+}): Promise<RecordWebhookEventResult> {
   const eventId = newEntityId();
+  const now = new Date();
+  const staleBefore = new Date(now.getTime() - STALE_PROCESSING_EVENT_MS);
 
   const [inserted] = await db
     .insert(billingEvents)
@@ -60,20 +85,28 @@ export async function recordWebhookEvent(params: {
       businessId: params.businessId ?? null,
       payload: params.payload as Record<string, unknown>,
       status: "processing",
-      createdAt: new Date(),
+      createdAt: now,
+      updatedAt: now,
     })
     .onConflictDoNothing({ target: billingEvents.providerEventId })
     .returning({ id: billingEvents.id });
 
   if (inserted) {
-    return { isNew: true, eventId: inserted.id };
+    return {
+      isNew: true,
+      claimed: true,
+      eventId: inserted.id,
+      status: "processing",
+      claimToken: now,
+    };
   }
 
-  // Conflict: this event was already recorded (possibly by a concurrent
-  // delivery that won the race). Resolve to the existing row without
-  // touching its payload or status.
   const [existing] = await db
-    .select({ id: billingEvents.id })
+    .select({
+      id: billingEvents.id,
+      status: billingEvents.status,
+      updatedAt: billingEvents.updatedAt,
+    })
     .from(billingEvents)
     .where(eq(billingEvents.providerEventId, params.providerEventId))
     .limit(1);
@@ -82,17 +115,105 @@ export async function recordWebhookEvent(params: {
     throw new Error("Billing event record could not be created.");
   }
 
-  return { isNew: false, eventId: existing.id };
+  if (existing.status === "failed") {
+    const [claimed] = await db
+      .update(billingEvents)
+      .set({
+        status: "processing",
+        errorMessage: null,
+        processedAt: null,
+        userId: params.userId ?? null,
+        businessId: params.businessId ?? null,
+        payload: params.payload as Record<string, unknown>,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(billingEvents.id, existing.id),
+          eq(billingEvents.status, "failed"),
+        ),
+      )
+      .returning({ id: billingEvents.id });
+
+    return {
+      isNew: false,
+      claimed: !!claimed,
+      eventId: existing.id,
+      status: claimed
+        ? "processing"
+        : (existing.status as WebhookEventStatus),
+      claimToken: claimed ? now : null,
+    };
+  }
+
+  if (existing.status === "processing" && existing.updatedAt < staleBefore) {
+    const [claimed] = await db
+      .update(billingEvents)
+      .set({
+        errorMessage: null,
+        processedAt: null,
+        userId: params.userId ?? null,
+        businessId: params.businessId ?? null,
+        payload: params.payload as Record<string, unknown>,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(billingEvents.id, existing.id),
+          eq(billingEvents.status, "processing"),
+          lt(billingEvents.updatedAt, staleBefore),
+        ),
+      )
+      .returning({ id: billingEvents.id });
+
+    return {
+      isNew: false,
+      claimed: !!claimed,
+      eventId: existing.id,
+      status: claimed
+        ? "processing"
+        : (existing.status as WebhookEventStatus),
+      claimToken: claimed ? now : null,
+    };
+  }
+
+  return {
+    isNew: false,
+    claimed: false,
+    eventId: existing.id,
+    status: existing.status as WebhookEventStatus,
+    claimToken: null,
+  };
 }
 
 /**
  * Marks a webhook event as successfully processed.
+ *
+ * `claimToken` is the timestamp returned by `recordWebhookEvent`. Requiring
+ * it prevents a slow original delivery from finishing an event that a newer
+ * retry has since reclaimed.
  */
-export async function markEventProcessed(eventId: string): Promise<void> {
+export async function markEventProcessed(
+  eventId: string,
+  claimToken: Date,
+): Promise<void> {
+  const now = new Date();
+
   await db
     .update(billingEvents)
-    .set({ status: "processed", processedAt: new Date() })
-    .where(eq(billingEvents.id, eventId));
+    .set({
+      status: "processed",
+      processedAt: now,
+      errorMessage: null,
+      updatedAt: now,
+    })
+    .where(
+      and(
+        eq(billingEvents.id, eventId),
+        eq(billingEvents.status, "processing"),
+        eq(billingEvents.updatedAt, claimToken),
+      ),
+    );
 }
 
 /**
@@ -100,23 +221,48 @@ export async function markEventProcessed(eventId: string): Promise<void> {
  */
 export async function markEventFailed(
   eventId: string,
+  claimToken: Date,
   errorMessage: string,
 ): Promise<void> {
+  const now = new Date();
+
   await db
     .update(billingEvents)
-    .set({ status: "failed", errorMessage })
-    .where(eq(billingEvents.id, eventId));
+    .set({
+      status: "failed",
+      errorMessage,
+      processedAt: null,
+      updatedAt: now,
+    })
+    .where(
+      and(
+        eq(billingEvents.id, eventId),
+        eq(billingEvents.status, "processing"),
+        eq(billingEvents.updatedAt, claimToken),
+      ),
+    );
 }
 
 /**
  * Marks a webhook event as ignored. Used when the event type is not
  * relevant to subscription state (e.g., informational events).
  */
-export async function markEventIgnored(eventId: string): Promise<void> {
+export async function markEventIgnored(
+  eventId: string,
+  claimToken: Date,
+): Promise<void> {
+  const now = new Date();
+
   await db
     .update(billingEvents)
-    .set({ status: "ignored" })
-    .where(eq(billingEvents.id, eventId));
+    .set({ status: "ignored", updatedAt: now })
+    .where(
+      and(
+        eq(billingEvents.id, eventId),
+        eq(billingEvents.status, "processing"),
+        eq(billingEvents.updatedAt, claimToken),
+      ),
+    );
 }
 
 /* ── Payment attempt recording ────────────────────────────────────────────── */
@@ -139,27 +285,65 @@ type RecordPaymentAttemptParams = {
 };
 
 /**
- * Records a payment attempt for audit purposes.
+ * Records or updates the mirror of a provider payment (order).
+ *
+ * `(provider, providerPaymentId)` is unique. A duplicate `order.paid`
+ * delivery must not create a second row, and a later failed update must not
+ * overwrite a row that already proved the payment succeeded.
  */
 export async function recordPaymentAttempt(
   params: RecordPaymentAttemptParams,
 ): Promise<string> {
   const id = newEntityId();
 
-  await db.insert(paymentAttempts).values({
-    id,
-    userId: params.userId ?? null,
-    businessId: params.businessId ?? null,
-    plan: params.plan,
-    provider: params.provider,
-    providerPaymentId: params.providerPaymentId,
-    amount: params.amount,
-    currency: params.currency,
-    status: params.status,
-    createdAt: new Date(),
-  });
+  const [upserted] = await db
+    .insert(paymentAttempts)
+    .values({
+      id,
+      userId: params.userId ?? null,
+      businessId: params.businessId ?? null,
+      plan: params.plan,
+      provider: params.provider,
+      providerPaymentId: params.providerPaymentId,
+      amount: params.amount,
+      currency: params.currency,
+      status: params.status,
+      createdAt: new Date(),
+    })
+    .onConflictDoUpdate({
+      target: [paymentAttempts.provider, paymentAttempts.providerPaymentId],
+      set: {
+        userId: params.userId ?? null,
+        businessId: params.businessId ?? null,
+        plan: params.plan,
+        amount: params.amount,
+        currency: params.currency,
+        status: params.status,
+      },
+      setWhere: sql`${paymentAttempts.status} <> 'succeeded'`,
+    })
+    .returning({ id: paymentAttempts.id });
 
-  return id;
+  if (upserted) {
+    return upserted.id;
+  }
+
+  const [existing] = await db
+    .select({ id: paymentAttempts.id })
+    .from(paymentAttempts)
+    .where(
+      and(
+        eq(paymentAttempts.provider, params.provider),
+        eq(paymentAttempts.providerPaymentId, params.providerPaymentId),
+      ),
+    )
+    .limit(1);
+
+  if (!existing) {
+    throw new Error("Payment attempt record could not be created.");
+  }
+
+  return existing.id;
 }
 
 /**

@@ -14,6 +14,7 @@ import {
 } from "@/lib/db/schema";
 import { and, eq, isNull } from "drizzle-orm";
 import { hasFeatureAccess } from "@/lib/plans/entitlements";
+import { getEffectivePlanForBusiness } from "@/lib/billing/subscription-service";
 import { checkAgentSessionLimit } from "@/lib/ai/conversation-limits";
 import {
   assertPublicActionRateLimit,
@@ -58,7 +59,6 @@ export async function createAgentSessionAction({
       .select({
         id: businesses.id,
         name: businesses.name,
-        plan: businesses.plan,
         agentEnabled: businesses.agentEnabled,
       })
       .from(businesses)
@@ -81,7 +81,12 @@ export async function createAgentSessionAction({
       };
     }
 
-    if (!hasFeatureAccess(business.plan, "agent")) {
+    // Resolve from `business_subscriptions` so a grace-period or
+    // cancellation cutoff is enforced even before the daily expiry cron
+    // rewrites the denormalized `businesses.plan` column.
+    const effectivePlan = await getEffectivePlanForBusiness(business.id);
+
+    if (!hasFeatureAccess(effectivePlan, "agent")) {
       return {
         success: false,
         error: "Agent is not available on this plan",
@@ -114,7 +119,7 @@ export async function createAgentSessionAction({
     // Per-business monthly session bucket (separate from owner allowance).
     const bucket = await checkAgentSessionLimit({
       businessId: business.id,
-      plan: business.plan,
+      plan: effectivePlan,
     });
     if (!bucket.allowed) {
       return {
@@ -445,7 +450,6 @@ export async function approveAgentProposalAction({
       id: businesses.id,
       name: businesses.name,
       slug: businesses.slug,
-      plan: businesses.plan,
       agentEnabled: businesses.agentEnabled,
       publicInquiryEnabled: businesses.publicInquiryEnabled,
     })
@@ -475,13 +479,15 @@ export async function approveAgentProposalAction({
     };
   }
 
+  const effectivePlan = await getEffectivePlanForBusiness(business.id);
+
   if (
     !business.agentEnabled ||
-    !hasFeatureAccess(business.plan as "free" | "pro" | "business", "agent")
+    !hasFeatureAccess(effectivePlan, "agent")
   ) {
     console.info("[agent] Honouring staged proposal despite lapsed gate.", {
       businessId: business.id,
-      plan: business.plan,
+      plan: effectivePlan,
       agentEnabled: business.agentEnabled,
       proposalId: consume.proposal.id,
     });
