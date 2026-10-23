@@ -13,7 +13,7 @@ import { headers } from "next/headers";
 
 import type { BillingCurrency } from "@/lib/billing/types";
 
-/** Countries whose fixed pricing currency is not their own ISO code. */
+/** Countries mapped to a non-USD fixed pricing currency. */
 export const countryToBillingCurrency: Readonly<
   Record<string, BillingCurrency>
 > = {
@@ -33,6 +33,7 @@ export const countryToBillingCurrency: Readonly<
   // Euro (eurozone members plus countries that use the euro)
   AT: "EUR",
   BE: "EUR",
+  BG: "EUR",
   CY: "EUR",
   DE: "EUR",
   EE: "EUR",

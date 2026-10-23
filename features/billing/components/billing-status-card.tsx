@@ -185,6 +185,7 @@ export function BillingStatusCard({
                     <UpgradeButton
                       currency={currency}
                       currentPlan={currentPlan}
+                      isTrialing={isTrialing}
                       userId={userId}
                       businessId={businessId}
                       businessSlug={businessSlug}
@@ -196,6 +197,7 @@ export function BillingStatusCard({
                       <UpgradeButton
                         currency={currency}
                         currentPlan={currentPlan}
+                        isTrialing={isTrialing}
                         userId={userId}
                         businessId={businessId}
                         businessSlug={businessSlug}

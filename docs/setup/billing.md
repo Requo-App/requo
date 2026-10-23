@@ -97,7 +97,7 @@ Annual billing is always ten times the monthly price (two months free). The pric
 - `GB`, `IM`, `JE`, `GG` → GBP
 - `CA` → CAD
 - `AU` → AUD
-- Ireland and eurozone countries (`AT`, `BE`, `CY`, `DE`, `EE`, `ES`, `FI`, `FR`, `GR`, `HR`, `IE`, `IT`, `LT`, `LU`, `LV`, `MT`, `NL`, `PT`, `SI`, `SK`), plus `AD`, `MC`, `ME`, `SM`, `VA`, `XK` → EUR
+- Ireland and eurozone countries (`AT`, `BE`, `BG`, `CY`, `DE`, `EE`, `ES`, `FI`, `FR`, `GR`, `HR`, `IE`, `IT`, `LT`, `LU`, `LV`, `MT`, `NL`, `PT`, `SI`, `SK`), plus `AD`, `MC`, `ME`, `SM`, `VA`, `XK` → EUR
 - `NZ` → NZD
 - `SG` → SGD
 - `AE` → AED

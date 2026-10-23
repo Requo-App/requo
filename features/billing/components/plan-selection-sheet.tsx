@@ -37,7 +37,9 @@ type PlanCard = {
 const planCards: PlanCard[] = planTiers.map((plan) => ({
   id: plan,
   tagline: planCatalog[plan].audience,
-  highlights: planCatalog[plan].highlights.slice(0, 4),
+  highlights: planCatalog[plan].highlights.filter(
+    (highlight, index) => index < 4 || highlight.endsWith("live services"),
+  ),
 }));
 
 type PlanSelectionSheetProps = {

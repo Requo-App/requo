@@ -182,6 +182,7 @@ describe("country pricing", () => {
       "IE",
       "AT",
       "BE",
+      "BG",
       "DE",
       "ES",
       "FR",

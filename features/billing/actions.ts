@@ -1,11 +1,12 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 
 import { getBusinessSettingsPath, homePath } from "@/features/businesses/routes";
 import { requireUser } from "@/lib/auth/session";
 import { detectDisplayCurrency } from "@/lib/billing/region";
 import { startBusinessTrial } from "@/lib/billing/subscription-service";
+import { getBusinessBillingCacheTags } from "@/lib/cache/shell-tags";
 import { getBusinessActionContext } from "@/lib/db/business-access";
 import { PRO_TRIAL_DAYS } from "@/lib/plans/plans";
 
@@ -99,6 +100,10 @@ export async function startBusinessTrialAction(
       case "not-found":
         return { error: "That business could not be found." };
     }
+  }
+
+  for (const tag of getBusinessBillingCacheTags(businessId)) {
+    updateTag(tag);
   }
 
   revalidatePath(getBusinessSettingsPath(businessSlug, "billing"));
