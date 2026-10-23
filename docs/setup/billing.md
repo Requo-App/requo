@@ -12,7 +12,11 @@ npm run db:migrate
 
 Billing tables:
 
-- `business_subscriptions`: source of truth for business subscription status
+- `business_subscriptions`: source of truth for business subscription status,
+  including the local Pro trial window (`trial_ends_at`)
+- `business_trial_claims`: one row per owner that has used the one-time Pro
+  trial. `business_id` is intentionally not a foreign key so deleting the
+  business cannot reset trial eligibility.
 - `billing_events`: idempotent webhook event log
 - `payment_attempts`: checkout and payment history
 - `refunds`: read-only after the canonical-Polar refactor; refunds are issued in the customer portal and reflected via `subscription.canceled` / `subscription.revoked` events
@@ -27,6 +31,18 @@ column.
 
 Subscription lifecycle rules:
 
+- `trialing` grants the Pro plan until `trial_ends_at`. Trial rows have no
+  Polar subscription and no payment method. Entitlement reads resolve the plan
+  from the trial timestamp, so a business falls back to Free on the next
+  entitlement read after the window passes even if the daily expiry job has not
+  run. The expiry job then flips the row to `expired`.
+- Trials are one per owner, recorded in `business_trial_claims`. The owner’s
+  first active business claims the trial during creation; an existing Free
+  business can start it from Billing (owner-only). Subscribing during the trial
+  clears `trial_ends_at` and activates the paid subscription.
+- `hasPaidBusinessSubscriptionSql()` deliberately excludes `trialing`, so the
+  trial business still occupies the owner’s one-Free-business slot after the
+  trial ends.
 - `past_due` keeps paid access for a **7-day local grace window** after
   `current_period_end`. A scheduled job expires past-due rows after the window even
   if Polar dunning never recovers; entitlement reads enforce the same cutoff.

@@ -39,6 +39,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { StartTrialButton } from "@/features/billing/components/start-trial-button";
 import { UpgradeButton } from "@/features/billing/components/upgrade-button";
 import { PaymentMethodIcon } from "@/features/billing/components/payment-method-icon";
 import type { BusinessBillingOverview } from "@/features/billing/types";
@@ -72,6 +73,12 @@ export function BillingStatusCard({
     billing;
 
   const isFreePlan = currentPlan === "free";
+  const isTrialing =
+    subscription?.status === "trialing" && currentPlan === "pro";
+  // Before the daily expiry cron flips the row, an ended trial still has the
+  // `trialing` status while the effective plan is already Free.
+  const isLapsedTrial =
+    subscription?.status === "trialing" && !isTrialing;
   const hasActiveSubscription =
     subscription &&
     (subscription.status === "active" || subscription.status === "past_due");
@@ -82,15 +89,21 @@ export function BillingStatusCard({
   const hasCanceledSubscription =
     subscription && subscription.status === "canceled";
   const hasSubscription =
+    isTrialing ||
     hasActiveSubscription ||
     hasPendingSubscription ||
     hasPausedSubscription ||
     hasCanceledSubscription;
-  const canManageInPortal = hasSubscription && subscription.providerCustomerId;
+  const canManageInPortal =
+    !isTrialing && Boolean(hasSubscription) && !!subscription?.providerCustomerId;
 
   const [creditsDialogOpen, setCreditsDialogOpen] = useState(false);
 
-  const renewalDate = subscription?.currentPeriodEnd ?? null;
+  const renewalDate = isTrialing
+    ? (subscription?.trialEndsAt ?? subscription?.currentPeriodEnd ?? null)
+    : isLapsedTrial
+      ? null
+      : (subscription?.currentPeriodEnd ?? null);
   const currency = subscription?.currency ?? "USD";
   const priceLabel = isFreePlan
     ? "Free"
@@ -105,7 +118,9 @@ export function BillingStatusCard({
   )}&businessSlug=${encodeURIComponent(businessSlug)}`;
 
   let subscriptionLine: string;
-  if (
+  if (isTrialing && renewalDate) {
+    subscriptionLine = `Your Pro trial ends ${formatBillingDate(renewalDate)}. Choose a plan to keep Pro features; otherwise the business moves to Free and your data stays available.`;
+  } else if (
     subscription?.canceledAt &&
     (subscription.status === "active" ||
       subscription.status === "canceled") &&
@@ -174,15 +189,33 @@ export function BillingStatusCard({
                     >
                       Compare plans
                     </UpgradeButton>
-                    <UpgradeButton
-                      currentPlan={currentPlan}
-                      userId={userId}
-                      businessId={businessId}
-                      businessSlug={businessSlug}
-                    >
-                      <ArrowUpRight data-icon="inline-start" />
-                      {isFreePlan ? "Subscribe Now" : "Upgrade plan"}
-                    </UpgradeButton>
+                    {isTrialing ? (
+                      <UpgradeButton
+                        currentPlan={currentPlan}
+                        userId={userId}
+                        businessId={businessId}
+                        businessSlug={businessSlug}
+                        targetPlan="pro"
+                      >
+                        <ArrowUpRight data-icon="inline-start" />
+                        Choose a plan
+                      </UpgradeButton>
+                    ) : isFreePlan && billing.canStartTrial ? (
+                      <StartTrialButton
+                        businessId={businessId}
+                        businessSlug={businessSlug}
+                      />
+                    ) : (
+                      <UpgradeButton
+                        currentPlan={currentPlan}
+                        userId={userId}
+                        businessId={businessId}
+                        businessSlug={businessSlug}
+                      >
+                        <ArrowUpRight data-icon="inline-start" />
+                        {isFreePlan ? "Subscribe Now" : "Upgrade plan"}
+                      </UpgradeButton>
+                    )}
                   </div>
                 ) : (
                   <Button disabled variant="outline" size="sm">
@@ -201,18 +234,20 @@ export function BillingStatusCard({
                 />
                 <DetailRow
                   icon={CalendarDays}
-                  label="Renewal date"
+                  label={isTrialing ? "Trial ends" : "Renewal date"}
                   value={formatBillingDate(renewalDate)}
                 />
                 <DetailRow
                   label="Payment method"
                   value={
-                    subscription?.paymentMethod
-                      ? getPaymentMethodDisplay(
-                          subscription.provider,
-                          subscription.paymentMethod,
-                        )
-                      : "No payment method"
+                    isTrialing
+                      ? "No payment method required"
+                      : subscription?.paymentMethod
+                        ? getPaymentMethodDisplay(
+                            subscription.provider,
+                            subscription.paymentMethod,
+                          )
+                        : "No payment method"
                   }
                   leading={
                     <PaymentMethodIcon method={subscription?.paymentMethod} />
@@ -224,7 +259,13 @@ export function BillingStatusCard({
                   icon={Tag}
                   label="Price"
                   value={priceLabel}
-                  detail={isFreePlan ? undefined : "monthly estimate"}
+                  detail={
+                    isFreePlan
+                      ? undefined
+                      : isTrialing
+                        ? "if you subscribe"
+                        : "monthly estimate"
+                  }
                 />
                 <DetailRow
                   icon={Mail}
@@ -609,6 +650,7 @@ const statusConfig: Record<
   string,
   { label: string; variant: "secondary" | "destructive" | "outline" }
 > = {
+  trialing: { label: "Trial", variant: "secondary" },
   active: { label: "Active", variant: "secondary" },
   canceled: { label: "Canceling", variant: "outline" },
   past_due: { label: "Past due", variant: "destructive" },

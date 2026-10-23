@@ -8,6 +8,7 @@ import { db } from "@/lib/db/client";
 import { listLockCandidatesForDowngrade } from "@/features/businesses/plan-enforcement";
 import { businesses } from "@/lib/db/schema/businesses";
 import {
+  canStartBusinessTrial,
   getCachedBusinessSubscription,
   getBusinessSubscription,
   resolveEffectivePlanFromSubscription,
@@ -55,6 +56,7 @@ function toBillingSubscriptionView(
         paymentMethod: subscription.paymentMethod,
         currentPeriodStart: subscription.currentPeriodStart,
         currentPeriodEnd: subscription.currentPeriodEnd,
+        trialEndsAt: subscription.trialEndsAt,
         canceledAt: subscription.canceledAt,
         providerSubscriptionId: subscription.providerSubscriptionId,
         providerCustomerId: subscription.providerCustomerId,
@@ -92,6 +94,10 @@ export const getBusinessBillingShellOverview = cache(
       const currentPlan = subscription
         ? resolveEffectivePlanFromSubscription(subscription)
         : (businessData.plan as PlanTier);
+      const canStartTrial = await canStartBusinessTrial({
+        userId: businessData.ownerUserId,
+        businessId,
+      });
 
       return {
         userId: businessData.ownerUserId,
@@ -99,6 +105,7 @@ export const getBusinessBillingShellOverview = cache(
         businessName: businessData.name,
         businessSlug: businessData.slug,
         currentPlan,
+        canStartTrial,
         downgradePreview: createEmptyDowngradePreview(),
         subscription: toBillingSubscriptionView(subscription),
       };
@@ -129,13 +136,25 @@ export async function getBusinessBillingOverview(
     }
 
     const subscription = await getBusinessSubscription(businessId);
-    const downgradePreview = await listLockCandidatesForDowngrade({
-      ownerUserId: businessData.ownerUserId,
-      targetPlan: "free",
-    });
     const currentPlan = subscription
       ? resolveEffectivePlanFromSubscription(subscription)
       : (businessData.plan as PlanTier);
+    const [downgradePreview, canStartTrial] = await Promise.all([
+      currentPlan === "free"
+        ? listLockCandidatesForDowngrade({
+            ownerUserId: businessData.ownerUserId,
+            targetPlan: "free",
+          })
+        : Promise.resolve({
+            activeBusinessLimit: null,
+            activeBusinesses: [],
+            requiresSelection: false,
+          }),
+      canStartBusinessTrial({
+        userId: businessData.ownerUserId,
+        businessId,
+      }),
+    ]);
 
     return {
       userId: businessData.ownerUserId,
@@ -143,6 +162,7 @@ export async function getBusinessBillingOverview(
       businessName: businessData.name,
       businessSlug: businessData.slug,
       currentPlan,
+      canStartTrial,
       downgradePreview: {
         targetPlan: "free",
         activeBusinessLimit: downgradePreview.activeBusinessLimit,

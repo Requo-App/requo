@@ -1,23 +1,43 @@
 import { NextResponse } from "next/server";
 
+import { getPlanPriceLabel } from "@/lib/billing/plans";
+import { planCatalog, proTrialSummary } from "@/lib/plans/catalog";
+import { planTiers } from "@/lib/plans/plans";
+
+const planLines = planTiers
+  .map((plan) => {
+    const entry = planCatalog[plan];
+    const price =
+      plan === "free"
+        ? "$0 for one business"
+        : `${getPlanPriceLabel(plan, "USD", "monthly")} or ${getPlanPriceLabel(
+            plan,
+            "USD",
+            "yearly",
+          )} per business`;
+
+    return `- ${entry.label}: ${price}. ${entry.description} Includes: ${entry.highlights.join("; ")}.`;
+  })
+  .join("\n");
+
 const llmsContent = `# Requo
 
-Requo is quote and inquiry management software for service businesses.
+Requo is inquiry, quote, and invoice management software for service businesses.
 
 ## What Requo does
 
 - Capture inquiries through public service pages, manual entry, or a customer-facing Agent.
 - Create professional quotes with a quote library, pricing entries, templates, and AI-assisted drafting.
 - Share quotes by public link or email and track viewed, accepted, rejected, expired, and voided status.
+- Convert an accepted quote into an invoice, send it, and record manual payments until it is paid.
 - Create follow-up reminders for inquiries and quotes; Pro and Business can send automatic follow-up emails.
 - Review conversion and workflow analytics, scheduled reports, and CSV exports.
 - Use the Assistant to search business data and perform supported inquiry and quote operations.
 
 ## Plans
 
-- Free: $0 for one business; core inquiry-to-quote workflow, manual follow-ups, exports, one live service, and about 10 AI quote drafts per month.
-- Pro: $9/month or $90/year; automatic follow-ups, more AI drafting, custom emails, up to 5 live services, and advanced analytics.
-- Business: $24/month or $240/year; up to 5 members with roles, audit logs, higher limits, and unlimited pricing library entries.
+${proTrialSummary}. When the trial ends, the business returns to Free and its data stays available.
+${planLines}
 
 Annual billing includes two months free. Paid subscriptions are billed per business.
 

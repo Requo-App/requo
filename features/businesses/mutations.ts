@@ -9,7 +9,10 @@ import { getBehaviorPack } from "@/features/businesses/behavior-packs";
 import { seedRecipesForBusiness } from "@/features/businesses/pack-recipes";
 import type { StarterWorkflowKey } from "@/features/businesses/starter-workflows";
 import { getStarterTemplateDefinition } from "@/features/businesses/starter-templates";
-import { assertBusinessQuotaAvailableForUser } from "@/features/businesses/quota";
+import {
+  assertBusinessQuotaAvailableForUser,
+  getOwnedBusinessCountForUser,
+} from "@/features/businesses/quota";
 import type { BusinessType } from "@/features/inquiries/business-types";
 import { createServicePreset, normalizeServiceSlug } from "@/features/inquiries/service-presets";
 import { newEntityId } from "@/lib/ids";
@@ -19,6 +22,10 @@ import {
 } from "@/features/inquiries/form-config";
 import { createInquiryPageConfigDefaults } from "@/features/inquiries/page-config";
 import { ensureProfileForUser } from "@/lib/auth/business-bootstrap";
+import {
+  canStartBusinessTrial,
+  startBusinessTrial,
+} from "@/lib/billing/subscription-service";
 import { db } from "@/lib/db/client";
 import type { PlanTier as plan } from "@/lib/plans/plans";
 import {
@@ -50,11 +57,17 @@ type CreateBusinessForUserInput = {
   /**
    * Named services created during onboarding. The first becomes the default
    * service; extras get their own slug. Empty/absent falls back to the
-   * type-derived preset service. The caller trims to the plan's live limit.
+   * type-derived preset service. Trimming to the resolved plan's live limit
+   * happens inside this module, after trial eligibility is known.
    */
   onboardingServices?: Array<{ name: string }>;
   inquiryFormConfigOverride?: InquiryFormConfig;
   plan?: plan;
+  /**
+   * Claim the owner's one-time Pro trial when this is their first active
+   * business. Defaults to true for user-initiated creation.
+   */
+  startTrial?: boolean;
   activitySource?: string;
   activitySummary?: string;
 };
@@ -140,15 +153,35 @@ export async function createBusinessRecordForUser({
   onboardingServices,
   inquiryFormConfigOverride,
   plan = "free",
+  startTrial = true,
   activitySource = "business-hub",
   activitySummary = "Business created.",
   now = new Date(),
 }: CreateBusinessRecordForUserInput) {
+  // Only the owner's first active business gets the automatic trial. Existing
+  // owners can start it from billing for their current Free business instead.
+  const ownedBusinessCount = await getOwnedBusinessCountForUser(user.id, tx);
+  const autoStartTrial =
+    startTrial &&
+    plan === "free" &&
+    ownedBusinessCount === 0 &&
+    (await canStartBusinessTrial({ userId: user.id, client: tx }));
+  const resolvedPlan: plan = autoStartTrial ? "pro" : plan;
+
   await assertBusinessQuotaAvailableForUser({
     tx,
     ownerUserId: user.id,
-    plan,
+    plan: resolvedPlan,
   });
+
+  const liveServiceLimit = getUsageLimit(
+    resolvedPlan,
+    "liveServicesPerBusiness",
+  );
+  const requestedServices =
+    liveServiceLimit === null
+      ? (onboardingServices ?? [])
+      : (onboardingServices ?? []).slice(0, liveServiceLimit);
 
   const trimmedName = name.trim();
   const normalizedShortDescription = shortDescription?.trim() || null;
@@ -171,7 +204,7 @@ export async function createBusinessRecordForUser({
   const defaultService = createServicePreset({
     businessType,
     businessName: trimmedName,
-    plan: plan,
+    plan: resolvedPlan,
   });
   const resolvedServiceFormConfig =
     inquiryFormConfigOverride ??
@@ -200,7 +233,7 @@ export async function createBusinessRecordForUser({
     inquiryPageConfig: createInquiryPageConfigDefaults({
       businessName: trimmedName,
       businessType,
-      plan: plan,
+      plan: resolvedPlan,
     }),
     defaultQuoteNotes: starterTemplate.defaultQuoteNotes,
     defaultQuoteValidityDays: starterTemplate.defaultQuoteValidityDays,
@@ -218,6 +251,23 @@ export async function createBusinessRecordForUser({
     createdAt: now,
     updatedAt: now,
   });
+
+  if (autoStartTrial) {
+    const trial = await startBusinessTrial({
+      businessId,
+      userId: user.id,
+      currency: defaultCurrency,
+      client: tx,
+      now,
+    });
+
+    // The eligibility check above should make failure impossible. Abort the
+    // creation rather than leaving a business with Pro-shaped defaults but no
+    // trial subscription if another request claimed the trial first.
+    if (!trial.ok) {
+      throw new Error(`Unable to start the business trial: ${trial.reason}`);
+    }
+  }
 
   // Behavior-pack assignment (verticalization F-01): derived from the stored
   // type via the single resolver choke point. Future-only config row — the
@@ -241,7 +291,7 @@ export async function createBusinessRecordForUser({
   // One service per named entry; first wins the default slot and the bare
   // /inquire/{slug} URL. Names are pre-validated upstream (trim + length),
   // blank extras are dropped before this point.
-  const namedServices = (onboardingServices ?? [])
+  const namedServices = requestedServices
     .map((service) => service.name.trim())
     .filter((name) => name.length > 0)
     .map((name) => name.slice(0, 80));
@@ -284,7 +334,7 @@ export async function createBusinessRecordForUser({
         ...createInquiryPageConfigDefaults({
           businessName: trimmedName,
           businessType,
-          plan: plan,
+          plan: resolvedPlan,
         }),
         formTitle: serviceName,
       },
@@ -353,14 +403,9 @@ export async function createBusinessForUser({
   activitySource,
   activitySummary,
   plan,
+  startTrial,
 }: CreateBusinessForUserInput) {
   await ensureProfileForUser(user);
-  const resolvedPlan = plan ?? ("free" as plan);
-  const liveFormLimit = getUsageLimit(resolvedPlan, "liveServicesPerBusiness");
-  const trimmedServices =
-    liveFormLimit === null
-      ? (onboardingServices ?? [])
-      : (onboardingServices ?? []).slice(0, liveFormLimit);
 
   return db.transaction(async (tx) =>
     createBusinessRecordForUser({
@@ -375,10 +420,11 @@ export async function createBusinessForUser({
       countryCode,
       shortDescription,
       customerContactChannel,
-      onboardingServices: trimmedServices,
+      onboardingServices,
       activitySource,
       activitySummary,
-      plan: resolvedPlan,
+      plan,
+      startTrial,
     }),
   );
 }

@@ -20,18 +20,24 @@ import {
 } from "@/lib/cache/shell-tags";
 import {
   businessSubscriptions,
+  businessTrialClaims,
   type BillingCurrency,
   type BillingProvider,
   type SubscriptionStatus,
 } from "@/lib/db/schema/subscriptions";
-import type { PlanTier } from "@/lib/plans/plans";
+import { PRO_TRIAL_MS, type PlanTier } from "@/lib/plans/plans";
 
 type BusinessSubscriptionRow = typeof businessSubscriptions.$inferSelect;
+
+type DatabaseClient =
+  | typeof db
+  | Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 type SubscriptionLike = {
   status: SubscriptionStatus;
   plan: string;
   currentPeriodEnd: Date | null;
+  trialEndsAt?: Date | null;
 };
 
 /**
@@ -44,10 +50,27 @@ export const PAST_DUE_GRACE_MS =
   PAST_DUE_GRACE_DAYS * 24 * 60 * 60 * 1000;
 
 const businessSubscriptionLockNamespace = 903_118_247;
+const businessTrialLockNamespace = 903_118_248;
 
 export function getPastDueGraceEnd(currentPeriodEnd: Date | null): Date | null {
   if (!currentPeriodEnd) return null;
   return new Date(currentPeriodEnd.getTime() + PAST_DUE_GRACE_MS);
+}
+
+/** End date for a Pro trial started at `now`. */
+export function getProTrialEndsAt(now = new Date()): Date {
+  return new Date(now.getTime() + PRO_TRIAL_MS);
+}
+
+/** Whether a subscription is inside its Pro trial window. */
+export function isTrialSubscription(
+  subscription: Pick<SubscriptionLike, "status" | "trialEndsAt">,
+): boolean {
+  return (
+    subscription.status === "trialing" &&
+    subscription.trialEndsAt != null &&
+    subscription.trialEndsAt > new Date()
+  );
 }
 
 /**
@@ -161,6 +184,12 @@ export function resolveEffectivePlanFromSubscription(
   subscription: SubscriptionLike,
 ): PlanTier {
   switch (subscription.status) {
+    case "trialing":
+      // Trials always grant Pro, regardless of the stored plan column. Once
+      // the trial window passes, the business falls back to Free until it
+      // subscribes. The daily expiry job also flips the row to `expired`.
+      return isTrialSubscription(subscription) ? "pro" : "free";
+
     case "active":
       return subscription.plan as PlanTier;
 
@@ -201,6 +230,7 @@ export function resolveEffectivePlanFromSubscriptionFields(
         status: SubscriptionStatus | null;
         plan: string | null;
         currentPeriodEnd: Date | null;
+        trialEndsAt?: Date | null;
       }
     | null
     | undefined,
@@ -213,6 +243,7 @@ export function resolveEffectivePlanFromSubscriptionFields(
     status: subscription.status,
     plan: subscription.plan,
     currentPeriodEnd: subscription.currentPeriodEnd,
+    trialEndsAt: subscription.trialEndsAt,
   });
 }
 
@@ -281,6 +312,8 @@ export async function activateSubscription(
           currentPeriodStart: params.currentPeriodStart ?? now,
           currentPeriodEnd: params.currentPeriodEnd ?? null,
           canceledAt: null,
+          // Subscribing during a trial converts it into a paid subscription.
+          trialEndsAt: null,
           providerEventAt:
             params.providerEventAt ?? existing.providerEventAt,
           updatedAt: now,
@@ -305,6 +338,7 @@ export async function activateSubscription(
           paymentMethod: params.paymentMethod ?? null,
           currentPeriodStart: params.currentPeriodStart ?? now,
           currentPeriodEnd: params.currentPeriodEnd ?? null,
+          trialEndsAt: null,
           providerEventAt: params.providerEventAt ?? null,
           createdAt: now,
           updatedAt: now,
@@ -323,6 +357,7 @@ export async function activateSubscription(
             currentPeriodStart: params.currentPeriodStart ?? now,
             currentPeriodEnd: params.currentPeriodEnd ?? null,
             canceledAt: null,
+            trialEndsAt: null,
             providerEventAt: params.providerEventAt ?? null,
             updatedAt: now,
           },
@@ -390,6 +425,7 @@ export async function updateSubscriptionStatus(
     guard?: {
       status?: SubscriptionStatus;
       currentPeriodEndBefore?: Date;
+      trialEndsAtBefore?: Date;
     };
   },
 ): Promise<BusinessSubscriptionRow | null> {
@@ -428,10 +464,20 @@ export async function updateSubscriptionStatus(
       return { row: existing, changed: false };
     }
 
+    if (
+      updates?.guard?.trialEndsAtBefore &&
+      existing.trialEndsAt &&
+      existing.trialEndsAt >= updates.guard.trialEndsAtBefore
+    ) {
+      return { row: existing, changed: false };
+    }
+
     const [row] = await tx
       .update(businessSubscriptions)
       .set({
         status,
+        // A row leaving the trial state must not keep a stale trial window.
+        trialEndsAt: status === "trialing" ? existing.trialEndsAt : null,
         providerSubscriptionId:
           updates?.providerSubscriptionId ?? existing.providerSubscriptionId,
         providerCustomerId:
@@ -521,12 +567,233 @@ export async function expireSubscription(
   guard?: {
     status?: SubscriptionStatus;
     currentPeriodEndBefore?: Date;
+    trialEndsAtBefore?: Date;
   },
 ): Promise<BusinessSubscriptionRow | null> {
   return updateSubscriptionStatus(businessId, "expired", {
     providerEventAt,
     guard,
   });
+}
+
+/* ── Pro trial ────────────────────────────────────────────────────────────── */
+
+/**
+ * Returns whether the user has ever claimed a business Pro trial.
+ *
+ * Claims are owner-level and survive business deletion, so an owner cannot
+ * restart the trial by deleting and recreating a business.
+ */
+export async function hasBusinessTrialClaim(
+  userId: string,
+  client: DatabaseClient = db,
+): Promise<boolean> {
+  const [row] = await client
+    .select({ userId: businessTrialClaims.userId })
+    .from(businessTrialClaims)
+    .where(eq(businessTrialClaims.userId, userId))
+    .limit(1);
+
+  return Boolean(row);
+}
+
+/**
+ * Whether an owner can start the one-time Pro trial for a business.
+ *
+ * A claim consumes the owner's only trial. Passing `businessId` also checks
+ * that the business is not already on a live (or pending) subscription.
+ */
+export async function canStartBusinessTrial({
+  userId,
+  businessId,
+  client = db,
+}: {
+  userId: string;
+  businessId?: string;
+  client?: DatabaseClient;
+}): Promise<boolean> {
+  if (await hasBusinessTrialClaim(userId, client)) {
+    return false;
+  }
+
+  if (!businessId) {
+    return true;
+  }
+
+  const [subscription] = await client
+    .select({
+      status: businessSubscriptions.status,
+      currentPeriodEnd: businessSubscriptions.currentPeriodEnd,
+    })
+    .from(businessSubscriptions)
+    .where(eq(businessSubscriptions.businessId, businessId))
+    .limit(1);
+
+  if (!subscription) {
+    return true;
+  }
+
+  const now = new Date();
+  const status = subscription.status;
+
+  if (status === "canceled") {
+    return !subscription.currentPeriodEnd || subscription.currentPeriodEnd <= now;
+  }
+
+  return status === "free" || status === "expired";
+}
+
+export type StartBusinessTrialResult =
+  | {
+      ok: true;
+      subscription: BusinessSubscriptionRow;
+      trialEndsAt: Date;
+    }
+  | {
+      ok: false;
+      reason: "not-found" | "already-claimed" | "already-subscribed";
+    };
+
+/**
+ * Starts the one-time 14-day Pro trial for a business.
+ *
+ * The claim row and the subscription write happen in one transaction, so a
+ * failed start never consumes the claim. `businessId` is verified against the
+ * owner here as defence in depth; callers must still authorize the action.
+ */
+export async function startBusinessTrial({
+  businessId,
+  userId,
+  currency = "USD",
+  client,
+  now = new Date(),
+}: {
+  businessId: string;
+  userId: string;
+  currency?: string | null;
+  client?: DatabaseClient;
+  now?: Date;
+}): Promise<StartBusinessTrialResult> {
+  const run = async (tx: DatabaseClient): Promise<StartBusinessTrialResult> => {
+    // Serialize trial starts for one owner. The claim's primary key is the
+    // final arbiter, but the lock produces a clean "already claimed" result
+    // instead of a unique-violation error under concurrency.
+    await tx.execute(
+      sql`select pg_advisory_xact_lock(${businessTrialLockNamespace}, hashtext(${userId}))`,
+    );
+
+    const [business] = await tx
+      .select({
+        ownerUserId: businesses.ownerUserId,
+        defaultCurrency: businesses.defaultCurrency,
+      })
+      .from(businesses)
+      .where(eq(businesses.id, businessId))
+      .limit(1);
+
+    if (!business || business.ownerUserId !== userId) {
+      return { ok: false, reason: "not-found" };
+    }
+
+    if (await hasBusinessTrialClaim(userId, tx)) {
+      return { ok: false, reason: "already-claimed" };
+    }
+
+    const [existing] = await tx
+      .select()
+      .from(businessSubscriptions)
+      .where(eq(businessSubscriptions.businessId, businessId))
+      .limit(1)
+      .for("update");
+
+    if (
+      existing &&
+      existing.status !== "free" &&
+      existing.status !== "expired" &&
+      !(
+        existing.status === "canceled" &&
+        (!existing.currentPeriodEnd || existing.currentPeriodEnd <= now)
+      )
+    ) {
+      return { ok: false, reason: "already-subscribed" };
+    }
+
+    const trialEndsAt = getProTrialEndsAt(now);
+
+    await tx.insert(businessTrialClaims).values({
+      userId,
+      businessId,
+      claimedAt: now,
+    });
+
+    let subscription: BusinessSubscriptionRow;
+
+    if (existing) {
+      const [updated] = await tx
+        .update(businessSubscriptions)
+        .set({
+          status: "trialing",
+          plan: "pro",
+          billingCurrency: normalizeBillingCurrency(
+            currency ?? business.defaultCurrency,
+          ),
+          // A local trial has no Polar subscription, checkout, or payment
+          // method. Clear provider leftovers from a previous paid term so they
+          // are not presented as current trial state.
+          providerCustomerId: null,
+          providerSubscriptionId: null,
+          providerCheckoutId: null,
+          paymentMethod: null,
+          trialEndsAt,
+          currentPeriodStart: now,
+          currentPeriodEnd: trialEndsAt,
+          canceledAt: null,
+          updatedAt: now,
+        })
+        .where(eq(businessSubscriptions.id, existing.id))
+        .returning();
+
+      subscription = updated!;
+    } else {
+      const [created] = await tx
+        .insert(businessSubscriptions)
+        .values({
+          id: newEntityId(),
+          businessId,
+          status: "trialing",
+          plan: "pro",
+          billingProvider: "polar",
+          billingCurrency: normalizeBillingCurrency(
+            currency ?? business.defaultCurrency,
+          ),
+          trialEndsAt,
+          currentPeriodStart: now,
+          currentPeriodEnd: trialEndsAt,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .returning();
+
+      subscription = created!;
+    }
+
+    await tx
+      .update(businesses)
+      .set({ plan: "pro", updatedAt: now })
+      .where(eq(businesses.id, businessId));
+
+    return { ok: true, subscription, trialEndsAt };
+  };
+
+  const result = client
+    ? await run(client)
+    : await db.transaction((tx) => run(tx));
+
+  if (result.ok) {
+    invalidatePlanTierCache(businessId);
+  }
+
+  return result;
 }
 
 /* ── Polar sync ───────────────────────────────────────────────────────────── */

@@ -173,6 +173,7 @@ export async function sendAnalyticsDigestEmails(): Promise<AnalyticsDigestSummar
       subscriptionStatus: businessSubscriptions.status,
       subscriptionPlan: businessSubscriptions.plan,
       subscriptionCurrentPeriodEnd: businessSubscriptions.currentPeriodEnd,
+      subscriptionTrialEndsAt: businessSubscriptions.trialEndsAt,
     })
     .from(businesses)
     .leftJoin(
@@ -192,6 +193,7 @@ export async function sendAnalyticsDigestEmails(): Promise<AnalyticsDigestSummar
         status: business.subscriptionStatus,
         plan: business.subscriptionPlan,
         currentPeriodEnd: business.subscriptionCurrentPeriodEnd,
+        trialEndsAt: business.subscriptionTrialEndsAt,
       }),
       "analyticsOperations",
     ),

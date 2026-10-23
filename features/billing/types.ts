@@ -23,10 +23,13 @@ export type BusinessBillingOverview = {
     paymentMethod?: string | null;
     currentPeriodStart: Date | null;
     currentPeriodEnd: Date | null;
+    trialEndsAt: Date | null;
     canceledAt: Date | null;
     providerSubscriptionId: string | null;
     providerCustomerId: string | null;
   } | null;
+  /** Owner is eligible for the one-time Pro trial on this business. */
+  canStartTrial: boolean;
   downgradePreview: {
     targetPlan: plan;
     activeBusinessLimit: number | null;

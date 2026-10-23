@@ -94,6 +94,9 @@ async function setupPackedBusiness(suffix: string) {
     name,
     businessType: "contractor_home_improvement",
     plan: "free",
+    // These fixtures exercise Free-plan send gates, not the first-business
+    // Pro trial.
+    startTrial: false,
   });
 
   return { userId, businessId: slug(name) };
@@ -293,6 +296,7 @@ describe("send gates", () => {
       name: `${prefix}_biz_r4`,
       businessType: "cleaning_services",
       plan: "free",
+      startTrial: false,
     });
 
     expect(await getPackFollowUpHint(slug(`${prefix}_biz_r4`))).toBeNull();

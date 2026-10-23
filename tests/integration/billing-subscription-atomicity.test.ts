@@ -33,17 +33,22 @@ import { hasPaidBusinessSubscriptionSql } from "@/lib/billing/entitlement-sql";
 import { businesses } from "@/lib/db/schema/businesses";
 import {
   businessSubscriptions,
+  businessTrialClaims,
   user,
 } from "@/lib/db/schema";
 import {
   activateSubscription,
   cancelSubscription,
+  canStartBusinessTrial,
   createPendingSubscription,
   expireSubscription,
+  hasBusinessTrialClaim,
   PAST_DUE_GRACE_MS,
   resolveEffectivePlanFromSubscription,
+  startBusinessTrial,
   updateSubscriptionStatus,
 } from "@/lib/billing/subscription-service";
+import { PRO_TRIAL_MS } from "@/lib/plans/plans";
 import { closeTestDb, testDb } from "@/tests/support/db";
 
 const PREFIX = "test_sub_atomicity";
@@ -111,6 +116,9 @@ describe("activateSubscription atomicity", () => {
     await testDb
       .delete(businesses)
       .where(like(businesses.id, `${PREFIX}%`));
+    await testDb
+      .delete(businessTrialClaims)
+      .where(like(businessTrialClaims.userId, `${PREFIX}%`));
     await testDb.delete(user).where(like(user.id, `${PREFIX}%`));
     await closeTestDb();
   });
@@ -364,5 +372,224 @@ describe("activateSubscription atomicity", () => {
     expect(sub?.plan).toBe("business");
     expect(sub?.providerEventAt?.toISOString()).toBe(newer.toISOString());
     expect(plan).toBe("business");
+  });
+
+  it("starts a one-time Pro trial and records the owner claim", async () => {
+    const { businessId, userId } = await seedBusiness("trial");
+    const startedAt = new Date();
+
+    const started = await startBusinessTrial({
+      businessId,
+      userId,
+      currency: "USD",
+      now: startedAt,
+    });
+
+    expect(started.ok).toBe(true);
+    if (!started.ok) {
+      throw new Error(started.reason);
+    }
+
+    expect(started.subscription.status).toBe("trialing");
+    expect(started.subscription.plan).toBe("pro");
+    expect(started.trialEndsAt.getTime()).toBe(
+      startedAt.getTime() + PRO_TRIAL_MS,
+    );
+
+    const { sub, plan } = await readState(businessId);
+    expect(sub?.status).toBe("trialing");
+    expect(sub?.plan).toBe("pro");
+    expect(sub?.trialEndsAt?.toISOString()).toBe(
+      started.trialEndsAt.toISOString(),
+    );
+    expect(sub?.currentPeriodEnd?.toISOString()).toBe(
+      started.trialEndsAt.toISOString(),
+    );
+    expect(plan).toBe("pro");
+    expect(resolveEffectivePlanFromSubscription(sub!)).toBe("pro");
+
+    expect(await hasBusinessTrialClaim(userId)).toBe(true);
+    expect(await canStartBusinessTrial({ userId, businessId })).toBe(false);
+    // A trial is local access, not a paid provider subscription.
+    expect(await sqlGrantsPaidAccess(businessId)).toBe(false);
+  });
+
+  it("clears stale provider state when restarting on an expired subscription", async () => {
+    const { businessId, userId } = await seedBusiness("trialcleanup");
+    const previousTerm = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000);
+
+    await testDb.insert(businessSubscriptions).values({
+      id: `${PREFIX}_trialcleanup_sub`,
+      businessId,
+      status: "expired",
+      plan: "pro",
+      billingProvider: "polar",
+      billingCurrency: "PHP",
+      providerCustomerId: `${PREFIX}_old_customer`,
+      providerSubscriptionId: `${PREFIX}_old_subscription`,
+      providerCheckoutId: `${PREFIX}_old_checkout`,
+      paymentMethod: "card",
+      currentPeriodStart: previousTerm,
+      currentPeriodEnd: previousTerm,
+      providerEventAt: previousTerm,
+      createdAt: previousTerm,
+      updatedAt: previousTerm,
+    });
+
+    const startedAt = new Date();
+    const started = await startBusinessTrial({
+      businessId,
+      userId,
+      currency: "USD",
+      now: startedAt,
+    });
+    expect(started.ok).toBe(true);
+
+    const { sub } = await readState(businessId);
+    expect(sub?.status).toBe("trialing");
+    expect(sub?.billingCurrency).toBe("USD");
+    expect(sub?.providerCustomerId).toBeNull();
+    expect(sub?.providerSubscriptionId).toBeNull();
+    expect(sub?.providerCheckoutId).toBeNull();
+    expect(sub?.paymentMethod).toBeNull();
+  });
+
+  it("allows only one trial per owner across businesses", async () => {
+    const { businessId, userId } = await seedBusiness("trialonce");
+    const secondBusinessId = `${PREFIX}_trialonce_second_biz`;
+
+    await testDb.insert(businesses).values({
+      id: secondBusinessId,
+      ownerUserId: userId,
+      name: "Subscription Atomicity Second Biz",
+      slug: secondBusinessId.replace(/_/g, "-"),
+      plan: "free",
+      businessType: "general_project_services",
+      defaultCurrency: "USD",
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+
+    expect(
+      (await startBusinessTrial({ businessId, userId })).ok,
+    ).toBe(true);
+
+    const second = await startBusinessTrial({
+      businessId: secondBusinessId,
+      userId,
+    });
+
+    expect(second).toEqual({ ok: false, reason: "already-claimed" });
+    expect(await readState(secondBusinessId)).toEqual({
+      sub: undefined,
+      plan: "free",
+    });
+
+    const claims = await testDb
+      .select()
+      .from(businessTrialClaims)
+      .where(eq(businessTrialClaims.userId, userId));
+    expect(claims).toHaveLength(1);
+    expect(claims[0]?.businessId).toBe(businessId);
+  });
+
+  it("does not consume a claim when the caller is not the owner", async () => {
+    const { businessId } = await seedBusiness("trialowner");
+    const outsiderId = `${PREFIX}_trialowner_outsider`;
+
+    const result = await startBusinessTrial({
+      businessId,
+      userId: outsiderId,
+    });
+
+    expect(result).toEqual({ ok: false, reason: "not-found" });
+    expect(await hasBusinessTrialClaim(outsiderId)).toBe(false);
+    expect((await readState(businessId)).sub).toBeUndefined();
+  });
+
+  it("converts a trial into a paid subscription and clears the trial window", async () => {
+    const { businessId, userId } = await seedBusiness("trialconvert");
+
+    expect(
+      (await startBusinessTrial({ businessId, userId })).ok,
+    ).toBe(true);
+
+    await activateSubscription({
+      businessId,
+      plan: "pro",
+      provider: "polar",
+      currency: "USD",
+      providerSubscriptionId: `${PREFIX}_trialconvert_sub`,
+      currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+    });
+
+    const { sub, plan } = await readState(businessId);
+    expect(sub?.status).toBe("active");
+    expect(sub?.trialEndsAt).toBeNull();
+    expect(plan).toBe("pro");
+    expect(await sqlGrantsPaidAccess(businessId)).toBe(true);
+  });
+
+  it("resolves an elapsed trial as Free before the expiry job runs", async () => {
+    const { businessId, userId } = await seedBusiness("trialexpired");
+
+    const started = await startBusinessTrial({
+      businessId,
+      userId,
+      now: new Date(Date.now() - PRO_TRIAL_MS - 1_000),
+    });
+    expect(started.ok).toBe(true);
+
+    const beforeExpiry = await readState(businessId);
+    expect(beforeExpiry.sub?.status).toBe("trialing");
+    // The cached column still says Pro, but entitlement reads follow
+    // `trialEndsAt` and already treat the business as Free.
+    expect(beforeExpiry.plan).toBe("pro");
+    expect(
+      resolveEffectivePlanFromSubscription(beforeExpiry.sub!),
+    ).toBe("free");
+    expect(await sqlGrantsPaidAccess(businessId)).toBe(false);
+
+    await expireSubscription(businessId, undefined, {
+      status: "trialing",
+      trialEndsAtBefore: new Date(),
+    });
+
+    const afterExpiry = await readState(businessId);
+    expect(afterExpiry.sub?.status).toBe("expired");
+    expect(afterExpiry.sub?.trialEndsAt).toBeNull();
+    expect(afterExpiry.plan).toBe("free");
+  });
+
+  it("does not let the expiry job overwrite a trial extended after its scan", async () => {
+    const { businessId, userId } = await seedBusiness("trialextend");
+
+    expect(
+      (
+        await startBusinessTrial({
+          businessId,
+          userId,
+          now: new Date(Date.now() - PRO_TRIAL_MS - 1_000),
+        })
+      ).ok,
+    ).toBe(true);
+
+    const extendedTrialEnd = new Date(Date.now() + PRO_TRIAL_MS);
+    await testDb
+      .update(businessSubscriptions)
+      .set({
+        trialEndsAt: extendedTrialEnd,
+        currentPeriodEnd: extendedTrialEnd,
+      })
+      .where(eq(businessSubscriptions.businessId, businessId));
+
+    await expireSubscription(businessId, undefined, {
+      status: "trialing",
+      trialEndsAtBefore: new Date(),
+    });
+
+    const state = await readState(businessId);
+    expect(state.sub?.status).toBe("trialing");
+    expect(resolveEffectivePlanFromSubscription(state.sub!)).toBe("pro");
   });
 });

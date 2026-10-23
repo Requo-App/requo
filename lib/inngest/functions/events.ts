@@ -5,6 +5,7 @@ import { createAutoDraftQuote } from "@/features/quote-drafting/auto-draft";
 import { enableAutoFollowUpForQuote } from "@/features/quotes/mutations";
 import { getBusinessInquiryPath, getBusinessInvoicePath, getBusinessQuotePath } from "@/features/businesses/routes";
 import { getBusinessMessagingSettings } from "@/lib/db/business-access";
+import { getEffectivePlanForBusiness } from "@/lib/billing/subscription-service";
 import { db } from "@/lib/db/client";
 import { businesses } from "@/lib/db/schema";
 import { releaseUsageReservation, reserveUsage } from "@/lib/ai";
@@ -344,7 +345,6 @@ export const inquiryQualifiedAiDraft = inngest.createFunction(
         .select({
           autoDraftQuoteOnQualify: businesses.autoDraftQuoteOnQualify,
           ownerUserId: businesses.ownerUserId,
-          plan: businesses.plan,
           currency: businesses.defaultCurrency,
         })
         .from(businesses)
@@ -355,11 +355,16 @@ export const inquiryQualifiedAiDraft = inngest.createFunction(
         return { skipped: true };
       }
 
+      // Resolve from the subscription row so a trial that has ended stops
+      // granting Pro AI limits before the daily expiry cron rewrites the
+      // denormalized `businesses.plan` cache.
+      const plan = await getEffectivePlanForBusiness(data.businessId);
+
       const usage = await reserveUsage({
         userId: business.ownerUserId,
         businessId: data.businessId,
         taskType: "quote_draft",
-        plan: business.plan,
+        plan,
       });
 
       if (!usage.allowed) {
@@ -370,7 +375,7 @@ export const inquiryQualifiedAiDraft = inngest.createFunction(
       const result = await generateQuoteDraftForBusiness({
         businessId: data.businessId,
         userId: business.ownerUserId,
-        plan: business.plan,
+        plan,
         inquiryId: data.inquiryId,
         usageReservation: usage.reservation,
       });

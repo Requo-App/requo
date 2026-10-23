@@ -189,7 +189,10 @@ and selected cron endpoints. `lib/email/` implements transactional provider
 fallback (Resend, Mailtrap, Brevo); `lib/billing/` owns Polar mapping,
 subscription writes, webhook idempotency, and plan resolution. Subscriptions
 are business-scoped; `business_subscriptions` is authoritative and
-`businesses.plan` is a denormalized cache.
+`businesses.plan` is a denormalized cache. The one-time Pro trial uses
+`business_subscriptions.status = "trialing"` plus `trial_ends_at`, and
+`business_trial_claims` records the owner-level claim independently of the
+business so deletion cannot reset eligibility.
 
 [`app/api/inngest/route.ts`](../../app/api/inngest/route.ts) registers event and
 cron functions from [`lib/inngest/functions/`](../../lib/inngest/functions/).

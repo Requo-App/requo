@@ -19,6 +19,8 @@ type UpgradeButtonProps = {
   businessId: string;
   businessSlug: string;
   currentPlan: plan;
+  /** Current business is inside its Pro trial and still needs to subscribe. */
+  isTrialing?: boolean;
   targetPlan?: "pro" | "business";
   variant?: "default" | "outline" | "ghost" | "secondary";
   size?: "default" | "sm" | "lg";
@@ -49,6 +51,7 @@ export function UpgradeButton({
   businessId,
   businessSlug,
   currentPlan,
+  isTrialing = false,
   targetPlan,
   variant = "default",
   size = "sm",
@@ -149,6 +152,7 @@ export function UpgradeButton({
       {!usingProvider ? (
         <PlanSelectionSheet
           currentPlan={effectiveCurrentPlan}
+          isTrialing={isTrialing}
           onOpenChange={setLocalOpen}
           onSelectPlan={handleSelectLocalPlan}
           open={localOpen}

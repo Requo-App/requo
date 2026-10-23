@@ -69,7 +69,7 @@ const compareFaqs = [
   {
     question: "Can I import my spreadsheet data?",
     answer:
-      "Yes. Requo includes CSV exports for inquiries and quotes, and you can rebuild your price list as products and pricing entries so future quotes start from the library instead of a tab.",
+      "Yes. Requo includes CSV exports for inquiries, quotes, and invoices, and you can rebuild your price list as products and pricing entries so future quotes start from the library instead of a tab.",
   },
   {
     question: "What do spreadsheets still do better?",

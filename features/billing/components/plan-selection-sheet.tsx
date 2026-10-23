@@ -18,53 +18,29 @@ import {
   getYearlySavingsPercent,
 } from "@/lib/billing/plans";
 import type { BillingInterval, PaidPlan } from "@/lib/billing/types";
-import { planMeta } from "@/lib/plans";
+import { planMeta, planTiers } from "@/lib/plans";
+import { planCatalog } from "@/lib/plans/catalog";
 import type { PlanTier } from "@/lib/plans/plans";
 import { cn } from "@/lib/utils";
 
 type PlanCard = {
   id: PlanTier;
   tagline: string;
-  highlights: string[];
+  highlights: readonly string[];
 };
 
-const planCards: PlanCard[] = [
-  {
-    id: "free",
-    tagline: "For solo operators",
-    highlights: [
-      "Assistant",
-      "Workflow defaults",
-      "Follow-ups",
-      "Email sending",
-    ],
-  },
-  {
-    id: "pro",
-    tagline: "For growing businesses",
-    highlights: [
-      "Auto follow-ups",
-      "Advanced analytics",
-      "More live forms",
-      "More email sending",
-    ],
-  },
-  {
-    id: "business",
-    tagline: "For teams",
-    highlights: [
-      "Teams",
-      "Max limits",
-      "Unlimited live forms",
-      "Priority support",
-    ],
-  },
-];
+const planCards: PlanCard[] = planTiers.map((plan) => ({
+  id: plan,
+  tagline: planCatalog[plan].audience,
+  highlights: planCatalog[plan].highlights.slice(0, 4),
+}));
 
 type PlanSelectionSheetProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   currentPlan: PlanTier;
+  /** Current business is inside its Pro trial and still needs to subscribe. */
+  isTrialing?: boolean;
   targetPlan?: PaidPlan;
   onSelectPlan: (plan: PaidPlan, interval: BillingInterval) => void;
   businessId?: string;
@@ -75,6 +51,7 @@ export function PlanSelectionSheet({
   open,
   onOpenChange,
   currentPlan,
+  isTrialing = false,
   targetPlan,
   onSelectPlan,
   businessId,
@@ -83,7 +60,7 @@ export function PlanSelectionSheet({
   const [interval, setInterval] = useState<BillingInterval>("monthly");
   const [confirmingPlan, setConfirmingPlan] = useState<PaidPlan | null>(null);
 
-  const isUpgrade = currentPlan !== "free";
+  const isUpgrade = currentPlan !== "free" && !isTrialing;
 
   function handleSelectPlan(plan: PaidPlan) {
     if (isUpgrade) {
@@ -110,9 +87,11 @@ export function PlanSelectionSheet({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[780px] lg:max-w-[860px]">
         <DialogHeader className="border-b-0">
-          <DialogTitle>Upgrade Plan</DialogTitle>
+          <DialogTitle>{isTrialing ? "Choose a plan" : "Upgrade Plan"}</DialogTitle>
           <DialogDescription>
-            Choose the plan that fits your workflow.
+            {isTrialing
+              ? "Choose a paid plan to keep Pro features, or let the trial end and continue on Free."
+              : "Choose the plan that fits your workflow."}
           </DialogDescription>
         </DialogHeader>
 
@@ -205,14 +184,20 @@ export function PlanSelectionSheet({
           {/* Plan cards */}
           <div className="grid gap-4 sm:grid-cols-3">
             {planCards.map((card) => {
-              const isCurrentPlan = currentPlan === card.id;
+              const isCurrentPlan = currentPlan === card.id && !isTrialing;
               const isPreferredPlan =
                 !isCurrentPlan &&
                 (targetPlan === card.id ||
-                  (!targetPlan && card.id === "pro" && currentPlan === "free") ||
-                  (!targetPlan && card.id === "business" && currentPlan === "pro"));
+                  (!targetPlan &&
+                    card.id === "pro" &&
+                    (currentPlan === "free" || isTrialing)) ||
+                  (!targetPlan &&
+                    card.id === "business" &&
+                    currentPlan === "pro" &&
+                    !isTrialing));
               const isPaidPlan = card.id !== "free";
-              const isDowngrade = isPaidPlan && currentPlan === "business" && card.id === "pro";
+              const isDowngrade =
+                isPaidPlan && currentPlan === "business" && card.id === "pro";
 
               return (
                 <div
@@ -278,7 +263,11 @@ export function PlanSelectionSheet({
                         type="button"
                       >
                         <ArrowUpRight data-icon="inline-start" />
-                        {card.id === "pro" ? "Upgrade to Pro" : "Upgrade to Business"}
+                        {card.id === "pro"
+                          ? isTrialing
+                            ? "Subscribe to Pro"
+                            : "Upgrade to Pro"
+                          : "Upgrade to Business"}
                       </Button>
                     ) : isPaidPlan && isDowngrade ? (
                       <Button
@@ -298,7 +287,7 @@ export function PlanSelectionSheet({
                         size="sm"
                         type="button"
                       >
-                        Free plan
+                        {isTrialing ? "Default after trial" : "Free plan"}
                       </Button>
                     )}
                   </div>

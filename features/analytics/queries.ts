@@ -192,6 +192,7 @@ async function getAnalyticsBusinessMetaUncached(
       subscriptionStatus: businessSubscriptions.status,
       subscriptionPlan: businessSubscriptions.plan,
       subscriptionCurrentPeriodEnd: businessSubscriptions.currentPeriodEnd,
+      subscriptionTrialEndsAt: businessSubscriptions.trialEndsAt,
       industryCategory: businesses.industryCategory,
       createdAt: businesses.createdAt,
     })
@@ -212,6 +213,7 @@ async function getAnalyticsBusinessMetaUncached(
       status: row?.subscriptionStatus ?? null,
       plan: row?.subscriptionPlan ?? null,
       currentPeriodEnd: row?.subscriptionCurrentPeriodEnd ?? null,
+      trialEndsAt: row?.subscriptionTrialEndsAt ?? null,
     }),
     industryCategory: row?.industryCategory ?? null,
     createdAt: row?.createdAt ?? new Date(),
@@ -3119,7 +3121,10 @@ async function computeOperationsData({
   };
 
   const [knowledge, verticals] = await Promise.all([
-    getKnowledgeData(businessId, meta.plan, readiness),
+    // Use the caller's effective plan, consistent with the other entitlement
+    // meters on this page. Re-resolving from the subscription row can disagree
+    // with the authorized caller and silently shrink the knowledge limit.
+    getKnowledgeData(businessId, plan, readiness),
     getVerticalWorkflows(businessId, since, until, {
       blocked: readiness.readinessBlocked,
       completed: readiness.readinessCompleted,

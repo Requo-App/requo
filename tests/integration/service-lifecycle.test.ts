@@ -212,7 +212,7 @@ describe("service lifecycle mutations", () => {
     authState.userId = ids.ownerUserId;
     authState.businessSlug = ids.businessSlug;
     // The fixture business has no subscription row, so it resolves to the
-    // free plan (one live service). Grant Pro so the lifecycle rules can be
+    // free plan (two live services). Grant Pro so the lifecycle rules can be
     // exercised without the plan cap masking them.
     await grantPlan(ids.businessId, "pro");
   }, 30_000);
@@ -260,13 +260,21 @@ describe("service lifecycle mutations", () => {
     });
 
     it("refuses to exceed the plan's live-service allowance", async () => {
-      // No subscription row means the free plan, which allows one live service.
+      // No subscription row means the Free plan, which allows two live
+      // services. The fixture already has one.
       await revokePlan(ids.otherBusinessId);
+
+      const second = await createService({
+        businessId: ids.otherBusinessId,
+        actorUserId: ids.outsiderUserId,
+        values: { name: "Second service", businessType: BUSINESS_TYPE },
+      });
+      expect(second.ok).toBe(true);
 
       const result = await createService({
         businessId: ids.otherBusinessId,
-        actorUserId: ACTOR_USER_ID,
-        values: { name: "Second service", businessType: BUSINESS_TYPE },
+        actorUserId: ids.outsiderUserId,
+        values: { name: "Third service", businessType: BUSINESS_TYPE },
       });
 
       expect(result.ok).toBe(false);
@@ -339,6 +347,13 @@ describe("service lifecycle mutations", () => {
     });
 
     it("enforces the live-service allowance when an owner publishes a draft through page save", async () => {
+      const live = await createService({
+        businessId: ids.businessId,
+        actorUserId: ACTOR_USER_ID,
+        values: { name: "Second live service", businessType: BUSINESS_TYPE },
+      });
+      expect(live.ok).toBe(true);
+
       const created = await createService({
         businessId: ids.businessId,
         actorUserId: ACTOR_USER_ID,
@@ -349,6 +364,8 @@ describe("service lifecycle mutations", () => {
       await testDb.update(services)
         .set({ publicInquiryEnabled: false })
         .where(eq(services.slug, created.serviceSlug));
+      // Free keeps both live services (the default plus `live`) and has no
+      // slot for publishing the third.
       await revokePlan(ids.businessId);
 
       const result = await updateServicePageAction(created.serviceSlug, {}, buildPageFormData({
@@ -356,13 +373,20 @@ describe("service lifecycle mutations", () => {
         slug: created.serviceSlug,
       }));
 
-      expect(result.error).toContain("This plan supports 1 live service");
+      expect(result.error).toContain("This plan supports 2 live services");
       expect((await getFormBySlug(ids.businessId, created.serviceSlug))?.publicInquiryEnabled).toBe(false);
     });
   });
 
   describe("duplicate", () => {
-    it("refuses to duplicate the only live service on the free plan", async () => {
+    it("refuses to duplicate when the free plan's live-service slots are full", async () => {
+      const second = await createService({
+        businessId: ids.otherBusinessId,
+        actorUserId: ids.outsiderUserId,
+        values: { name: "Second service", businessType: BUSINESS_TYPE },
+      });
+      expect(second.ok).toBe(true);
+
       const before = await countForms(ids.otherBusinessId);
       const result = await duplicateService({
         businessId: ids.otherBusinessId,

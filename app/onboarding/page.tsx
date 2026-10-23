@@ -20,6 +20,7 @@ import { UiScaleSync } from "@/features/theme/components/ui-scale-sync";
 import { getUiScalePreferenceForUser } from "@/features/theme/ui-scale-queries";
 import { ensureProfileForUser } from "@/lib/auth/business-bootstrap";
 import { requireSession } from "@/lib/auth/session";
+import { canStartBusinessTrial } from "@/lib/billing/subscription-service";
 import { getBusinessMembershipsForUser } from "@/lib/db/business-access";
 import { timed } from "@/lib/dev/server-timing";
 import { createNoIndexMetadata } from "@/lib/seo/site";
@@ -57,17 +58,24 @@ async function OnboardingPageContent() {
     email: session.user.email,
   });
 
-  const [themePreference, uiScale, memberships, profile, googleLinked] =
-    await timed(
-      "onboarding.parallelShellFetches",
-      Promise.all([
-        getThemePreferenceForUser(session.user.id),
-        getUiScalePreferenceForUser(session.user.id),
-        getBusinessMembershipsForUser(session.user.id),
-        getAccountProfileForUser(session.user.id),
-        hasGoogleAccountLinked(session.user.id),
-      ]),
-    );
+  const [
+    themePreference,
+    uiScale,
+    memberships,
+    profile,
+    googleLinked,
+    trialEligible,
+  ] = await timed(
+    "onboarding.parallelShellFetches",
+    Promise.all([
+      getThemePreferenceForUser(session.user.id),
+      getUiScalePreferenceForUser(session.user.id),
+      getBusinessMembershipsForUser(session.user.id),
+      getAccountProfileForUser(session.user.id),
+      hasGoogleAccountLinked(session.user.id),
+      canStartBusinessTrial({ userId: session.user.id }),
+    ]),
+  );
 
   if (memberships.length > 0 || profile?.onboardingCompletedAt) {
     redirect(homePath);
@@ -114,6 +122,7 @@ async function OnboardingPageContent() {
                 avatarUrl: session.user.image ?? null,
               }}
               lastNameOptional={lastNameOptional}
+              plan={trialEligible ? "pro" : "free"}
             />
           </div>
         </div>

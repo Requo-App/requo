@@ -191,7 +191,7 @@ export const faqItems = [
   {
     question: "Is there a free plan?",
     answer:
-      "Yes. Free includes the core inquiry-to-quote workflow, unlimited inquiries and quotes, manual follow-up reminders, CSV exports, one live inquiry form, and about 10 AI quote drafts per month. Upgrade when you need automatic follow-ups, more forms, advanced analytics, or team access.",
+      "Yes. Free includes the complete inquiry-to-payment workflow: unlimited inquiries, quotes, invoices, and manual payment records, manual follow-up reminders, customer-facing quote acceptance, CSV exports, two live services, 20 Requo email sends per month, and about 10 AI quote drafts per month. New business owners also get a one-time 14-day Pro trial. Upgrade when you need automatic follow-ups, more live services, advanced analytics, or team access.",
   },
   {
     question: "What does a Requo subscription cost?",
@@ -209,8 +209,8 @@ export const faqItems = [
       "Yes. Add reusable products, pricing entries, quote templates, and business knowledge. AI quote drafts use that context to suggest relevant line items and wording, while you review and approve every draft before sending.",
   },
   {
-    question: "Can I export my inquiries and quotes?",
+    question: "Can I export my inquiries, quotes, and invoices?",
     answer:
-      "Yes. Requo includes CSV exports for inquiries and quotes, so you can keep a copy of your operational data or analyze it elsewhere.",
+      "Yes. Requo includes CSV exports for inquiries, quotes, and invoices, so you can keep a copy of your operational data or analyze it elsewhere.",
   },
 ] as const;

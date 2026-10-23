@@ -23,6 +23,7 @@ export const billingProviderEnum = pgEnum("billing_provider", [
 
 export const subscriptionStatuses = [
   "free",
+  "trialing",
   "pending",
   "active",
   "past_due",
@@ -155,6 +156,32 @@ export const businessSubscriptions = pgTable(
     index("business_subscriptions_provider_customer_id_idx").on(
       table.providerCustomerId,
     ),
+  ],
+);
+
+/* ── business_trial_claims ───────────────────────────────────────────────── */
+
+/**
+ * Permanent, owner-level marker that a business Pro trial has been used.
+ *
+ * One row per user. `businessId` is intentionally not a foreign key: hard-
+ * deleting the business must not reset trial eligibility. The claim is written
+ * in the same transaction as the trial subscription, so a failed start does not
+ * consume it.
+ */
+export const businessTrialClaims = pgTable(
+  "business_trial_claims",
+  {
+    userId: text("user_id")
+      .primaryKey()
+      .references(() => user.id, { onDelete: "cascade" }),
+    businessId: text("business_id"),
+    claimedAt: timestamp("claimed_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("business_trial_claims_business_id_idx").on(table.businessId),
   ],
 );
 

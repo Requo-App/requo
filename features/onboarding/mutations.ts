@@ -9,9 +9,7 @@ import type { InquiryFormConfig } from "@/features/inquiries/form-config";
 import { joinFullName } from "@/features/account/name";
 import { ensureProfileForUser } from "@/lib/auth/business-bootstrap";
 import { db } from "@/lib/db/client";
-import { businessMembers, businesses, profiles } from "@/lib/db/schema";
-import { getUsageLimit } from "@/lib/plans/usage-limits";
-import type { PlanTier as plan } from "@/lib/plans/plans";
+import { profiles } from "@/lib/db/schema";
 import { newEntityId } from "@/lib/ids";
 
 type CompleteOnboardingForUserInput = {
@@ -32,7 +30,10 @@ type CompleteOnboardingForUserInput = {
   countryCode: string;
   defaultCurrency: string;
   customerContactChannel: string;
-  /** Named services from onboarding; trimmed to the plan's live limit. */
+  /**
+   * Named services from onboarding. Business creation trims them to the
+   * resolved plan's live limit after trial eligibility is known.
+   */
   services?: Array<{ name: string }>;
   inquiryFormConfigOverride?: InquiryFormConfig;
   avatarUpload?: { storagePath: string; contentType: string } | null;
@@ -83,29 +84,9 @@ export async function completeOnboardingForUser({
       })
       .where(eq(profiles.userId, user.id));
 
-    // Check if user already has a business (e.g., from invite flow)
-    const [existingMembership] = await tx
-      .select({
-        businessId: businessMembers.businessId,
-        plan: businesses.plan,
-      })
-      .from(businessMembers)
-      .innerJoin(businesses, eq(businessMembers.businessId, businesses.id))
-      .where(eq(businessMembers.userId, user.id))
-      .limit(1);
-
-    let currentPlan: plan = "free";
-
-    if (existingMembership) {
-      currentPlan = existingMembership.plan as plan;
-    }
-
-    const liveFormLimit = getUsageLimit(currentPlan, "liveServicesPerBusiness");
-    const trimmedServices =
-      liveFormLimit === null
-        ? (services ?? [])
-        : (services ?? []).slice(0, liveFormLimit);
-
+    // New businesses always start on Free here. `createBusinessRecordForUser`
+    // upgrades the owner's first active business to a Pro trial, and applies
+    // the matching service limit and page defaults.
     return createBusinessRecordForUser({
       tx,
       businessId: newEntityId(),
@@ -118,9 +99,9 @@ export async function completeOnboardingForUser({
       starterWorkflow,
       shortDescription: null,
       customerContactChannel,
-      onboardingServices: trimmedServices,
+      onboardingServices: services,
       inquiryFormConfigOverride,
-      plan: currentPlan,
+      plan: "free",
       activitySource: "onboarding",
       activitySummary: "Business created during onboarding.",
       now,

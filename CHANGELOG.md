@@ -6,6 +6,7 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ### Added
 
+- Added a one-time 14-day Pro trial with no card required. New business owners start it automatically on their first active business, and eligible existing Free businesses can start it from Billing. When it ends, the business returns to Free with its data retained.
 - The full-local Docker stack now includes Redis behind an Upstash-compatible REST proxy. The app keeps using `@upstash/redis`, so cache, quota, cooldown, and rate-limit behavior can be exercised locally without a hosted Redis database.
 - Rebuilt business analytics as four tabs — Overview, Performance, Operations, and Team — with fresh KPI, funnel, trend, money, attention, usage, timing, cohort, benchmark, and member-workload sections. Free plans see a fixed last-30-days Overview with real numbers; Pro plans unlock 7/30/90-day and 12-month/custom ranges plus Performance and Operations; Business plans add all-time history and team analytics. Locked tabs show static previews and their premium queries never run.
 - Rebuilt analytics CSV export with summary and daily-series scopes, and re-resolve the date range and plan entitlement on the server so export cannot bypass the picker's range cap.
@@ -13,6 +14,7 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ### Changed
 
+- Rebalanced plan packaging: Free now covers the complete inquiry → quote → invoice → manual payment loop with two live services and 20 Requo email sends per month; Pro includes 10 live services; Business keeps 5 seats, adds unlimited live services, and remains the only plan with audit logs. Marketing copy, in-app plan selection, and machine-readable pricing now share the canonical plan catalog.
 - The AI router is now free-tier-first, with NVIDIA NIM as a production exception requiring NVIDIA AI Enterprise. Every routed model must resolve to an entry in `lib/ai/catalog.ts`; routing profiles are the only selection path (the unused pinned/manual override path was removed), and a model at or above 100% of any modelled quota is dropped from selection (80% only deprioritizes). Daily provider refusals cool the shared request or neuron bucket, and the assistant now distinguishes "no provider configured" from "all free capacity exhausted".
 - The service editor surfaces the server's rules before the owner submits: publishing is owner-only, an unpublished service cannot be made the default, and the danger zone disables archiving and deleting with the reason. The two public `public_inquiry_enabled` flags (business-level and service-level) are now enforced consistently on the public inquiry pages.
 - The database now enforces at most one default service per business with a partial unique index, and the plan's custom-field allowance is applied when a service's intake form is saved, so a crafted request cannot persist fields the plan does not include.

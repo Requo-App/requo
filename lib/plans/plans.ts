@@ -9,6 +9,10 @@ export const planTiers = ["free", "pro", "business"] as const;
 
 export type PlanTier = (typeof planTiers)[number];
 
+/** Length of the one-time Pro trial granted per business owner. */
+export const PRO_TRIAL_DAYS = 14;
+export const PRO_TRIAL_MS = PRO_TRIAL_DAYS * 24 * 60 * 60 * 1000;
+
 export function isPlanTier(value: unknown): value is PlanTier {
   return (
     typeof value === "string" &&
@@ -29,7 +33,7 @@ export const planMeta: Record<PlanTier, PlanMeta> = {
   free: {
     label: "Free",
     description:
-      "Run your inquiry and quote workflow for one service business.",
+      "Run the complete inquiry-to-payment workflow for one service business.",
     ctaLabel: "Get started free",
     highlighted: false,
   },

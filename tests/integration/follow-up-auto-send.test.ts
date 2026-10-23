@@ -38,7 +38,13 @@ vi.mock("@/lib/env", async (importOriginal) => ({
 }));
 
 import { processAutomaticFollowUpSends } from "@/features/follow-ups/jobs/auto-send";
-import { businesses, followUps, inquiries, quotes } from "@/lib/db/schema";
+import {
+  businesses,
+  businessSubscriptions,
+  followUps,
+  inquiries,
+  quotes,
+} from "@/lib/db/schema";
 import {
   sendFollowUpAutoSendEmail,
   sendQuoteAutoFollowUpEmail,
@@ -85,6 +91,23 @@ async function insertAutomaticFollowUp(suffix: string) {
   return id;
 }
 
+async function grantProPlan() {
+  await testDb.insert(businessSubscriptions).values({
+    id: `${prefix}_subscription`,
+    businessId: ids.businessId,
+    status: "active",
+    plan: "pro",
+    billingProvider: "polar",
+    billingCurrency: "USD",
+  });
+}
+
+async function revokePlan() {
+  await testDb
+    .delete(businessSubscriptions)
+    .where(eq(businessSubscriptions.businessId, ids.businessId));
+}
+
 describe("follow-up auto-send job", () => {
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -94,6 +117,7 @@ describe("follow-up auto-send job", () => {
     vi.mocked(getDailyAutoFollowUpSendCount).mockResolvedValue(0);
     vi.mocked(getMonthlyAutoFollowUpSendCount).mockResolvedValue(0);
     ids = await createWorkflowFixture(prefix);
+    await grantProPlan();
   }, 30_000);
 
   afterAll(async () => {
@@ -125,12 +149,38 @@ describe("follow-up auto-send job", () => {
   });
 
   it("skips a business without the automatic-follow-up entitlement", async () => {
+    await revokePlan();
     await testDb
       .update(businesses)
       .set({ plan: "free" })
       .where(eq(businesses.id, ids.businessId));
 
     await insertAutomaticFollowUp("free_plan");
+
+    const summary = await processAutomaticFollowUpSends();
+
+    expect(summary.sent).toBe(0);
+    expect(summary.skipped).toBe(1);
+    expect(sendFollowUpAutoSendEmail).not.toHaveBeenCalled();
+  });
+
+  it("stops sending when a Pro trial has ended before the expiry cron runs", async () => {
+    await revokePlan();
+    const now = Date.now();
+
+    await testDb.insert(businessSubscriptions).values({
+      id: `${prefix}_expired_trial`,
+      businessId: ids.businessId,
+      status: "trialing",
+      plan: "pro",
+      billingProvider: "polar",
+      billingCurrency: "USD",
+      currentPeriodStart: new Date(now - 15 * 24 * 60 * 60 * 1000),
+      currentPeriodEnd: new Date(now - 24 * 60 * 60 * 1000),
+      trialEndsAt: new Date(now - 24 * 60 * 60 * 1000),
+    });
+
+    await insertAutomaticFollowUp("expired_trial");
 
     const summary = await processAutomaticFollowUpSends();
 
@@ -154,6 +204,7 @@ describe("follow-up auto-send job", () => {
   });
 
   it("paginates past the first batch of existing rows", async () => {
+    await revokePlan();
     await testDb.update(businesses).set({ plan: "free" })
       .where(eq(businesses.id, ids.businessId));
     await Promise.all(Array.from({ length: 101 }, (_, index) =>

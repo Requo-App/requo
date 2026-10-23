@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 
 import { getPlanPriceLabel } from "@/lib/billing/plans";
 import {
-  aiDraftAllowanceLabels,
   annualBillingPromoCopy,
   planCatalog,
+  proTrialSummary,
 } from "@/lib/plans/catalog";
 import { planTiers } from "@/lib/plans/plans";
 
@@ -21,6 +21,8 @@ function buildPricingMarkdown(): string {
     "# Requo Pricing",
     "",
     "Quote software for service businesses. Subscriptions are billed per business in USD through Polar.",
+    "",
+    `${proTrialSummary}. When the trial ends, the business returns to Free and its data stays available.`,
     "",
     "## Plans",
     "",
@@ -40,7 +42,6 @@ function buildPricingMarkdown(): string {
         `- Yearly: ${getPlanPriceLabel(plan, "USD", "yearly")} (${annualBillingPromoCopy.toLowerCase()})`,
       );
     }
-    lines.push(`- ${aiDraftAllowanceLabels[plan]}`);
     for (const highlight of entry.highlights) {
       lines.push(`- ${highlight}`);
     }

@@ -78,6 +78,15 @@ market research metrics.
 - **Business management:** business onboarding and templates, multiple
   businesses per account, role-aware membership, plan entitlements, and
   business subscriptions.
+- **Commercial plans:** Free covers the complete inquiry → quote → invoice →
+  manual payment loop, including customer acceptance, receipts, manual
+  payments, and CSV exports. New business owners get a one-time 14-day Pro
+  trial with no card required; existing Free businesses can start it from
+  Billing. A trial grants Pro features, then the business returns to Free with
+  its data retained. Pro adds automatic follow-ups, more services, more AI
+  drafting, custom emails, and advanced insights; Business adds team roles,
+  audit logs, and higher limits. Canonical packaging lives in
+  [`lib/plans/catalog.ts`](../../lib/plans/catalog.ts).
 
 ## Domain language
 

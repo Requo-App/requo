@@ -13,7 +13,7 @@ import { AssistantSettingsTabs } from "@/features/settings/components/assistant-
 export default function AiAssistantSettingsLoading() {
   return (
     <>
-      <h1 className="sr-only">Assistant</h1>
+      <h1 className="sr-only">Customer agent</h1>
       <AssistantSettingsTabs
         assistant={<BusinessAssistantStaticFallback />}
         knowledge={<SettingsCollectionBodySkeleton />}
