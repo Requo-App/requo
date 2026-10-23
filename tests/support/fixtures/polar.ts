@@ -3,9 +3,9 @@
  *
  * Each fixture returns a raw JSON-serialisable object matching the
  * snake_case shape that Polar sends over HTTP via Standard-Webhooks.
- * The `@polar-sh/sdk` `validateEvent` helper parses and remaps these
- * to the camelCase, typed payloads our route handlers consume — so
- * the fixtures are validated end-to-end when tests post them through
+ * The `@polar-sh/sdk` `validateEvent` helper parses and preserves that
+ * shape for the versioned typed payloads our route handlers consume —
+ * so the fixtures are validated end-to-end when tests post them through
  * the actual `Webhooks` adapter (combined with the signing helper in
  * `tests/support/polar-webhook-signing.ts`).
  *
@@ -13,7 +13,7 @@
  * Polar webhook route reacts to (`subscription.created`,
  * `subscription.updated`, `subscription.revoked`, `order.paid`)
  * plus a duplicate-delivery payload (a stable `subscription.created`
- * fixture posted twice) and an unresolvable-user payload (every
+ * fixture posted twice) and an unresolvable-business payload (every
  * identity source is absent). Other event types are not exercised
  * by the integration tests this slice adds.
  *
@@ -44,8 +44,6 @@ const FIXTURE_ORG_ID = "org_polar_fixture";
  * default.
  */
 export type PolarFixtureOverrides = {
-  /** Polar event id (top-level `payload.id`). */
-  eventId?: string;
   /** Polar event timestamp (top-level `payload.timestamp`). */
   eventTimestamp?: string;
   /** Requo `user.id` to thread onto `data.customer.external_id`. */
@@ -384,14 +382,13 @@ export function polarOrderPaidPayload(
 
 /**
  * Stable `subscription.created` payload designed for posting twice
- * to exercise idempotent-dedup. Fixed event id and stable
- * timestamps so two deliveries produce the same `providerEventId`.
+ * to exercise idempotent-dedup. Fixed timestamp and stable ids so two
+ * deliveries produce the same `providerEventId`.
  */
 export function polarDuplicateDeliveryPayload(
   overrides: PolarFixtureOverrides = {},
 ): EventEnvelope<"subscription.created", Record<string, unknown>> {
   return polarSubscriptionCreatedPayload({
-    eventId: "evt_polar_dup_fixture",
     eventTimestamp: FIXTURE_NOW,
     subscriptionId: "sub_polar_dup_fixture",
     ...overrides,
@@ -401,9 +398,9 @@ export function polarDuplicateDeliveryPayload(
 /**
  * Subscription payload with no resolvable identity. Every priority
  * source (`customer.external_id`, `customer.id` matching a row,
- * `subscription_id` matching a row, `metadata.userId`) is absent or
+ * `subscription_id` matching a row, `metadata.businessId`) is absent or
  * intentionally not present in the DB. Tests should NOT seed any
- * `account_subscriptions` row keyed by these ids.
+ * `business_subscriptions` row keyed by these ids.
  *
  * The base shape is `subscription.created` because the resolver's
  * priority chain is documented against subscription-shaped payloads.

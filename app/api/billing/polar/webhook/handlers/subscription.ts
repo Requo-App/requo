@@ -14,7 +14,8 @@ import "server-only";
  * | Polar status            | Requo                                          |
  * | ----------------------- | ---------------------------------------------- |
  * | active                  | active                                         |
- * | past_due                | past_due                                       |
+ * | past_due                | past_due (7-day local grace window)            |
+ * | paused                  | paused                                         |
  * | canceled (period > now) | canceled                                       |
  * | canceled (period <= now)| expired                                        |
  * | revoked / unpaid /      | expired                                        |
@@ -32,14 +33,9 @@ import "server-only";
  * subscription id).
  */
 
-import type { WebhookSubscriptionActivePayload } from "@polar-sh/sdk/models/components/webhooksubscriptionactivepayload";
-import type { WebhookSubscriptionCanceledPayload } from "@polar-sh/sdk/models/components/webhooksubscriptioncanceledpayload";
-import type { WebhookSubscriptionCreatedPayload } from "@polar-sh/sdk/models/components/webhooksubscriptioncreatedpayload";
-import type { WebhookSubscriptionRevokedPayload } from "@polar-sh/sdk/models/components/webhooksubscriptionrevokedpayload";
-import type { WebhookSubscriptionUncanceledPayload } from "@polar-sh/sdk/models/components/webhooksubscriptionuncanceledpayload";
-import type { WebhookSubscriptionUpdatedPayload } from "@polar-sh/sdk/models/components/webhooksubscriptionupdatedpayload";
-import type { Subscription } from "@polar-sh/sdk/models/components/subscription";
+import type { models, webhooks } from "@polar-sh/sdk/2026-10";
 
+import { normalizeBillingCurrency } from "@/lib/billing/currency";
 import {
   getPolarProductIds,
   reversePolarProductId,
@@ -62,16 +58,26 @@ import { withIdempotency } from "../idempotency";
  * this surfaces missing env configuration to operators (Requirement
  * 7.7) by failing the event so Polar retries.
  */
-function resolvePlanFromPayload(data: Subscription): {
+function resolvePlanFromPayload(data: models.Subscription): {
   plan: PlanTier;
 } {
-  const mapping = reversePolarProductId(data.productId, getPolarProductIds());
+  const mapping = reversePolarProductId(data.product_id, getPolarProductIds());
 
   if (!mapping) {
-    throw new Error(`Unknown Polar product id: ${data.productId}`);
+    throw new Error(`Unknown Polar product id: ${data.product_id}`);
   }
 
   return { plan: mapping.plan };
+}
+
+function toDate(value: string | null | undefined): Date | null {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function readEventAt(timestamp: string): Date | null {
+  return toDate(timestamp);
 }
 
 /* ── Handlers ─────────────────────────────────────────────────────────────── */
@@ -80,18 +86,22 @@ function resolvePlanFromPayload(data: Subscription): {
  * Handles `subscription.created`. Polar fires this when a new
  * subscription record is created — `status` may not be `active` yet
  * if the first payment is still processing. We route through the
- * shared `subscription.updated` mapping below so the resulting Requo
- * status reflects whatever Polar reports.
+ * shared status mapping below so the resulting Requo status reflects
+ * whatever Polar reports.
  */
 export async function handleSubscriptionCreated(
-  payload: WebhookSubscriptionCreatedPayload,
+  payload: webhooks.WebhookSubscriptionCreatedPayload,
 ): Promise<void> {
   await withIdempotency(
     payload,
     "subscription.created",
     resolvePolarBusinessId,
     async (businessId) => {
-      await applySubscriptionState(businessId, payload.data);
+      await applySubscriptionState(
+        businessId,
+        payload.data,
+        readEventAt(payload.timestamp),
+      );
     },
   );
 }
@@ -102,7 +112,7 @@ export async function handleSubscriptionCreated(
  * become active (initial paid charge or recovered payment).
  */
 export async function handleSubscriptionActive(
-  payload: WebhookSubscriptionActivePayload,
+  payload: webhooks.WebhookSubscriptionActivePayload,
 ): Promise<void> {
   await withIdempotency(
     payload,
@@ -110,7 +120,12 @@ export async function handleSubscriptionActive(
     resolvePolarBusinessId,
     async (businessId) => {
       const { plan } = resolvePlanFromPayload(payload.data);
-      await activateForPayload(businessId, plan, payload.data);
+      await activateForPayload(
+        businessId,
+        plan,
+        payload.data,
+        readEventAt(payload.timestamp),
+      );
     },
   );
 }
@@ -118,18 +133,22 @@ export async function handleSubscriptionActive(
 /**
  * Handles `subscription.updated`. Polar fires this for every change to
  * a subscription, including renewals, cancellations, past-due
- * transitions, and revocations. The handler maps the Polar status to a
- * Requo status per the design table.
+ * transitions, pausing, and revocations. The handler maps the Polar
+ * status to a Requo status per the design table.
  */
 export async function handleSubscriptionUpdated(
-  payload: WebhookSubscriptionUpdatedPayload,
+  payload: webhooks.WebhookSubscriptionUpdatedPayload,
 ): Promise<void> {
   await withIdempotency(
     payload,
     "subscription.updated",
     resolvePolarBusinessId,
     async (businessId) => {
-      await applySubscriptionState(businessId, payload.data);
+      await applySubscriptionState(
+        businessId,
+        payload.data,
+        readEventAt(payload.timestamp),
+      );
     },
   );
 }
@@ -140,7 +159,7 @@ export async function handleSubscriptionUpdated(
  * `canceledAt` set, matching the Polar timestamp where available.
  */
 export async function handleSubscriptionCanceled(
-  payload: WebhookSubscriptionCanceledPayload,
+  payload: webhooks.WebhookSubscriptionCanceledPayload,
 ): Promise<void> {
   await withIdempotency(
     payload,
@@ -148,12 +167,21 @@ export async function handleSubscriptionCanceled(
     resolvePolarBusinessId,
     async (businessId) => {
       const data = payload.data;
-      await updateSubscriptionStatus(businessId, "canceled", {
-        canceledAt: data.canceledAt ?? new Date(),
-        currentPeriodEnd: data.currentPeriodEnd,
-        providerCustomerId: data.customer.id,
-        providerSubscriptionId: data.id,
-      });
+      const periodEnd = toDate(data.current_period_end);
+      const eventAt = readEventAt(payload.timestamp);
+
+      if (periodEnd && periodEnd.getTime() > Date.now()) {
+        await updateSubscriptionStatus(businessId, "canceled", {
+          canceledAt: toDate(data.canceled_at) ?? new Date(),
+          currentPeriodStart: toDate(data.current_period_start),
+          currentPeriodEnd: periodEnd,
+          providerCustomerId: data.customer.id,
+          providerSubscriptionId: data.id,
+          providerEventAt: eventAt,
+        });
+      } else {
+        await expireSubscription(businessId, eventAt);
+      }
     },
   );
 }
@@ -165,7 +193,7 @@ export async function handleSubscriptionCanceled(
  * `subscription-service.ts` already nulls it on activation).
  */
 export async function handleSubscriptionUncanceled(
-  payload: WebhookSubscriptionUncanceledPayload,
+  payload: webhooks.WebhookSubscriptionUncanceledPayload,
 ): Promise<void> {
   await withIdempotency(
     payload,
@@ -173,7 +201,12 @@ export async function handleSubscriptionUncanceled(
     resolvePolarBusinessId,
     async (businessId) => {
       const { plan } = resolvePlanFromPayload(payload.data);
-      await activateForPayload(businessId, plan, payload.data);
+      await activateForPayload(
+        businessId,
+        plan,
+        payload.data,
+        readEventAt(payload.timestamp),
+      );
     },
   );
 }
@@ -181,18 +214,114 @@ export async function handleSubscriptionUncanceled(
 /**
  * Handles `subscription.revoked`. Polar fires this when the customer
  * loses access immediately — payment retries exhausted or explicit
- * revocation. Maps to Requo `expired` and downgrades all owned
- * businesses to `free`.
+ * revocation. Maps to Requo `expired`.
  */
 export async function handleSubscriptionRevoked(
-  payload: WebhookSubscriptionRevokedPayload,
+  payload: webhooks.WebhookSubscriptionRevokedPayload,
 ): Promise<void> {
   await withIdempotency(
     payload,
     "subscription.revoked",
     resolvePolarBusinessId,
     async (businessId) => {
-      await expireSubscription(businessId);
+      await expireSubscription(
+        businessId,
+        readEventAt(payload.timestamp),
+      );
+    },
+  );
+}
+
+/**
+ * Handles `subscription.past_due`. This event type must be wired
+ * explicitly: the generic `subscription.updated` path does not cover it
+ * in the adapter, and ignoring it would leave paid access granted
+ * forever after a failed renewal.
+ */
+export async function handleSubscriptionPastDue(
+  payload: webhooks.WebhookSubscriptionPastDuePayload,
+): Promise<void> {
+  await withIdempotency(
+    payload,
+    "subscription.past_due",
+    resolvePolarBusinessId,
+    async (businessId) => {
+      await applySubscriptionState(
+        businessId,
+        payload.data,
+        readEventAt(payload.timestamp),
+      );
+    },
+  );
+}
+
+/**
+ * Handles `subscription.paused`. Paused subscriptions do not grant paid
+ * access until they resume.
+ */
+export async function handleSubscriptionPaused(
+  payload: webhooks.WebhookSubscriptionPausedPayload,
+): Promise<void> {
+  await withIdempotency(
+    payload,
+    "subscription.paused",
+    resolvePolarBusinessId,
+    async (businessId) => {
+      const data = payload.data;
+      await updateSubscriptionStatus(businessId, "paused", {
+        currentPeriodStart: toDate(data.current_period_start),
+        currentPeriodEnd: toDate(data.current_period_end),
+        providerCustomerId: data.customer.id,
+        providerSubscriptionId: data.id,
+        providerEventAt: readEventAt(payload.timestamp),
+      });
+    },
+  );
+}
+
+/**
+ * Handles `subscription.resumed`. A previously paused subscription
+ * regains paid access.
+ */
+export async function handleSubscriptionResumed(
+  payload: webhooks.WebhookSubscriptionResumedPayload,
+): Promise<void> {
+  await withIdempotency(
+    payload,
+    "subscription.resumed",
+    resolvePolarBusinessId,
+    async (businessId) => {
+      const { plan } = resolvePlanFromPayload(payload.data);
+      await activateForPayload(
+        businessId,
+        plan,
+        payload.data,
+        readEventAt(payload.timestamp),
+      );
+    },
+  );
+}
+
+/**
+ * Handles `subscription.cycled`. Polar fires this when a subscription
+ * enters a new billing period; refresh the period boundaries and keep
+ * paid access active.
+ */
+export async function handleSubscriptionCycled(
+  payload: webhooks.WebhookSubscriptionCycledPayload,
+): Promise<void> {
+  await withIdempotency(
+    payload,
+    "subscription.cycled",
+    resolvePolarBusinessId,
+    async (businessId) => {
+      const { plan } = resolvePlanFromPayload(payload.data);
+      await activateForPayload(
+        businessId,
+        plan,
+        payload.data,
+        readEventAt(payload.timestamp),
+      );
     },
   );
 }
@@ -207,57 +336,73 @@ export async function handleSubscriptionRevoked(
  */
 async function applySubscriptionState(
   businessId: string,
-  data: Subscription,
+  data: models.Subscription,
+  eventAt: Date | null,
 ): Promise<void> {
   const status = String(data.status);
 
   switch (status) {
     case "active": {
       const { plan } = resolvePlanFromPayload(data);
-      await activateForPayload(businessId, plan, data);
+      await activateForPayload(businessId, plan, data, eventAt);
       return;
     }
 
     case "past_due": {
       await updateSubscriptionStatus(businessId, "past_due", {
-        currentPeriodStart: data.currentPeriodStart,
-        currentPeriodEnd: data.currentPeriodEnd,
+        currentPeriodStart: toDate(data.current_period_start),
+        currentPeriodEnd: toDate(data.current_period_end),
         providerCustomerId: data.customer.id,
         providerSubscriptionId: data.id,
+        providerEventAt: eventAt,
+      });
+      return;
+    }
+
+    case "paused": {
+      await updateSubscriptionStatus(businessId, "paused", {
+        currentPeriodStart: toDate(data.current_period_start),
+        currentPeriodEnd: toDate(data.current_period_end),
+        providerCustomerId: data.customer.id,
+        providerSubscriptionId: data.id,
+        providerEventAt: eventAt,
       });
       return;
     }
 
     case "canceled": {
-      const periodEnd = data.currentPeriodEnd;
+      const periodEnd = toDate(data.current_period_end);
       const stillInPeriod = periodEnd && periodEnd.getTime() > Date.now();
 
       if (stillInPeriod) {
         await updateSubscriptionStatus(businessId, "canceled", {
-          canceledAt: data.canceledAt ?? new Date(),
+          canceledAt: toDate(data.canceled_at) ?? new Date(),
+          currentPeriodStart: toDate(data.current_period_start),
           currentPeriodEnd: periodEnd,
           providerCustomerId: data.customer.id,
           providerSubscriptionId: data.id,
+          providerEventAt: eventAt,
         });
       } else {
-        await expireSubscription(businessId);
+        await expireSubscription(businessId, eventAt);
       }
       return;
     }
 
     case "unpaid":
     case "incomplete_expired": {
-      await expireSubscription(businessId);
+      await expireSubscription(businessId, eventAt);
       return;
     }
 
     case "incomplete":
     case "trialing": {
       await updateSubscriptionStatus(businessId, "incomplete", {
-        currentPeriodStart: data.currentPeriodStart,
-        currentPeriodEnd: data.currentPeriodEnd,
+        currentPeriodStart: toDate(data.current_period_start),
+        currentPeriodEnd: toDate(data.current_period_end),
         providerCustomerId: data.customer.id,
         providerSubscriptionId: data.id,
+        providerEventAt: eventAt,
       });
       return;
     }
@@ -272,25 +417,26 @@ async function applySubscriptionState(
 }
 
 /**
- * Activates a Requo subscription from a Polar payload. Polar settles
- * in USD, so `currency` is hard-coded; the Polar customer id /
- * subscription id and the period boundaries from the payload propagate
- * onto `account_subscriptions`.
+ * Activates a Requo subscription from a Polar payload. The payload's
+ * lowercase ISO currency is normalized to Requo's uppercase enum.
  */
 async function activateForPayload(
   businessId: string,
   plan: PlanTier,
-  data: Subscription,
+  data: models.Subscription,
+  eventAt: Date | null,
 ): Promise<void> {
   await activateSubscription({
     businessId,
     plan,
     provider: "polar",
-    currency: "USD",
+    currency: normalizeBillingCurrency(data.currency),
     status: "active",
     providerCustomerId: data.customer.id,
     providerSubscriptionId: data.id,
-    currentPeriodStart: data.currentPeriodStart,
-    currentPeriodEnd: data.currentPeriodEnd,
+    providerCheckoutId: data.checkout_id ?? null,
+    currentPeriodStart: toDate(data.current_period_start),
+    currentPeriodEnd: toDate(data.current_period_end),
+    providerEventAt: eventAt,
   });
 }

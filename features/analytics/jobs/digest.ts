@@ -4,6 +4,7 @@ import { and, eq, gte, lt, sql } from "drizzle-orm";
 
 import { renderAnalyticsDigestEmail } from "@/emails/templates/analytics-digest";
 import { generateWithFallback, isAiConfigured, logAiInvocation } from "@/lib/ai";
+import { resolveEffectivePlanFromSubscriptionFields } from "@/lib/billing/subscription-service";
 import { db } from "@/lib/db/client";
 import {
   analyticsDailyRollups,
@@ -11,11 +12,11 @@ import {
   businessMembers,
   user,
 } from "@/lib/db/schema";
+import { businessSubscriptions } from "@/lib/db/schema/subscriptions";
 import { sendEmailWithFallback } from "@/lib/email/send-email";
 import { getEmailSender } from "@/lib/email/senders";
 import { env, isAnalyticsDigestEmailEnabled, isEmailConfigured } from "@/lib/env";
 import { hasFeatureAccess } from "@/lib/plans/entitlements";
-import type { PlanTier } from "@/lib/plans/plans";
 
 export type AnalyticsDigestSummary = {
   skipped?: boolean;
@@ -168,10 +169,16 @@ export async function sendAnalyticsDigestEmails(): Promise<AnalyticsDigestSummar
       id: businesses.id,
       name: businesses.name,
       slug: businesses.slug,
-      plan: businesses.plan,
       ownerUserId: businesses.ownerUserId,
+      subscriptionStatus: businessSubscriptions.status,
+      subscriptionPlan: businessSubscriptions.plan,
+      subscriptionCurrentPeriodEnd: businessSubscriptions.currentPeriodEnd,
     })
     .from(businesses)
+    .leftJoin(
+      businessSubscriptions,
+      eq(businessSubscriptions.businessId, businesses.id),
+    )
     .where(
       and(
         eq(businesses.analyticsDigestEnabled, true),
@@ -180,7 +187,14 @@ export async function sendAnalyticsDigestEmails(): Promise<AnalyticsDigestSummar
     );
 
   const entitled = eligibleBusinesses.filter((business) =>
-    hasFeatureAccess(business.plan as PlanTier, "analyticsOperations"),
+    hasFeatureAccess(
+      resolveEffectivePlanFromSubscriptionFields({
+        status: business.subscriptionStatus,
+        plan: business.subscriptionPlan,
+        currentPeriodEnd: business.subscriptionCurrentPeriodEnd,
+      }),
+      "analyticsOperations",
+    ),
   );
 
   const now = new Date();

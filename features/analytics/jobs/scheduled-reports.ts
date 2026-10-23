@@ -3,12 +3,14 @@ import "server-only";
 import { and, eq, isNull, sql } from "drizzle-orm";
 
 import { renderAnalyticsScheduledReportEmail } from "@/emails/templates/analytics-scheduled-report";
+import { resolveEffectivePlanFromSubscriptionFields } from "@/lib/billing/subscription-service";
 import { db } from "@/lib/db/client";
 import {
   analyticsDailyRollups,
   analyticsScheduledReports,
   businesses,
 } from "@/lib/db/schema";
+import { businessSubscriptions } from "@/lib/db/schema/subscriptions";
 import { sendEmailWithFallback } from "@/lib/email/send-email";
 import { getEmailSender } from "@/lib/email/senders";
 import {
@@ -17,7 +19,6 @@ import {
   isEmailConfigured,
 } from "@/lib/env";
 import { hasFeatureAccess } from "@/lib/plans/entitlements";
-import type { PlanTier } from "@/lib/plans/plans";
 
 export type AnalyticsScheduledReportsSummary = {
   skipped?: boolean;
@@ -131,11 +132,19 @@ export async function sendAnalyticsScheduledReports(): Promise<AnalyticsSchedule
         id: businesses.id,
         name: businesses.name,
         slug: businesses.slug,
-        plan: businesses.plan,
+      },
+      subscription: {
+        status: businessSubscriptions.status,
+        plan: businessSubscriptions.plan,
+        currentPeriodEnd: businessSubscriptions.currentPeriodEnd,
       },
     })
     .from(analyticsScheduledReports)
     .innerJoin(businesses, eq(analyticsScheduledReports.businessId, businesses.id))
+    .leftJoin(
+      businessSubscriptions,
+      eq(businessSubscriptions.businessId, businesses.id),
+    )
     .where(
       and(
         eq(analyticsScheduledReports.enabled, true),
@@ -144,7 +153,10 @@ export async function sendAnalyticsScheduledReports(): Promise<AnalyticsSchedule
     );
 
   const entitled = reports.filter((row) =>
-    hasFeatureAccess(row.business.plan as PlanTier, "analyticsOperations"),
+    hasFeatureAccess(
+      resolveEffectivePlanFromSubscriptionFields(row.subscription),
+      "analyticsOperations",
+    ),
   );
 
   const dueReports = entitled.filter((row) =>

@@ -109,7 +109,7 @@ async function AnalyticsToolbarRegion({ params, searchParams }: AnalyticsPagePro
   const { business } = businessContext;
   const meta = await getAnalyticsBusinessMeta(business.id);
 
-  const plan = business.plan;
+  const plan = meta.plan;
   const from = firstValue(resolvedSearchParams.from);
   const to = firstValue(resolvedSearchParams.to);
   const window = resolveAnalyticsWindow({
@@ -167,8 +167,8 @@ async function AnalyticsContentRegion({ params, searchParams }: AnalyticsPagePro
   }
 
   const { business } = businessContext;
-  const plan = business.plan;
   const meta = await getAnalyticsBusinessMeta(business.id);
+  const plan = meta.plan;
 
   const tabParam = firstValue(resolvedSearchParams.tab);
   const tab: AnalyticsTab = isAnalyticsTab(tabParam) ? tabParam : "overview";

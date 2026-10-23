@@ -8,6 +8,10 @@
 # - inngest: local Inngest Dev Server (http://localhost:8288)
 # - redis: local Redis (localhost:6379)
 # - redis-http: Upstash-compatible REST proxy (http://localhost:8079)
+#
+# Optional public tunnel for inbound webhooks:
+#   docker compose --profile tunnel up --build
+# - ngrok: public HTTPS tunnel to app:3000 (inspector http://localhost:4040)
 services:
   app:
     build:
@@ -55,8 +59,23 @@ services:
       - default
       - supabase_network_requo
 
+  ngrok:
+    profiles: ["tunnel"]
+    image: ngrok/ngrok:3-alpine
+    restart: on-failure:3
+    depends_on:
+      - app
+    env_file:
+      - .env.local
+    entrypoint: ["/bin/sh", "/usr/local/bin/requo-ngrok-entrypoint.sh"]
+    volumes:
+      - ./scripts/ngrok-entrypoint.sh:/usr/local/bin/requo-ngrok-entrypoint.sh:ro
+    ports:
+      # ngrok's local inspector; loopback only.
+      - "127.0.0.1:4040:4040"
+
   inngest:
-    image: node:22-bookworm-slim
+    image: node:24-bookworm-slim
     restart: unless-stopped
     ports:
       - "8288:8288"

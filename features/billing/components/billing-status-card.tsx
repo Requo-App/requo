@@ -59,11 +59,14 @@ export type BillingPlanUsage = {
 type BillingStatusCardProps = {
   billing: BusinessBillingOverview;
   planUsage: BillingPlanUsage;
+  /** Owners can change the plan; managers/staff get a read-only view. */
+  canManageBilling: boolean;
 };
 
 export function BillingStatusCard({
   billing,
   planUsage,
+  canManageBilling,
 }: BillingStatusCardProps) {
   const { subscription, currentPlan, userId, businessId, businessSlug } =
     billing;
@@ -74,7 +77,15 @@ export function BillingStatusCard({
     (subscription.status === "active" || subscription.status === "past_due");
   const hasPendingSubscription =
     subscription && subscription.status === "pending";
-  const hasSubscription = hasActiveSubscription || hasPendingSubscription;
+  const hasPausedSubscription =
+    subscription && subscription.status === "paused";
+  const hasCanceledSubscription =
+    subscription && subscription.status === "canceled";
+  const hasSubscription =
+    hasActiveSubscription ||
+    hasPendingSubscription ||
+    hasPausedSubscription ||
+    hasCanceledSubscription;
   const canManageInPortal = hasSubscription && subscription.providerCustomerId;
 
   const [creditsDialogOpen, setCreditsDialogOpen] = useState(false);
@@ -96,13 +107,17 @@ export function BillingStatusCard({
   let subscriptionLine: string;
   if (
     subscription?.canceledAt &&
-    subscription.status === "active" &&
+    (subscription.status === "active" ||
+      subscription.status === "canceled") &&
     renewalDate
   ) {
     subscriptionLine = `Access until ${formatBillingDate(renewalDate)}. Your business returns to the Free plan after that.`;
   } else if (subscription?.status === "past_due") {
     subscriptionLine =
       "Your last payment failed. Update your payment method to keep your plan.";
+  } else if (hasPausedSubscription) {
+    subscriptionLine =
+      "Your subscription is paused. Resume it from the billing portal to restore your plan.";
   } else if (hasActiveSubscription && renewalDate) {
     subscriptionLine = `Next charge ${formatBillingDate(renewalDate)}.`;
   } else if (hasPendingSubscription) {
@@ -127,6 +142,11 @@ export function BillingStatusCard({
           Subscription
         </h2>
         <p className="text-sm text-muted-foreground">{subscriptionLine}</p>
+        {!canManageBilling ? (
+          <p className="text-xs text-muted-foreground">
+            Only the business owner can change the plan or payment method.
+          </p>
+        ) : null}
 
         <Card className="border-border/75 bg-card">
           <CardContent className="flex flex-col gap-5 p-4 sm:p-5">
@@ -142,32 +162,34 @@ export function BillingStatusCard({
                   />
                 ) : null}
               </div>
-              {currentPlan !== "business" ? (
-                <div className="flex flex-wrap items-center gap-2">
-                  <UpgradeButton
-                    currentPlan={currentPlan}
-                    userId={userId}
-                    businessId={businessId}
-                    businessSlug={businessSlug}
-                    variant="outline"
-                  >
-                    Compare plans
-                  </UpgradeButton>
-                  <UpgradeButton
-                    currentPlan={currentPlan}
-                    userId={userId}
-                    businessId={businessId}
-                    businessSlug={businessSlug}
-                  >
-                    <ArrowUpRight data-icon="inline-start" />
-                    {isFreePlan ? "Subscribe Now" : "Upgrade plan"}
-                  </UpgradeButton>
-                </div>
-              ) : (
-                <Button disabled variant="outline" size="sm">
-                  Highest plan active
-                </Button>
-              )}
+              {canManageBilling ? (
+                currentPlan !== "business" ? (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <UpgradeButton
+                      currentPlan={currentPlan}
+                      userId={userId}
+                      businessId={businessId}
+                      businessSlug={businessSlug}
+                      variant="outline"
+                    >
+                      Compare plans
+                    </UpgradeButton>
+                    <UpgradeButton
+                      currentPlan={currentPlan}
+                      userId={userId}
+                      businessId={businessId}
+                      businessSlug={businessSlug}
+                    >
+                      <ArrowUpRight data-icon="inline-start" />
+                      {isFreePlan ? "Subscribe Now" : "Upgrade plan"}
+                    </UpgradeButton>
+                  </div>
+                ) : (
+                  <Button disabled variant="outline" size="sm">
+                    Highest plan active
+                  </Button>
+                )
+              ) : null}
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2 sm:gap-6">
@@ -217,7 +239,8 @@ export function BillingStatusCard({
             </div>
 
             {subscription?.canceledAt &&
-            subscription.status === "active" ? (
+            (subscription.status === "active" ||
+              subscription.status === "canceled") ? (
               <Alert
                 variant="default"
                 className="border-amber-200/60 bg-amber-50/50 py-3 text-amber-700 dark:border-amber-800/40 dark:bg-amber-950/20 dark:text-amber-400 [&>svg]:text-amber-600 dark:[&>svg]:text-amber-400"
@@ -266,25 +289,27 @@ export function BillingStatusCard({
                   <span className="text-muted-foreground">/month</span>
                 </span>
               </p>
-              {canManageInPortal ? (
-                <Button size="sm" asChild>
-                  <a
-                    href={portalHref}
-                    target="_blank"
-                    rel="noopener noreferrer"
+              {canManageBilling ? (
+                canManageInPortal ? (
+                  <Button size="sm" asChild>
+                    <a
+                      href={portalHref}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Manage
+                    </a>
+                  </Button>
+                ) : currentPlan !== "business" ? (
+                  <UpgradeButton
+                    currentPlan={currentPlan}
+                    userId={userId}
+                    businessId={businessId}
+                    businessSlug={businessSlug}
                   >
                     Manage
-                  </a>
-                </Button>
-              ) : currentPlan !== "business" ? (
-                <UpgradeButton
-                  currentPlan={currentPlan}
-                  userId={userId}
-                  businessId={businessId}
-                  businessSlug={businessSlug}
-                >
-                  Manage
-                </UpgradeButton>
+                  </UpgradeButton>
+                ) : null
               ) : null}
             </div>
 
@@ -377,7 +402,7 @@ export function BillingStatusCard({
       </section>
 
       {/* Manage billing information */}
-      {canManageInPortal ? (
+      {canManageBilling && canManageInPortal ? (
         <section
           aria-labelledby="billing-manage-heading"
           className="flex flex-col gap-2"
@@ -403,7 +428,7 @@ export function BillingStatusCard({
       ) : null}
 
       {/* Cancel */}
-      {canManageInPortal ? (
+      {canManageBilling && canManageInPortal ? (
         <section
           aria-labelledby="billing-cancel-heading"
           className="flex flex-col gap-2"
@@ -587,6 +612,7 @@ const statusConfig: Record<
   active: { label: "Active", variant: "secondary" },
   canceled: { label: "Canceling", variant: "outline" },
   past_due: { label: "Past due", variant: "destructive" },
+  paused: { label: "Paused", variant: "outline" },
   pending: { label: "Pending", variant: "outline" },
   expired: { label: "Expired", variant: "outline" },
   incomplete: { label: "Incomplete", variant: "outline" },

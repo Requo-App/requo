@@ -58,7 +58,7 @@ pushes to any other branch or PRs build nothing on Vercel.
 ## Inngest Checklist
 
 - Background jobs (cron schedules, workflow defaults, push notification side effects) run through Inngest at `/api/inngest`.
-- Local development: set `INNGEST_DEV=1` and run `npm run dev` (app + Inngest Dev Server).
+- Local development: set `INNGEST_DEV=1` and run `npm run dev` (app + Inngest); use `npm run dev:tunnel` when a public webhook URL is needed.
 - Production:
   - Create an Inngest Cloud app for Requo.
   - Set `INNGEST_EVENT_KEY` and `INNGEST_SIGNING_KEY` in Vercel.

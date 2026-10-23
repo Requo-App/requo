@@ -41,12 +41,9 @@ export type AdminUserRow = {
   lastSessionAt: Date | null;
 };
 
-/** Summary of a target user's account subscription for the detail view. */
+/** Summary of a target user's owned-business subscription for the detail view. */
 export type AdminUserDetailSubscription = {
-  /**
-   * `account_subscriptions.id` — required by `forceCancelSubscriptionAction`,
-   * which is subscription-keyed even though the service itself is user-keyed.
-   */
+  /** `business_subscriptions.id` for the newest owned business. */
   id: string;
   plan: PlanTier;
   status: SubscriptionStatus;
@@ -99,6 +96,8 @@ export type AdminBusinessRow = {
 /** Row shape rendered by `AdminSubscriptionsTable`. */
 export type AdminSubscriptionRow = {
   id: string;
+  businessId: string;
+  businessName: string;
   userId: string;
   ownerEmail: string;
   plan: string;
@@ -138,7 +137,7 @@ export type AdminDashboardCounts = {
   totalUsers: number;
   totalBusinesses: number;
   /**
-   * Count of `account_subscriptions` rows whose `status = 'active'`,
+   * Count of `business_subscriptions` rows whose `status = 'active'`,
    * keyed by `plan`. Plans that have zero active subscriptions are
    * absent from the map rather than mapped to `0`.
    */
@@ -292,10 +291,10 @@ export type AdminRecentActivityItem = {
 /**
  * Complete billing picture for one user.
  *
- * `subscription` is the full `account_subscriptions` row (or null when the
- * user never left the free plan) — it already carries the recent payment
- * attempts and billing events, so the billing panel has everything from
- * this single payload.
+ * `subscription` is the full `business_subscriptions` row for the user's
+ * owned business (or null when they have no paid subscription) — it already
+ * carries the recent payment attempts and billing events, so the billing
+ * panel has everything from this single payload.
  */
 export type AdminUserBillingActivity = {
   subscription: AdminSubscriptionDetail | null;

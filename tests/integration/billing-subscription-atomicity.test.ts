@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, it, vi } from "vitest";
-import { eq, like } from "drizzle-orm";
+import { and, eq, like } from "drizzle-orm";
 
 /**
  * DB-backed regression tests for atomic subscription/plan-cache updates.
@@ -29,6 +29,7 @@ vi.mock("next/cache", () => ({
   updateTag: vi.fn(),
 }));
 
+import { hasPaidBusinessSubscriptionSql } from "@/lib/billing/entitlement-sql";
 import { businesses } from "@/lib/db/schema/businesses";
 import {
   businessSubscriptions,
@@ -39,7 +40,9 @@ import {
   cancelSubscription,
   createPendingSubscription,
   expireSubscription,
+  PAST_DUE_GRACE_MS,
   resolveEffectivePlanFromSubscription,
+  updateSubscriptionStatus,
 } from "@/lib/billing/subscription-service";
 import { closeTestDb, testDb } from "@/tests/support/db";
 
@@ -83,6 +86,21 @@ async function readState(businessId: string) {
     .from(businesses)
     .where(eq(businesses.id, businessId));
   return { sub, plan: biz?.plan };
+}
+
+async function sqlGrantsPaidAccess(businessId: string) {
+  const [row] = await testDb
+    .select({ id: businessSubscriptions.id })
+    .from(businessSubscriptions)
+    .where(
+      and(
+        eq(businessSubscriptions.businessId, businessId),
+        hasPaidBusinessSubscriptionSql(),
+      ),
+    )
+    .limit(1);
+
+  return Boolean(row);
 }
 
 describe("activateSubscription atomicity", () => {
@@ -221,5 +239,130 @@ describe("activateSubscription atomicity", () => {
     expect(sub?.status).toBe("pending");
     // A pending checkout is not paid access yet.
     expect(plan).toBe("free");
+  });
+
+  it("past_due keeps paid access only inside the local grace window", async () => {
+    const { businessId } = await seedBusiness("pastdue");
+
+    await activateSubscription({
+      businessId,
+      plan: "pro",
+      provider: "polar",
+      currency: "USD",
+      currentPeriodEnd: new Date(Date.now() - 1_000),
+    });
+    await updateSubscriptionStatus(businessId, "past_due", {
+      currentPeriodEnd: new Date(Date.now() - 1_000),
+    });
+
+    const withinGrace = await readState(businessId);
+    expect(
+      resolveEffectivePlanFromSubscription(withinGrace.sub!),
+    ).toBe("pro");
+
+    await updateSubscriptionStatus(businessId, "past_due", {
+      currentPeriodEnd: new Date(Date.now() - PAST_DUE_GRACE_MS - 1_000),
+    });
+
+    const afterGrace = await readState(businessId);
+    expect(afterGrace.plan).toBe("free");
+    expect(
+      resolveEffectivePlanFromSubscription(afterGrace.sub!),
+    ).toBe("free");
+  });
+
+  it("applies the same paid-access window in SQL and the TS resolver", async () => {
+    const { businessId } = await seedBusiness("sqlgrace");
+    const graceMs = PAST_DUE_GRACE_MS;
+
+    await activateSubscription({
+      businessId,
+      plan: "pro",
+      provider: "polar",
+      currency: "USD",
+      currentPeriodEnd: new Date(Date.now() + 60_000),
+    });
+    expect(await sqlGrantsPaidAccess(businessId)).toBe(true);
+
+    await updateSubscriptionStatus(businessId, "past_due", {
+      currentPeriodEnd: new Date(Date.now() - 1_000),
+    });
+    expect(await sqlGrantsPaidAccess(businessId)).toBe(true);
+
+    await updateSubscriptionStatus(businessId, "past_due", {
+      currentPeriodEnd: new Date(Date.now() - graceMs - 1_000),
+    });
+    expect(await sqlGrantsPaidAccess(businessId)).toBe(false);
+
+    await updateSubscriptionStatus(businessId, "paused", {
+      currentPeriodEnd: new Date(Date.now() + 60_000),
+    });
+    expect(await sqlGrantsPaidAccess(businessId)).toBe(false);
+
+    await updateSubscriptionStatus(businessId, "canceled", {
+      currentPeriodEnd: new Date(Date.now() + 60_000),
+    });
+    expect(await sqlGrantsPaidAccess(businessId)).toBe(true);
+
+    await updateSubscriptionStatus(businessId, "canceled", {
+      currentPeriodEnd: new Date(Date.now() - 1_000),
+    });
+    expect(await sqlGrantsPaidAccess(businessId)).toBe(false);
+  });
+
+  it("does not let the expiry job overwrite a recovery that landed after its scan", async () => {
+    const { businessId } = await seedBusiness("expiryrace");
+
+    await activateSubscription({
+      businessId,
+      plan: "pro",
+      provider: "polar",
+      currency: "USD",
+      currentPeriodEnd: new Date(Date.now() + 60_000),
+    });
+    await updateSubscriptionStatus(businessId, "past_due", {
+      currentPeriodEnd: new Date(Date.now() - PAST_DUE_GRACE_MS - 1_000),
+    });
+    await updateSubscriptionStatus(businessId, "active", {
+      currentPeriodEnd: new Date(Date.now() + 60_000),
+    });
+
+    await expireSubscription(businessId, undefined, {
+      status: "past_due",
+      currentPeriodEndBefore: new Date(),
+    });
+
+    const state = await readState(businessId);
+    expect(state.sub?.status).toBe("active");
+    expect(state.plan).toBe("pro");
+  });
+
+  it("rejects an out-of-order provider event", async () => {
+    const { businessId } = await seedBusiness("stale");
+    const newer = new Date("2026-04-20T12:00:00.000Z");
+    const older = new Date("2026-04-20T11:00:00.000Z");
+
+    await activateSubscription({
+      businessId,
+      plan: "business",
+      provider: "polar",
+      currency: "USD",
+      providerEventAt: newer,
+    });
+
+    const staleResult = await activateSubscription({
+      businessId,
+      plan: "pro",
+      provider: "polar",
+      currency: "USD",
+      providerEventAt: older,
+    });
+
+    expect(staleResult.plan).toBe("business");
+
+    const { sub, plan } = await readState(businessId);
+    expect(sub?.plan).toBe("business");
+    expect(sub?.providerEventAt?.toISOString()).toBe(newer.toISOString());
+    expect(plan).toBe("business");
   });
 });

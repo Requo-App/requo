@@ -1,6 +1,6 @@
 "use server";
 
-import { and, count, eq } from "drizzle-orm";
+import { and, count, desc, eq } from "drizzle-orm";
 import { revalidateTag } from "next/cache";
 import { headers } from "next/headers";
 
@@ -61,7 +61,6 @@ import {
 import {
   activateSubscription,
   cancelSubscription,
-  getAccountSubscription,
   getBusinessSubscription,
 } from "@/lib/billing/subscription-service";
 import type { BillingCurrency, BillingProvider } from "@/lib/billing/types";
@@ -77,7 +76,12 @@ import {
   adminUsersTag,
 } from "@/lib/cache/admin-tags";
 import { db } from "@/lib/db/client";
-import { accountSubscriptions, businesses, session, user } from "@/lib/db/schema";
+import {
+  businessSubscriptions,
+  businesses,
+  session,
+  user,
+} from "@/lib/db/schema";
 import type { PlanTier } from "@/lib/plans/plans";
 
 /* ──────────────────────────────────────────────────────────────────────────
@@ -1028,10 +1032,9 @@ export async function demoteFromAdminAction(
  *
  * `lib/billing/subscription-service.ts` (`activateSubscription` /
  * `cancelSubscription`) does NOT accept an external Drizzle transaction.
- * It opens its own writes against `account_subscriptions` and then calls
- * `syncOwnerPlanTiers` + `enforceActiveBusinessLimitOnPlanChange`
- * internally, and issues its own `revalidateTag` calls for user + every
- * owned business.
+ * It opens its own writes against `business_subscriptions` and the
+ * denormalized `businesses.plan`, and issues its own `revalidateTag` calls
+ * for the affected business.
  *
  * We therefore CANNOT nest the service call inside
  * `runAdminMutationWithAudit`'s transaction (that would mean the admin
@@ -1051,24 +1054,24 @@ export async function demoteFromAdminAction(
  * failure and return an error envelope so the admin knows something
  * went sideways; operational follow-up can reconcile from the
  * subscription service's own `revalidateTag` side-effects and the
- * `account_subscriptions` row state. This is an acceptable tradeoff
+ * `business_subscriptions` row state. This is an acceptable tradeoff
  * per design.md ("the subscription service owns its own write path").
  *
- * Revalidation: the service already calls `revalidateTag` on the owner's
- * user billing tags and each owned business's billing tags. We
+ * Revalidation: the service already calls `revalidateTag` on the affected
+ * business's billing tags. We
  * additionally invalidate the admin-scoped tags here so the admin
  * console reflects the change without a reload.
  * ────────────────────────────────────────────────────────────────────── */
 
 /**
  * Default provider + currency used when the admin activates a
- * subscription for a user who has no existing `account_subscriptions`
- * row. Polar + USD are the only values `account_subscriptions`
- * accepts today (see `lib/db/schema/subscriptions.ts`), and the admin
- * override surface is not the right place to prompt an admin to pick
- * a provider. If the user already has a row we prefer the row's
- * existing provider/currency so the override stays aligned with the
- * account's current billing setup.
+ * subscription for a business that has no existing
+ * `business_subscriptions` row. Polar + USD are the only values the
+ * billing schema accepts today (see `lib/db/schema/subscriptions.ts`), and
+ * the admin override surface is not the right place to prompt an admin to
+ * pick a provider. If the business already has a row we prefer the row's
+ * existing provider/currency so the override stays aligned with its current
+ * billing setup.
  */
 const DEFAULT_OVERRIDE_PROVIDER: BillingProvider = "polar";
 const DEFAULT_OVERRIDE_CURRENCY: BillingCurrency = "USD";
@@ -1117,11 +1120,12 @@ async function recordSubscriptionOverrideAudit(
 /**
  * Manually override a user's subscription plan (Req 7.1). Routes the
  * change through `lib/billing/subscription-service.ts#activateSubscription`
- * so `account_subscriptions` AND every owned `businesses.plan` value
- * are kept in sync via `syncOwnerPlanTiers` (Property 12).
+ * so the business subscription and the denormalized `businesses.plan`
+ * value stay in sync (Property 12).
  *
- * No direct writes to `account_subscriptions` — the service is the
- * single write path.
+ * The action is user-keyed for the admin UI, but billing is business-scoped:
+ * it resolves the user's oldest owned business and updates that business's
+ * subscription. No direct writes to `account_subscriptions`.
  *
  * Self-target guard intentionally omitted: the destructive-action
  * self-rejection guard (Req 4.6) only covers actions that remove
@@ -1171,10 +1175,24 @@ export async function manualPlanOverrideAction(
     return { ok: false, error: "That user no longer exists." };
   }
 
-  // Pull provider/currency from the existing subscription row if one
-  // exists so the override doesn't silently flip providers (e.g., Polar→another).
-  // When there is no row yet, fall back to the module-level defaults.
-  const existing = await getAccountSubscription(userId);
+  const [targetBusiness] = await db
+    .select({ id: businesses.id })
+    .from(businesses)
+    .where(eq(businesses.ownerUserId, userId))
+    // Match the admin detail/activity queries, which show the newest
+    // business. Overriding an older business while the UI displays a newer
+    // one would make the audit trail misleading.
+    .orderBy(desc(businesses.createdAt))
+    .limit(1);
+
+  if (!targetBusiness) {
+    return { ok: false, error: "That user has no businesses to bill." };
+  }
+
+  // Pull provider/currency from the business's existing subscription row
+  // when one exists so the override doesn't silently flip providers (e.g.,
+  // Polar→another). When there is no row yet, fall back to the defaults.
+  const existing = await getBusinessSubscription(targetBusiness.id);
   const previousPlan: PlanTier | null = existing
     ? (existing.plan as PlanTier)
     : null;
@@ -1187,16 +1205,6 @@ export async function manualPlanOverrideAction(
   // aborts before we've touched `admin_audit_logs`. See the module
   // comment on the transaction boundary tradeoff.
   try {
-    const [targetBusiness] = await db
-      .select({ id: businesses.id })
-      .from(businesses)
-      .where(eq(businesses.ownerUserId, userId))
-      .limit(1);
-
-    if (!targetBusiness) {
-      return { ok: false, error: "That user has no businesses to bill." };
-    }
-
     await activateSubscription({
       businessId: targetBusiness.id,
       plan,
@@ -1275,17 +1283,11 @@ export async function manualPlanOverrideAction(
 }
 
 /**
- * Force-cancel a subscription (Req 7.2, 7.3). The admin form passes a
- * `subscriptionId`, but the service operates on the owning `userId` so
- * the fix-up happens inside every owned business via
- * `syncOwnerPlanTiers`. We resolve the user first and surface a
- * clean "no such subscription" message if it's been deleted.
- *
- * The service `cancelSubscription(userId)` calls
- * `updateSubscriptionStatus(userId, 'canceled', { canceledAt: now })`
- * which is exactly what Req 7.2 requires (Property 13 — status
- * `canceled` with `canceledAt` set, grace-period access preserved
- * until `currentPeriodEnd`).
+ * Force-cancel a business subscription (Req 7.2, 7.3). The admin form
+ * passes a `business_subscriptions.id`; we resolve the business and its
+ * owner, then call `cancelSubscription(businessId)`. That sets status
+ * `canceled` with `canceledAt`, preserving grace-period access until
+ * `currentPeriodEnd` (Property 13).
  *
  * Like the plan override above, the service owns its own write path,
  * so the audit write runs AFTER the service returns. See the module
@@ -1319,39 +1321,40 @@ export async function forceCancelSubscriptionAction(
     return tokenResult;
   }
 
-  // Resolve the subscription → user mapping. The service API is
-  // user-keyed, not subscription-keyed, so we need the userId to call
-  // it. If the subscription row has already been deleted, surface a
-  // friendly message rather than letting the service no-op silently.
+  // Resolve the subscription and its business owner. If the row has
+  // already been deleted, surface a friendly message rather than letting
+  // the service no-op silently.
   const [subscriptionRow] = await db
     .select({
-      id: accountSubscriptions.id,
-      userId: accountSubscriptions.userId,
-      plan: accountSubscriptions.plan,
-      status: accountSubscriptions.status,
-      provider: accountSubscriptions.billingProvider,
+      id: businessSubscriptions.id,
+      businessId: businessSubscriptions.businessId,
+      plan: businessSubscriptions.plan,
+      status: businessSubscriptions.status,
+      provider: businessSubscriptions.billingProvider,
+      ownerUserId: businesses.ownerUserId,
+      ownerEmail: user.email,
     })
-    .from(accountSubscriptions)
-    .where(eq(accountSubscriptions.id, subscriptionId))
+    .from(businessSubscriptions)
+    .innerJoin(
+      businesses,
+      eq(businesses.id, businessSubscriptions.businessId),
+    )
+    .innerJoin(user, eq(user.id, businesses.ownerUserId))
+    .where(eq(businessSubscriptions.id, subscriptionId))
     .limit(1);
 
   if (!subscriptionRow) {
     return { ok: false, error: "That subscription no longer exists." };
   }
 
-  const [ownerRow] = await db
-    .select({ id: user.id, email: user.email })
-    .from(user)
-    .where(eq(user.id, subscriptionRow.userId))
-    .limit(1);
-
-  if (!ownerRow) {
-    return { ok: false, error: "That subscription no longer exists." };
-  }
+  const ownerRow = {
+    id: subscriptionRow.ownerUserId,
+    email: subscriptionRow.ownerEmail,
+  };
 
   // Service call first (outside the audit tx — see module comment).
   try {
-    const updated = await cancelSubscription(subscriptionRow.userId);
+    const updated = await cancelSubscription(subscriptionRow.businessId);
     if (!updated) {
       // Race: the row existed at lookup time but the service didn't
       // find one to update. Surface it as "no longer exists" rather

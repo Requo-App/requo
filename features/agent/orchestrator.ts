@@ -40,8 +40,8 @@ import { getAiCanaryDirective, getAiCanaryToken } from "@/lib/ai/canary";
 import { filterAiOutput } from "@/lib/ai/output-filter";
 import { logAiSecurityEvent } from "@/lib/ai/security-events";
 import { logAiInvocation } from "@/lib/ai/token-logger";
-import type { PlanTier } from "@/lib/plans/plans";
 import { hasFeatureAccess } from "@/lib/plans/entitlements";
+import { getEffectivePlanForBusiness } from "@/lib/billing/subscription-service";
 import { normalizeBusinessInstructions } from "@/lib/ai/business-instructions";
 import { getBehaviorPack } from "@/features/businesses/behavior-packs";
 import { packRecipeDefaults } from "@/features/businesses/pack-recipe-defaults";
@@ -229,10 +229,18 @@ export async function runAgent({
     throw new Error("Agent is not enabled for this business");
   }
 
+  // Resolve the effective plan from the subscription row rather than the
+  // denormalized `businesses.plan` cache. The cache is only rewritten on
+  // webhook/service writes and by the daily expiry cron, so a time-based
+  // grace or cancellation cutoff can otherwise lag by up to a day.
+  const effectivePlan = await getEffectivePlanForBusiness(
+    sessionData.business.id,
+  );
+
   // Plan is re-checked here as well as at the request boundary, so a
   // downgrade takes effect on an in-flight session rather than persisting
   // until expiry.
-  if (!hasFeatureAccess(sessionData.business.plan as PlanTier, "agent")) {
+  if (!hasFeatureAccess(effectivePlan, "agent")) {
     throw new Error("Agent is not available on this plan");
   }
 
@@ -240,7 +248,7 @@ export async function runAgent({
   if (await countSessionMessages(sessionData.id) === 0) {
     const sessionLimit = await checkAgentSessionLimit({
       businessId: sessionData.business.id,
-      plan: sessionData.business.plan as PlanTier,
+      plan: effectivePlan,
     });
     if (!sessionLimit.allowed) {
       throw new Error(`SESSION_LIMIT_EXCEEDED: ${sessionLimit.message}`);
@@ -254,7 +262,7 @@ export async function runAgent({
     userId: AGENT_SYSTEM_USER_ID,
     businessId: sessionData.business.id,
     taskType: "agent_conversation",
-    plan: sessionData.business.plan as PlanTier,
+    plan: effectivePlan,
   });
 
   if (!quotaResult.allowed) {
@@ -306,7 +314,7 @@ export async function runAgent({
     if (attachments.length > 0) {
       const uploadResult = await checkAgentFileUploadLimit({
         businessId: business.id,
-        plan: business.plan as PlanTier,
+        plan: effectivePlan,
       });
       if (!uploadResult.allowed) {
         throw new Error(`UPLOAD_LIMIT_EXCEEDED: ${uploadResult.message}`);
@@ -448,7 +456,7 @@ export async function runAgent({
         id: business.id,
         name: business.name,
         slug: business.slug,
-        plan: business.plan,
+        plan: effectivePlan,
         shortDescription: business.shortDescription,
         contactEmail: business.contactEmail,
         inquiryFormConfig: business.inquiryFormConfig,

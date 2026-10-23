@@ -237,18 +237,26 @@ export async function recordPaymentForBusiness({ businessId, invoiceId, actorUse
   const trimmedKey = idempotencyKey?.trim() || null;
   if (trimmedKey && !/^[0-9a-fA-F-]{8,64}$/.test(trimmedKey)) return { error: "Invalid idempotency key." } as const;
   return db.transaction(async (tx) => {
+    // Lock the target invoice first. The idempotency lookup then happens
+    // inside that lock, so two concurrent requests for the same key cannot
+    // both observe an empty table and race into the unique index. It also
+    // makes a replay on a different invoice fail explicitly instead of
+    // returning a payment number that belongs to another invoice.
+    const [invoice] = await tx.select().from(invoices).where(and(eq(invoices.id, invoiceId), eq(invoices.businessId, businessId), isNull(invoices.deletedAt))).for("update");
+    if (!invoice) return { error: "Invoice not found." } as const;
+
     if (trimmedKey) {
       const [existing] = await tx.select().from(payments).where(and(eq(payments.businessId, businessId), eq(payments.idempotencyKey, trimmedKey))).limit(1);
       if (existing) {
-        const [inv] = await tx.select().from(invoices).where(and(eq(invoices.id, existing.invoiceId), eq(invoices.businessId, businessId), isNull(invoices.deletedAt))).limit(1);
-        if (!inv) return { error: "Invoice not found." } as const;
-        const [paid] = await tx.select({ total: sql<number>`coalesce(sum(${payments.amountInCents}), 0)` }).from(payments).where(and(eq(payments.invoiceId, inv.id), eq(payments.businessId, businessId), isNull(payments.voidedAt)));
-        const state = calculateInvoicePaymentState({ totalInCents: inv.totalInCents, paidInCents: Number(paid?.total ?? 0), dueDate: inv.dueDate, lifecycleStatus: inv.status });
+        if (existing.invoiceId !== invoiceId) {
+          return { error: "This idempotency key was already used for another invoice." } as const;
+        }
+        const [paid] = await tx.select({ total: sql<number>`coalesce(sum(${payments.amountInCents}), 0)` }).from(payments).where(and(eq(payments.invoiceId, invoice.id), eq(payments.businessId, businessId), isNull(payments.voidedAt)));
+        const state = calculateInvoicePaymentState({ totalInCents: invoice.totalInCents, paidInCents: Number(paid?.total ?? 0), dueDate: invoice.dueDate, lifecycleStatus: invoice.status });
         return { paymentId: existing.id, paymentNumber: existing.paymentNumber, status: state.status, paidInCents: state.paidInCents, balanceInCents: state.balanceInCents, duplicate: true } as const;
       }
     }
-    const [invoice] = await tx.select().from(invoices).where(and(eq(invoices.id, invoiceId), eq(invoices.businessId, businessId), isNull(invoices.deletedAt))).for("update");
-    if (!invoice) return { error: "Invoice not found." } as const;
+
     if (invoice.status === "draft") return { error: "Mark the invoice as sent before recording a payment." } as const;
     if (invoice.status === "voided") return { error: "Void invoices cannot receive payments." } as const;
     if (currency && currency !== invoice.currency) return { error: `Payment currency (${currency}) does not match the invoice currency (${invoice.currency}).` } as const;
@@ -268,20 +276,88 @@ export async function recordPaymentForBusiness({ businessId, invoiceId, actorUse
     if ("error" in allocated) return allocated;
 
     const now = new Date();
-    const paymentId = newEntityId();
-    try {
-      await tx.insert(payments).values({ id: paymentId, businessId, invoiceId, paymentNumber: allocated.paymentNumber, idempotencyKey: trimmedKey, source: "manual", amountInCents, paymentDate, method, reference: reference?.trim() || null, notes: notes?.trim() || null, createdBy: actorUserId, createdAt: now, updatedAt: now });
-    } catch (error) {
-      if (typeof error === "object" && error !== null && "code" in error && error.code === "23505" && trimmedKey) {
-        const [replay] = await tx.select().from(payments).where(and(eq(payments.businessId, businessId), eq(payments.idempotencyKey, trimmedKey))).limit(1);
-        if (replay) {
-          const [paidAfter] = await tx.select({ total: sql<number>`coalesce(sum(${payments.amountInCents}), 0)` }).from(payments).where(and(eq(payments.invoiceId, replay.invoiceId), eq(payments.businessId, businessId), isNull(payments.voidedAt)));
-          const replayState = calculateInvoicePaymentState({ totalInCents: invoice.totalInCents, paidInCents: Number(paidAfter?.total ?? 0), dueDate: invoice.dueDate, lifecycleStatus: invoice.status });
-          return { paymentId: replay.id, paymentNumber: replay.paymentNumber, status: replayState.status, paidInCents: replayState.paidInCents, balanceInCents: replayState.balanceInCents, duplicate: true } as const;
-        }
+    const [inserted] = await tx
+      .insert(payments)
+      .values({
+        id: newEntityId(),
+        businessId,
+        invoiceId,
+        paymentNumber: allocated.paymentNumber,
+        idempotencyKey: trimmedKey,
+        source: "manual",
+        amountInCents,
+        paymentDate,
+        method,
+        reference: reference?.trim() || null,
+        notes: notes?.trim() || null,
+        createdBy: actorUserId,
+        createdAt: now,
+        updatedAt: now,
+      })
+      // Do not let a concurrent duplicate abort the transaction. The
+      // partial unique index only applies when an idempotency key is set.
+      .onConflictDoNothing({
+        target: [payments.businessId, payments.idempotencyKey],
+        where: sql`${payments.idempotencyKey} is not null`,
+      })
+      .returning({ id: payments.id });
+
+    if (!inserted) {
+      if (!trimmedKey) {
+        throw new Error("Payment could not be recorded.");
       }
-      throw error;
+
+      const [replay] = await tx
+        .select()
+        .from(payments)
+        .where(
+          and(
+            eq(payments.businessId, businessId),
+            eq(payments.idempotencyKey, trimmedKey),
+          ),
+        )
+        .limit(1);
+
+      if (!replay) {
+        throw new Error("Payment could not be recorded.");
+      }
+
+      if (replay.invoiceId !== invoiceId) {
+        return {
+          error:
+            "This idempotency key was already used for another invoice.",
+        } as const;
+      }
+
+      const [paidAfter] = await tx
+        .select({
+          total: sql<number>`coalesce(sum(${payments.amountInCents}), 0)`,
+        })
+        .from(payments)
+        .where(
+          and(
+            eq(payments.invoiceId, replay.invoiceId),
+            eq(payments.businessId, businessId),
+            isNull(payments.voidedAt),
+          ),
+        );
+      const replayState = calculateInvoicePaymentState({
+        totalInCents: invoice.totalInCents,
+        paidInCents: Number(paidAfter?.total ?? 0),
+        dueDate: invoice.dueDate,
+        lifecycleStatus: invoice.status,
+      });
+      return {
+        paymentId: replay.id,
+        paymentNumber: replay.paymentNumber,
+        status: replayState.status,
+        paidInCents: replayState.paidInCents,
+        balanceInCents: replayState.balanceInCents,
+        duplicate: true,
+      } as const;
     }
+
+    const paymentId = inserted.id;
     const next = calculateInvoicePaymentState({ totalInCents: invoice.totalInCents, paidInCents: current.paidInCents + amountInCents, dueDate: invoice.dueDate, lifecycleStatus: invoice.status });
     await tx.update(invoices).set({ status: next.status, updatedAt: now }).where(and(eq(invoices.id, invoiceId), eq(invoices.businessId, businessId)));
     await insertInvoiceActivity(tx, { businessId, invoiceId, actorUserId, type: "invoice.payment_recorded", summary: `Payment ${allocated.paymentNumber} recorded: ${formatQuoteMoney(amountInCents, invoice.currency)} via ${method}.`, metadata: { paymentId, paymentNumber: allocated.paymentNumber, amountInCents, method, status: next.status } });
@@ -308,7 +384,10 @@ export async function recordPaymentForBusiness({ businessId, invoiceId, actorUse
   });
 }
 
-export type VoidPaymentResult = null | { error: string } | { status: InvoiceStatus; paymentNumber: string };
+export type VoidPaymentResult =
+  | null
+  | { error: string }
+  | { status: InvoiceStatus; paymentNumber: string; invoiceId: string };
 
 export async function voidPaymentForBusiness({ businessId, paymentId, actorUserId, reason }: { businessId: string; paymentId: string; actorUserId: string; reason?: string | null }): Promise<VoidPaymentResult> {
   const normalized = normalizeVoidReason(reason);
@@ -326,7 +405,11 @@ export async function voidPaymentForBusiness({ businessId, paymentId, actorUserI
     await insertInvoiceActivity(tx, { businessId, invoiceId: invoice.id, actorUserId, type: "payment.voided", summary: `Payment ${payment.paymentNumber} voided: ${formatQuoteMoney(payment.amountInCents, invoice.currency)} via ${payment.method}. Reason: ${getVoidReasonLabel(normalized)}.`, metadata: { paymentId, paymentNumber: payment.paymentNumber, amountInCents: payment.amountInCents, reason: normalized } });
     await insertInvoiceActivity(tx, { businessId, invoiceId: invoice.id, actorUserId, type: "invoice.payment_voided", summary: `Payment ${payment.paymentNumber} voided on ${invoice.invoiceNumber}.`, metadata: { paymentId, paymentNumber: payment.paymentNumber, reason: normalized, status: next.status } });
     await writeAuditLog(tx, { businessId, actorUserId, entityType: "payment", entityId: paymentId, action: "payment.voided", metadata: { invoiceId: invoice.id, invoiceNumber: invoice.invoiceNumber, paymentNumber: payment.paymentNumber, reason: normalized }, createdAt: now });
-    return { status: next.status, paymentNumber: payment.paymentNumber } as const;
+    return {
+      status: next.status,
+      paymentNumber: payment.paymentNumber,
+      invoiceId: invoice.id,
+    } as const;
   });
 }
 

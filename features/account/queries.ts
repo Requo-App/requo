@@ -19,8 +19,8 @@ import { db } from "@/lib/db/client";
 import {
   account,
   businesses,
+  businessSubscriptions,
   profiles,
-  accountSubscriptions,
 } from "@/lib/db/schema";
 
 async function getCachedAccountProfile(
@@ -121,16 +121,16 @@ export async function getAccountDeletionPreflight(
         id: businesses.id,
         name: businesses.name,
         slug: businesses.slug,
-        subscriptionStatus: accountSubscriptions.status,
-        canceledAt: accountSubscriptions.canceledAt,
-        currentPeriodEnd: accountSubscriptions.currentPeriodEnd,
-        billingProvider: accountSubscriptions.billingProvider,
-        providerSubscriptionId: accountSubscriptions.providerSubscriptionId,
+        subscriptionStatus: businessSubscriptions.status,
+        canceledAt: businessSubscriptions.canceledAt,
+        currentPeriodEnd: businessSubscriptions.currentPeriodEnd,
+        billingProvider: businessSubscriptions.billingProvider,
+        providerSubscriptionId: businessSubscriptions.providerSubscriptionId,
       })
       .from(businesses)
       .leftJoin(
-        accountSubscriptions,
-        eq(accountSubscriptions.userId, businesses.ownerUserId),
+        businessSubscriptions,
+        eq(businessSubscriptions.businessId, businesses.id),
       )
       .where(
         and(
@@ -143,7 +143,8 @@ export async function getAccountDeletionPreflight(
   const blockers = ownedBusinessRows.map((biz) => {
     const hasActiveSubscription =
       biz.subscriptionStatus === "active" ||
-      biz.subscriptionStatus === "past_due";
+      biz.subscriptionStatus === "past_due" ||
+      biz.subscriptionStatus === "paused";
 
     if (hasActiveSubscription) {
       return {

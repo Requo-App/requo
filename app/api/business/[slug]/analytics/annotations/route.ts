@@ -3,6 +3,7 @@ import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { getEffectivePlanForBusiness } from "@/lib/billing/subscription-service";
 import { getBusinessScopeCacheTag } from "@/lib/cache/business-tags";
 import { db } from "@/lib/db/client";
 import { getBusinessRequestContextForSlug } from "@/lib/db/business-access";
@@ -52,12 +53,11 @@ export async function GET(
     return NextResponse.json({ error: "Not found." }, { status: 404 });
   }
 
-  if (
-    !hasFeatureAccess(
-      requestContext.businessContext.business.plan,
-      "analyticsPerformance",
-    )
-  ) {
+  const effectivePlan = await getEffectivePlanForBusiness(
+    requestContext.businessContext.business.id,
+  );
+
+  if (!hasFeatureAccess(effectivePlan, "analyticsPerformance")) {
     return NextResponse.json(
       { error: "Upgrade to Pro to use annotations." },
       { status: 403 },
@@ -106,12 +106,11 @@ export async function POST(
     return NextResponse.json({ error: "Not found." }, { status: 404 });
   }
 
-  if (
-    !hasFeatureAccess(
-      requestContext.businessContext.business.plan,
-      "analyticsPerformance",
-    )
-  ) {
+  const effectivePlan = await getEffectivePlanForBusiness(
+    requestContext.businessContext.business.id,
+  );
+
+  if (!hasFeatureAccess(effectivePlan, "analyticsPerformance")) {
     return NextResponse.json(
       { error: "Upgrade to Pro to use annotations." },
       { status: 403 },
@@ -169,12 +168,11 @@ export async function PUT(
     return NextResponse.json({ error: "Not found." }, { status: 404 });
   }
 
-  if (
-    !hasFeatureAccess(
-      requestContext.businessContext.business.plan,
-      "analyticsPerformance",
-    )
-  ) {
+  const effectivePlan = await getEffectivePlanForBusiness(
+    requestContext.businessContext.business.id,
+  );
+
+  if (!hasFeatureAccess(effectivePlan, "analyticsPerformance")) {
     return NextResponse.json(
       { error: "Upgrade to Pro to use annotations." },
       { status: 403 },
@@ -239,12 +237,11 @@ export async function DELETE(
     return NextResponse.json({ error: "Not found." }, { status: 404 });
   }
 
-  if (
-    !hasFeatureAccess(
-      requestContext.businessContext.business.plan,
-      "analyticsPerformance",
-    )
-  ) {
+  const effectivePlan = await getEffectivePlanForBusiness(
+    requestContext.businessContext.business.id,
+  );
+
+  if (!hasFeatureAccess(effectivePlan, "analyticsPerformance")) {
     return NextResponse.json(
       { error: "Upgrade to Pro to use annotations." },
       { status: 403 },

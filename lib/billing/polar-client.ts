@@ -1,26 +1,25 @@
 import "server-only";
 
-import { Polar } from "@polar-sh/sdk";
+import { createPolar } from "@polar-sh/sdk/2026-10";
 
 import { env } from "@/lib/env";
+import { sanitizeSameOriginPath } from "@/lib/routing/safe-return-path";
 
 /** Single Polar SDK construction site (was copy-pasted in 3 routes). */
 export function getPolarClient() {
-  return new Polar({
+  if (!env.POLAR_ACCESS_TOKEN) {
+    throw new Error("Polar is not configured.");
+  }
+
+  return createPolar({
     accessToken: env.POLAR_ACCESS_TOKEN,
-    server: env.POLAR_SERVER,
+    environment: env.POLAR_SERVER,
   });
 }
 
 /** Shared same-origin returnTo guard (was duplicated with drift). */
 export function sanitizeReturnTo(value: string | null | undefined): string | null {
-  if (!value) return null;
-  const trimmed = value.trim();
-  if (!trimmed.startsWith("/")) return null;
-  if (trimmed.startsWith("//")) return null;
-  if (trimmed.startsWith("/api/")) return null;
-  if (trimmed.length > 512) return null;
-  return trimmed;
+  return sanitizeSameOriginPath(value);
 }
 
 function isPrivateIp(candidate: string): boolean {

@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   count: vi.fn(), addMessage: vi.fn(), history: vi.fn(), messageLimit: vi.fn(),
   sessionLimit: vi.fn(), uploadLimit: vi.fn(), sanitize: vi.fn(), attachments: vi.fn(),
   reserve: vi.fn(), release: vi.fn(), settle: vi.fn(), resolveModel: vi.fn(),
+  effectivePlan: vi.fn(),
   log: vi.fn(), startRun: vi.fn(), failRun: vi.fn(), updateRun: vi.fn(), stream: vi.fn(),
 }));
 vi.mock("ai", () => ({ streamText: mocks.stream, stepCountIs: vi.fn() }));
@@ -31,6 +32,9 @@ vi.mock("@/lib/ai/usage-limiter", () => ({
   reserveUsage: mocks.reserve, releaseUsageReservation: mocks.release,
   settleUsageReservation: mocks.settle, computeUsageWeight: () => 1,
 }));
+vi.mock("@/lib/billing/subscription-service", () => ({
+  getEffectivePlanForBusiness: mocks.effectivePlan,
+}));
 vi.mock("@/features/agent/telemetry", () => ({
   startAgentRun: mocks.startRun, failAgentRun: mocks.failRun, updateAgentRun: mocks.updateRun,
   computeEstimatedCostCents: () => 0,
@@ -47,6 +51,7 @@ beforeEach(() => {
     id: "session-1", state, metadata: {},
     business: { id: "business-1", agentEnabled: true, plan: "pro", name: "Test", slug: "test" },
   });
+  mocks.effectivePlan.mockResolvedValue("pro");
   mocks.advance.mockReturnValue(state);
   mocks.count.mockResolvedValue(0);
   mocks.messageLimit.mockResolvedValue({ allowed: true });

@@ -2,6 +2,7 @@ import "server-only";
 
 import { NextResponse } from "next/server";
 
+import { getEffectivePlanForBusiness } from "@/lib/billing/subscription-service";
 import { buildCsv, formatDateForExportFileName, type CsvColumn } from "@/lib/csv";
 import { getBusinessRequestContextForSlug } from "@/lib/db/business-access";
 import { buildContentDisposition } from "@/lib/files";
@@ -23,7 +24,11 @@ export async function requireExportContext(
   slug: string,
   feature: "exports" | "analyticsPerformance" = "exports",
 ): Promise<
-  | { ok: true; requestContext: NonNullable<ExportRequestContext> }
+  | {
+      ok: true;
+      requestContext: NonNullable<ExportRequestContext>;
+      effectivePlan: Parameters<typeof hasFeatureAccess>[0];
+    }
   | { ok: false; response: Response }
 > {
   const requestContext = await getBusinessRequestContextForSlug(slug);
@@ -33,7 +38,11 @@ export async function requireExportContext(
       response: NextResponse.json({ error: "Not found." }, { status: 404 }),
     };
   }
-  if (!hasFeatureAccess(requestContext.businessContext.business.plan, feature)) {
+  const effectivePlan = await getEffectivePlanForBusiness(
+    requestContext.businessContext.business.id,
+  );
+
+  if (!hasFeatureAccess(effectivePlan, feature)) {
     return {
       ok: false,
       response: NextResponse.json(
@@ -42,7 +51,7 @@ export async function requireExportContext(
       ),
     };
   }
-  return { ok: true, requestContext };
+  return { ok: true, requestContext, effectivePlan };
 }
 
 export function csvResponse(csv: string, filename: string): Response {
