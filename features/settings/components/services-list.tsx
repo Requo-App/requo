@@ -65,9 +65,11 @@ import { getBusinessServicePath } from "@/features/businesses/routes";
 import { getBusinessPublicInquiryUrl } from "@/features/settings/utils";
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
 import { hasFeatureAccess } from "@/lib/plans";
+import { getUsageLimit } from "@/lib/plans/usage-limits";
 import type { PlanTier as plan } from "@/lib/plans/plans";
 import { FeatureGate } from "@/features/entitlements";
 import { useBusinessCheckout } from "@/features/billing/components/business-checkout-provider";
+import { UpgradeButton } from "@/features/billing/components/upgrade-button";
 
 type ServicesListProps = {
   settings: ServicesSettingsView;
@@ -119,11 +121,24 @@ export function ServicesList({
     ? businessCheckout.currentPlan
     : plan;
   const nameError = createState.fieldErrors?.name?.[0];
-  const activeServices = settings.services.filter((service) => !service.archivedAt);
+  const activeServices = useMemo(
+    () => settings.services.filter((service) => !service.archivedAt),
+    [settings.services],
+  );
   const archivedServices = settings.services.filter((service) => service.archivedAt);
+  const liveServiceCount = activeServices.reduce(
+    (count, service) => (service.publicInquiryEnabled ? count + 1 : count),
+    0,
+  );
+  const liveServiceLimit = getUsageLimit(effectivePlan, "liveServicesPerBusiness");
+  const atServiceLimit =
+    liveServiceLimit !== null && liveServiceCount >= liveServiceLimit;
   const canCreateAdditionalServices =
-    hasFeatureAccess(effectivePlan, "multipleServices") ||
-    activeServices.length === 0;
+    hasFeatureAccess(effectivePlan, "multipleServices") && !atServiceLimit;
+  const serviceCountLabel =
+    liveServiceLimit === null
+      ? `${liveServiceCount} ${liveServiceCount === 1 ? "live service" : "live services"}`
+      : `${liveServiceCount} of ${liveServiceLimit} live services`;
 
   const filteredServices = useMemo(() => {
     const trimmedQuery = query.trim().toLowerCase();
@@ -228,10 +243,10 @@ export function ServicesList({
                 </ResponsiveOverlayBody>
               </ResponsiveOverlayContent>
             </ResponsiveOverlay>
-          ) : activeServices.length > 0 ? (
+          ) : null}
+          {activeServices.length > 0 || liveServiceLimit !== null ? (
             <p className="truncate text-xs text-muted-foreground">
-              {activeServices.length}{" "}
-              {activeServices.length === 1 ? "service" : "services"}
+              {serviceCountLabel}
             </p>
           ) : null}
         </div>
@@ -319,6 +334,25 @@ export function ServicesList({
             </ResponsiveOverlayContent>
           </ResponsiveOverlay>
           </MobileHeaderSlot>
+        ) : atServiceLimit && businessCheckout ? (
+          <MobileHeaderSlot>
+            <UpgradeButton
+              className={mobileNavbarIconButtonClassName}
+              currentPlan={effectivePlan}
+              size="sm"
+              targetPlan={effectivePlan === "free" ? "pro" : "business"}
+              variant="outline"
+              userId={businessCheckout.userId}
+              businessId={businessCheckout.businessId}
+              businessSlug={businessCheckout.businessSlug}
+            >
+              <Plus data-icon="inline-start" />
+              <span className="hidden lg:inline">More services</span>
+              <span className="sr-only lg:hidden">
+                Upgrade for more live services
+              </span>
+            </UpgradeButton>
+          </MobileHeaderSlot>
         ) : (
           <MobileHeaderSlot>
           <FeatureGate
@@ -332,6 +366,7 @@ export function ServicesList({
               title="Create service"
               size="sm"
               className={mobileNavbarIconButtonClassName}
+              disabled
             >
               <Plus data-icon="inline-start" />
               <span className="hidden lg:inline">Create</span>

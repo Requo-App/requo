@@ -186,21 +186,14 @@ export function InquiryNotesSheetSection({
 export function CustomerHistorySheetSection({
   businessSlug,
   history,
-  locked = false,
-}: Parameters<typeof CustomerHistoryPanel>[0] & { locked?: boolean }) {
+}: Parameters<typeof CustomerHistoryPanel>[0]) {
   return (
     <DashboardSection
       contentClassName="flex flex-col gap-4"
       description="Past records for this customer email inside the current business."
       title="Customer history"
     >
-      {locked ? (
-        <DashboardEmptyState
-          description="Upgrade to Pro to review prior inquiries and quotes for this customer."
-          title="Customer history is a Pro feature"
-          variant="section"
-        />
-      ) : history ? (
+      {history ? (
         <>
           <div className="grid gap-3 sm:grid-cols-2">
             <InfoTile label="Past inquiries" value={`${history.inquiryCount}`} />

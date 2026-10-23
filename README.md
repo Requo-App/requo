@@ -43,7 +43,7 @@
 
 - **Customer intake:** public business/service pages, configurable forms, manual inquiry creation, attachments, duplicate signals, qualification, and status tracking.
 - **Quote work:** drafting and revisions, reusable product/quote library, version snapshots, public quote pages, customer responses (accept / reject / revision), and email templates.
-- **Follow-up and visibility:** owner reminder tasks, supported automatic follow-up emails, conversion and workflow analytics, CSV exports, in-app notifications, web push, activity/audit records, and business membership.
+- **Follow-up and visibility:** owner reminder tasks, supported automatic follow-up emails, conversion and workflow analytics, CSV, PDF, and PNG exports, in-app notifications, web push, activity/audit records, and business membership.
 - **Commercial continuation:** invoices from accepted quotes, manually recorded payments, quote acceptance records, approval flows, typed scope blocks, payment schedules, and change orders.
 - **Business management:** business onboarding templates, multiple businesses per account, role-aware membership, plan entitlements, and Polar subscriptions (Free, Pro, Business).
 

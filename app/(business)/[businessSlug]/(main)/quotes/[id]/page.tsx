@@ -224,10 +224,6 @@ async function QuoteDetailRegion({ params }: QuoteDetailPageProps) {
   const quotePreferredContactLabel = getContactMethodLabel(
     quote.customerContactMethod,
   );
-  const canExportData = hasFeatureAccess(
-    businessContext.business.plan,
-    "exports",
-  );
   const needsAiConfirmation =
     quote.status === "draft" &&
     quote.aiReadiness === "needs_confirmation" &&
@@ -243,7 +239,6 @@ async function QuoteDetailRegion({ params }: QuoteDetailPageProps) {
     businessPlan: businessContext.business.plan,
     businessSlug,
     businessLogoStoragePath: businessContext.business.logoStoragePath,
-    canExportData,
     customerQuoteUrl,
     needsAiConfirmation,
     acknowledgeAction,
@@ -338,7 +333,6 @@ async function QuoteDetailRegion({ params }: QuoteDetailPageProps) {
               saveAsTemplateAction={canSaveAsTemplate ? saveAsTemplate : undefined}
               status={quote.status}
               voidAction={voidAction}
-              canExport={canExportData}
               pdfHref={getBusinessQuoteExportPath(businessSlug, quote.id, "pdf")}
               pngHref={getBusinessQuoteExportPath(businessSlug, quote.id, "png")}
               openQuoteHref={customerQuoteUrl}

@@ -137,6 +137,7 @@ export async function sendAnalyticsScheduledReports(): Promise<AnalyticsSchedule
         status: businessSubscriptions.status,
         plan: businessSubscriptions.plan,
         currentPeriodEnd: businessSubscriptions.currentPeriodEnd,
+        trialEndsAt: businessSubscriptions.trialEndsAt,
       },
     })
     .from(analyticsScheduledReports)

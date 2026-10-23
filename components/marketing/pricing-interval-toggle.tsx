@@ -11,6 +11,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { SelectBusinessDialog } from "@/components/marketing/select-business-dialog";
 import { cn } from "@/lib/utils";
 import {
+  formatPrice,
   getYearlySavingsPercent,
   getMonthlyEquivalentLabel,
   getPlanPriceLabel,
@@ -18,6 +19,7 @@ import {
 import { homePath } from "@/features/businesses/routes";
 import { authClient } from "@/lib/auth/client";
 import { getAuthPathWithNext } from "@/lib/auth/redirects";
+import { planCatalog } from "@/lib/plans/catalog";
 import type {
   BillingCurrency,
   BillingInterval,
@@ -183,13 +185,13 @@ function PricingPlans({
             Free
           </p>
           <p className="mt-4 font-heading text-4xl font-semibold tracking-tight text-foreground">
-            {currency === "PHP" ? "₱" : "$"}0
+            {formatPrice(0, currency)}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
             No card required
           </p>
           <p className="mt-4 min-h-12 text-sm leading-relaxed text-muted-foreground lg:min-h-18">
-            The full inquiry-to-quote loop for a single business. No time limit.
+            {planCatalog.free.description} No time limit.
           </p>
 
           <Button asChild variant="outline" size="lg" className="mt-6 w-full font-mono text-xs uppercase tracking-wider">
@@ -199,12 +201,9 @@ function PricingPlans({
           </Button>
 
           <ul className="mt-7 flex flex-col gap-2.5 border-t border-border pt-6">
-            <Feature>Complete inquiry-to-quote workflow</Feature>
-            <Feature>Unlimited inquiries, quotes, and manual sharing</Feature>
-            <Feature>About 10 AI quote drafts per month</Feature>
-            <Feature>15 Requo email sends per month</Feature>
-            <Feature>One live inquiry form</Feature>
-            <Feature>Inquiry and quote CSV exports</Feature>
+            {planCatalog.free.highlights.map((highlight) => (
+              <Feature key={highlight}>{highlight}</Feature>
+            ))}
           </ul>
         </div>
 
@@ -224,11 +223,11 @@ function PricingPlans({
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
             {proMonthly
-              ? `${proMonthly} billed monthly`
+              ? `${proMonthly} billed yearly`
               : "Cancel anytime"}
           </p>
           <p className="mt-4 min-h-12 text-sm leading-relaxed text-muted-foreground lg:min-h-18">
-            Automatic follow-ups, more AI drafts, multiple forms, and custom branding for growing operators.
+            {planCatalog.pro.description}
           </p>
 
           <Button
@@ -249,12 +248,9 @@ function PricingPlans({
           </Button>
 
           <ul className="mt-7 flex flex-col gap-2.5 border-t border-border pt-6">
-            <Feature>Automatic follow-ups</Feature>
-            <Feature>Custom email templates and Requo branding removal</Feature>
-            <Feature>About 50 AI quote drafts per month</Feature>
-            <Feature>200 Requo email sends per month</Feature>
-            <Feature>5 live inquiry forms</Feature>
-            <Feature>Advanced analytics and scheduled reports</Feature>
+            {planCatalog.pro.highlights.map((highlight) => (
+              <Feature key={highlight}>{highlight}</Feature>
+            ))}
           </ul>
         </div>
 
@@ -271,11 +267,11 @@ function PricingPlans({
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
             {businessMonthly
-              ? `${businessMonthly} billed monthly`
+              ? `${businessMonthly} billed yearly`
               : "Cancel anytime"}
           </p>
           <p className="mt-4 min-h-12 text-sm leading-relaxed text-muted-foreground lg:min-h-18">
-            Team roles, higher AI and email caps, and audit logs.
+            {planCatalog.business.description}
           </p>
 
           <Button
@@ -297,13 +293,9 @@ function PricingPlans({
           </Button>
 
           <ul className="mt-7 flex flex-col gap-2.5 border-t border-border pt-6">
-            <Feature>Everything in Pro</Feature>
-            <Feature>Up to 5 members with roles</Feature>
-            <Feature>About 165 AI quote drafts per month</Feature>
-            <Feature>500 Requo email sends per month</Feature>
-            <Feature>10 live inquiry forms</Feature>
-            <Feature>Unlimited pricing library</Feature>
-            <Feature>Audit logs</Feature>
+            {planCatalog.business.highlights.map((highlight) => (
+              <Feature key={highlight}>{highlight}</Feature>
+            ))}
           </ul>
         </div>
       </div>
@@ -311,7 +303,8 @@ function PricingPlans({
       <p className="mx-auto mt-8 max-w-2xl text-center text-sm leading-relaxed text-muted-foreground">
         Subscriptions are billed per business. Free includes one free business;
         additional businesses need their own paid subscription. Annual billing
-        includes two months free.
+        includes two months free. Taxes, where applicable, are calculated at
+        checkout based on your billing country.
       </p>
 
       <SelectBusinessDialog

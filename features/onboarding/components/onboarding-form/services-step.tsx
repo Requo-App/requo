@@ -7,7 +7,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { ServiceNameFields } from "@/features/businesses/components/service-name-fields";
-import type { PlanTier } from "@/lib/plans/plans";
+import { PRO_TRIAL_DAYS, type PlanTier } from "@/lib/plans/plans";
 
 import type { OnboardingDraftService } from "@/features/onboarding/helpers";
 import { onboardingInputClassName } from "./types";
@@ -35,6 +35,11 @@ export function ServicesStep({
 }: ServicesStepProps) {
   return (
     <div className="mx-auto w-full max-w-xl py-4">
+      {plan === "pro" ? (
+        <p className="mb-4 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
+          Your first {PRO_TRIAL_DAYS} days are on Pro, with no card required.
+        </p>
+      ) : null}
       <FieldGroup>
         <Field>
           <FieldLabel className="text-sm font-medium text-foreground">

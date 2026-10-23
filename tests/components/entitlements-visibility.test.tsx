@@ -113,7 +113,6 @@ describe("Entitlement visibility", () => {
         requiredPlan: string;
       }> = [
         { feature: "analyticsPerformance", requiredPlan: "Pro" },
-        { feature: "multipleServices", requiredPlan: "Pro" },
         { feature: "emailTemplates", requiredPlan: "Pro" },
         { feature: "removeWatermark", requiredPlan: "Pro" },
         { feature: "autoFollowUps", requiredPlan: "Pro" },

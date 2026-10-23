@@ -43,6 +43,7 @@ import {
   getBusinessQuoteListCacheTags,
   hotBusinessCacheLife,
 } from "@/lib/cache/business-tags";
+import { getEffectivePlanForBusiness } from "@/lib/billing/subscription-service";
 import { withCircuitBreaker } from "@/lib/db/circuit-breaker";
 import { likePattern } from "@/lib/sql-patterns";
 import type {
@@ -863,7 +864,6 @@ async function getPublicQuoteByTokenImpl(
       title: quotes.title,
       businessName: businesses.name,
       businessSlug: businesses.slug,
-      businessPlan: businesses.plan,
       businessShortDescription: businesses.shortDescription,
       businessContactEmail: businesses.contactEmail,
       businessLogoStoragePath: businesses.logoStoragePath,
@@ -905,6 +905,7 @@ async function getPublicQuoteByTokenImpl(
     return null;
   }
 
+  const businessPlan = await getEffectivePlanForBusiness(quote.businessId);
   const items = await db
     .select({
       id: quoteItems.id,
@@ -940,7 +941,7 @@ async function getPublicQuoteByTokenImpl(
     businessContactEmail: quote.businessContactEmail,
     businessName: quote.businessName,
     businessSlug: quote.businessSlug,
-    businessPlan: quote.businessPlan,
+    businessPlan,
     businessShortDescription: quote.businessShortDescription,
     businessLogoStoragePath: quote.businessLogoStoragePath,
     currency: quote.currency,

@@ -25,7 +25,13 @@ import {
   terminateRecurringFollowUpsForRecords,
 } from "@/features/follow-ups/mutations";
 import { voidQuoteForBusiness } from "@/features/quotes/mutations";
-import { activityLogs, businesses, followUps, quotes } from "@/lib/db/schema";
+import {
+  activityLogs,
+  businesses,
+  businessSubscriptions,
+  followUps,
+  quotes,
+} from "@/lib/db/schema";
 
 import { closeTestDb, testDb } from "@/tests/support/db";
 import { derivePerFilePrefix } from "@/tests/support/prefix";
@@ -37,6 +43,17 @@ import {
 
 const prefix = derivePerFilePrefix(import.meta.url);
 let ids: WorkflowFixtureIds;
+
+async function grantProPlan() {
+  await testDb.insert(businessSubscriptions).values({
+    id: `${prefix}_subscription`,
+    businessId: ids.businessId,
+    status: "active",
+    plan: "pro",
+    billingProvider: "polar",
+    billingCurrency: "USD",
+  });
+}
 
 type CreateOverrides = Partial<{
   title: string;
@@ -451,6 +468,8 @@ describe("follow-up lifecycle", () => {
   });
 
   it("allows an automatic follow-up on a plan with the entitlement", async () => {
+    await grantProPlan();
+
     // A future due date keeps the row away from the global auto-send job,
     // which scans every business in the database.
     const created = await createFollowUp({
@@ -459,6 +478,24 @@ describe("follow-up lifecycle", () => {
     });
 
     expect(created).not.toBeNull();
+  });
+
+  it("refuses an automatic follow-up after a trial ends before the expiry cron runs", async () => {
+    await testDb.insert(businessSubscriptions).values({
+      id: `${prefix}_expired_trial`,
+      businessId: ids.businessId,
+      status: "trialing",
+      plan: "pro",
+      billingProvider: "polar",
+      billingCurrency: "USD",
+      currentPeriodStart: new Date("2026-03-01T00:00:00.000Z"),
+      currentPeriodEnd: new Date("2026-03-15T00:00:00.000Z"),
+      trialEndsAt: new Date("2026-03-15T00:00:00.000Z"),
+    });
+
+    await expect(
+      createFollowUp({ sendMode: "automatic" }),
+    ).rejects.toBeInstanceOf(FollowUpCreateValidationError);
   });
 
   it("refuses to switch an existing follow-up to automatic on a free plan", async () => {

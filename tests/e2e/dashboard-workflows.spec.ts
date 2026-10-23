@@ -171,7 +171,7 @@ test("dashboard and detail pages surface follow-up, expiring-soon, and customer 
   ).toBeVisible();
   await expect(page.getByRole("link", { name: "View quote" })).toBeVisible();
   await expect(
-    page.getByText("Customer history is a Pro feature", { exact: true }),
+    page.getByText("No customer history", { exact: true }),
   ).toBeVisible();
   await expect(page.getByRole("link", { name: "Event signage" })).toHaveCount(0);
 });

@@ -95,19 +95,20 @@ type FeatureGateProps = {
 
 See `lib/plans/entitlements.ts` for the single source of truth.
 
-**Free:** `followUps`, `aiQuoteDrafting`, `quoteLibrary`, `knowledgeBase`,
-`exports`.
+**Free:** `multipleServices`, `followUps`, `aiQuoteDrafting`, `quoteLibrary`,
+`knowledgeBase`, `exports`. Free supports two live services; the
+`multipleServices` key is about capability, not the numeric cap.
 
-**Pro:** `analyticsPerformance`, `analyticsOperations`, `multipleServices`,
+**Pro:** `analyticsPerformance`, `analyticsOperations`,
 `servicePageCustomization`, `emailTemplates`, `removeWatermark`,
 `autoFollowUps`, `agent`, `customWorkflowRecipes`.
 
 **Business:** `analyticsTeam`, `members`, `auditLogs`.
 
-The Assistant is available on every plan with a per-plan daily message bucket;
-it has no entitlement key. The Agent requires Pro+ (`agent`). Limits reached
-inside a conversation render `UpgradePrompt` in the stream; navigation is
-never hidden by plan.
+The owner-facing Assistant is available on every plan with a per-plan daily
+message bucket; it has no entitlement key. The customer-facing Agent requires
+Pro+ (`agent`) and is trial-only on Free. Limits reached inside a conversation
+render `UpgradePrompt` in the stream; navigation is never hidden by plan.
 
 ## Upgrade context
 

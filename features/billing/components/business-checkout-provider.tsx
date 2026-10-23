@@ -102,6 +102,11 @@ export function BusinessCheckoutProvider({
       </BusinessCheckoutContext.Provider>
       <PlanSelectionSheet
         currentPlan={billing.currentPlan}
+        currency={billing.billingCurrency}
+        isTrialing={
+          billing.subscription?.status === "trialing" &&
+          billing.currentPlan === "pro"
+        }
         onOpenChange={setIsPlanSheetOpen}
         onSelectPlan={(plan, interval) => {
           setIsPlanSheetOpen(false);

@@ -31,12 +31,12 @@ type ServiceNameFieldsProps = {
 };
 
 /**
- * Live services allowed by the plan. Extras beyond the cap stay visible but
- * locked for plans without `multipleServices` (entitlement-visibility rule);
- * the server trims beyond-limit rows on submit.
+ * Live services allowed by the plan (`null` means unlimited). Extras beyond
+ * the cap stay visible but locked for plans without `multipleServices`
+ * (entitlement-visibility rule); the server trims beyond-limit rows on submit.
  */
 function resolvePlanServiceCap(plan: PlanTier) {
-  return getUsageLimit(plan, "liveServicesPerBusiness") ?? 10;
+  return getUsageLimit(plan, "liveServicesPerBusiness");
 }
 
 /**
@@ -57,7 +57,7 @@ export function ServiceNameFields({
 }: ServiceNameFieldsProps) {
   const cap = resolvePlanServiceCap(plan);
   const hasMultipleServicesFeature = hasFeatureAccess(plan, "multipleServices");
-  const canAddMore = services.length < cap;
+  const canAddMore = cap === null || services.length < cap;
   const isAddLocked = !hasMultipleServicesFeature;
   const isAddDisabled = isPending || (!isAddLocked && !canAddMore);
 
@@ -78,7 +78,9 @@ export function ServiceNameFields({
   return (
     <div className="flex flex-col gap-2">
       <p className="text-xs leading-relaxed text-muted-foreground">
-        {services.length} of {cap} live services on your plan.
+        {cap === null
+          ? `${services.length} live services. Unlimited on your plan.`
+          : `${services.length} of ${cap} live services on your plan.`}
       </p>
       <div className="flex flex-col gap-2">
         {services.map((service, index) => {
@@ -134,7 +136,7 @@ export function ServiceNameFields({
       {!isAddLocked && !canAddMore ? (
         <p className="text-xs text-muted-foreground">
           You have reached your plan limit of {cap} live services. Manage or
-          archive services in settings.
+          archive services in settings to add another.
         </p>
       ) : null}
     </div>

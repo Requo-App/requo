@@ -41,7 +41,7 @@ const rows: readonly { label: string; suites: string; requo: string }[] = [
   {
     label: "Starting price",
     suites: "Suite pricing for the bundle",
-    requo: "Free plan; Pro $9/mo; Business $24/mo",
+    requo: "Free plan; Pro $9/mo and Business $24/mo (USD)",
   },
   {
     label: "Best fit",

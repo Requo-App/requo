@@ -13,7 +13,6 @@ import {
   Download,
   Ellipsis,
   FileText,
-  Lock,
   RotateCcw,
   Trash2,
 } from "lucide-react";
@@ -62,7 +61,6 @@ type QuoteManageDropdownProps = {
     state: QuoteRecordActionState,
     formData: FormData,
   ) => Promise<QuoteRecordActionState>;
-  canExport?: boolean;
   pdfHref?: string;
   pngHref?: string;
   openQuoteHref?: string | null;
@@ -87,7 +85,6 @@ export function QuoteManageDropdown({
   saveAsTemplateAction,
   status,
   voidAction,
-  canExport = false,
   pdfHref,
   pngHref,
   openQuoteHref,
@@ -310,33 +307,23 @@ export function QuoteManageDropdown({
               <DropdownMenuSeparator />
             </>
           ) : null}
-          {showExportGroup ? (
-            canExport && pdfHref && pngHref ? (
-              <>
-                <DropdownMenuItem asChild>
-                  <a aria-label="Export PDF" href={pdfHref}>
-                    <Download />
-                    Export PDF
-                  </a>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <a aria-label="Export PNG" href={pngHref}>
-                    <FileText />
-                    Export PNG
-                  </a>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-              </>
-            ) : (
-              <>
-                <DropdownMenuItem disabled title="Upgrade to Pro to export quote records as PDF or PNG.">
-                  <Lock />
-                  Export (Pro feature)
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-              </>
-            )
+          {pdfHref ? (
+            <DropdownMenuItem asChild>
+              <a aria-label="Export PDF" href={pdfHref}>
+                <Download />
+                Export PDF
+              </a>
+            </DropdownMenuItem>
           ) : null}
+          {pngHref ? (
+            <DropdownMenuItem asChild>
+              <a aria-label="Export PNG" href={pngHref}>
+                <FileText />
+                Export PNG
+              </a>
+            </DropdownMenuItem>
+          ) : null}
+          {showExportGroup ? <DropdownMenuSeparator /> : null}
           {showMarkWorkDone ? (
             <DropdownMenuItem onSelect={() => setConfirmAction("complete")}>
               <CheckCircle2 />

@@ -4,10 +4,12 @@ import { eq } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
 import { cache } from "react";
 
+import { detectDisplayCurrency } from "@/lib/billing/region";
 import { db } from "@/lib/db/client";
 import { listLockCandidatesForDowngrade } from "@/features/businesses/plan-enforcement";
 import { businesses } from "@/lib/db/schema/businesses";
 import {
+  canStartBusinessTrial,
   getCachedBusinessSubscription,
   getBusinessSubscription,
   resolveEffectivePlanFromSubscription,
@@ -55,11 +57,33 @@ function toBillingSubscriptionView(
         paymentMethod: subscription.paymentMethod,
         currentPeriodStart: subscription.currentPeriodStart,
         currentPeriodEnd: subscription.currentPeriodEnd,
+        trialEndsAt: subscription.trialEndsAt,
         canceledAt: subscription.canceledAt,
         providerSubscriptionId: subscription.providerSubscriptionId,
         providerCustomerId: subscription.providerCustomerId,
       }
     : null;
+}
+
+/**
+ * The subscription's billing currency is authoritative for an existing
+ * subscription because that is what the provider charges. Without one, use
+ * the visitor's detected pricing currency, matching the market the checkout
+ * will open in. Header lookup failures fall back to USD so billing chrome
+ * still renders in contexts without a request (for example, local builds).
+ */
+async function resolveBillingCurrency(
+  subscription: Awaited<ReturnType<typeof getBusinessSubscription>>,
+): Promise<BusinessBillingOverview["billingCurrency"]> {
+  if (subscription) {
+    return subscription.billingCurrency;
+  }
+
+  try {
+    return await detectDisplayCurrency();
+  } catch {
+    return "USD";
+  }
 }
 
 function createEmptyDowngradePreview(): BusinessBillingOverview["downgradePreview"] {
@@ -92,6 +116,13 @@ export const getBusinessBillingShellOverview = cache(
       const currentPlan = subscription
         ? resolveEffectivePlanFromSubscription(subscription)
         : (businessData.plan as PlanTier);
+      const [canStartTrial, billingCurrency] = await Promise.all([
+        canStartBusinessTrial({
+          userId: businessData.ownerUserId,
+          businessId,
+        }),
+        resolveBillingCurrency(subscription),
+      ]);
 
       return {
         userId: businessData.ownerUserId,
@@ -99,6 +130,8 @@ export const getBusinessBillingShellOverview = cache(
         businessName: businessData.name,
         businessSlug: businessData.slug,
         currentPlan,
+        billingCurrency,
+        canStartTrial,
         downgradePreview: createEmptyDowngradePreview(),
         subscription: toBillingSubscriptionView(subscription),
       };
@@ -129,13 +162,26 @@ export async function getBusinessBillingOverview(
     }
 
     const subscription = await getBusinessSubscription(businessId);
-    const downgradePreview = await listLockCandidatesForDowngrade({
-      ownerUserId: businessData.ownerUserId,
-      targetPlan: "free",
-    });
     const currentPlan = subscription
       ? resolveEffectivePlanFromSubscription(subscription)
       : (businessData.plan as PlanTier);
+    const [downgradePreview, canStartTrial, billingCurrency] = await Promise.all([
+      currentPlan === "free"
+        ? listLockCandidatesForDowngrade({
+            ownerUserId: businessData.ownerUserId,
+            targetPlan: "free",
+          })
+        : Promise.resolve({
+            activeBusinessLimit: null,
+            activeBusinesses: [],
+            requiresSelection: false,
+          }),
+      canStartBusinessTrial({
+        userId: businessData.ownerUserId,
+        businessId,
+      }),
+      resolveBillingCurrency(subscription),
+    ]);
 
     return {
       userId: businessData.ownerUserId,
@@ -143,6 +189,8 @@ export async function getBusinessBillingOverview(
       businessName: businessData.name,
       businessSlug: businessData.slug,
       currentPlan,
+      billingCurrency,
+      canStartTrial,
       downgradePreview: {
         targetPlan: "free",
         activeBusinessLimit: downgradePreview.activeBusinessLimit,

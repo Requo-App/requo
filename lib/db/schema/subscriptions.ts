@@ -9,8 +9,14 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 
+import {
+  billingCurrencies,
+  type BillingCurrency,
+} from "@/lib/billing/currencies";
 import { user } from "@/lib/db/schema/auth";
 import { businesses } from "@/lib/db/schema/businesses";
+
+export { billingCurrencies, type BillingCurrency };
 
 /* ── Enums ────────────────────────────────────────────────────────────────── */
 
@@ -23,6 +29,7 @@ export const billingProviderEnum = pgEnum("billing_provider", [
 
 export const subscriptionStatuses = [
   "free",
+  "trialing",
   "pending",
   "active",
   "past_due",
@@ -36,9 +43,6 @@ export type SubscriptionStatus = (typeof subscriptionStatuses)[number];
 export const subscriptionStatusEnum = pgEnum("subscription_status", [
   ...subscriptionStatuses,
 ]);
-
-export const billingCurrencies = ["USD", "PHP"] as const;
-export type BillingCurrency = (typeof billingCurrencies)[number];
 
 export const billingCurrencyEnum = pgEnum("billing_currency", [
   ...billingCurrencies,
@@ -155,6 +159,32 @@ export const businessSubscriptions = pgTable(
     index("business_subscriptions_provider_customer_id_idx").on(
       table.providerCustomerId,
     ),
+  ],
+);
+
+/* ── business_trial_claims ───────────────────────────────────────────────── */
+
+/**
+ * Permanent, owner-level marker that a business Pro trial has been used.
+ *
+ * One row per user. `businessId` is intentionally not a foreign key: hard-
+ * deleting the business must not reset trial eligibility. The claim is written
+ * in the same transaction as the trial subscription, so a failed start does not
+ * consume it.
+ */
+export const businessTrialClaims = pgTable(
+  "business_trial_claims",
+  {
+    userId: text("user_id")
+      .primaryKey()
+      .references(() => user.id, { onDelete: "cascade" }),
+    businessId: text("business_id"),
+    claimedAt: timestamp("claimed_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("business_trial_claims_business_id_idx").on(table.businessId),
   ],
 );
 

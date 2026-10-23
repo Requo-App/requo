@@ -189,7 +189,10 @@ and selected cron endpoints. `lib/email/` implements transactional provider
 fallback (Resend, Mailtrap, Brevo); `lib/billing/` owns Polar mapping,
 subscription writes, webhook idempotency, and plan resolution. Subscriptions
 are business-scoped; `business_subscriptions` is authoritative and
-`businesses.plan` is a denormalized cache.
+`businesses.plan` is a denormalized cache. The one-time Pro trial uses
+`business_subscriptions.status = "trialing"` plus `trial_ends_at`, and
+`business_trial_claims` records the owner-level claim independently of the
+business so deletion cannot reset eligibility.
 
 [`app/api/inngest/route.ts`](../../app/api/inngest/route.ts) registers event and
 cron functions from [`lib/inngest/functions/`](../../lib/inngest/functions/).
@@ -303,6 +306,10 @@ The plan's live-service allowance is checked inside the write transaction
 under a per-business advisory lock, and resolves the effective plan from the
 subscription rather than the denormalized `businesses.plan` cache — the same
 plan the public inquiry pages resolve, so the two surfaces cannot disagree.
+When a subscription status change lowers the effective plan, the same
+transaction unpublishes live services above the new allowance (keeping the
+default service and the oldest services live), so a trial expiry or downgrade
+webhook leaves the public surface within the new plan.
 The plan's custom-field allowance is applied when the intake form is saved,
 so a crafted request cannot persist fields the plan does not include. Public
 surfaces for a business — the inquiry pages and the public Agent — all

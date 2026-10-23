@@ -22,7 +22,6 @@ import {
 } from "@/features/businesses/routes";
 import { getAppShellContext } from "@/lib/app-shell/context";
 import { getCachedPageWindow } from "@/lib/pagination";
-import { hasFeatureAccess } from "@/lib/plans";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 import { FirstVisitTip } from "@/features/onboarding/components/first-visit-tip";
 import { featureTips } from "@/features/onboarding/feature-tips";
@@ -110,11 +109,6 @@ async function QuotesHeaderActionsRegion({
     sort: filters.sort,
   };
 
-  const canExport = hasFeatureAccess(
-    businessContext.business.plan,
-    "exports",
-  );
-
   const quoteCountPromise = getQuoteListCountForBusiness({
     businessId: businessContext.business.id,
     filters: baseFilters,
@@ -129,7 +123,6 @@ async function QuotesHeaderActionsRegion({
   return (
     <QuoteListHeaderActions
       businessSlug={businessSlug}
-      canExport={canExport}
       filters={filters}
       searchParams={resolvedSearchParams}
       totalItemsPromise={quoteCountPromise}
@@ -170,11 +163,6 @@ async function QuotesControlsRegion({
     sort: filters.sort,
   };
 
-  const canExport = hasFeatureAccess(
-    businessContext.business.plan,
-    "exports",
-  );
-
   const quoteCountPromise = getQuoteListCountForBusiness({
     businessId: businessContext.business.id,
     filters: baseFilters,
@@ -189,7 +177,6 @@ async function QuotesControlsRegion({
   return (
     <QuoteListControlsSection
       businessSlug={businessSlug}
-      canExport={canExport}
       filters={filters}
       searchParams={resolvedSearchParams}
       totalItemsPromise={quoteCountPromise}

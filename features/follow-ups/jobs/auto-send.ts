@@ -15,8 +15,16 @@ import type {
   FollowUpTerminationCondition,
 } from "@/features/follow-ups/types";
 import { getPublicQuoteUrl } from "@/features/quotes/utils";
+import { resolveEffectivePlanFromSubscriptionFields } from "@/lib/billing/subscription-service";
 import { db } from "@/lib/db/client";
-import { activityLogs, businesses, followUps, inquiries, quotes } from "@/lib/db/schema";
+import {
+  activityLogs,
+  businesses,
+  businessSubscriptions,
+  followUps,
+  inquiries,
+  quotes,
+} from "@/lib/db/schema";
 import { env, isFollowUpAutoSendEmailEnabled } from "@/lib/env";
 import { newEntityId } from "@/lib/ids";
 import { hasFeatureAccess } from "@/lib/plans/entitlements";
@@ -133,7 +141,11 @@ export async function processAutomaticFollowUpSends(): Promise<FollowUpAutoSendS
         dueAt: followUps.dueAt,
         businessId: followUps.businessId,
         businessName: businesses.name,
-        businessPlan: businesses.plan,
+        businessSubscriptionStatus: businessSubscriptions.status,
+        businessSubscriptionPlan: businessSubscriptions.plan,
+        businessSubscriptionCurrentPeriodEnd:
+          businessSubscriptions.currentPeriodEnd,
+        businessSubscriptionTrialEndsAt: businessSubscriptions.trialEndsAt,
         businessContactEmail: businesses.contactEmail,
         businessTimezone: businesses.timezone,
         defaultEmailSignature: businesses.defaultEmailSignature,
@@ -151,6 +163,10 @@ export async function processAutomaticFollowUpSends(): Promise<FollowUpAutoSendS
       })
       .from(followUps)
       .innerJoin(businesses, eq(followUps.businessId, businesses.id))
+      .leftJoin(
+        businessSubscriptions,
+        eq(businessSubscriptions.businessId, businesses.id),
+      )
       .leftJoin(inquiries, eq(followUps.inquiryId, inquiries.id))
       .leftJoin(quotes, eq(followUps.quoteId, quotes.id))
       .where(and(...conditions))
@@ -173,7 +189,14 @@ export async function processAutomaticFollowUpSends(): Promise<FollowUpAutoSendS
 
       const customerName = row.quoteCustomerName ?? row.inquiryCustomerName ?? "there";
       const isQuoteFollowUp = Boolean(row.quoteId);
-      const plan = row.businessPlan as PlanTier;
+      // Resolve from the subscription row, not `businesses.plan`, so a trial
+      // that has ended stops sending before the daily expiry cron runs.
+      const plan = resolveEffectivePlanFromSubscriptionFields({
+        status: row.businessSubscriptionStatus,
+        plan: row.businessSubscriptionPlan,
+        currentPeriodEnd: row.businessSubscriptionCurrentPeriodEnd,
+        trialEndsAt: row.businessSubscriptionTrialEndsAt,
+      });
 
       // Unattended sends are a paid capability. A business that downgraded
       // keeps `sendMode = automatic` on the row but must stop sending, so the

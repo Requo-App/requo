@@ -114,7 +114,6 @@ import {
   InquiryNotesSheetSection,
 } from "@/features/inquiries/components/inquiry-detail-sections";
 import { getAppShellContext } from "@/lib/app-shell/context";
-import { hasFeatureAccess } from "@/lib/plans";
 import type { PlanTier } from "@/lib/plans/plans";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 import type { Metadata } from "next";
@@ -202,10 +201,6 @@ async function InquiryDetailRegion({
   const createFollowUpAction = createInquiryFollowUpAction.bind(null, inquiry.id);
   const customFields = getCustomSubmittedFields(
     inquiry.submittedFieldSnapshot,
-  );
-  const canExportData = hasFeatureAccess(
-    businessContext.business.plan,
-    "exports",
   );
 
   const canGenerateQuote = inquiry.recordState !== "archived";
@@ -303,7 +298,6 @@ async function InquiryDetailRegion({
               archiveAction={archiveAction}
               unarchiveAction={unarchiveAction}
               deleteAction={deleteAction}
-              canExport={canExportData}
               pdfHref={getBusinessInquiryExportPath(
                 businessSlug,
                 inquiry.id,
@@ -345,8 +339,8 @@ async function InquiryDetailRegion({
               />
             </Suspense>
 
-            <RegionErrorBoundary fallback={<CustomerHistoryFallback locked={false} />}>
-              <Suspense fallback={<CustomerHistoryFallback locked={false} />}>
+            <RegionErrorBoundary fallback={<CustomerHistoryFallback />}>
+              <Suspense fallback={<CustomerHistoryFallback />}>
                 <InquiryCustomerHistoryRegion
                   businessId={businessId}
                   businessSlug={businessSlug}
@@ -599,7 +593,6 @@ async function InquiryCustomerHistoryRegion({
     <CustomerHistorySheetSection
       businessSlug={businessSlug}
       history={history}
-      locked={false}
     />
   );
 }
@@ -905,23 +898,7 @@ function FollowUpPanelFallback() {
   );
 }
 
-function CustomerHistoryFallback({ locked }: { locked: boolean }) {
-  if (locked) {
-    return (
-      <DashboardSection
-        contentClassName="flex flex-col gap-4"
-        description="Past records for this customer email inside the current business."
-        title="Customer history"
-      >
-        <DashboardEmptyState
-          description="Upgrade to Pro to review prior inquiries and quotes for this customer."
-          title="Customer history is a Pro feature"
-          variant="section"
-        />
-      </DashboardSection>
-    );
-  }
-
+function CustomerHistoryFallback() {
   return (
     <DashboardSection
       contentClassName="flex flex-col gap-4"

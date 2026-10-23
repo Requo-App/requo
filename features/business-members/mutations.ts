@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { newEntityId } from "@/lib/ids";
 import { and, eq, gt, isNull } from "drizzle-orm";
 
+import { getEffectivePlanForBusiness } from "@/lib/billing/subscription-service";
 import { db } from "@/lib/db/client";
 import {
   businessInviteLinks,
@@ -260,7 +261,6 @@ export async function acceptBusinessInviteLink({
       businessId: businessInviteLinks.businessId,
       role: businessInviteLinks.role,
       businessSlug: businesses.slug,
-      businessPlan: businesses.plan,
     })
     .from(businessInviteLinks)
     .innerJoin(businesses, eq(businessInviteLinks.businessId, businesses.id))
@@ -298,7 +298,8 @@ export async function acceptBusinessInviteLink({
     };
   }
 
-  const memberLimit = getUsageLimit(link.businessPlan, "membersPerBusiness");
+  const effectivePlan = await getEffectivePlanForBusiness(link.businessId);
+  const memberLimit = getUsageLimit(effectivePlan, "membersPerBusiness");
 
   if (memberLimit !== null) {
     const currentMemberCount = await getBusinessMemberCount(link.businessId);

@@ -21,7 +21,13 @@ import { processQuoteAutoFollowUps } from "@/features/quotes/jobs/auto-follow-up
 import { processQuoteExpiringSoon } from "@/features/quotes/jobs/expiring-soon";
 import { processQuoteViewedFollowUps } from "@/features/quotes/jobs/viewed-follow-ups";
 import { getLocalDateString } from "@/features/follow-ups/utils";
-import { businesses, businessNotifications, followUps, quotes } from "@/lib/db/schema";
+import {
+  businesses,
+  businessNotifications,
+  businessSubscriptions,
+  followUps,
+  quotes,
+} from "@/lib/db/schema";
 import { sendQuoteAutoFollowUpEmail } from "@/lib/email/transactional";
 import { closeTestDb, testDb } from "@/tests/support/db";
 import { derivePerFilePrefix } from "@/tests/support/prefix";
@@ -61,6 +67,14 @@ describe("quote jobs with business-local dates", () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     ids = await createWorkflowFixture(prefix);
+    await testDb.insert(businessSubscriptions).values({
+      id: `${prefix}_subscription`,
+      businessId: ids.businessId,
+      status: "active",
+      plan: "pro",
+      billingProvider: "polar",
+      billingCurrency: "USD",
+    });
   });
   afterEach(() => vi.useRealTimers());
   afterAll(async () => {
@@ -88,6 +102,36 @@ describe("quote jobs with business-local dates", () => {
     );
     const [stored] = await testDb.select().from(quotes).where(eq(quotes.id, eligibleId));
     expect(stored.autoFollowUpAttempts).toBe(1);
+  });
+
+  it("does not auto-follow-up after a Pro trial has ended", async () => {
+    await testDb
+      .delete(businessSubscriptions)
+      .where(eq(businessSubscriptions.businessId, ids.businessId));
+    await testDb.insert(businessSubscriptions).values({
+      id: `${prefix}_expired_trial`,
+      businessId: ids.businessId,
+      status: "trialing",
+      plan: "pro",
+      billingProvider: "polar",
+      billingCurrency: "USD",
+      currentPeriodStart: new Date("2026-05-20T00:00:00Z"),
+      currentPeriodEnd: new Date("2026-06-01T00:00:00Z"),
+      trialEndsAt: new Date("2026-06-01T00:00:00Z"),
+    });
+    setNow("2026-06-10T02:00:00Z");
+    const quoteId = await insertQuote("expired_trial", {
+      autoFollowUpEnabled: true,
+    });
+
+    expect(await processQuoteAutoFollowUps()).toMatchObject({ sent: 0 });
+    expect(sendQuoteAutoFollowUpEmail).not.toHaveBeenCalled();
+
+    const [stored] = await testDb
+      .select()
+      .from(quotes)
+      .where(eq(quotes.id, quoteId));
+    expect(stored.autoFollowUpAttempts).toBe(0);
   });
 
   it.each([

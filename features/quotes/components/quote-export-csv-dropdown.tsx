@@ -3,7 +3,6 @@
 import { ChevronDown, Download } from "lucide-react";
 import { useMemo, useState } from "react";
 
-import { UpgradeNoticeButton } from "@/features/entitlements/components/upgrade-notice-button";
 import { mobileNavbarIconButtonClassName } from "@/components/shell/mobile-header-slot";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
@@ -27,14 +26,12 @@ const statusOptions: QuoteStatusFilterValue[] = [...quoteStatusFilterValues];
 
 type QuoteExportCsvDropdownProps = {
   businessSlug: string;
-  canExport: boolean;
   filters: QuoteListFilters;
   resultCount: number;
 };
 
 export function QuoteExportCsvDropdown({
   businessSlug,
-  canExport,
   filters,
   resultCount,
 }: QuoteExportCsvDropdownProps) {
@@ -72,24 +69,6 @@ export function QuoteExportCsvDropdown({
       params.size ? `?${params.toString()}` : ""
     }`;
   }, [businessSlug, from, query, sort, status, to, view]);
-
-  if (!canExport) {
-    return (
-      <UpgradeNoticeButton
-        aria-label="Export CSV"
-        title="Export CSV"
-        size="sm"
-        className={mobileNavbarIconButtonClassName}
-        noticeDescription="Upgrade your plan to export quote records for reporting, handoff, and backup workflows."
-        noticeTitle="CSV export requires an upgrade."
-        variant="outline"
-      >
-        <Download data-icon="inline-start" />
-        <span className="hidden lg:inline">Export CSV</span>
-        <ChevronDown className="opacity-60 max-lg:hidden" data-icon="inline-end" />
-      </UpgradeNoticeButton>
-    );
-  }
 
   return (
     <DropdownMenu modal={false}>

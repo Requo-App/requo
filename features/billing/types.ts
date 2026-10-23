@@ -15,6 +15,11 @@ export type BusinessBillingOverview = {
   businessName: string;
   businessSlug: string;
   currentPlan: plan;
+  /**
+   * Currency to display for plan prices: the subscription's billing currency
+   * when one exists, otherwise the visitor's detected pricing currency.
+   */
+  billingCurrency: BillingCurrency;
   subscription: {
     status: SubscriptionStatus;
     plan: string;
@@ -23,10 +28,13 @@ export type BusinessBillingOverview = {
     paymentMethod?: string | null;
     currentPeriodStart: Date | null;
     currentPeriodEnd: Date | null;
+    trialEndsAt: Date | null;
     canceledAt: Date | null;
     providerSubscriptionId: string | null;
     providerCustomerId: string | null;
   } | null;
+  /** Owner is eligible for the one-time Pro trial on this business. */
+  canStartTrial: boolean;
   downgradePreview: {
     targetPlan: plan;
     activeBusinessLimit: number | null;

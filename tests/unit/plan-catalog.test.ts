@@ -7,6 +7,7 @@ import {
   planCatalog,
   pricingComparison,
 } from "@/lib/plans/catalog";
+import { hasFeatureAccess } from "@/lib/plans/entitlements";
 import { planTiers } from "@/lib/plans/plans";
 import { getUsageLimit } from "@/lib/plans/usage-limits";
 
@@ -21,7 +22,7 @@ describe("plan catalog", () => {
 
   it("uses the approved description copy", () => {
     expect(planCatalog.free.description).toBe(
-      "Run your inquiry and quote workflow for one service business.",
+      "Run the complete inquiry-to-payment workflow for one service business.",
     );
     expect(planCatalog.pro.description).toContain("automatic follow-ups");
     expect(planCatalog.business.description).toContain("small team");
@@ -56,17 +57,42 @@ describe("plan catalog", () => {
     const team = pricingComparison[3].features;
 
     const liveForms = core.find((row) => row.label === "Live services");
-    expect(liveForms?.free).toBe(getUsageLimit("free", "liveServicesPerBusiness"));
-    expect(liveForms?.business).toBe(10);
+    expect(liveForms?.free).toBe(
+      getUsageLimit("free", "liveServicesPerBusiness"),
+    );
+    expect(liveForms?.pro).toBe(
+      getUsageLimit("pro", "liveServicesPerBusiness"),
+    );
+    expect(liveForms?.business).toBe("Unlimited");
 
     const sends = time.find(
       (row) => row.label === "Requo email sends per month",
     );
-    expect(sends?.free).toBe(15);
+    expect(sends?.free).toBe(20);
     expect(sends?.business).toBe(500);
 
     const members = team.find((row) => row.label === "Members");
     expect(members?.business).toBe("Up to 5");
+  });
+
+  it("includes record exports on every plan", () => {
+    const exportRow = pricingComparison
+      .flatMap((section) => section.features)
+      .find((row) => row.label.toLowerCase().includes("exports"));
+
+    expect(exportRow?.label).toContain("CSV");
+    expect(exportRow?.label).toContain("PDF");
+    expect(exportRow?.label).toContain("PNG");
+    expect(exportRow).toMatchObject({
+      free: true,
+      pro: true,
+      business: true,
+    });
+    expect(planCatalog.free.highlights.join(" ")).toContain("PDF");
+
+    for (const plan of planTiers) {
+      expect(hasFeatureAccess(plan, "exports")).toBe(true);
+    }
   });
 
   it("does not advertise removed or sold-separately capabilities", () => {
@@ -75,7 +101,6 @@ describe("plan catalog", () => {
     );
     expect(allLabels.join(" ").toLowerCase()).not.toContain("chat");
     expect(allLabels.join(" ").toLowerCase()).not.toContain("job");
-    expect(allLabels.join(" ").toLowerCase()).not.toContain("invoice");
     expect(allLabels.join(" ").toLowerCase()).not.toContain("support");
   });
 });

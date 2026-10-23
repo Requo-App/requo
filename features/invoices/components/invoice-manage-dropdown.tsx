@@ -8,7 +8,6 @@ import {
   Download,
   Ellipsis,
   FileText,
-  Lock,
   Pencil,
   Printer,
 } from "lucide-react";
@@ -35,7 +34,6 @@ type InvoiceManageDropdownProps = {
     state: InvoiceActionState,
     formData: FormData,
   ) => Promise<InvoiceActionState>;
-  canExport?: boolean;
   pdfHref?: string;
   pngHref?: string;
 };
@@ -47,7 +45,6 @@ export function InvoiceManageDropdown({
   printHref,
   canVoid,
   voidAction,
-  canExport = false,
   pdfHref,
   pngHref,
 }: InvoiceManageDropdownProps) {
@@ -86,33 +83,23 @@ export function InvoiceManageDropdown({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
-          {showExportGroup ? (
-            canExport && pdfHref && pngHref ? (
-              <>
-                <DropdownMenuItem asChild>
-                  <a aria-label="Export PDF" href={pdfHref}>
-                    <Download />
-                    Export PDF
-                  </a>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <a aria-label="Export PNG" href={pngHref}>
-                    <FileText />
-                    Export PNG
-                  </a>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-              </>
-            ) : (
-              <>
-                <DropdownMenuItem disabled title="Upgrade to Pro to export invoice records as PDF or PNG.">
-                  <Lock />
-                  Export (Pro feature)
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-              </>
-            )
+          {pdfHref ? (
+            <DropdownMenuItem asChild>
+              <a aria-label="Export PDF" href={pdfHref}>
+                <Download />
+                Export PDF
+              </a>
+            </DropdownMenuItem>
           ) : null}
+          {pngHref ? (
+            <DropdownMenuItem asChild>
+              <a aria-label="Export PNG" href={pngHref}>
+                <FileText />
+                Export PNG
+              </a>
+            </DropdownMenuItem>
+          ) : null}
+          {showExportGroup ? <DropdownMenuSeparator /> : null}
           {editHref ? (
             <DropdownMenuItem asChild>
               <Link href={editHref}>

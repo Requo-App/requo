@@ -13,60 +13,45 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  formatPrice,
   getMonthlyEquivalentLabel,
   getPlanPriceLabel,
   getYearlySavingsPercent,
 } from "@/lib/billing/plans";
-import type { BillingInterval, PaidPlan } from "@/lib/billing/types";
-import { planMeta } from "@/lib/plans";
+import type {
+  BillingCurrency,
+  BillingInterval,
+  PaidPlan,
+} from "@/lib/billing/types";
+import { planMeta, planTiers } from "@/lib/plans";
+import { planCatalog } from "@/lib/plans/catalog";
 import type { PlanTier } from "@/lib/plans/plans";
 import { cn } from "@/lib/utils";
 
 type PlanCard = {
   id: PlanTier;
   tagline: string;
-  highlights: string[];
+  highlights: readonly string[];
 };
 
-const planCards: PlanCard[] = [
-  {
-    id: "free",
-    tagline: "For solo operators",
-    highlights: [
-      "Assistant",
-      "Workflow defaults",
-      "Follow-ups",
-      "Email sending",
-    ],
-  },
-  {
-    id: "pro",
-    tagline: "For growing businesses",
-    highlights: [
-      "Auto follow-ups",
-      "Advanced analytics",
-      "More live forms",
-      "More email sending",
-    ],
-  },
-  {
-    id: "business",
-    tagline: "For teams",
-    highlights: [
-      "Teams",
-      "Max limits",
-      "Unlimited live forms",
-      "Priority support",
-    ],
-  },
-];
+const planCards: PlanCard[] = planTiers.map((plan) => ({
+  id: plan,
+  tagline: planCatalog[plan].audience,
+  highlights: planCatalog[plan].highlights.filter(
+    (highlight, index) => index < 4 || highlight.endsWith("live services"),
+  ),
+}));
 
 type PlanSelectionSheetProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   currentPlan: PlanTier;
+  /** Current business is inside its Pro trial and still needs to subscribe. */
+  isTrialing?: boolean;
   targetPlan?: PaidPlan;
   onSelectPlan: (plan: PaidPlan, interval: BillingInterval) => void;
+  /** Billing currency for the business; defaults to USD for a new business. */
+  currency?: BillingCurrency;
   businessId?: string;
   businessSlug?: string;
 };
@@ -75,15 +60,17 @@ export function PlanSelectionSheet({
   open,
   onOpenChange,
   currentPlan,
+  isTrialing = false,
   targetPlan,
   onSelectPlan,
+  currency = "USD",
   businessId,
   businessSlug,
 }: PlanSelectionSheetProps) {
   const [interval, setInterval] = useState<BillingInterval>("monthly");
   const [confirmingPlan, setConfirmingPlan] = useState<PaidPlan | null>(null);
 
-  const isUpgrade = currentPlan !== "free";
+  const isUpgrade = currentPlan !== "free" && !isTrialing;
 
   function handleSelectPlan(plan: PaidPlan) {
     if (isUpgrade) {
@@ -110,9 +97,11 @@ export function PlanSelectionSheet({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[780px] lg:max-w-[860px]">
         <DialogHeader className="border-b-0">
-          <DialogTitle>Upgrade Plan</DialogTitle>
+          <DialogTitle>{isTrialing ? "Choose a plan" : "Upgrade Plan"}</DialogTitle>
           <DialogDescription>
-            Choose the plan that fits your workflow.
+            {isTrialing
+              ? "Choose a paid plan to keep Pro features, or let the trial end and continue on Free."
+              : "Choose the plan that fits your workflow."}
           </DialogDescription>
         </DialogHeader>
 
@@ -129,10 +118,7 @@ export function PlanSelectionSheet({
                   prorated on your next billing cycle.
                 </p>
                 <p className="mt-3 font-heading text-lg font-semibold text-foreground">
-                  {getPlanPriceLabel(confirmingPlan, "USD", interval)}
-                  <span className="text-sm font-normal text-muted-foreground">
-                    {" "}/{interval === "monthly" ? "mo" : "yr"}
-                  </span>
+                  {getPlanPriceLabel(confirmingPlan, currency, interval)}
                 </p>
               </div>
               <div className="flex flex-col items-center gap-3">
@@ -184,7 +170,7 @@ export function PlanSelectionSheet({
               >
                 Annual
                 <Badge variant="secondary" className="px-1 font-medium text-xs">
-                  -{getYearlySavingsPercent("pro", "USD")}%
+                  -{getYearlySavingsPercent("pro", currency)}%
                 </Badge>
               </button>
               <button
@@ -205,14 +191,20 @@ export function PlanSelectionSheet({
           {/* Plan cards */}
           <div className="grid gap-4 sm:grid-cols-3">
             {planCards.map((card) => {
-              const isCurrentPlan = currentPlan === card.id;
+              const isCurrentPlan = currentPlan === card.id && !isTrialing;
               const isPreferredPlan =
                 !isCurrentPlan &&
                 (targetPlan === card.id ||
-                  (!targetPlan && card.id === "pro" && currentPlan === "free") ||
-                  (!targetPlan && card.id === "business" && currentPlan === "pro"));
+                  (!targetPlan &&
+                    card.id === "pro" &&
+                    (currentPlan === "free" || isTrialing)) ||
+                  (!targetPlan &&
+                    card.id === "business" &&
+                    currentPlan === "pro" &&
+                    !isTrialing));
               const isPaidPlan = card.id !== "free";
-              const isDowngrade = isPaidPlan && currentPlan === "business" && card.id === "pro";
+              const isDowngrade =
+                isPaidPlan && currentPlan === "business" && card.id === "pro";
 
               return (
                 <div
@@ -233,11 +225,11 @@ export function PlanSelectionSheet({
                     {isPaidPlan ? (
                       <>
                         <p className="font-heading text-xl font-semibold tracking-tight text-foreground">
-                          {getPlanPriceLabel(card.id as PaidPlan, "USD", interval)}
+                          {getPlanPriceLabel(card.id as PaidPlan, currency, interval)}
                         </p>
                         {interval === "yearly" ? (
                           <p className="mt-0.5 text-xs text-muted-foreground">
-                            {getMonthlyEquivalentLabel(card.id as PaidPlan, "USD")} per month
+                            {getMonthlyEquivalentLabel(card.id as PaidPlan, currency)} billed yearly
                           </p>
                         ) : (
                           <p className="mt-0.5 text-xs text-muted-foreground">
@@ -248,7 +240,7 @@ export function PlanSelectionSheet({
                     ) : (
                       <>
                         <p className="font-heading text-xl font-semibold tracking-tight text-foreground">
-                          $0
+                          {formatPrice(0, currency)}
                         </p>
                         <p className="mt-0.5 text-xs text-muted-foreground">
                           free forever
@@ -278,7 +270,11 @@ export function PlanSelectionSheet({
                         type="button"
                       >
                         <ArrowUpRight data-icon="inline-start" />
-                        {card.id === "pro" ? "Upgrade to Pro" : "Upgrade to Business"}
+                        {card.id === "pro"
+                          ? isTrialing
+                            ? "Subscribe to Pro"
+                            : "Upgrade to Pro"
+                          : "Upgrade to Business"}
                       </Button>
                     ) : isPaidPlan && isDowngrade ? (
                       <Button
@@ -298,7 +294,7 @@ export function PlanSelectionSheet({
                         size="sm"
                         type="button"
                       >
-                        Free plan
+                        {isTrialing ? "Default after trial" : "Free plan"}
                       </Button>
                     )}
                   </div>

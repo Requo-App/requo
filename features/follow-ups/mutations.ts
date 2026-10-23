@@ -25,11 +25,12 @@ import {
   parseFollowUpDueDateInput,
   shouldRecur,
 } from "@/features/follow-ups/utils";
+import { resolveEffectivePlanFromSubscriptionFields } from "@/lib/billing/subscription-service";
 import { db } from "@/lib/db/client";
 import {
   activityLogs,
-  businesses,
   businessMembers,
+  businessSubscriptions,
   followUps,
   inquiries,
   quotes,
@@ -171,13 +172,18 @@ async function getPlanTier(
   tx: FollowUpTransaction,
   businessId: string,
 ): Promise<PlanTier> {
-  const [business] = await tx
-    .select({ plan: businesses.plan })
-    .from(businesses)
-    .where(eq(businesses.id, businessId))
+  const [subscription] = await tx
+    .select({
+      status: businessSubscriptions.status,
+      plan: businessSubscriptions.plan,
+      currentPeriodEnd: businessSubscriptions.currentPeriodEnd,
+      trialEndsAt: businessSubscriptions.trialEndsAt,
+    })
+    .from(businessSubscriptions)
+    .where(eq(businessSubscriptions.businessId, businessId))
     .limit(1);
 
-  return (business?.plan ?? "free") as PlanTier;
+  return resolveEffectivePlanFromSubscriptionFields(subscription);
 }
 
 /**

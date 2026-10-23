@@ -30,6 +30,7 @@ export async function processExpiredSubscriptions(): Promise<ExpireSubscriptions
       businessId: businessSubscriptions.businessId,
       status: businessSubscriptions.status,
       currentPeriodEnd: businessSubscriptions.currentPeriodEnd,
+      trialEndsAt: businessSubscriptions.trialEndsAt,
     })
     .from(businessSubscriptions)
     .where(
@@ -46,15 +47,26 @@ export async function processExpiredSubscriptions(): Promise<ExpireSubscriptions
             lt(businessSubscriptions.currentPeriodEnd, pastDueCutoff),
           ),
         ),
+        and(
+          eq(businessSubscriptions.status, "trialing"),
+          isNotNull(businessSubscriptions.trialEndsAt),
+          lt(businessSubscriptions.trialEndsAt, now),
+        ),
       ),
     );
 
   for (const row of stale) {
     try {
+      const isTrialExpiry = row.status === "trialing";
+
       await expireSubscription(row.businessId, undefined, {
         status: row.status,
-        currentPeriodEndBefore:
-          row.status === "past_due" ? pastDueCutoff : now,
+        currentPeriodEndBefore: isTrialExpiry
+          ? undefined
+          : row.status === "past_due"
+            ? pastDueCutoff
+            : now,
+        trialEndsAtBefore: isTrialExpiry ? now : undefined,
       });
       succeeded++;
     } catch (error) {

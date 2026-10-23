@@ -26,8 +26,10 @@ import type {
   BusinessAuditLogItem,
   BusinessAuditLogPage,
 } from "@/features/audit/types";
+import { getEffectivePlanForBusiness } from "@/lib/billing/subscription-service";
 import { db } from "@/lib/db/client";
 import { auditLogs, businesses, businessMembers, user } from "@/lib/db/schema";
+import { hasFeatureAccess } from "@/lib/plans/entitlements";
 
 function getDayStart(value: string) {
   const date = new Date(`${value}T00:00:00.000Z`);
@@ -106,6 +108,15 @@ export async function getBusinessAuditLogPageBySlug(
   }
 
   if (membership.role !== "owner" && membership.role !== "manager") {
+    return null;
+  }
+
+  if (
+    !hasFeatureAccess(
+      await getEffectivePlanForBusiness(membership.businessId),
+      "auditLogs",
+    )
+  ) {
     return null;
   }
 
@@ -193,6 +204,15 @@ export async function getBusinessAuditLogFiltersBySlug(
     return null;
   }
 
+  if (
+    !hasFeatureAccess(
+      await getEffectivePlanForBusiness(membership.businessId),
+      "auditLogs",
+    )
+  ) {
+    return null;
+  }
+
   const [actorRows] = await Promise.all([
     db
       .select({
@@ -252,6 +272,15 @@ export async function getBusinessAuditLogExportRowsBySlug(
     .limit(1);
 
   if (!membership || (membership.role !== "owner" && membership.role !== "manager")) {
+    return null;
+  }
+
+  if (
+    !hasFeatureAccess(
+      await getEffectivePlanForBusiness(membership.businessId),
+      "auditLogs",
+    )
+  ) {
     return null;
   }
 

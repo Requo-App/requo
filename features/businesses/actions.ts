@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 
 import { getValidationActionState } from "@/lib/action-state";
 import { requireUser } from "@/lib/auth/session";
+import { detectDisplayCurrency } from "@/lib/billing/region";
 import { newEntityId } from "@/lib/ids";
 import {
   getBusinessAnalyticsCacheTags,
@@ -207,6 +208,7 @@ export async function createBusinessAction(
       user,
       businessId: newEntityId(),
       defaultCurrency: validationResult.data.defaultCurrency,
+      billingCurrency: await detectDisplayCurrency(),
       name: validationResult.data.name,
       preferredSlug: validationResult.data.slug,
       countryCode: validationResult.data.countryCode,

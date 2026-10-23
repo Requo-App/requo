@@ -15,18 +15,20 @@ import {
   updateKnowledgeEntryAction,
   uploadKnowledgeFileAction,
 } from "@/features/knowledge/actions";
+import { FeatureGate } from "@/features/entitlements";
 import { KnowledgeManager } from "@/features/knowledge/components/knowledge-manager";
 import { updateBusinessAgentSettingsAction } from "@/features/settings/actions";
 import { AssistantSettingsTabs } from "@/features/settings/components/assistant-settings-tabs";
 import { BusinessAgentSettingsForm } from "@/features/settings/components/business-agent-settings-form";
 import { getBusinessSettingsForBusiness } from "@/features/settings/queries";
+import { hasFeatureAccess } from "@/lib/plans/entitlements";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 import { getBusinessOperationalPageContext } from "../_lib/page-context";
 
 export const metadata: Metadata = createNoIndexMetadata({
-  title: "Assistant",
+  title: "Customer agent",
   description:
-    "Configure your public chat, its tone, business instructions, and the knowledge base both AI surfaces use.",
+    "Configure your customer-facing agent, its tone, business instructions, and the business knowledge base.",
 });
 
 export const instant = true;
@@ -36,20 +38,20 @@ type AiSettingsPageProps = {
 };
 
 /**
- * Assistant settings page — tabbed, non-blocking structural shell.
+ * Customer agent settings page — tabbed, non-blocking structural shell.
  *
  * Matches the quote settings page (no visible page header) and splits the
- * surface into two tabs: Assistant (selected) and Knowledge base. The
+ * surface into two tabs: Customer agent (selected) and Knowledge base. The
  * knowledge manager used to live at /settings/knowledge-base. The tab bar
  * paints instantly; each tab body is an async server component inside its
- * own Suspense boundary. The assistant tab shows real static copy with
- * skeletons only on DB-backed controls. Selection syncs to the URL hash
- * (#assistant, #knowledge) so tabs are deep-linkable.
+ * own Suspense boundary. The agent tab is a Pro/Business entitlement; the
+ * knowledge base remains available on Free. Selection syncs to the URL hash
+ * (#assistant, #knowledge) so existing deep links keep working.
  */
 export default function AiSettingsPage({ params }: AiSettingsPageProps) {
   return (
     <>
-      <h1 className="sr-only">Assistant</h1>
+      <h1 className="sr-only">Customer agent</h1>
       <AssistantSettingsTabs
         assistant={
           <Suspense fallback={<BusinessAssistantStaticFallback />}>
@@ -68,10 +70,28 @@ export default function AiSettingsPage({ params }: AiSettingsPageProps) {
 
 async function AssistantTab({ params }: AiSettingsPageProps) {
   const { businessSlug } = await params;
-  const { businessContext } =
+  const { user, businessContext } =
     await getBusinessOperationalPageContext(businessSlug);
   const { business } = businessContext;
   const slug = business.slug;
+
+  if (!hasFeatureAccess(business.plan, "agent")) {
+    return (
+      <FeatureGate
+        feature="agent"
+        plan={business.plan}
+        variant="page"
+        upgradeAction={{
+          userId: user.id,
+          businessId: business.id,
+          businessSlug: business.slug,
+          currentPlan: business.plan,
+        }}
+      >
+        <></>
+      </FeatureGate>
+    );
+  }
 
   const settings = await getBusinessSettingsForBusiness(business.id);
 

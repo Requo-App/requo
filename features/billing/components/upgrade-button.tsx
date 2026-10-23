@@ -10,7 +10,11 @@ import { useBusinessCheckout } from "@/features/billing/components/business-chec
 import { PlanSelectionSheet } from "@/features/billing/components/plan-selection-sheet";
 import { startPolarCheckout } from "@/features/billing/start-checkout";
 import { getBusinessHomePath } from "@/features/businesses/routes";
-import type { BillingInterval, PaidPlan } from "@/lib/billing/types";
+import type {
+  BillingCurrency,
+  BillingInterval,
+  PaidPlan,
+} from "@/lib/billing/types";
 import type { PlanTier as plan } from "@/lib/plans/plans";
 import { cn } from "@/lib/utils";
 
@@ -19,6 +23,10 @@ type UpgradeButtonProps = {
   businessId: string;
   businessSlug: string;
   currentPlan: plan;
+  /** Current business is inside its Pro trial and still needs to subscribe. */
+  isTrialing?: boolean;
+  /** Billing currency to show in the self-contained plan sheet. */
+  currency?: BillingCurrency;
   targetPlan?: "pro" | "business";
   variant?: "default" | "outline" | "ghost" | "secondary";
   size?: "default" | "sm" | "lg";
@@ -49,6 +57,8 @@ export function UpgradeButton({
   businessId,
   businessSlug,
   currentPlan,
+  isTrialing = false,
+  currency = "USD",
   targetPlan,
   variant = "default",
   size = "sm",
@@ -149,6 +159,8 @@ export function UpgradeButton({
       {!usingProvider ? (
         <PlanSelectionSheet
           currentPlan={effectiveCurrentPlan}
+          currency={currency}
+          isTrialing={isTrialing}
           onOpenChange={setLocalOpen}
           onSelectPlan={handleSelectLocalPlan}
           open={localOpen}

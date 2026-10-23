@@ -10,6 +10,10 @@
 import { normalizeBusinessInstructions } from "@/lib/ai/business-instructions";
 import { getAiCanaryDirective } from "@/lib/ai/canary";
 import type { PlanTier } from "@/lib/plans/plans";
+import {
+  getUsageLimit,
+  type UsageLimitKey,
+} from "@/lib/plans/usage-limits";
 
 export function generateSystemPrompt({
   businessName,
@@ -243,38 +247,19 @@ function getAvailableFeatures(plan: string): string[] {
   return ["Basic features"];
 }
 
-function getPlanLimits(plan: string): string[] {
-  const planLower = plan.toLowerCase();
+function getPlanLimits(plan: PlanTier): string[] {
+  const formatLimit = (key: UsageLimitKey, noun: string) => {
+    const value = getUsageLimit(plan, key);
 
-  if (planLower === "free") {
-    return [
-      "25 assistant messages per day",
-      "5 file uploads per day",
-      "1 live service",
-      "10 quote library entries",
-      "5 knowledge sources",
-    ];
-  }
+    return value === null ? `Unlimited ${noun}` : `${value} ${noun}`;
+  };
 
-  if (planLower === "pro") {
-    return [
-      "250 assistant messages per day",
-      "20 file uploads per day",
-      "5 live services",
-      "50 quote library entries",
-      "25 knowledge sources",
-    ];
-  }
-
-  if (planLower === "business") {
-    return [
-      "1000 assistant messages per day",
-      "50 file uploads per day",
-      "10 live services",
-      "Unlimited quote library entries",
-      "50 knowledge sources",
-    ];
-  }
-
-  return [];
+  return [
+    formatLimit("assistantMessagesPerDay", "assistant messages per day"),
+    formatLimit("assistantFileUploadsPerDay", "file uploads per day"),
+    formatLimit("liveServicesPerBusiness", "live services"),
+    formatLimit("quoteLibraryEntriesPerBusiness", "quote library entries"),
+    formatLimit("knowledgeSourcesPerBusiness", "knowledge sources"),
+    formatLimit("requoDocumentEmailsPerMonth", "Requo email sends per month"),
+  ];
 }

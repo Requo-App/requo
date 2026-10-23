@@ -165,7 +165,7 @@ sites; in-app/push equivalents remain authoritative.
 ## Billing Checklist
 
 - Billing is business-scoped. `business_subscriptions` is authoritative and `businesses.plan` is a read cache. Each business has its own subscription.
-- Configure Polar (https://docs.polar.sh) for recurring USD subscription billing:
+- Configure Polar (https://docs.polar.sh) for recurring subscription billing in fixed local currencies:
   - `POLAR_ACCESS_TOKEN`
   - `POLAR_WEBHOOK_SECRET`
   - `POLAR_SERVER` (`sandbox` for dev / preview; `production` for live charges — cut over only after sandbox validation)
@@ -173,6 +173,8 @@ sites; in-app/push equivalents remain authoritative.
   - `POLAR_PRO_YEARLY_PRODUCT_ID`
   - `POLAR_BUSINESS_PRODUCT_ID`
   - `POLAR_BUSINESS_YEARLY_PRODUCT_ID`
+- Add a fixed price in each supported currency (USD, PHP, GBP, CAD, AUD, EUR, NZD, SGD, AED, INR, ZAR) to all four Polar products, and set the organization's default presentment currency to USD. The price table, country mapping, and tax behavior are in `docs/setup/billing.md`.
+- `/pricing` uses Vercel's `x-vercel-ip-country` header to show local prices. Deploying on Vercel needs no extra configuration; on another host, set the same header in a proxy or the page falls back to USD. Polar still selects the checkout currency from the forwarded customer IP.
 - Point webhooks at:
   - `/api/billing/polar/webhook`
 - Subscribe the webhook to subscription.* and order.* events (see `docs/setup/billing.md` for the full list). Refunds happen in the Polar customer portal; refund.* events fall through as `ignored` post-refactor.

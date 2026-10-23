@@ -34,6 +34,7 @@ export type PlanFeature = (typeof planFeatures)[number];
 
 const planEntitlements: Record<PlanTier, ReadonlySet<PlanFeature>> = {
   free: new Set<PlanFeature>([
+    "multipleServices",
     "followUps",
     "aiQuoteDrafting",
     "quoteLibrary",
@@ -124,7 +125,7 @@ export const planFeatureLabels: Record<PlanFeature, string> = {
   autoFollowUps: "Auto follow-ups",
   members: "Team members",
   auditLogs: "Audit logs",
-  agent: "Agent",
+  agent: "Customer agent",
   customWorkflowRecipes: "Workflow recipes",
 };
 
@@ -137,7 +138,7 @@ export const planFeatureDescriptions: Record<PlanFeature, string> = {
   analyticsTeam:
     "Per-member performance, workload balance, SLA breaches, cohorts, and team report distribution.",
   multipleServices:
-    "Create additional services for different offerings or audiences.",
+    "Create additional services for different offerings or audiences, up to your plan's live-service limit.",
   servicePageCustomization:
     "Customize your public service page layout, showcase image, and supporting cards.",
   emailTemplates:
@@ -149,7 +150,7 @@ export const planFeatureDescriptions: Record<PlanFeature, string> = {
   knowledgeBase:
     "Save business knowledge and files so AI quote drafts stay grounded in how you work.",
   exports:
-    "Export inquiries, quotes, and invoices as CSV from your dashboard.",
+    "Export inquiries, quotes, and invoices as CSV, PDF, or PNG from your dashboard.",
   removeWatermark:
     "Remove the Requo watermark from public inquiry and quote pages.",
   followUps:

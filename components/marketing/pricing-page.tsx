@@ -18,6 +18,7 @@ import {
   pricingComparison,
   aiDraftingClarification,
   pricingFaqs,
+  proTrialSummary,
 } from "@/lib/plans/catalog";
 import { authClient } from "@/lib/auth/client";
 import { homePath } from "@/features/businesses/routes";
@@ -50,10 +51,12 @@ export function PricingPage({
           Requo pricing: free, Pro, and Business plans
         </h1>
         <p className="mt-4 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base sm:leading-7">
-          Requo pricing is per business: start free with the full
-          inquiry-to-quote workflow, then upgrade for automatic follow-ups,
-          more forms and AI drafts, and team access. Subscriptions are billed
-          in USD.
+          Requo pricing is per business: start free with the complete
+          inquiry-to-payment workflow, then upgrade for automatic follow-ups,
+          more live services, more AI drafting, and team access.{" "}
+          {proTrialSummary}. Local pricing is shown for supported countries;
+          subscriptions are billed per business in the currency shown at
+          checkout.
         </p>
       </div>
 

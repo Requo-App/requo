@@ -60,7 +60,7 @@ export function getUnifiedSettingsNavigation(
         },
         {
           href: `/${slug}/settings/ai`,
-          label: "Assistant",
+          label: "Customer agent",
           icon: "astroid",
         },
         {

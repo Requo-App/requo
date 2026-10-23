@@ -10,6 +10,7 @@
  */
 
 import type { PlanTier } from "@/lib/plans/plans";
+import { PRO_TRIAL_DAYS } from "@/lib/plans/plans";
 import {
   formatUsageLimitValue,
   getUsageLimit,
@@ -24,19 +25,24 @@ export type PlanCatalogEntry = {
   highlights: readonly string[];
 };
 
+/** Canonical trial copy shared by the pricing page, plan sheet, and docs. */
+export const proTrialSummary = `One-time ${PRO_TRIAL_DAYS}-day Pro trial, no card required`;
+
 export const planCatalog: Record<PlanTier, PlanCatalogEntry> = {
   free: {
     id: "free",
     label: "Free",
     audience: "Solo owners",
-    description: "Run your inquiry and quote workflow for one service business.",
+    description:
+      "Run the complete inquiry-to-payment workflow for one service business.",
     highlights: [
-      "Complete inquiry-to-quote workflow",
-      "Unlimited inquiries, quotes, and manual sharing",
+      "Complete inquiry → quote → invoice → payment workflow",
+      "Unlimited inquiries, quotes, invoices, and manual payments",
       "About 10 AI quote drafts per month",
-      "15 Requo email sends per month",
-      "One live service",
-      "Inquiry and quote CSV exports",
+      "20 Requo email sends per month",
+      "2 live services",
+      "Inquiry, quote, and invoice CSV, PDF, and PNG exports",
+      `One-time ${PRO_TRIAL_DAYS}-day Pro trial; no card required`,
     ],
   },
   pro: {
@@ -50,7 +56,8 @@ export const planCatalog: Record<PlanTier, PlanCatalogEntry> = {
       "Custom email templates and Requo branding removal",
       "About 50 AI quote drafts per month",
       "200 Requo email sends per month",
-      "5 live services",
+      "10 live services",
+      "AI customer agent and workflow recipes",
       "Advanced analytics and scheduled reports",
     ],
   },
@@ -58,14 +65,16 @@ export const planCatalog: Record<PlanTier, PlanCatalogEntry> = {
     id: "business",
     label: "Business",
     audience: "Small teams",
-    description: "Give a small team shared access, roles, and higher limits.",
+    description:
+      "Give a small team shared access, roles, and higher limits.",
     highlights: [
+      "Everything in Pro",
       "Up to 5 members with roles",
-      "Audit log access",
+      "Audit log access and team analytics",
       "About 165 AI quote drafts per month",
       "500 Requo email sends per month",
-      "10 live services",
-      "Unlimited pricing library",
+      "Unlimited live services",
+      "Up to 500 AI customer agent sessions per month",
     ],
   },
 };
@@ -91,22 +100,42 @@ export const pricingFaqs = [
   {
     question: "What does a Requo subscription cost?",
     answer:
-      "Free is $0. Pro is $9 per month or $90 per year. Business is $24 per month or $240 per year. Annual billing includes two months free, and paid subscriptions are billed per business.",
+      "Free is $0. In USD, Pro is $9 per month or $90 per year, and Business is $24 per month or $240 per year. Visitors in supported countries see fixed local prices instead of USD, and annual billing includes two months free. Paid subscriptions are billed per business.",
+  },
+  {
+    question: "Is there a free trial?",
+    answer:
+      "Yes. New business owners get a one-time 14-day Pro trial with no card required. Existing Free businesses can start it from Billing. You get Pro features during the trial. When it ends, the business returns to the Free plan and your inquiries, quotes, invoices, and payment records stay intact.",
   },
   {
     question: "Which currency am I billed in?",
     answer:
-      "Subscriptions are billed in USD through Polar. This page may show approximate local pricing for reference, but checkout and invoices use USD.",
+      "Subscriptions are billed in the fixed local currency shown at checkout for your billing country. Requo supports USD, PHP, GBP, CAD, AUD, EUR, NZD, SGD, AED, INR, and ZAR. These are fixed local prices, not runtime conversions, and countries without a local price use USD.",
+  },
+  {
+    question: "Where is local pricing available?",
+    answer:
+      "Local pricing is shown for the United Kingdom, Canada, Australia, the eurozone, New Zealand, Singapore, the United Arab Emirates, the Philippines, India, and South Africa. Other countries use USD. Polar selects the currency from your location and shows the final amount before payment.",
+  },
+  {
+    question: "Are taxes included in the price?",
+    answer:
+      "Taxes are calculated by Polar at checkout based on your billing country. Some countries show tax-inclusive prices, while others add tax to the listed price. The checkout total is the final amount charged.",
   },
   {
     question: "Can I start free and upgrade later?",
     answer:
-      "Yes. Start free with the core inquiry-to-quote workflow, then upgrade a business when you need automatic follow-ups, more live services, more AI drafting, advanced analytics, or team access.",
+      "Yes. Start free with the complete inquiry-to-payment workflow, then upgrade a business when you need automatic follow-ups, more live services, more AI drafting, advanced analytics, or team access.",
   },
   {
     question: "What is included in the free plan?",
     answer:
-      "The core inquiry-to-quote workflow with unlimited inquiries and quotes, manual follow-up reminders, CSV exports, one live inquiry form, and about 10 AI quote drafts per month.",
+      "The complete inquiry-to-payment workflow: unlimited inquiries, quotes, invoices, and manual payment records, manual follow-up reminders, customer-facing quote acceptance, CSV, PDF, and PNG exports, two live services, 20 Requo email sends per month, and about 10 AI quote drafts per month.",
+  },
+  {
+    question: "What happens when the trial ends?",
+    answer:
+      "The business moves to the Free plan automatically. Pro-only features lock, but your data stays available. You can choose a paid plan at any time to restore them. If you subscribe during the trial, the trial ends and billing starts immediately.",
   },
   {
     question: "What happens after a customer accepts a quote?",
@@ -159,13 +188,14 @@ export const pricingComparison: PricingComparisonCategory[] = [
   {
     category: "Core workflow",
     features: [
-      { label: "Inquiries and quotes", free: "Unlimited", pro: "Unlimited", business: "Unlimited" },
+      { label: "Inquiries, quotes, and invoices", free: "Unlimited", pro: "Unlimited", business: "Unlimited" },
       { label: "Public inquiry submissions", free: "Unlimited", pro: "Unlimited", business: "Unlimited" },
-      { label: "Public quote pages and response tracking", free: true, pro: true, business: true },
+      { label: "Public quote pages and customer acceptance", free: true, pro: true, business: true },
+      { label: "Manual payment records", free: true, pro: true, business: true },
       { label: "Manual link sharing", free: "Unlimited", pro: "Unlimited", business: "Unlimited" },
       { label: "Customer history", free: true, pro: true, business: true },
       { label: "Manual follow-ups", free: true, pro: true, business: true },
-      { label: "Inquiry and quote CSV exports", free: true, pro: true, business: true },
+      { label: "Inquiry, quote, and invoice exports (CSV, PDF, PNG)", free: true, pro: true, business: true },
       {
         label: "Live services",
         free: limitCell("free", "liveServicesPerBusiness"),
@@ -191,6 +221,12 @@ export const pricingComparison: PricingComparisonCategory[] = [
     features: [
       { label: "AI quote drafting", free: aiDraftCell("free"), pro: aiDraftCell("pro"), business: aiDraftCell("business") },
       {
+        label: "AI assistant messages per day",
+        free: limitCell("free", "assistantMessagesPerDay"),
+        pro: limitCell("pro", "assistantMessagesPerDay"),
+        business: limitCell("business", "assistantMessagesPerDay"),
+      },
+      {
         label: "Requo email sends per month",
         free: limitCell("free", "requoDocumentEmailsPerMonth"),
         pro: limitCell("pro", "requoDocumentEmailsPerMonth"),
@@ -203,6 +239,14 @@ export const pricingComparison: PricingComparisonCategory[] = [
         pro: limitCell("pro", "autoFollowUpEmailsPerMonth"),
         business: limitCell("business", "autoFollowUpEmailsPerMonth"),
       },
+      { label: "AI customer agent", free: false, pro: true, business: true },
+      {
+        label: "AI customer agent sessions per month",
+        free: limitCell("free", "agentSessionsPerMonth"),
+        pro: limitCell("pro", "agentSessionsPerMonth"),
+        business: limitCell("business", "agentSessionsPerMonth"),
+      },
+      { label: "Custom workflow recipes", free: false, pro: true, business: true },
       {
         label: "Quote library entries",
         free: limitCell("free", "quoteLibraryEntriesPerBusiness"),
@@ -223,8 +267,10 @@ export const pricingComparison: PricingComparisonCategory[] = [
       { label: "Remove Requo branding", free: false, pro: true, business: true },
       { label: "Custom quote email templates", free: false, pro: true, business: true },
       { label: "Service page customization", free: false, pro: true, business: true },
+      { label: "Analytics history", free: "30 days", pro: "24 months", business: "All-time" },
       { label: "Advanced analytics", free: false, pro: true, business: true },
       { label: "Scheduled analytics reports", free: false, pro: true, business: true },
+      { label: "Daily analytics series export", free: false, pro: false, business: true },
     ],
   },
   {
@@ -237,6 +283,7 @@ export const pricingComparison: PricingComparisonCategory[] = [
         business: `Up to ${limitCell("business", "membersPerBusiness")}`,
       },
       { label: "Roles and permissions", free: false, pro: false, business: true },
+      { label: "Team analytics", free: false, pro: false, business: true },
       { label: "Audit log access", free: false, pro: false, business: true },
     ],
   },

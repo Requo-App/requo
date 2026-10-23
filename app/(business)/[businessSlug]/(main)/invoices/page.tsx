@@ -21,7 +21,6 @@ import {
 } from "@/features/businesses/routes";
 import { getAppShellContext } from "@/lib/app-shell/context";
 import { getCachedPageWindow } from "@/lib/pagination";
-import { hasFeatureAccess } from "@/lib/plans";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 
 type InvoicesPageProps = {
@@ -103,11 +102,6 @@ async function InvoicesHeaderActionsRegion({
     sort: filters.sort,
   };
 
-  const canExport = hasFeatureAccess(
-    businessContext.business.plan,
-    "exports",
-  );
-
   const invoiceCountPromise = getInvoiceListCountForBusiness({
     businessId: businessContext.business.id,
     filters: baseFilters,
@@ -116,7 +110,6 @@ async function InvoicesHeaderActionsRegion({
   return (
     <InvoiceListHeaderActions
       businessSlug={businessSlug}
-      canExport={canExport}
       filters={filters}
       searchParams={resolvedSearchParams}
       totalItemsPromise={invoiceCountPromise}
@@ -153,11 +146,6 @@ async function InvoicesControlsRegion({
     sort: filters.sort,
   };
 
-  const canExport = hasFeatureAccess(
-    businessContext.business.plan,
-    "exports",
-  );
-
   const invoiceCountPromise = getInvoiceListCountForBusiness({
     businessId: businessContext.business.id,
     filters: baseFilters,
@@ -166,7 +154,6 @@ async function InvoicesControlsRegion({
   return (
     <InvoiceListControlsSection
       businessSlug={businessSlug}
-      canExport={canExport}
       filters={filters}
       searchParams={resolvedSearchParams}
       totalItemsPromise={invoiceCountPromise}

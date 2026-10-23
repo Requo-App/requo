@@ -11,17 +11,17 @@ const ASSISTANT_TAB_KEYS = ["assistant", "knowledge"] as const;
 type AssistantTabKey = (typeof ASSISTANT_TAB_KEYS)[number];
 
 type AssistantSettingsTabsProps = {
-  /** Public chat + business instructions ("Assistant" tab, selected by default). */
+  /** Public chat + business instructions ("Customer agent" tab, selected by default). */
   assistant: ReactNode;
   /** Business knowledge base ("Knowledge base" tab). */
   knowledge: ReactNode;
 };
 
 /**
- * Tabbed shell for the assistant settings surface.
+ * Tabbed shell for the customer agent settings surface.
  *
- * Mirrors QuoteSettingsTabs: Assistant defaults and Knowledge base without a
- * route change; the knowledge manager used to live at
+ * Mirrors QuoteSettingsTabs: Customer agent defaults and Knowledge base
+ * without a route change; the knowledge manager used to live at
  * /settings/knowledge-base. Both tab bodies are server-rendered and passed
  * in, so each keeps its own Suspense boundary from the page. Selection syncs
  * to the URL hash (#assistant, #knowledge) so tabs are deep-linkable.
@@ -46,11 +46,11 @@ export function AssistantSettingsTabs({
     >
       <div className="sticky top-13 z-20 bg-muted lg:top-12">
         <TabList
-          aria-label="Assistant settings sections"
+          aria-label="Customer agent settings sections"
           className="justify-center"
         >
           <Tab id="assistant" icon={RiSparklingLine}>
-            Assistant
+            Customer agent
           </Tab>
           <Tab id="knowledge" icon={RiBookLine}>
             Knowledge base

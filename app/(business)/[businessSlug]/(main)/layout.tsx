@@ -16,6 +16,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { UpgradeButton } from "@/features/billing/components/upgrade-button";
 import { BusinessCheckoutProvider } from "@/features/billing/components/business-checkout-provider";
+import { TrialBanner } from "@/features/billing/components/trial-banner";
 import { UpgradeSuccessModal } from "@/features/billing/components/upgrade-success-modal";
 import { LockedBusinessSurface } from "@/features/businesses/components/locked-business-surface";
 import { ArchivedBusinessBanner } from "@/features/businesses/components/archived-business-banner";
@@ -27,7 +28,10 @@ import { InquiryUnreadBadgeSlot } from "@/features/inquiries/components/inquiry-
 import { getBusinessNotificationBellView } from "@/features/notifications/queries";
 import { DashboardNotificationBell } from "@/features/notifications/components/dashboard-notification-bell";
 import { SidebarChecklistSection } from "@/features/onboarding/components/sidebar-checklist-section";
-import { getBusinessHomePath } from "@/features/businesses/routes";
+import {
+  getBusinessHomePath,
+  getBusinessSettingsPath,
+} from "@/features/businesses/routes";
 import { getAppShellContext } from "@/lib/app-shell/context";
 
 /**
@@ -198,17 +202,25 @@ async function UpgradeSlot({ businessSlug }: { businessSlug: string }) {
     return null;
   }
 
+  const isTrialing =
+    billing.subscription?.status === "trialing" &&
+    billing.currentPlan === "pro";
+
   return (
     <BusinessCheckoutProvider billing={billing}>
       <div className="shrink-0">
         <UpgradeButton
           className="whitespace-nowrap"
           currentPlan={billing.currentPlan}
+          isTrialing={isTrialing}
           size="sm"
+          targetPlan={isTrialing ? "pro" : undefined}
           userId={billing.userId}
           businessId={billing.businessId}
           businessSlug={businessContext.business.slug}
-        />
+        >
+          {isTrialing ? "Choose plan" : undefined}
+        </UpgradeButton>
       </div>
     </BusinessCheckoutProvider>
   );
@@ -229,20 +241,40 @@ async function ChecklistSlot({ businessSlug }: { businessSlug: string }) {
 async function BannerSlot({ businessSlug }: { businessSlug: string }) {
   const { businessContext } = await getAppShellContext(businessSlug);
 
-  if (businessContext.business.recordState !== "archived") {
-    return null;
+  if (businessContext.business.recordState === "archived") {
+    return (
+      <ArchivedBusinessBanner
+        dashboardHref={getBusinessHomePath(businessContext.business.slug)}
+        unarchiveAction={unarchiveBusinessAction.bind(
+          null,
+          businessContext.business.id,
+          businessContext.business.slug,
+        )}
+      />
+    );
   }
 
-  return (
-    <ArchivedBusinessBanner
-      dashboardHref={getBusinessHomePath(businessContext.business.slug)}
-      unarchiveAction={unarchiveBusinessAction.bind(
-        null,
-        businessContext.business.id,
-        businessContext.business.slug,
-      )}
-    />
-  );
+  const billing = await getBusinessBillingShellOverview(
+    businessContext.business.id,
+  ).catch(() => null);
+
+  if (
+    billing?.currentPlan === "pro" &&
+    billing.subscription?.status === "trialing" &&
+    billing.subscription.trialEndsAt
+  ) {
+    return (
+      <TrialBanner
+        trialEndsAt={billing.subscription.trialEndsAt}
+        billingHref={getBusinessSettingsPath(
+          businessContext.business.slug,
+          "billing",
+        )}
+      />
+    );
+  }
+
+  return null;
 }
 
 async function RecentBusinessTrackerSlot({ businessSlug }: { businessSlug: string }) {

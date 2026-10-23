@@ -4,8 +4,14 @@ import { and, eq, isNull, sql } from "drizzle-orm";
 
 import { getPublicQuoteUrl } from "@/features/quotes/utils";
 import { getLocalDateString } from "@/features/follow-ups/utils";
+import { resolveEffectivePlanFromSubscriptionFields } from "@/lib/billing/subscription-service";
 import { db } from "@/lib/db/client";
-import { activityLogs, businesses, quotes } from "@/lib/db/schema";
+import {
+  activityLogs,
+  businesses,
+  businessSubscriptions,
+  quotes,
+} from "@/lib/db/schema";
 import { env, isQuoteAutoFollowUpEmailEnabled } from "@/lib/env";
 import { hasFeatureAccess } from "@/lib/plans/entitlements";
 import type { PlanTier } from "@/lib/plans/plans";
@@ -87,7 +93,11 @@ export async function processQuoteAutoFollowUps(): Promise<AutoFollowUpsSummary>
       quoteId: quotes.id,
       businessId: quotes.businessId,
       businessName: businesses.name,
-      businessPlan: businesses.plan,
+      businessSubscriptionStatus: businessSubscriptions.status,
+      businessSubscriptionPlan: businessSubscriptions.plan,
+      businessSubscriptionCurrentPeriodEnd:
+        businessSubscriptions.currentPeriodEnd,
+      businessSubscriptionTrialEndsAt: businessSubscriptions.trialEndsAt,
       businessContactEmail: businesses.contactEmail,
       defaultEmailSignature: businesses.defaultEmailSignature,
       quoteFollowUpTemplate: businesses.quoteFollowUpTemplate,
@@ -106,6 +116,10 @@ export async function processQuoteAutoFollowUps(): Promise<AutoFollowUpsSummary>
     })
     .from(quotes)
     .innerJoin(businesses, eq(quotes.businessId, businesses.id))
+    .leftJoin(
+      businessSubscriptions,
+      eq(businessSubscriptions.businessId, businesses.id),
+    )
     .where(
       and(
         eq(quotes.status, "sent"),
@@ -145,7 +159,12 @@ export async function processQuoteAutoFollowUps(): Promise<AutoFollowUpsSummary>
       continue;
     }
 
-    const plan = row.businessPlan as PlanTier;
+    const plan = resolveEffectivePlanFromSubscriptionFields({
+      status: row.businessSubscriptionStatus,
+      plan: row.businessSubscriptionPlan,
+      currentPeriodEnd: row.businessSubscriptionCurrentPeriodEnd,
+      trialEndsAt: row.businessSubscriptionTrialEndsAt,
+    });
 
     // A business that downgraded keeps `autoFollowUpEnabled` on the row but
     // must stop sending. Re-check the entitlement at send time, not just at

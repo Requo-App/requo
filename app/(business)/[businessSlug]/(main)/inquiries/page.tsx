@@ -23,7 +23,6 @@ import {
 } from "@/features/businesses/routes";
 import { getAppShellContext } from "@/lib/app-shell/context";
 import { getCachedPageWindow } from "@/lib/pagination";
-import { hasFeatureAccess } from "@/lib/plans";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 
 type InquiriesPageProps = {
@@ -129,11 +128,6 @@ async function InquiriesHeaderActionsRegion({
     unread: false,
   };
 
-  const canExport = hasFeatureAccess(
-    businessContext.business.plan,
-    "exports",
-  );
-
   const inquiryCountPromise = getInquiryListCountForBusiness({
     businessId: businessContext.business.id,
     filters: baseFilters,
@@ -166,7 +160,6 @@ async function InquiriesHeaderActionsRegion({
   return (
     <InquiryListHeaderActions
       businessSlug={businessSlug}
-      canExport={canExport}
       filters={filters}
       formOptionsPromise={inquiryFormOptionsPromise}
       archivedItemsPromise={archivedItemsPromise}
@@ -204,11 +197,6 @@ async function InquiriesControlsRegion({
     unread: false,
   };
 
-  const canExport = hasFeatureAccess(
-    businessContext.business.plan,
-    "exports",
-  );
-
   const inquiryCountPromise = getInquiryListCountForBusiness({
     businessId: businessContext.business.id,
     filters: baseFilters,
@@ -220,7 +208,6 @@ async function InquiriesControlsRegion({
   return (
     <InquiryListControlsSection
       businessSlug={businessSlug}
-      canExport={canExport}
       filters={filters}
       formOptionsPromise={inquiryFormOptionsPromise}
       unarchiveAction={unarchiveInquiryAction}

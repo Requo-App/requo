@@ -14,6 +14,8 @@ import {
   parseAuditLogFilters,
 } from "@/features/audit/queries";
 import { getBusinessSettingsPath } from "@/features/businesses/routes";
+import { FeatureGate } from "@/features/entitlements";
+import { hasFeatureAccess } from "@/lib/plans/entitlements";
 import { getBusinessOperationalPageContext } from "../_lib/page-context";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 
@@ -69,7 +71,30 @@ async function AuditLogShell({
     params,
     searchParams,
   ]);
-  const { user } = await getBusinessOperationalPageContext(businessSlug);
+  const { user, businessContext } =
+    await getBusinessOperationalPageContext(businessSlug);
+  const { business } = businessContext;
+
+  // Gate before starting any audit queries. Audit logs are a Business-plan
+  // entitlement, so Free and Pro requests must not read audit rows at all.
+  if (!hasFeatureAccess(business.plan, "auditLogs")) {
+    return (
+      <FeatureGate
+        feature="auditLogs"
+        plan={business.plan}
+        variant="page"
+        upgradeAction={{
+          userId: user.id,
+          businessId: business.id,
+          businessSlug: business.slug,
+          currentPlan: business.plan,
+        }}
+      >
+        <></>
+      </FeatureGate>
+    );
+  }
+
   const filters = parseAuditLogFilters(resolvedSearchParams);
 
   // Start both queries in parallel; each streams behind its own boundary.
