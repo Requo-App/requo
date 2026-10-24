@@ -54,14 +54,19 @@ workflow. Full procedure and production constraints: [Database Migrations](../da
 Focused commands include `npm run test:unit`, `npm run test:components`, and
 `npm run check:models`. `npm run test:integration` checks the database, applies
 migrations, then runs integration tests. PR CI (`.github/workflows/ci.yml`)
-runs four parallel jobs — `check` (`npm run check` with dummy base env and
+runs five parallel jobs — `check` (`npm run check` with dummy base env and
 `CATALOG_DRIFT_ALLOW_MISSING=1`, so live provider listing is skipped),
 `test` (`npm run test`), `integration` (`npm run test:integration` against a
 plain Postgres service bootstrapped with the Supabase roles and storage table
-the migrations reference), and `build` (`npm run build` with placeholder
-`NEXT_PUBLIC_*`) — it does not run Playwright suites. The live catalog
-comparison runs strictly in the scheduled `model-drift` workflow with real
-provider secrets (`npm run check:models` without the allow-missing flag).
+the migrations reference), `e2e` (`npm run test:e2e:smoke` against the same
+bootstrap, with Chromium installed), and `build` (`npm run build` with
+placeholder `NEXT_PUBLIC_*`). The smoke lane covers owner sign-in, inquiry
+submission, quote creation/sharing/acceptance, invoice creation, payment
+recording, business isolation, and the Agent/Assistant conversations. The full
+Playwright suite remains a local or pre-release check (`npm run test:e2e`). The
+live catalog comparison runs strictly in the scheduled `model-drift` workflow
+with real provider secrets (`npm run check:models` without the allow-missing
+flag).
 
 ## Repository conventions
 

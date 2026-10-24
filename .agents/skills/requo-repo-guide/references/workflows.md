@@ -64,7 +64,7 @@ Authz/tenant changes need denial cases at the server/data boundary.
 - Actions/handlers/billing/authz/DB: + `npm run test:integration`.
 - Route/layout/system wiring: + `npm run build`.
 - Covered user flows: relevant `npm run test:e2e:smoke`.
-- CI runs `check` + `test` + `integration` (real Postgres, migrations applied) + `build`; Playwright suites remain local. Never claim a command passed unless it ran.
+- CI runs `check` + `test` + `integration` (real Postgres, migrations applied) + `e2e` (Playwright smoke) + `build`; the full Playwright suite remains local/pre-release. Never claim a command passed unless it ran.
 
 ## Docs and change rules
 

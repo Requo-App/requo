@@ -6,6 +6,9 @@ import {
   demoOwnerPassword,
   demoBusinessSlug,
 } from "./fixtures";
+import { registerSmokeGuard } from "./smoke-registry";
+
+registerSmokeGuard();
 
 test.describe.configure({ mode: "serial" });
 
@@ -206,7 +209,7 @@ test("dashboard and detail pages surface follow-up, expiring-soon, and customer 
   ).toBeVisible();
 });
 
-test("owner can open the quote editor from an inquiry and create a linked draft quote", async ({
+test("owner can open the quote editor from an inquiry and create a linked draft quote @smoke", async ({
   page,
 }) => {
   test.setTimeout(180_000);

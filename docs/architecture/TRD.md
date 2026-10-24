@@ -378,10 +378,12 @@ online docs; this app currently pins Next.js 16.3.8.
 
 Unit and component tests use Vitest; database-backed behavior uses a separate
 Vitest integration configuration; Playwright covers browser journeys. The
-GitHub Actions workflow currently runs `npm ci`, `npm run check`, `npm run
-test`, and `npm run build`; local integration and browser smoke commands exist
-but are not run by that workflow. See [`tests/README.md`](../../tests/README.md)
-and [Development](../engineering/DEVELOPMENT.md).
+GitHub Actions workflow runs `npm ci`, `npm run check`, `npm run test`, `npm
+run test:integration` against a Postgres service, `npm run test:e2e:smoke`
+with Chromium, and `npm run build`. The full Playwright suite is not part of
+PR CI and remains a local or pre-release check. See
+[`tests/README.md`](../../tests/README.md) and
+[Development](../engineering/DEVELOPMENT.md).
 
 ## Known constraints
 
