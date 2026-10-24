@@ -108,6 +108,7 @@ describe("analytics daily rollup definitions", () => {
       customerContactHandle: "taylor@example.com",
       customerEmail: "taylor@example.com",
       status: "accepted",
+      subtotalInCents: 250_000,
       totalInCents: 250_000,
       validUntil: "2026-04-05",
       sentAt: dayStart,
@@ -127,6 +128,7 @@ describe("analytics daily rollup definitions", () => {
       customerContactHandle: "taylor@example.com",
       customerEmail: "taylor@example.com",
       status: "sent",
+      subtotalInCents: 10_000,
       totalInCents: 10_000,
       validUntil: "2026-04-05",
       sentAt: dayStart,
@@ -188,7 +190,7 @@ describe("analytics daily rollup definitions", () => {
     // A second run over the same day updates the row in place.
     await computeDailyRollups({ targetDate });
 
-    const [rows] = await testDb
+    const rows = await testDb
       .select({ id: analyticsDailyRollups.id })
       .from(analyticsDailyRollups)
       .where(

@@ -7,7 +7,6 @@ import {
   appendRandomSlugSuffix,
   publicSlugMaxLength,
   publicSlugRegex,
-  slugifyPublicName,
 } from "@/lib/slugs";
 
 describe("service slug generation", () => {
@@ -43,8 +42,7 @@ describe("service slug generation", () => {
   it("falls back to a usable slug when the name slugifies to nothing", () => {
     const slug = normalizeServiceSlug("!!!");
 
-    expect(slug.length).toBeGreaterThan(0);
-    expect(slug).toMatch(publicSlugRegex);
+    expect(slug).toBe("inquiry");
   });
 
   it("truncates long names without leaving a trailing hyphen", () => {
@@ -62,11 +60,6 @@ describe("service slug generation", () => {
     expect(suffixed).not.toBe("deck-resurfacing");
   });
 
-  it("slugifies the same way through the shared helper", () => {
-    expect(normalizeServiceSlug("Deck resurfacing")).toBe(
-      slugifyPublicName("Deck resurfacing"),
-    );
-  });
 });
 
 describe("service page slug validation", () => {

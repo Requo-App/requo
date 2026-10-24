@@ -1,6 +1,6 @@
 <!-- BEGIN:nextjs-agent-rules -->
 
-# This is NOT the Next.js you know
+## This is NOT the Next.js you know
 
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
 
@@ -61,6 +61,20 @@ follow-up, and invoice workflows. The authoritative documentation map is
   covered browser journeys.
 - Update tests when behavior changes. Update the PRD/TRD or a focused guide
   when a material product, architecture, security, or operations fact changes.
+
+## Test policy
+
+- A changed file does not automatically need a new test. Tests protect
+  behavior, contracts, and credible regressions, not file or export existence.
+- Search for existing coverage first. Improve an existing test when its
+  assertions are weak; add a regression test when a defect exposes an
+  unprotected guarantee.
+- Test at the lowest layer that proves the behavior. Keep separate tests when
+  they independently protect different boundaries.
+- Assert meaningful outcomes. Avoid implementation-detail checks, duplicate
+  scenarios, mock echoes, and production seams that exist only for tests.
+- Run new or changed tests. Never weaken assertions or add skips, retries,
+  timeouts, or mocks to hide a failure.
 
 ## Data and security
 

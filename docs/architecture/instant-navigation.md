@@ -73,16 +73,15 @@ number or the customer name it had already fetched — until items, notes,
 attachments, payments, and customer history had all resolved.
 
 The pattern now is **one cheap identity read in the frame, one boundary per
-feed**:
+feed**. Use distinct error messages for failed feeds and keep loading skeletons
+in `Suspense` fallbacks, as illustrated for customer history and follow-ups below:
 
 ```tsx
 export default function QuoteDetailPage({ params }: QuoteDetailPageProps) {
   return (
-    <RegionErrorBoundary fallback={<DashboardDetailPageSkeleton variant="quote" />}>
-      <Suspense fallback={<DashboardDetailPageSkeleton variant="quote" />}>
-        <QuoteDetailRegion params={params} />
-      </Suspense>
-    </RegionErrorBoundary>
+    <Suspense fallback={<DashboardDetailPageSkeleton variant="quote" />}>
+      <QuoteDetailRegion params={params} />
+    </Suspense>
   );
 }
 
@@ -107,9 +106,19 @@ async function QuoteDetailRegion({ params }: QuoteDetailPageProps) {
         <QuoteEditorRegion businessId={businessId} quote={quote} />
       </Suspense>
 
-      <RegionErrorBoundary fallback={<QuoteCustomerHistoryFallback />}>
+      <RegionErrorBoundary
+        fallback={<p role="alert">Customer history could not be loaded.</p>}
+      >
         <Suspense fallback={<QuoteCustomerHistoryFallback />}>
           <QuoteCustomerHistoryRegion businessId={businessId} quoteId={quote.id} />
+        </Suspense>
+      </RegionErrorBoundary>
+
+      <RegionErrorBoundary
+        fallback={<p role="alert">Follow-ups could not be loaded.</p>}
+      >
+        <Suspense fallback={<FollowUpPanelFallback />}>
+          <QuoteFollowUpsRegion businessId={businessId} quoteId={quote.id} />
         </Suspense>
       </RegionErrorBoundary>
     </>
@@ -134,9 +143,13 @@ Rules that keep the split honest:
   rather than receiving it through props (the invoice status tiles do this); the
   `"use cache"` / `React.cache()` layer makes the repeat read free, and no region
   depends on another having resolved first.
-- **Every feed gets its own `<Suspense>`**, and its own `<RegionErrorBoundary>`
-  where it can fail alone (customer history, follow-up panel, duplicate banner),
-  so one failing feed degrades one card instead of the page.
+- **Every feed gets its own `<Suspense>`**, and a `<RegionErrorBoundary>` only
+  where the feed has a fallback that communicates the failure (customer history,
+  follow-up panel). `InquiryDuplicateBannerRegion` currently has only a
+  `<Suspense>` boundary. Quote and inquiry detail deliberately do
+  not wrap the whole page: their skeleton fallback made a thrown region look
+  like a page that never finished loading, so whole-page failures reach the
+  segment `error.tsx` retry card instead.
 - **Keep the aggregate queries.** `getInquiryDetailForBusiness`,
   `getQuoteDetailForBusiness`, and `getInvoiceForBusiness` are still consumed by
   print routes, the public preview, export API routes, and quote/invoice
@@ -233,7 +246,7 @@ dev overlay surfaces which routes pass or fail during development.
 
 ### Region-level failures
 
-Each data-dependent region streams behind its own `<Suspense>`. Independently-failing regions are additionally wrapped in `<RegionErrorBoundary>`:
+Each data-dependent region streams behind its own `<Suspense>`. A feed is additionally wrapped in `<RegionErrorBoundary>` when its failure can be shown in place:
 
 ```tsx
 <RegionErrorBoundary fallback={<ErrorIndication />}>
@@ -244,6 +257,8 @@ Each data-dependent region streams behind its own `<Suspense>`. Independently-fa
 ```
 
 If the child throws, only that region shows the error fallback. The structural shell and sibling regions stay rendered.
+
+Do not wrap a whole detail page in `RegionErrorBoundary` with a loading skeleton as the fallback: a thrown frame then renders as a skeleton forever. Quote and inquiry detail leave those failures to `app/(business)/[businessSlug]/(main)/error.tsx`, which renders the retryable "This view did not load" card.
 
 ### Authorization
 

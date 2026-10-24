@@ -58,7 +58,10 @@ test("expired public quote links stay read-only", async ({ page }) => {
   await page.goto(`/quote/${demoExpiredQuotePublicToken}`);
   await page.waitForLoadState("networkidle");
 
-  await expect(page.getByText("Quote no longer active")).toBeVisible();
+  await expect(page.getByText("Quote expired", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText(/This quote expired on .+ Contact the business if you'd still like to proceed\./),
+  ).toBeVisible();
   await expect(page.getByRole("button", { name: "Accept & Sign" })).toHaveCount(0);
 });
 

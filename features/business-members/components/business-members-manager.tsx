@@ -303,7 +303,7 @@ export function BusinessMembersManager({
               <span className="meta-label">Role</span>
               <span className="meta-label sr-only">Actions</span>
             </div>
-            <div className="flex flex-col">
+            <div className="flex flex-col" role="list">
               {filteredMembers.map((member) => (
                 <MemberRow
                   key={member.membershipId}
@@ -314,25 +314,25 @@ export function BusinessMembersManager({
                   readOnly={readOnly}
                 />
               ))}
-              {filteredMembers.length === 0 ? (
-                <div className="flex flex-col items-center gap-2 py-10 text-center">
-                  <p className="text-sm font-medium text-foreground">
-                    No team members match “{search.trim()}”.
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Try a different name or email address.
-                  </p>
-                  <Button
-                    size="sm"
-                    type="button"
-                    variant="outline"
-                    onClick={() => setSearch("")}
-                  >
-                    Clear search
-                  </Button>
-                </div>
-              ) : null}
             </div>
+            {filteredMembers.length === 0 ? (
+              <div className="flex flex-col items-center gap-2 py-10 text-center">
+                <p className="text-sm font-medium text-foreground">
+                  No team members match “{search.trim()}”.
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Try a different name or email address.
+                </p>
+                <Button
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                  onClick={() => setSearch("")}
+                >
+                  Clear search
+                </Button>
+              </div>
+            ) : null}
           </div>
 
       {view.invites.length ? (
@@ -710,7 +710,7 @@ function MemberRow({
   const showActions = !readOnly || (member.isCurrentUser && canLeave);
 
   return (
-    <div className="border-b border-border">
+    <div className="border-b border-border" role="listitem">
       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 py-3 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1.4fr)_minmax(0,0.8fr)_auto] md:py-2.5">
         <div className="flex min-w-0 items-center gap-3">
           <Avatar className="size-8 shrink-0">

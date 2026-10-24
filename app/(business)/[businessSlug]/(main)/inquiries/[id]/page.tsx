@@ -146,14 +146,11 @@ export const instant = true;
 export default function InquiryDetailPage({
   params,
 }: InquiryDetailPageProps) {
-  // No awaits. Return error and suspense boundaries only; the shared
-  // placeholder supplies the page wrapper (Quote detail pattern).
+  // Keep a Suspense boundary so structural chrome paints before dynamic reads.
   return (
-    <RegionErrorBoundary fallback={<DashboardDetailPageSkeleton variant="inquiry" />}>
-      <Suspense fallback={<DashboardDetailPageSkeleton variant="inquiry" />}>
-        <InquiryDetailRegion params={params} />
-      </Suspense>
-    </RegionErrorBoundary>
+    <Suspense fallback={<DashboardDetailPageSkeleton variant="inquiry" />}>
+      <InquiryDetailRegion params={params} />
+    </Suspense>
   );
 }
 

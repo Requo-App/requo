@@ -71,12 +71,13 @@ async function createFollowUp(
   overrides: CreateOverrides = {},
   businessId = ids.businessId,
   inquiryId: string | null = ids.inquiryId,
+  actorUserId = ids.ownerUserId,
 ) {
   return createFollowUpForBusiness({
     businessId,
     inquiryId,
     quoteId: null,
-    actorUserId: ids.ownerUserId,
+    actorUserId,
     followUp: {
       title: "Call the customer",
       reason: "They asked for a callback.",
@@ -119,7 +120,12 @@ describe("follow-up lifecycle", () => {
   });
 
   it("refuses to create a follow-up against another business's inquiry", async () => {
-    const created = await createFollowUp({}, ids.otherBusinessId, ids.inquiryId);
+    const created = await createFollowUp(
+      {},
+      ids.otherBusinessId,
+      ids.inquiryId,
+      ids.outsiderUserId,
+    );
 
     expect(created).toBeNull();
   });

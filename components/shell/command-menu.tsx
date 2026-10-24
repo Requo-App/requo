@@ -185,8 +185,10 @@ export function CommandMenu({
     setActiveTab("all");
     setState({ status: "idle" });
     setRecents(getRecentSearchRecords(businessSlug));
+    // Focusing the search field must not move the dashboard behind the
+    // dialog to the top of the page.
     const frame = window.requestAnimationFrame(() =>
-      inputRef.current?.focus(),
+      inputRef.current?.focus({ preventScroll: true }),
     );
     return () => window.cancelAnimationFrame(frame);
   }, [open, businessSlug]);
@@ -304,7 +306,7 @@ export function CommandMenu({
                 onClick={() => {
                   setQuery("");
                   setActiveTab("all");
-                  inputRef.current?.focus();
+                  inputRef.current?.focus({ preventScroll: true });
                 }}
                 aria-label="Clear search"
                 className="shrink-0 rounded-md px-2 py-1 text-sm text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-border-focus-ring"

@@ -44,7 +44,7 @@ function InviteAcceptCard({
   detail: ReactNode;
   inviteError: string | undefined;
   token: string;
-  action: (token: string) => Promise<unknown>;
+  action: (token: string) => Promise<void>;
 }) {
   return (
     <AuthShell
@@ -64,7 +64,7 @@ function InviteAcceptCard({
           <p>{detail}</p>
         </div>
 
-        <form action={async () => { await action(token); }}>
+        <form action={action.bind(null, token)}>
           <Button className="w-full" size="lg" type="submit">
             Accept invite
           </Button>
