@@ -15,15 +15,36 @@ root [`SECURITY.md`](../../SECURITY.md).
 - Business records must be scoped through verified membership and
   `businessId`-aware helpers such as `getBusinessActionContext()`. Never trust
   a client-supplied business identifier as authorization.
+- Cross-tenant coverage is required at the data boundary for each record
+  family: inquiries, quotes, invoices, attachments and knowledge files,
+  analytics, exports, and AI tools. Denial cases assert both a null/empty
+  result and that the stored row did not change. Extend the existing
+  `tests/integration/*-tenant-isolation.test.ts` files rather than relying on
+  action-level tests alone.
 - Roles govern business permissions; plan entitlements govern paid access.
   Check paid access server-side before expensive or state-changing work; hiding
   navigation or UI is not an authorization check.
 - [`0007_enable_rls_all_tables.sql`](../../drizzle/0007_enable_rls_all_tables.sql)
   enables RLS and installs default-deny policies for Supabase
   `anon`/`authenticated` roles. Application traffic uses a direct PostgreSQL
-  connection through Drizzle, which bypasses those policies; server-side
-  authorization and tenant-scoped queries are therefore essential, not
-  optional defense in depth.
+  connection through Drizzle with the `postgres` table-owner role, which
+  bypasses those policies. RLS is therefore not an application tenant-isolation
+  layer today; server-side authorization and tenant-scoped predicates are the
+  boundary, not defense in depth. Do not describe enabling or forcing RLS as
+  sufficient protection without also changing the application role and every
+  query path.
+- Scope every business query and mutation through verified membership and
+  `businessId`-aware helpers such as `getBusinessActionContext()`. Even after a
+  scoped read, include both the record id and `businessId` in each `UPDATE` or
+  `DELETE` predicate; a read-then-write that filters only on the record id
+  leaves a cross-tenant window.
+- Direct database access belongs in `features/<domain>/queries.ts` and
+  `features/<domain>/mutations.ts`. UI components, pages, and layouts must not
+  import the DB client, Drizzle, or the Supabase admin client. Server actions
+  may only do so through the explicit allowlist in
+  [`scripts/audit-tenant-boundary.ts`](../../scripts/audit-tenant-boundary.ts);
+  add new entries with a reason, or move the query into the feature module.
+  `npm run audit:tenant-boundary` runs as part of `npm run check`.
 - Admin pages and operations use server-side admin guards. Preserve the
   server checks even where `proxy.ts` also gates `/admin`. The session role
   fast path can trust a cached `admin` role or unbanned status for up to 300

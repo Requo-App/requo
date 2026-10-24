@@ -21,6 +21,7 @@ import {
   businesses,
   businessSubscriptions,
   profiles,
+  user,
 } from "@/lib/db/schema";
 
 async function getCachedAccountProfile(
@@ -239,4 +240,21 @@ export async function getAccountSessionsForUser(): Promise<AccountSessionView[]>
       isCurrent: currentSessionId ? id === currentSessionId : false,
     } satisfies AccountSessionView;
   });
+}
+
+/**
+ * Fresh email lookup for the impersonation banner. We deliberately read the
+ * row on each request instead of trusting the session cookie's cached copy,
+ * so a deleted user or admin is reflected immediately.
+ */
+export async function getUserEmailForImpersonationBanner(
+  userId: string,
+): Promise<string | null> {
+  const [row] = await db
+    .select({ email: user.email })
+    .from(user)
+    .where(eq(user.id, userId))
+    .limit(1);
+
+  return row?.email ?? null;
 }

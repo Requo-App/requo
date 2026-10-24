@@ -1,13 +1,11 @@
 import "server-only";
 
-import { eq } from "drizzle-orm";
 import { UserCog } from "lucide-react";
 
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { getUserEmailForImpersonationBanner } from "@/features/account/queries";
 import { getOptionalSession } from "@/lib/auth/session";
-import { db } from "@/lib/db/client";
-import { user as userTable } from "@/lib/db/schema";
 
 /**
  * Persistent banner shown on every authenticated layout while the
@@ -47,8 +45,8 @@ export async function ImpersonationBanner() {
   }
 
   const [impersonatedUser, adminRow] = await Promise.all([
-    resolveImpersonatedUserLabel(authSession.user.id),
-    resolveAdminLabel(impersonatedBy),
+    getUserEmailForImpersonationBanner(authSession.user.id),
+    getUserEmailForImpersonationBanner(impersonatedBy),
   ]);
 
   const targetLabel = impersonatedUser ?? "an unavailable user";
@@ -72,36 +70,4 @@ export async function ImpersonationBanner() {
       </Alert>
     </div>
   );
-}
-
-/**
- * Return the impersonated user's email if we can still find them,
- * otherwise `null` so the caller can render the deleted-user
- * fallback. We prefer a fresh DB read over `session.user.email` so
- * the banner reflects a cascade delete immediately instead of the
- * cookie's cached copy.
- */
-async function resolveImpersonatedUserLabel(userId: string): Promise<string | null> {
-  const [row] = await db
-    .select({ email: userTable.email })
-    .from(userTable)
-    .where(eq(userTable.id, userId))
-    .limit(1);
-
-  return row?.email ?? null;
-}
-
-/**
- * Resolve the originating admin's email. Returns `null` when the
- * admin row no longer exists (rare but possible if the admin was
- * deleted mid-session).
- */
-async function resolveAdminLabel(adminUserId: string): Promise<string | null> {
-  const [row] = await db
-    .select({ email: userTable.email })
-    .from(userTable)
-    .where(eq(userTable.id, adminUserId))
-    .limit(1);
-
-  return row?.email ?? null;
 }

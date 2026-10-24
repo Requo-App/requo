@@ -1940,7 +1940,12 @@ export async function respondToPublicQuoteByToken({
       const [current] = await tx
         .select({ status: quotes.status })
         .from(quotes)
-        .where(eq(quotes.id, existingQuote.id))
+        .where(
+          and(
+            eq(quotes.id, existingQuote.id),
+            eq(quotes.businessId, existingQuote.businessId),
+          ),
+        )
         .limit(1);
 
       return {
@@ -2789,6 +2794,7 @@ export async function archiveQuoteVersionAndRevise({
       .set({ status: "resolved", resolvedAt: now })
       .where(
         and(
+          eq(quoteRevisionRequests.businessId, businessId),
           eq(quoteRevisionRequests.quoteId, quoteId),
           eq(quoteRevisionRequests.status, "pending"),
         ),
@@ -2812,7 +2818,7 @@ export async function archiveQuoteVersionAndRevise({
         autoFollowUpLastSentAt: null,
         updatedAt: now,
       })
-      .where(eq(quotes.id, quoteId));
+      .where(and(eq(quotes.id, quoteId), eq(quotes.businessId, businessId)));
 
     await insertQuoteActivity(tx, {
       businessId,
@@ -2845,12 +2851,14 @@ export async function archiveQuoteVersionAndRevise({
 // ---------------------------------------------------------------------------
 
 type EnableAutoFollowUpInput = {
+  businessId: string;
   quoteId: string;
   delayDays: number;
   maxAttempts: number;
 };
 
 export async function enableAutoFollowUpForQuote({
+  businessId,
   quoteId,
   delayDays,
   maxAttempts,
@@ -2868,7 +2876,7 @@ export async function enableAutoFollowUpForQuote({
       autoFollowUpStoppedAt: null,
       updatedAt: now,
     })
-    .where(eq(quotes.id, quoteId));
+    .where(and(eq(quotes.id, quoteId), eq(quotes.businessId, businessId)));
 }
 
 export async function stopAutoFollowUpForQuote({

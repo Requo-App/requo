@@ -115,7 +115,12 @@ export async function updateKnowledgeEntry({
   await db
     .update(knowledgeEntries)
     .set(setValues)
-    .where(eq(knowledgeEntries.id, knowledgeEntryId));
+    .where(
+      and(
+        eq(knowledgeEntries.id, knowledgeEntryId),
+        eq(knowledgeEntries.businessId, businessId),
+      ),
+    );
 
   invalidateKnowledgeCache(businessId);
 
@@ -152,7 +157,14 @@ export async function deleteKnowledgeEntry({
     knowledgeEmbeddingText(owned.title, owned.content),
   );
 
-  await db.delete(knowledgeEntries).where(eq(knowledgeEntries.id, knowledgeEntryId));
+  await db
+    .delete(knowledgeEntries)
+    .where(
+      and(
+        eq(knowledgeEntries.id, knowledgeEntryId),
+        eq(knowledgeEntries.businessId, businessId),
+      ),
+    );
 
   invalidateKnowledgeCache(businessId);
 

@@ -69,6 +69,7 @@ export type PushInvoiceOverdueEventData = {
 };
 
 export type EnableQuoteAutoFollowUpEventData = {
+  businessId: string;
   quoteId: string;
   delayDays: number;
   maxAttempts: number;

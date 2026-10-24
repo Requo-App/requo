@@ -316,6 +316,7 @@ export const enableQuoteAutoFollowUp = inngest.createFunction(
 
     await step.run("enable-auto-follow-up", async () => {
       await enableAutoFollowUpForQuote({
+        businessId: data.businessId,
         quoteId: data.quoteId,
         delayDays: data.delayDays,
         maxAttempts: data.maxAttempts,

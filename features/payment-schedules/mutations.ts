@@ -110,7 +110,14 @@ export async function saveScheduleForQuote(input: {
         throw new Error("Accepted schedules are immutable; change them via a change order.");
       }
 
-      await tx.delete(paymentScheduleItems).where(eq(paymentScheduleItems.scheduleId, existing.id));
+      await tx
+        .delete(paymentScheduleItems)
+        .where(
+          and(
+            eq(paymentScheduleItems.scheduleId, existing.id),
+            eq(paymentScheduleItems.businessId, input.businessId),
+          ),
+        );
       await tx
         .update(paymentSchedules)
         .set({
@@ -119,7 +126,12 @@ export async function saveScheduleForQuote(input: {
           displayTotalCents: coherence.totalCents,
           updatedAt: now,
         })
-        .where(eq(paymentSchedules.id, existing.id));
+        .where(
+          and(
+            eq(paymentSchedules.id, existing.id),
+            eq(paymentSchedules.businessId, input.businessId),
+          ),
+        );
 
       scheduleId = existing.id;
     } else {
@@ -243,7 +255,12 @@ export async function acceptScheduleForQuote(
       await tx
         .update(paymentScheduleItems)
         .set({ computedAmountCents: item.computedAmountCents, updatedAt: now })
-        .where(eq(paymentScheduleItems.id, row.id));
+        .where(
+          and(
+            eq(paymentScheduleItems.id, row.id),
+            eq(paymentScheduleItems.businessId, input.businessId),
+          ),
+        );
     }
     position += 1;
   }
@@ -256,7 +273,12 @@ export async function acceptScheduleForQuote(
       displayTotalCents: coherence.totalCents,
       updatedAt: now,
     })
-    .where(eq(paymentSchedules.id, schedule.id))
+    .where(
+      and(
+        eq(paymentSchedules.id, schedule.id),
+        eq(paymentSchedules.businessId, input.businessId),
+      ),
+    )
     .returning();
 
   await writeAuditLog(tx, {
