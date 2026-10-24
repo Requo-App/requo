@@ -1538,7 +1538,12 @@ export async function autoCloseFollowUpsForQuote({
           snoozedUntil: null,
           updatedAt: now,
         })
-        .where(eq(followUps.id, fup.id));
+        .where(
+          and(
+            eq(followUps.id, fup.id),
+            eq(followUps.businessId, businessId),
+          ),
+        );
 
       await tx.insert(activityLogs).values({
         id: createActivityId(),

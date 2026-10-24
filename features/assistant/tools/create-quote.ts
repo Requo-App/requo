@@ -187,7 +187,12 @@ export const createQuoteTool = tool<CreateQuoteInput, CreateQuoteOutput>({
       const [row] = await db
         .select({ totalInCents: quotes.totalInCents })
         .from(quotes)
-        .where(eq(quotes.id, created.id))
+        .where(
+          and(
+            eq(quotes.id, created.id),
+            eq(quotes.businessId, context.businessId),
+          ),
+        )
         .limit(1);
 
       const total = centsToDollars(row?.totalInCents);

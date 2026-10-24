@@ -620,6 +620,7 @@ export async function sendQuoteAction(
 
       if (activeAllowance.allowed) {
         void sendEnableQuoteAutoFollowUpEvent({
+          businessId: businessContext.business.id,
           quoteId,
           delayDays,
           maxAttempts,

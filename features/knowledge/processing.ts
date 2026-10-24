@@ -108,7 +108,12 @@ export async function processKnowledgeFile({
       failureReason: null,
       updatedAt: new Date(),
     })
-    .where(eq(businessKnowledgeFiles.id, fileId));
+    .where(
+      and(
+        eq(businessKnowledgeFiles.id, fileId),
+        eq(businessKnowledgeFiles.businessId, businessId),
+      ),
+    );
 
   let extracted: Awaited<ReturnType<typeof extractKnowledgeText>>;
 
@@ -204,7 +209,12 @@ export async function processKnowledgeFile({
       failureReason: null,
       updatedAt: new Date(),
     })
-    .where(eq(businessKnowledgeFiles.id, fileId));
+    .where(
+      and(
+        eq(businessKnowledgeFiles.id, fileId),
+        eq(businessKnowledgeFiles.businessId, businessId),
+      ),
+    );
 
   invalidateKnowledgeCache(businessId);
 
@@ -227,7 +237,12 @@ async function markFileFailed(
       failureReason,
       updatedAt: new Date(),
     })
-    .where(eq(businessKnowledgeFiles.id, fileId));
+    .where(
+      and(
+        eq(businessKnowledgeFiles.id, fileId),
+        eq(businessKnowledgeFiles.businessId, businessId),
+      ),
+    );
 
   invalidateKnowledgeCache(businessId);
 }
@@ -260,10 +275,20 @@ export async function deleteKnowledgeFileForBusiness({
   await db.transaction(async (tx) => {
     await tx
       .delete(businessKnowledgeChunks)
-      .where(eq(businessKnowledgeChunks.fileId, fileId));
+      .where(
+        and(
+          eq(businessKnowledgeChunks.fileId, fileId),
+          eq(businessKnowledgeChunks.businessId, businessId),
+        ),
+      );
     await tx
       .delete(businessKnowledgeFiles)
-      .where(eq(businessKnowledgeFiles.id, fileId));
+      .where(
+        and(
+          eq(businessKnowledgeFiles.id, fileId),
+          eq(businessKnowledgeFiles.businessId, businessId),
+        ),
+      );
   });
 
   await removeStoredFile(owned.storagePath);

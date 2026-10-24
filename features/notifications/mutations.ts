@@ -91,7 +91,13 @@ export async function markBusinessNotificationsReadForUser({
         lastReadAt: throughCreatedAt,
         updatedAt: new Date(),
       })
-      .where(eq(businessNotificationStates.id, existingState.id));
+      .where(
+        and(
+          eq(businessNotificationStates.id, existingState.id),
+          eq(businessNotificationStates.businessId, businessId),
+          eq(businessNotificationStates.userId, userId),
+        ),
+      );
 
     return throughCreatedAt;
   }

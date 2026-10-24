@@ -181,6 +181,24 @@ separate capabilities with narrower scopes. Detailed invariants are in the
 [Security guide](../security/SECURITY.md), `lib/auth/`, and
 `lib/db/business-access.ts`.
 
+Application-level predicates are the tenant boundary today. Drizzle connects
+as the `postgres` table-owner role, which bypasses the default-deny RLS
+policies in [`drizzle/0007_enable_rls_all_tables.sql`](../../drizzle/0007_enable_rls_all_tables.sql);
+those policies only constrain Supabase `anon`/`authenticated` traffic. The
+approved pattern is a verified context from `getBusinessActionContext()` (or a
+request/public-token context helper) followed by `*ForBusiness` queries and
+mutations. Every `UPDATE` and `DELETE` repeats `businessId` in its predicate,
+including writes that follow a scoped read, and background jobs re-check the
+`businessId` carried in their event payload. Cross-tenant integration tests
+cover reads, exports, writes, files, analytics, and Assistant tools;
+[`scripts/audit-tenant-boundary.ts`](../../scripts/audit-tenant-boundary.ts)
+blocks new DB access from components, pages, and unapproved server actions.
+Database-enforced isolation would require a dedicated non-owner application
+role, `FORCE ROW LEVEL SECURITY`, policies keyed to a transaction-scoped
+`app.business_id` setting, and a reviewed exception path for admin, auth,
+billing-webhook, and scheduled cross-tenant work. Until all of that exists,
+enabling RLS alone must not be treated as protection for application queries.
+
 ## APIs, integrations, and asynchronous work
 
 Route handlers cover Better Auth, AI chat, business/public APIs, file access,

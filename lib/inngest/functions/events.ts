@@ -2,7 +2,10 @@ import { eq } from "drizzle-orm";
 
 import { generateQuoteDraftForBusiness } from "@/features/quote-drafting/quote-generator";
 import { createAutoDraftQuote } from "@/features/quote-drafting/auto-draft";
-import { enableAutoFollowUpForQuote } from "@/features/quotes/mutations";
+import {
+  enableAutoFollowUpForQuote,
+  getQuoteBusinessIdForAutoFollowUp,
+} from "@/features/quotes/mutations";
 import { getBusinessInquiryPath, getBusinessInvoicePath, getBusinessQuotePath } from "@/features/businesses/routes";
 import { getBusinessMessagingSettings } from "@/lib/db/business-access";
 import { getEffectivePlanForBusiness } from "@/lib/billing/subscription-service";
@@ -312,17 +315,46 @@ export const enableQuoteAutoFollowUp = inngest.createFunction(
     retries: 2,
   },
   async ({ event, step }) => {
-    const data = event.data as EnableQuoteAutoFollowUpEventData;
+    const data = event.data as Partial<EnableQuoteAutoFollowUpEventData>;
+    const { quoteId, delayDays, maxAttempts } = data;
 
-    await step.run("enable-auto-follow-up", async () => {
+    if (
+      typeof quoteId !== "string" ||
+      quoteId.length === 0 ||
+      typeof delayDays !== "number" ||
+      !Number.isInteger(delayDays) ||
+      delayDays < 0 ||
+      typeof maxAttempts !== "number" ||
+      !Number.isInteger(maxAttempts) ||
+      maxAttempts < 1
+    ) {
+      return { ok: false, skipped: "invalid-payload" };
+    }
+
+    const result = await step.run("enable-auto-follow-up", async () => {
+      // Events sent before businessId was added to the payload are still
+      // replayed by Inngest. Resolve the owner once, then keep the write
+      // tenant-scoped.
+      const businessId =
+        typeof data.businessId === "string" && data.businessId.length > 0
+          ? data.businessId
+          : await getQuoteBusinessIdForAutoFollowUp(quoteId);
+
+      if (!businessId) {
+        return { ok: false, skipped: "quote-not-found" };
+      }
+
       await enableAutoFollowUpForQuote({
-        quoteId: data.quoteId,
-        delayDays: data.delayDays,
-        maxAttempts: data.maxAttempts,
+        businessId,
+        quoteId,
+        delayDays,
+        maxAttempts,
       });
+
+      return { ok: true };
     });
 
-    return { ok: true };
+    return result;
   },
 );
 

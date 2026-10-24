@@ -20,6 +20,7 @@ vi.mock("@/lib/env", async (importOriginal) => ({
 import { processQuoteAutoFollowUps } from "@/features/quotes/jobs/auto-follow-ups";
 import { processQuoteExpiringSoon } from "@/features/quotes/jobs/expiring-soon";
 import { processQuoteViewedFollowUps } from "@/features/quotes/jobs/viewed-follow-ups";
+import { getQuoteBusinessIdForAutoFollowUp } from "@/features/quotes/mutations";
 import { getLocalDateString } from "@/features/follow-ups/utils";
 import {
   businesses,
@@ -216,5 +217,16 @@ describe("quote jobs with business-local dates", () => {
     const [stored] = await testDb.select().from(followUps).where(eq(followUps.quoteId, quoteId));
     expect(getLocalDateString(stored.dueAt, timezone)).toBe(dueDate);
     expect(await processQuoteViewedFollowUps()).toMatchObject({ created: 0 });
+  });
+
+  it("resolves the quote owner for legacy auto-follow-up events", async () => {
+    const quoteId = await insertQuote("legacy_follow_up");
+
+    await expect(getQuoteBusinessIdForAutoFollowUp(quoteId)).resolves.toBe(
+      ids.businessId,
+    );
+    await expect(
+      getQuoteBusinessIdForAutoFollowUp(`${prefix}_missing_quote`),
+    ).resolves.toBeNull();
   });
 });
