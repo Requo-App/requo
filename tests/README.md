@@ -29,7 +29,9 @@ npm run test:e2e
 
 `npm run test` runs unit and component tests. Integration and local E2E tests
 need a reachable test database; `npm run test:integration` applies migrations
-before running.
+before running. PR CI runs `npm run check`, `npm run test`, `npm run
+test:integration`, `npm run test:e2e:smoke`, and `npm run build`; the full
+Playwright suite remains a local or pre-release check.
 
 ## Fixtures and isolation
 

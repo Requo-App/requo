@@ -248,7 +248,7 @@ test("dashboard search keeps the top bar stable after scrolling", async ({
     .toBeLessThanOrEqual(maxScrollDrift);
 });
 
-test("quote delivery offers manual options when Requo email is unavailable", async ({
+test("quote delivery offers manual options when Requo email is unavailable @smoke", async ({
   page,
 }) => {
   test.setTimeout(120_000);
