@@ -16,8 +16,11 @@ test("invalid public inquiry links show the public not-found state", async ({
 });
 
 test("public inquiry page rejects unsupported attachments", async ({ page }) => {
+  // The public route compiles on first visit in dev.
+  test.setTimeout(120_000);
   await page.goto(`/inquire/${demoBusinessSlug}`);
-  await page.waitForLoadState("networkidle");
+  // networkidle doubles as the hydration wait for the client form.
+  await page.waitForLoadState("networkidle", { timeout: 90_000 });
 
   await page.locator("#inquiry-customerName:visible").fill("Taylor Nguyen");
   await page
@@ -45,8 +48,11 @@ test("public inquiry page rejects unsupported attachments", async ({ page }) => 
 });
 
 test("public inquiry page accepts a new submission @smoke", async ({ page }) => {
+  // The public route compiles on first visit in dev.
+  test.setTimeout(120_000);
   await page.goto(`/inquire/${demoBusinessSlug}`);
-  await page.waitForLoadState("networkidle");
+  // networkidle doubles as the hydration wait for the client form.
+  await page.waitForLoadState("networkidle", { timeout: 90_000 });
 
   await page.locator("#inquiry-customerName:visible").fill("Taylor Nguyen");
   await page

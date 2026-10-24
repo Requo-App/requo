@@ -303,7 +303,7 @@ export function BusinessMembersManager({
               <span className="meta-label">Role</span>
               <span className="meta-label sr-only">Actions</span>
             </div>
-            <div className="flex flex-col">
+            <div className="flex flex-col" role="list">
               {filteredMembers.map((member) => (
                 <MemberRow
                   key={member.membershipId}
@@ -710,7 +710,7 @@ function MemberRow({
   const showActions = !readOnly || (member.isCurrentUser && canLeave);
 
   return (
-    <div className="border-b border-border">
+    <div className="border-b border-border" role="listitem">
       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 py-3 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1.4fr)_minmax(0,0.8fr)_auto] md:py-2.5">
         <div className="flex min-w-0 items-center gap-3">
           <Avatar className="size-8 shrink-0">

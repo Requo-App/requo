@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { eq } from "drizzle-orm";
+import { and, eq, inArray, ne } from "drizzle-orm";
 
 vi.mock("@/lib/db/client", async () => {
   const { testDb } = await import("../support/db");
@@ -145,12 +145,60 @@ describe("quote jobs with business-local dates", () => {
     const quoteId = await insertQuote("horizon", { validUntil: horizon });
     await insertQuote("outside", { validUntil: outside });
 
-    expect(await processQuoteExpiringSoon()).toEqual({ processed: 1, notified: 1 });
-    const notifications = await testDb.select().from(businessNotifications)
-      .where(eq(businessNotifications.businessId, ids.businessId));
-    expect(notifications).toHaveLength(1);
-    expect(notifications[0].quoteId).toBe(quoteId);
-    expect(await processQuoteExpiringSoon()).toEqual({ processed: 0, notified: 0 });
+    // The job scans every business. Silence other businesses for this
+    // assertion so the summary counts only the quotes this case inserted,
+    // then restore whatever was enabled.
+    const otherNotifyingBusinesses = await testDb
+      .select({ id: businesses.id })
+      .from(businesses)
+      .where(
+        and(
+          ne(businesses.id, ids.businessId),
+          eq(businesses.notifyInAppOnQuoteExpiring, true),
+        ),
+      );
+
+    await testDb
+      .update(businesses)
+      .set({ notifyInAppOnQuoteExpiring: false })
+      .where(ne(businesses.id, ids.businessId));
+
+    try {
+      expect(await processQuoteExpiringSoon()).toEqual({
+        processed: 1,
+        notified: 1,
+      });
+
+      const notificationsForBusiness = () =>
+        testDb
+          .select()
+          .from(businessNotifications)
+          .where(eq(businessNotifications.businessId, ids.businessId));
+      const notifications = await notificationsForBusiness();
+      expect(notifications).toHaveLength(1);
+      expect(notifications[0].quoteId).toBe(quoteId);
+
+      // The notification dedupes the quote on the second pass.
+      expect(await processQuoteExpiringSoon()).toEqual({
+        processed: 0,
+        notified: 0,
+      });
+      const notificationsAfterRetry = await notificationsForBusiness();
+      expect(notificationsAfterRetry).toHaveLength(1);
+      expect(notificationsAfterRetry[0].quoteId).toBe(quoteId);
+    } finally {
+      if (otherNotifyingBusinesses.length > 0) {
+        await testDb
+          .update(businesses)
+          .set({ notifyInAppOnQuoteExpiring: true })
+          .where(
+            inArray(
+              businesses.id,
+              otherNotifyingBusinesses.map((business) => business.id),
+            ),
+          );
+      }
+    }
   });
 
   it.each([

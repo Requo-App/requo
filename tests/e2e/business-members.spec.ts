@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import {
+  assignIsolatedTestClientIp,
   demoBusinessSlug,
   demoManagerEmail,
   demoManagerPassword,
@@ -26,6 +27,7 @@ async function signIn(
   password: string,
   expectedUrl: RegExp = /\/home$/,
 ) {
+  await assignIsolatedTestClientIp(page);
   await page.goto("/login");
   await page.waitForLoadState("networkidle");
 
@@ -37,11 +39,25 @@ async function signIn(
 }
 
 test("owner can invite a new member from business settings", async ({ page }) => {
+  test.setTimeout(120_000);
   const inviteEmail = `invite-${Date.now()}@example.com`;
 
   await signIn(page, demoOwnerEmail, demoOwnerPassword);
-  await page.goto(`/${demoBusinessSlug}/settings/members`);
-  await page.waitForLoadState("networkidle");
+  const membersPath = `/${demoBusinessSlug}/settings/members`;
+  try {
+    await page.goto(membersPath, { waitUntil: "commit", timeout: 60_000 });
+  } catch (error) {
+    // The proxy can detach the document as the dynamic route commits in dev.
+    if (!(error instanceof Error) || !error.message.includes("ERR_ABORTED")) {
+      throw error;
+    }
+  }
+  await expect(page).toHaveURL(new RegExp(`${membersPath}$`), {
+    timeout: 60_000,
+  });
+  await expect(
+    page.getByRole("heading", { name: "Manage Members" }),
+  ).toBeVisible({ timeout: 20_000 });
 
   await page.getByRole("button", { name: "Invite", exact: true }).first().click();
   await page.getByLabel("Email address").fill(inviteEmail);
@@ -50,6 +66,7 @@ test("owner can invite a new member from business settings", async ({ page }) =>
     .getByRole("button", { name: "Invite", exact: true })
     .click();
 
+  await page.getByRole("dialog").getByRole("button", { name: "Done" }).click();
   const pendingButton = page.getByRole("button", { name: /pending/ });
   await expect(pendingButton).toBeVisible({ timeout: 20_000 });
   await pendingButton.click();
@@ -65,11 +82,15 @@ test("owner can invite a new member from business settings", async ({ page }) =>
 test("invited user can sign in from the invite and accept access", async ({
   page,
 }) => {
+  test.setTimeout(240_000);
+
   await page.goto(`/invite/${demoPendingInviteToken}`);
   await page.waitForLoadState("networkidle");
 
   await expect(
-    page.getByText("Join BrightSide Print Studio", { exact: true }),
+    page
+      .locator("#app-root-content")
+      .getByText("Join BrightSide Print Studio", { exact: true }),
   ).toBeVisible();
 
   await page.getByRole("link", { name: "Sign in" }).click();
@@ -80,6 +101,9 @@ test("invited user can sign in from the invite and accept access", async ({
   await expect(page).toHaveURL(new RegExp(`/invite/${demoPendingInviteToken}$`), {
     timeout: 20_000,
   });
+  // Let the invite route finish loading its client chunks; submitting the
+  // server action against a still-compiling route is rejected in dev.
+  await page.waitForLoadState("networkidle");
 
   await page.getByRole("button", { name: "Accept invite" }).click();
 
@@ -87,14 +111,24 @@ test("invited user can sign in from the invite and accept access", async ({
     new RegExp(`/${demoBusinessSlug}/home$`),
     { timeout: 20_000 },
   );
-  await expect(
-    page.getByRole("heading", { name: "BrightSide Print Studio" }),
-  ).toBeVisible();
+  // The accepted member's first dashboard render can trail the URL change
+  // while the dev server compiles the shell, and the onboarding tour can open
+  // over the queue (its modal hides the page from the accessibility tree).
+  // Treat either as readiness, dismiss the tour, then check the content.
+  const priorityQueue = page.getByRole("heading", { name: "Priority queue" });
+  const skipTour = page.getByRole("button", { name: "Skip tour" });
+  await expect(priorityQueue.or(skipTour)).toBeVisible({ timeout: 120_000 });
+  if (await skipTour.isVisible()) {
+    await skipTour.click();
+  }
+  await expect(priorityQueue).toBeVisible({ timeout: 60_000 });
 });
 
 test("manager can view members read-only in settings", async ({
   page,
 }) => {
+  test.setTimeout(180_000);
+  page.setDefaultNavigationTimeout(90_000);
   await signIn(page, demoManagerEmail, demoManagerPassword);
 
   await page.goto(`/${demoBusinessSlug}/quote-library`);
@@ -125,6 +159,8 @@ test("manager can view members read-only in settings", async ({
 test("staff can access inquiry work but not forms or operational settings", async ({
   page,
 }) => {
+  test.setTimeout(180_000);
+  page.setDefaultNavigationTimeout(90_000);
   await signIn(page, demoStaffEmail, demoStaffPassword);
 
   await page.goto(`/${demoBusinessSlug}/inquiries`);
@@ -154,6 +190,8 @@ test("staff can access inquiry work but not forms or operational settings", asyn
 });
 
 test("non-members cannot open another business dashboard @smoke", async ({ page }) => {
+  test.setTimeout(120_000);
+  page.setDefaultNavigationTimeout(90_000);
   await signIn(
     page,
     demoOutsiderEmail,
@@ -169,6 +207,8 @@ test("non-members cannot open another business dashboard @smoke", async ({ page 
 });
 
 test("owner can change a member role and remove them safely", async ({ page }) => {
+  test.setTimeout(180_000);
+  page.setDefaultNavigationTimeout(90_000);
   await signIn(page, demoOwnerEmail, demoOwnerPassword);
   await page.goto(`/${demoBusinessSlug}/settings/members`);
   await page.waitForLoadState("networkidle");
@@ -178,22 +218,22 @@ test("owner can change a member role and remove them safely", async ({ page }) =
   ).toBeVisible();
 
   const ownerRow = page
-    .locator("div")
-    .filter({ has: page.getByText(demoOwnerEmail, { exact: true }) })
-    .first();
+    .getByRole("listitem")
+    .filter({ hasText: demoOwnerEmail });
   await expect(
-    ownerRow.getByText("Owner", { exact: true }),
+    ownerRow.getByText("Owner", { exact: true }).filter({ visible: true }),
   ).toBeVisible();
 
   const staffRow = page
-    .locator("div")
-    .filter({ has: page.getByText(demoStaffEmail, { exact: true }) })
-    .filter({ has: page.getByRole("button", { name: "Manage access" }) })
-    .first();
+    .getByRole("listitem")
+    .filter({ hasText: demoStaffEmail });
 
   await expect(staffRow).toBeVisible();
 
-  await staffRow.getByRole("button", { name: "Manage access" }).click();
+  await staffRow
+    .getByRole("button", { name: "Manage access" })
+    .filter({ visible: true })
+    .click();
   await page.getByRole("radio", { name: "Manager" }).click();
   await page.getByRole("button", { name: "Save changes" }).click();
 
@@ -201,7 +241,10 @@ test("owner can change a member role and remove them safely", async ({ page }) =
     timeout: 20_000,
   });
 
-  await staffRow.getByRole("button", { name: /Open actions/ }).click();
+  await staffRow
+    .getByRole("button", { name: /Open actions/ })
+    .filter({ visible: true })
+    .click();
   await page.getByRole("menuitem", { name: "Remove" }).click();
   await expect(page.getByRole("heading", { name: "Remove member?" })).toBeVisible();
   await page.getByRole("button", { name: "Remove" }).click();

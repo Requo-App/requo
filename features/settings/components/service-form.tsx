@@ -1622,7 +1622,13 @@ function FieldCardMenu({
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
-        <Button className="size-7 rounded-full" size="icon" type="button" variant="ghost">
+        <Button
+          aria-label={`${title} field actions`}
+          className="size-7 rounded-full"
+          size="icon"
+          type="button"
+          variant="ghost"
+        >
           <MoreHorizontal className="size-4" />
         </Button>
       </DropdownMenuTrigger>

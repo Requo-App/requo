@@ -72,7 +72,7 @@ List pages drop the `PageHeader` description; settings/detail pages keep it. But
 
 ## Dashboard rendering (`instant` + Suspense)
 
-Every dashboard page: `export const instant = true`, synchronous shell, dynamic reads only in `<Suspense>` children. Never `instant = false` to silence a failure — use `lib/instant-navigation/escape-hatch-registry.ts` (currently empty). Detail pages stage frame-first: cheap `*DetailCore` row in the frame (`notFound()` here), one boundary per feed, `RegionErrorBoundary` where a feed can fail alone. Same tags/`cacheLife` as the aggregate query so invalidation is untouched. See `docs/architecture/instant-navigation.md`.
+Every dashboard page: `export const instant = true`, synchronous shell, dynamic reads only in `<Suspense>` children. Never `instant = false` to silence a failure — use `lib/instant-navigation/escape-hatch-registry.ts` (currently empty). Detail pages stage frame-first: cheap `*DetailCore` row in the frame (`notFound()` here), one boundary per feed, `RegionErrorBoundary` only where a feed has an informative failure fallback (whole-page failures on quote/inquiry detail use the segment `error.tsx`). Same tags/`cacheLife` as the aggregate query so invalidation is untouched. See `docs/architecture/instant-navigation.md`.
 
 ## Loading skeletons
 

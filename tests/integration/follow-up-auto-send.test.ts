@@ -311,6 +311,11 @@ describe("follow-up auto-send job", () => {
     const quoteId = `${prefix}_auto_quote`;
     const customerEmail = "quote-customer@example.com";
 
+    await testDb
+      .update(businesses)
+      .set({ defaultEmailSignature: "Thanks, Workflow Business" })
+      .where(eq(businesses.id, ids.businessId));
+
     await testDb.insert(quotes).values({
       id: quoteId,
       businessId: ids.businessId,
@@ -352,7 +357,7 @@ describe("follow-up auto-send job", () => {
     const call = vi.mocked(sendQuoteAutoFollowUpEmail).mock.calls[0]?.[0];
 
     expect(call?.publicQuoteUrl).toContain(`${quoteId}_token`);
-    expect(call?.emailSignature).toBeTruthy();
+    expect(call?.emailSignature).toBe("Thanks, Workflow Business");
     // The key must be follow-up-scoped: two automatic follow-ups on the same
     // quote would otherwise share a key and the second email would be
     // swallowed by the outbox.

@@ -173,35 +173,33 @@ async function fetchBatchFormViews(
 ): Promise<Map<string, number>> {
   if (businessIds.length === 0) return new Map();
 
+  const dedupedFormViews = db
+    .select({ businessId: analyticsEvents.businessId })
+    .from(analyticsEvents)
+    .where(
+      and(
+        inArray(analyticsEvents.businessId, businessIds),
+        eq(analyticsEvents.eventType, "inquiry_form_viewed"),
+        isNotNull(analyticsEvents.serviceId),
+        gte(analyticsEvents.occurredAt, dayStart),
+        lt(analyticsEvents.occurredAt, dayEnd),
+      ),
+    )
+    .groupBy(
+      analyticsEvents.businessId,
+      analyticsEvents.serviceId,
+      analyticsEvents.visitorHash,
+      sql`date_trunc('second', ${analyticsEvents.occurredAt})`,
+    )
+    .as("deduped_form_views");
+
   const rows = await db
     .select({
-      businessId: analyticsEvents.businessId,
+      businessId: dedupedFormViews.businessId,
       count: sql<number>`count(*)`.as("count"),
     })
-    .from(
-      db
-        .select({
-          businessId: analyticsEvents.businessId,
-        })
-        .from(analyticsEvents)
-        .where(
-          and(
-            inArray(analyticsEvents.businessId, businessIds),
-            eq(analyticsEvents.eventType, "inquiry_form_viewed"),
-            isNotNull(analyticsEvents.serviceId),
-            gte(analyticsEvents.occurredAt, dayStart),
-            lt(analyticsEvents.occurredAt, dayEnd),
-          ),
-        )
-        .groupBy(
-          analyticsEvents.businessId,
-          analyticsEvents.serviceId,
-          analyticsEvents.visitorHash,
-          sql`date_trunc('second', ${analyticsEvents.occurredAt})`,
-        )
-        .as("deduped_form_views"),
-    )
-    .groupBy(sql`business_id`);
+    .from(dedupedFormViews)
+    .groupBy(dedupedFormViews.businessId);
 
   return new Map(rows.map((r) => [r.businessId, Number(r.count)]));
 }

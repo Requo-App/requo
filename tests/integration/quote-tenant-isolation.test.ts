@@ -8,9 +8,13 @@ vi.mock("@/lib/db/client", async () => {
 });
 
 vi.mock("next/cache", () => ({
+  cacheLife: vi.fn(),
+  cacheTag: vi.fn(),
   revalidateTag: vi.fn(),
   updateTag: vi.fn(),
 }));
+
+vi.mock("next/server", () => ({ after: vi.fn() }));
 
 import type { QuoteEditorInput } from "@/features/quotes/schemas";
 import {

@@ -121,8 +121,9 @@ export const instant = true;
  *
  * All dynamic reads (params, getAppShellContext, quote queries) are pushed into
  * a `<Suspense>`-wrapped child server component so the shell paints instantly
- * on client navigation. The error boundary catches failures without breaking
- * the surrounding layout.
+ * on client navigation. A thrown frame or feed reaches the segment error
+ * boundary, which renders the dashboard retry card instead of leaving the
+ * loading skeleton in place.
  *
  * Staging: the frame resolves the core row plus the two cheap lookups the
  * header's actions need (contact email, linked invoice). Pricing library and
@@ -134,11 +135,9 @@ export default function QuoteDetailPage({
   params,
 }: QuoteDetailPageProps) {
   return (
-    <RegionErrorBoundary fallback={<DashboardDetailPageSkeleton variant="quote" />}>
-      <Suspense fallback={<DashboardDetailPageSkeleton variant="quote" />}>
-        <QuoteDetailRegion params={params} />
-      </Suspense>
-    </RegionErrorBoundary>
+    <Suspense fallback={<DashboardDetailPageSkeleton variant="quote" />}>
+      <QuoteDetailRegion params={params} />
+    </Suspense>
   );
 }
 

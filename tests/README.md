@@ -43,6 +43,34 @@ fixtures for subscription states, and quote fixtures for quote lifecycle
 states. Add a shared helper only when it removes repeated setup without hiding
 the behavior a test is meant to prove.
 
+## Browser conventions
+
+- Playwright owns the server. `npm run test:e2e` migrates and seeds the demo
+  database, then starts the dev server from `playwright.config.ts`. Use
+  `PORT=3100 npm run test:e2e` when the default port is taken. If
+  `PLAYWRIGHT_BASE_URL` points at an already-running app, migrate and seed that
+  database yourself before running `npx playwright test`.
+- The Playwright web server blanks live email, AI, and Redis configuration.
+  Browser tests must not depend on a provider call; mock chat endpoints with
+  `page.route`, as the Agent and Assistant specs do.
+- Demo accounts and public tokens come from `tests/e2e/fixtures.ts`. The seed
+  hard-codes the owner credentials, so do not reintroduce env overrides for
+  accounts the seed does not read. Call `assignIsolatedTestClientIp(page)`
+  before signing in: Better Auth rate-limits sign-in per client IP and the
+  suite signs in repeatedly. The TEST-NET-1 header is applied to local targets
+  only.
+- E2E specs share one seeded database, so mutating journeys use
+  `test.describe.configure({ mode: "serial" })` and restore state when it is
+  cheap. The suite runs with a single worker.
+- Prefer web-first assertions and explicit readiness markers over
+  `networkidle`; dashboard prefetch keeps the network busy. Dev routes compile
+  on first visit, so warm a heavy route when the test measures navigation, and
+  size `test.setTimeout` or assertion timeouts to that cold compile. Never
+  raise a timeout to hide a product failure; use `expect(...).toPass()` only for
+  hydration races where a click before client handlers attach is a no-op.
+- `@smoke` membership is enforced by `tests/e2e/smoke-registry.ts`. Tagging a
+  new smoke journey requires adding its spec and workflow label there.
+
 ## Conventions
 
 - Assert observable outcomes and important failure cases, not private call

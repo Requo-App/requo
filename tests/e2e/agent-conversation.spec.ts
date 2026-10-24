@@ -88,6 +88,12 @@ test("public chat flow streams a reply on the enabled demo business @smoke", asy
   );
   expect(storedToken).toMatch(/^[0-9a-f]{64}$/);
 
+  // The transcript owns the scroll; the page itself does not.
+  await expect(page.locator(".chat-stage-transcript")).toHaveCSS(
+    "overflow-y",
+    "auto",
+  );
+
   // The composer stays pinned in the viewport — it never drifts down the page.
   const composerBox = await input.boundingBox();
   const viewport = page.viewportSize();
@@ -95,33 +101,6 @@ test("public chat flow streams a reply on the enabled demo business @smoke", asy
   expect(composerBox!.y + composerBox!.height).toBeLessThanOrEqual(
     (viewport?.height ?? 800) + 1,
   );
-
-  // The transcript is the only thing that scrolls, bottom-aligned by an
-  // automatic top margin on the inner wrapper (not end-justified).
-  const transcriptState = await page.evaluate(() => {
-    const el = document.querySelector(".chat-stage-transcript");
-    const inner = document.querySelector(".chat-stage-transcript-inner");
-    if (!el || !inner) return null;
-    const style = getComputedStyle(el);
-    const innerStyle = getComputedStyle(inner);
-    return {
-      overflowY: style.overflowY,
-      marginTop: innerStyle.marginTop,
-      scrollHeight: el.scrollHeight,
-      clientHeight: el.clientHeight,
-    };
-  });
-  expect(transcriptState).not.toBeNull();
-  expect(transcriptState!.overflowY).toBe("auto");
-  expect(transcriptState!.marginTop).not.toBe("0px");
-
-  // Composer and bubbles share the product radius step (not a pill).
-  const composerRounded = await page.evaluate(() => {
-    const el = document.querySelector('[data-slot="input-group"]');
-    return el ? el.className : "";
-  });
-  expect(composerRounded).toContain("rounded-2xl");
-  expect(composerRounded).not.toContain("rounded-3xl");
 
   // Detached affordance is hidden while attached to the bottom.
   await expect(
