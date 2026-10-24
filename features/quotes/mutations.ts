@@ -290,8 +290,10 @@ async function expireQuoteRows(
 
   const now = new Date();
 
-  // Only the rows this call actually transitions are logged, so two
-  // concurrent sweeps cannot write the same "quote expired" activity twice.
+  // Repeat businessId on the write as well as the read. The caller already
+  // selected these rows by tenant, but every UPDATE in a multi-tenant table
+  // must carry the predicate so a future caller cannot expire another
+  // business's quotes by id alone.
   const expired = await tx
     .update(quotes)
     .set({
@@ -301,6 +303,10 @@ async function expireQuoteRows(
     .where(
       and(
         inArray(quotes.id, rows.map((row) => row.id)),
+        inArray(
+          quotes.businessId,
+          [...new Set(rows.map((row) => row.businessId))],
+        ),
         eq(quotes.status, "sent"),
       ),
     )
@@ -2877,6 +2883,23 @@ export async function enableAutoFollowUpForQuote({
       updatedAt: now,
     })
     .where(and(eq(quotes.id, quoteId), eq(quotes.businessId, businessId)));
+}
+
+/**
+ * Resolve a quote's owner for legacy auto-follow-up events that predate the
+ * `businessId` field. Only the trusted Inngest worker calls this; the result
+ * is then passed back through the tenant-scoped update above.
+ */
+export async function getQuoteBusinessIdForAutoFollowUp(
+  quoteId: string,
+): Promise<string | null> {
+  const [row] = await db
+    .select({ businessId: quotes.businessId })
+    .from(quotes)
+    .where(and(eq(quotes.id, quoteId), isNull(quotes.deletedAt)))
+    .limit(1);
+
+  return row?.businessId ?? null;
 }
 
 export async function stopAutoFollowUpForQuote({

@@ -1,6 +1,12 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
 
+vi.mock("@/lib/ai/embeddings", () => ({
+  generateEmbedding: vi.fn().mockResolvedValue(null),
+  generateEmbeddings: vi.fn().mockResolvedValue([]),
+  invalidateEmbeddingCache: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock("react", async (importOriginal) => {
   const actual = await importOriginal<typeof import("react")>();
 
@@ -95,6 +101,22 @@ async function seedKnowledgeFile() {
     contentHash: `${prefix}_hash`,
     tokenEstimate: 4,
   });
+}
+
+/**
+ * Makes the next scoped read return `rows` even though the caller's
+ * businessId does not own them. This isolates the defense-in-depth write
+ * predicate from the pre-read that normally short-circuits the call, so a
+ * regression that drops `businessId` from the UPDATE/DELETE is caught.
+ */
+function mockScopedRead(rows: unknown[]) {
+  const query = {
+    from: () => query,
+    where: () => query,
+    limit: async () => rows,
+  };
+
+  return vi.spyOn(testDb, "select").mockReturnValueOnce(query as never);
 }
 
 /**
@@ -198,5 +220,127 @@ describe("knowledge tenant isolation", () => {
       .limit(1);
 
     expect(storedEntry?.title).toBe("Opening hours");
+  });
+
+  it("re-checks businessId on the knowledge entry update after a stale read", async () => {
+    const select = mockScopedRead([
+      {
+        id: knowledgeEntryId,
+        title: "Opening hours",
+        content: "We open at nine.",
+      },
+    ]);
+
+    try {
+      await updateKnowledgeEntry({
+        businessId: ids.otherBusinessId,
+        knowledgeEntryId,
+        update: { title: "Hijacked" },
+      });
+    } finally {
+      select.mockRestore();
+    }
+
+    const [storedEntry] = await testDb
+      .select({ title: knowledgeEntries.title })
+      .from(knowledgeEntries)
+      .where(eq(knowledgeEntries.id, knowledgeEntryId))
+      .limit(1);
+
+    expect(storedEntry?.title).toBe("Opening hours");
+  });
+
+  it("re-checks businessId on the knowledge entry delete after a stale read", async () => {
+    const select = mockScopedRead([
+      {
+        id: knowledgeEntryId,
+        title: "Opening hours",
+        content: "We open at nine.",
+      },
+    ]);
+
+    try {
+      await deleteKnowledgeEntry({
+        businessId: ids.otherBusinessId,
+        knowledgeEntryId,
+      });
+    } finally {
+      select.mockRestore();
+    }
+
+    const [storedEntry] = await testDb
+      .select({ id: knowledgeEntries.id })
+      .from(knowledgeEntries)
+      .where(eq(knowledgeEntries.id, knowledgeEntryId))
+      .limit(1);
+
+    expect(storedEntry?.id).toBe(knowledgeEntryId);
+  });
+
+  it("re-checks businessId when processing a file after a stale read", async () => {
+    const select = mockScopedRead([
+      {
+        id: fileId,
+        businessId: ids.otherBusinessId,
+        storagePath: `${ids.businessId}/${fileId}/faq.txt`,
+        mimeType: "text/plain",
+        originalFileName: "faq.txt",
+        byteSize: 32,
+      },
+    ]);
+
+    let result: Awaited<ReturnType<typeof processKnowledgeFile>>;
+
+    try {
+      result = await processKnowledgeFile({
+        businessId: ids.otherBusinessId,
+        fileId,
+      });
+    } finally {
+      select.mockRestore();
+    }
+
+    expect(result).toEqual({
+      ok: false,
+      failureReason: knowledgeFileFailureReasons.unreadable,
+    });
+
+    const [storedFile] = await testDb
+      .select({ status: businessKnowledgeFiles.status })
+      .from(businessKnowledgeFiles)
+      .where(eq(businessKnowledgeFiles.id, fileId))
+      .limit(1);
+
+    expect(storedFile?.status).toBe("ready");
+  });
+
+  it("re-checks businessId on the knowledge file delete after a stale read", async () => {
+    const select = mockScopedRead([
+      {
+        id: fileId,
+        storagePath: `${ids.businessId}/${fileId}/faq.txt`,
+      },
+    ]);
+
+    try {
+      await deleteKnowledgeFileForBusiness({
+        businessId: ids.otherBusinessId,
+        fileId,
+      });
+    } finally {
+      select.mockRestore();
+    }
+
+    const storedFiles = await testDb
+      .select({ id: businessKnowledgeFiles.id })
+      .from(businessKnowledgeFiles)
+      .where(eq(businessKnowledgeFiles.id, fileId));
+    const storedChunks = await testDb
+      .select({ id: businessKnowledgeChunks.id })
+      .from(businessKnowledgeChunks)
+      .where(eq(businessKnowledgeChunks.fileId, fileId));
+
+    expect(storedFiles).toHaveLength(1);
+    expect(storedChunks).toHaveLength(1);
   });
 });

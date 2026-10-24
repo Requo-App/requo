@@ -50,6 +50,43 @@ jobs:
       # tests/setup.ts -> applyTestEnv(); no secrets or DB needed.
       - run: npm run test
 
+  integration:
+    name: integration (real Postgres)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: requo
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d requo"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/requo
+      BETTER_AUTH_SECRET: test-secret-at-least-32-characters-long-so-zod-passes
+      BETTER_AUTH_URL: http://localhost:3000
+      NEXT_PUBLIC_BETTER_AUTH_URL: http://localhost:3000/api/auth
+      NEXT_PUBLIC_SUPABASE_URL: http://localhost:54321
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: test-anon-key
+      SUPABASE_SERVICE_ROLE_KEY: test-service-key
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      # The migrations reference Supabase roles and storage.buckets.
+      - run: node scripts/test/bootstrap-ci-db.mjs
+      - run: npm run test:integration
+
   build:
     name: build (next build)
     runs-on: ubuntu-latest

@@ -40,11 +40,14 @@ root [`SECURITY.md`](../../SECURITY.md).
   leaves a cross-tenant window.
 - Direct database access belongs in `features/<domain>/queries.ts` and
   `features/<domain>/mutations.ts`. UI components, pages, and layouts must not
-  import the DB client, Drizzle, or the Supabase admin client. Server actions
-  may only do so through the explicit allowlist in
-  [`scripts/audit-tenant-boundary.ts`](../../scripts/audit-tenant-boundary.ts);
-  add new entries with a reason, or move the query into the feature module.
-  `npm run audit:tenant-boundary` runs as part of `npm run check`.
+  import the DB client, Drizzle, or the Supabase admin client. Server action
+  modules — files with a top-level `"use server"` directive, not only
+  `actions.ts` names — may only do so through the explicit allowlist in
+  [`scripts/audit-tenant-boundary.ts`](../../scripts/audit-tenant-boundary.ts).
+  The audit resolves static, side-effect, relative, dynamic, and `require`
+  imports; add new allowlist entries with a reason, or move the query into the
+  feature module. `npm run audit:tenant-boundary` runs as part of
+  `npm run check`.
 - Admin pages and operations use server-side admin guards. Preserve the
   server checks even where `proxy.ts` also gates `/admin`. The session role
   fast path can trust a cached `admin` role or unbanned status for up to 300
