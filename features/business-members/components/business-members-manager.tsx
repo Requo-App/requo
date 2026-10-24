@@ -314,25 +314,25 @@ export function BusinessMembersManager({
                   readOnly={readOnly}
                 />
               ))}
-              {filteredMembers.length === 0 ? (
-                <div className="flex flex-col items-center gap-2 py-10 text-center">
-                  <p className="text-sm font-medium text-foreground">
-                    No team members match “{search.trim()}”.
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Try a different name or email address.
-                  </p>
-                  <Button
-                    size="sm"
-                    type="button"
-                    variant="outline"
-                    onClick={() => setSearch("")}
-                  >
-                    Clear search
-                  </Button>
-                </div>
-              ) : null}
             </div>
+            {filteredMembers.length === 0 ? (
+              <div className="flex flex-col items-center gap-2 py-10 text-center">
+                <p className="text-sm font-medium text-foreground">
+                  No team members match “{search.trim()}”.
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Try a different name or email address.
+                </p>
+                <Button
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                  onClick={() => setSearch("")}
+                >
+                  Clear search
+                </Button>
+              </div>
+            ) : null}
           </div>
 
       {view.invites.length ? (
