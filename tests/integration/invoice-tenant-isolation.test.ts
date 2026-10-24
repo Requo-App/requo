@@ -35,7 +35,7 @@ import {
   getInvoiceExportRowsForBusiness,
   getInvoiceForBusiness,
 } from "@/features/invoices/queries";
-import { invoices } from "@/lib/db/schema";
+import { invoices, payments } from "@/lib/db/schema";
 
 import { closeTestDb, testDb } from "@/tests/support/db";
 import {
@@ -159,16 +159,52 @@ describe("invoice tenant isolation", () => {
       }),
     ).toBeNull();
 
+    const payableInvoice = await createInvoice();
+    expect(
+      await markInvoiceSentForBusiness({
+        businessId: ids.businessId,
+        invoiceId: payableInvoice.id,
+        actorUserId: ids.ownerUserId,
+        sendMethod: "manual",
+      }),
+    ).toEqual({ changed: true, status: "sent" });
+
+    const [invoiceBeforePayment] = await testDb
+      .select()
+      .from(invoices)
+      .where(eq(invoices.id, payableInvoice.id));
+    const paymentsBefore = await testDb
+      .select()
+      .from(payments)
+      .where(eq(payments.invoiceId, payableInvoice.id))
+      .orderBy(payments.id);
+
+    expect(invoiceBeforePayment.status).toBe("sent");
+    expect(paymentsBefore).toEqual([]);
+
     expect(
       await recordPaymentForBusiness({
         businessId: ids.otherBusinessId,
-        invoiceId: created.id,
+        invoiceId: payableInvoice.id,
         actorUserId: ids.outsiderUserId,
         amountInCents: 1000,
         paymentDate: "2026-04-20",
         method: "cash",
       }),
     ).toEqual({ error: "Invoice not found." });
+
+    const invoicesAfterPayment = await testDb
+      .select()
+      .from(invoices)
+      .where(eq(invoices.id, payableInvoice.id));
+    const paymentsAfter = await testDb
+      .select()
+      .from(payments)
+      .where(eq(payments.invoiceId, payableInvoice.id))
+      .orderBy(payments.id);
+
+    expect(invoicesAfterPayment).toEqual([invoiceBeforePayment]);
+    expect(paymentsAfter).toEqual(paymentsBefore);
 
     expect(
       await voidInvoiceForBusiness({
