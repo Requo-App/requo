@@ -101,7 +101,7 @@ const supportingCardTitles = [
 
 /** Reads the editor's card order from the sortable handle labels. */
 async function getSupportingCardOrder(page: Page) {
-  return page.evaluate((titles) => {
+  return page.evaluate((titles: readonly string[]) => {
     const labels = Array.from(
       document.querySelectorAll<HTMLElement>('[aria-label^="Reorder "]'),
       (element) => element.getAttribute("aria-label") ?? "",
