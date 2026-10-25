@@ -424,8 +424,9 @@ PR CI and remains a local or pre-release check. See
 - Customer identity remains denormalized on commercial records; there is no
   customer master/CRM entity.
 - There are two historical migrations with the `0021` prefix. Journal order
-  governs application; do not rename committed migrations. See
-  [`technical-debt.md`](../technical-debt.md).
+  governs application; do not rename committed migrations.
+  `npm run audit:migrations` verifies the file/journal match and rejects new
+  duplicate prefixes. See [`technical-debt.md`](../technical-debt.md).
 - Typed scope blocks, approvals, payment schedules, and change orders
   are implemented in the current schema/features; their detailed product
   semantics continue to evolve and should be verified in code/tests.
