@@ -24,6 +24,10 @@ documented in [Database Migrations](../database-migrations.md).
 `DATABASE_URL` separate from the direct migration connection where required.
 Never edit committed migrations. Verify the selected target and migration
 state before deployment; no rollback guarantee is encoded by this repository.
+Migrations run before the new build is promoted, so the previous deployment
+still needs to run against the migrated schema. Keep changes backward-compatible
+and defer destructive steps to a later release; see
+[Database Migrations](../database-migrations.md).
 
 ## Configuration and operations
 

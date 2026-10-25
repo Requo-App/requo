@@ -51,29 +51,31 @@ async function main() {
 
     const now = new Date();
 
-    await db.insert(businessPackAssignments).values(
-      missing.map((business) => ({
-        id: newEntityId(),
-        businessId: business.id,
-        pack: getBehaviorPack(business.businessType),
-        packVersion: BEHAVIOR_PACK_VERSION,
-        source: "seed" as const,
-        createdAt: now,
-        updatedAt: now,
-      })),
-    );
+    await db.transaction(async (tx) => {
+      await tx.insert(businessPackAssignments).values(
+        missing.map((business) => ({
+          id: newEntityId(),
+          businessId: business.id,
+          pack: getBehaviorPack(business.businessType),
+          packVersion: BEHAVIOR_PACK_VERSION,
+          source: "seed" as const,
+          createdAt: now,
+          updatedAt: now,
+        })),
+      );
 
-    await db.insert(businessPackAssignmentHistory).values(
-      missing.map((business) => ({
-        id: newEntityId(),
-        businessId: business.id,
-        pack: getBehaviorPack(business.businessType),
-        packVersion: BEHAVIOR_PACK_VERSION,
-        source: "seed" as const,
-        actorUserId: null,
-        createdAt: now,
-      })),
-    );
+      await tx.insert(businessPackAssignmentHistory).values(
+        missing.map((business) => ({
+          id: newEntityId(),
+          businessId: business.id,
+          pack: getBehaviorPack(business.businessType),
+          packVersion: BEHAVIOR_PACK_VERSION,
+          source: "seed" as const,
+          actorUserId: null,
+          createdAt: now,
+        })),
+      );
+    });
 
     for (const business of missing) {
       if (getBehaviorPack(business.businessType) === null) {
