@@ -32,16 +32,25 @@ async function createManualInvoice(page: Page, invoiceTitle: string) {
     waitUntil: "domcontentloaded",
   });
 
-  await expect(
-    page.getByRole("heading", { name: "Create a new invoice" }),
-  ).toBeVisible({ timeout: 120_000 });
+  // The streamed skeleton renders the same "Create a new invoice" heading, so
+  // wait for a form-only field instead. networkidle doubles as the hydration
+  // wait for the client form, matching the public inquiry spec.
+  const lineItemDescription = page.getByLabel("Line item 1 description");
+  await expect(lineItemDescription).toBeVisible({ timeout: 120_000 });
+  await page.waitForLoadState("networkidle", { timeout: 90_000 });
 
   await page.getByLabel("Title").fill(invoiceTitle);
   await page.getByLabel("Customer name").fill("Smoke Customer");
   await page.getByLabel("Customer email").fill("smoke.customer@example.com");
-  await page.getByLabel("Line item 1 description").fill("Smoke line item");
+  await lineItemDescription.fill("Smoke line item");
   await page.getByLabel("Line item 1 quantity").fill("2");
   await page.getByLabel("Line item 1 unit price").fill("125.00");
+
+  // Line items live in React state and are serialized into the hidden `items`
+  // input, so this proves the editor is interactive before submitting.
+  await expect(page.locator('input[name="items"]')).toHaveValue(
+    /"description":"Smoke line item"/,
+  );
 
   await page.getByRole("button", { name: "Create invoice" }).click();
 

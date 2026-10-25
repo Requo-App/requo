@@ -33,6 +33,12 @@ async function openBusinessesPage(page: Page, path: string) {
   });
 }
 
+function viewQuotesButton(page: Page) {
+  // The seeded inquiry gains a linked quote on every run, and a CI retry reuses
+  // the same database. Match any count instead of pinning the seeded total.
+  return page.getByRole("button", { name: /^View quotes \(\d+\)$/ });
+}
+
 function getPreviewOverlay(page: Page) {
   return page.getByTestId("inquiry-form-preview-overlay");
 }
@@ -204,9 +210,7 @@ test("dashboard and detail pages surface follow-up, expiring-soon, and customer 
   await expect(
     page.getByRole("button", { name: "View customer history" }),
   ).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "View quotes (2)" }),
-  ).toBeVisible();
+  await expect(viewQuotesButton(page)).toBeVisible();
 });
 
 test("owner can open the quote editor from an inquiry and create a linked draft quote @smoke", async ({
@@ -228,7 +232,7 @@ test("owner can open the quote editor from an inquiry and create a linked draft 
 
   await openBusinessesPage(page, "/inquiries/demo_inquiry_quoted_booth_kit");
 
-  await page.getByRole("button", { name: "View quotes (2)" }).click();
+  await viewQuotesButton(page).click();
   await page.getByRole("menuitem", { name: "Create new quote" }).click();
 
   await expect(page).toHaveURL(
@@ -252,7 +256,10 @@ test("owner can open the quote editor from an inquiry and create a linked draft 
   ).toHaveURL(new RegExp(`/${demoBusinessSlug}/quotes/.+$`), {
     timeout: 20_000,
   });
-  await expect(page.getByLabel("Quote title")).toHaveValue(/\S+/);
+  // The quote detail route may still be compiling on the first run.
+  await expect(page.getByLabel("Quote title")).toHaveValue(/\S+/, {
+    timeout: 20_000,
+  });
 });
 
 test("inquiry form preview reflects unsaved field and page edits in realtime", async ({
@@ -593,9 +600,7 @@ test("inquiry detail exposes PDF export and print-safe document", async ({
   await expect(
     page.getByRole("button", { name: "More actions" }).first(),
   ).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "View quotes (2)" }),
-  ).toBeVisible();
+  await expect(viewQuotesButton(page)).toBeVisible();
 
   await page.getByRole("button", { name: "More actions" }).first().click();
   await expect(
