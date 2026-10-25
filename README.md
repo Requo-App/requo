@@ -9,7 +9,7 @@
 <p align="center">Capture requests, send clear quotes, follow up consistently, and invoice accepted work — with AI assistance that never overrules the owner.</p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Next.js-16.3-black" alt="Next.js 16.3" />
+  <img src="https://img.shields.io/badge/Next.js-16.4-black" alt="Next.js 16.4" />
   <img src="https://img.shields.io/badge/React-19-61dafb" alt="React 19" />
   <img src="https://img.shields.io/badge/Node-%3E%3D24-339933" alt="Node 24 or newer" />
   <img src="https://img.shields.io/badge/License-AGPL--3.0-blue" alt="AGPL-3.0-only" />
@@ -59,7 +59,7 @@ No dispatch/job management, general calendar or crew scheduling, mobile app, mar
 
 | Area | Implementation |
 | --- | --- |
-| Runtime | Node.js 24+, Next.js 16.3.8 App Router, React 19, TypeScript (strict) |
+| Runtime | Node.js 24+, Next.js 16.4.2 App Router, React 19, TypeScript (strict) |
 | UI | React Server Components by default, Tailwind CSS v4, shadcn/ui, Radix UI |
 | Data | PostgreSQL, Drizzle ORM, `postgres-js`; committed SQL migrations under `drizzle/` |
 | Identity | Better Auth (Drizzle adapter) — the only identity provider; every business query is `businessId`-scoped |

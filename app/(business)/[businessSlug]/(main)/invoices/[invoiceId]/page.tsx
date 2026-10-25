@@ -14,6 +14,10 @@ import {
   DetailSectionFallback,
 } from "@/components/shared/detail-section-fallback";
 import { RegionErrorBoundary } from "@/components/shared/region-error-boundary";
+import {
+  DetailPageHeaderErrorFallback,
+  DetailSectionErrorFallback,
+} from "@/components/shared/region-error-fallback";
 import { Button } from "@/components/ui/button";
 import {
   MobileHeaderSlot,
@@ -77,32 +81,40 @@ export const instant = true;
 export default function InvoiceDetailPage({ params }: InvoiceDetailPageProps) {
   return (
     <DashboardPage className="pb-24">
-      <RegionErrorBoundary fallback={<DetailPageHeaderFallback />}>
+      <RegionErrorBoundary fallback={<DetailPageHeaderErrorFallback />}>
         <Suspense fallback={<DetailPageHeaderFallback />}>
           <InvoiceHeaderRegion params={params} />
         </Suspense>
       </RegionErrorBoundary>
 
       <div className="flex flex-col gap-6">
-        <RegionErrorBoundary fallback={<DetailSectionFallback rows={4} />}>
+        <RegionErrorBoundary
+          fallback={<DetailSectionErrorFallback title="Line items" />}
+        >
           <Suspense fallback={<DetailSectionFallback rows={4} />}>
             <InvoiceItemsRegion params={params} />
           </Suspense>
         </RegionErrorBoundary>
 
-        <RegionErrorBoundary fallback={<DetailSectionFallback rows={3} />}>
+        <RegionErrorBoundary
+          fallback={<DetailSectionErrorFallback title="Payments" />}
+        >
           <Suspense fallback={<DetailSectionFallback rows={3} />}>
             <InvoicePaymentsRegion params={params} />
           </Suspense>
         </RegionErrorBoundary>
 
-        <RegionErrorBoundary fallback={<DetailSectionFallback rows={2} />}>
+        <RegionErrorBoundary
+          fallback={<DetailSectionErrorFallback title="Details" />}
+        >
           <Suspense fallback={<DetailSectionFallback rows={2} />}>
             <InvoiceDetailsRegion params={params} />
           </Suspense>
         </RegionErrorBoundary>
 
-        <RegionErrorBoundary fallback={<DetailSectionFallback rows={2} />}>
+        <RegionErrorBoundary
+          fallback={<DetailSectionErrorFallback title="Activity log" />}
+        >
           <Suspense fallback={<DetailSectionFallback rows={2} />}>
             <InvoiceActivityRegion params={params} />
           </Suspense>

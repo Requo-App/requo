@@ -26,6 +26,7 @@ import {
 import { ArchivedRecordBanner } from "@/components/shared/archived-record-banner";
 import { DetailSectionFallback } from "@/components/shared/detail-section-fallback";
 import { RegionErrorBoundary } from "@/components/shared/region-error-boundary";
+import { DetailSectionErrorFallback } from "@/components/shared/region-error-fallback";
 import { TruncatedTextWithTooltip } from "@/components/shared/truncated-text-with-tooltip";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -336,7 +337,7 @@ async function InquiryDetailRegion({
               />
             </Suspense>
 
-            <RegionErrorBoundary fallback={<CustomerHistoryFallback />}>
+            <RegionErrorBoundary fallback={<DetailSectionErrorFallback title="Customer history" />}>
               <Suspense fallback={<CustomerHistoryFallback />}>
                 <InquiryCustomerHistoryRegion
                   businessId={businessId}
@@ -367,7 +368,7 @@ async function InquiryDetailRegion({
           />
 
           <div id="follow-ups">
-            <RegionErrorBoundary fallback={<FollowUpPanelFallback />}>
+            <RegionErrorBoundary fallback={<DetailSectionErrorFallback title="Follow-ups" />}>
               <Suspense fallback={<FollowUpPanelFallback />}>
                 <InquiryFollowUpsRegion
                   businessId={businessId}
@@ -391,7 +392,11 @@ async function InquiryDetailRegion({
             relatedQuotes={relatedQuotes}
           />
 
-          <RegionErrorBoundary fallback={null}>
+          <RegionErrorBoundary
+            fallback={
+              <DetailSectionErrorFallback title="Public chat transcript" />
+            }
+          >
             <Suspense fallback={null}>
               <AgentTranscriptSection
                 businessId={businessId}

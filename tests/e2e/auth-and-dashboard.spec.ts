@@ -179,6 +179,37 @@ test("dashboard shows a branded not-found state for unknown records", async ({
   await expect(page.getByRole("link", { name: "Back to overview" })).toBeVisible();
 });
 
+for (const record of ["invoices", "payments"] as const) {
+  test(`${record} detail rethrows notFound() instead of showing a region skeleton`, async ({
+    page,
+  }) => {
+    test.setTimeout(180_000);
+    await signIn(page);
+
+    await page.goto(`/${demoBusinessSlug}/${record}/does-not-exist`, {
+      waitUntil: "commit",
+    });
+
+    await expect(
+      page.getByText("That dashboard record could not be found."),
+    ).toBeVisible({ timeout: 60_000 });
+    await expect(
+      page.getByRole("link", { name: "Back to overview" }),
+    ).toBeVisible();
+  });
+}
+
+test("authenticated app routes are not stored by browser caches", async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  await signIn(page);
+
+  const response = await page.request.get(`/${demoBusinessSlug}/home`);
+
+  expect(response.headers()["cache-control"]).toContain("no-store");
+});
+
 test("dashboard search keeps the top bar stable after scrolling", async ({
   page,
 }) => {

@@ -10,7 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 type DashboardDetailPageSkeletonProps = {
-  variant?: "inquiry" | "quote" | "invoice";
+  variant?: "inquiry" | "quote" | "invoice" | "payment";
 };
 
 export function DashboardDetailPageSkeleton({
@@ -31,21 +31,18 @@ export function DashboardDetailPageSkeleton({
             <Skeleton className="h-4 w-full max-w-2xl rounded-md" />
           </div>
           <div className="dashboard-detail-header-meta">
-            {Array.from({ length: variant === "inquiry" ? 4 : 3 }).map(
-              (_, index) => (
-                <Skeleton
-                  className={cn(
-                    "h-8 rounded-full",
-                    index === 0
-                      ? "w-28"
-                      : index === 1
-                        ? "w-32"
-                        : "w-36",
-                  )}
-                  key={index}
-                />
-              ),
-            )}
+            {Array.from({
+              length:
+                variant === "inquiry" ? 4 : variant === "payment" ? 1 : 3,
+            }).map((_, index) => (
+              <Skeleton
+                className={cn(
+                  "h-8 rounded-full",
+                  index === 0 ? "w-28" : index === 1 ? "w-32" : "w-36",
+                )}
+                key={index}
+              />
+            ))}
           </div>
         </div>
         <div className="dashboard-detail-header-actions">
@@ -63,6 +60,8 @@ export function DashboardDetailPageSkeleton({
         <InquiryDetailSkeleton />
       ) : variant === "quote" ? (
         <QuoteDetailSkeleton />
+      ) : variant === "payment" ? (
+        <PaymentDetailSkeleton />
       ) : (
         <InvoiceDetailSkeleton />
       )}
@@ -353,6 +352,34 @@ function InvoiceDetailSkeleton() {
       <SectionSkeleton titleWidth="w-28" descriptionWidth="w-44">
         <FeedSkeleton count={1} />
         <Skeleton className="h-9 w-full rounded-md sm:h-8" />
+      </SectionSkeleton>
+    </div>
+  );
+}
+
+function PaymentDetailSkeleton() {
+  return (
+    <div className="flex flex-col gap-6">
+      <SectionSkeleton titleWidth="w-32" descriptionWidth="w-56">
+        <div className="grid gap-3 sm:grid-cols-2">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <InfoTileSkeleton key={index} />
+          ))}
+        </div>
+        <ContentPanel lines={2} labelWidth="w-16" />
+      </SectionSkeleton>
+
+      <SectionSkeleton
+        action={<Skeleton className="h-6 w-20 rounded-full" />}
+        descriptionWidth="w-64"
+        titleWidth="w-28"
+      >
+        <div className="grid gap-3 sm:grid-cols-3">
+          <InfoTileSkeleton compact />
+          <InfoTileSkeleton compact />
+          <InfoTileSkeleton compact />
+        </div>
+        <Skeleton className="h-9 w-full rounded-md sm:h-8 sm:w-32" />
       </SectionSkeleton>
     </div>
   );

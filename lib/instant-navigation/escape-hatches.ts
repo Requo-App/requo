@@ -47,9 +47,9 @@ export type EscapeHatchValidationResult =
  * - The businesses hub (app/(business)/[businessSlug]/page.tsx)
  *
  * Redirect-only legacy routes, print routes, and public preview document
- * routes are intentionally out of scope (see the progressive-data-loading
- * spec): they redirect or render specialized views and are not part of the
- * persistent dashboard shell navigation.
+ * routes (for example `/quote/[token]`) are intentionally out of scope: they
+ * redirect or render tokenized documents outside the persistent dashboard
+ * shell. Authenticated previews such as `quotes/[id]/preview` stay in scope.
  */
 export const IN_SCOPE_ROUTES: ReadonlySet<string> = new Set([
   // (main) dashboard routes
@@ -59,6 +59,7 @@ export const IN_SCOPE_ROUTES: ReadonlySet<string> = new Set([
   "app/(business)/[businessSlug]/(main)/inquiries/new/page.tsx",
   "app/(business)/[businessSlug]/(main)/quotes/page.tsx",
   "app/(business)/[businessSlug]/(main)/quotes/[id]/page.tsx",
+  "app/(business)/[businessSlug]/(main)/quotes/[id]/preview/page.tsx",
   "app/(business)/[businessSlug]/(main)/quotes/new/page.tsx",
   "app/(business)/[businessSlug]/(main)/follow-ups/page.tsx",
   "app/(business)/[businessSlug]/(main)/services/page.tsx",
@@ -90,6 +91,7 @@ export const IN_SCOPE_ROUTES: ReadonlySet<string> = new Set([
   "app/(business)/[businessSlug]/settings/audit-log/page.tsx",
   "app/(business)/[businessSlug]/settings/ai/page.tsx",
   "app/(business)/[businessSlug]/settings/members/page.tsx",
+  "app/(business)/[businessSlug]/settings/workflow/page.tsx",
   // settings/forms was folded into the (main)/services surface — no
   // settings-level forms pages remain.
 

@@ -4,7 +4,6 @@ import { Suspense } from "react";
 
 import { DashboardPage } from "@/components/shared/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
-import { RegionErrorBoundary } from "@/components/shared/region-error-boundary";
 import { createQuoteAction } from "@/features/quotes/actions";
 import { QuoteEditor } from "@/features/quotes/components/quote-editor";
 import { NewQuoteWithTemplatePicker } from "@/features/quotes/components/new-quote-with-template-picker";
@@ -39,7 +38,8 @@ export const instant = true;
  *
  * All dynamic reads (params, searchParams, getAppShellContext, settings/inquiry
  * queries) are pushed into a `<Suspense>`-wrapped child server component so the
- * shell paints instantly on client navigation.
+ * shell paints instantly on client navigation. Failures reach the dashboard
+ * segment `error.tsx` retry card.
  */
 export default function NewQuotePage({
   params,
@@ -47,11 +47,9 @@ export default function NewQuotePage({
 }: NewQuotePageProps) {
   return (
     <DashboardPage>
-      <RegionErrorBoundary fallback={<NewQuoteEditorSkeleton />}>
-        <Suspense fallback={<NewQuoteEditorSkeleton />}>
-          <NewQuoteContent params={params} searchParams={searchParams} />
-        </Suspense>
-      </RegionErrorBoundary>
+      <Suspense fallback={<NewQuoteEditorSkeleton />}>
+        <NewQuoteContent params={params} searchParams={searchParams} />
+      </Suspense>
     </DashboardPage>
   );
 }

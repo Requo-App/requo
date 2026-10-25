@@ -5,8 +5,9 @@
  * For every in-scope dashboard route (see `IN_SCOPE_ROUTES` in
  * `lib/instant-navigation/escape-hatches.ts`) plus every page under `app/`:
  *
- * 1. No legacy `unstable_instant` exports — Next.js 16.3 does not read them.
- *    They must be migrated to the supported `instant` export.
+ * 1. No legacy `unstable_instant` exports — the installed Next.js 16.4
+ *    does not read them. They must be migrated to the supported `instant`
+ *    export.
  * 2. Every in-scope route exports the supported `instant` config, unless it
  *    carries a valid tracked escape-hatch registry entry.
  * 3. No blocking page-level awaits — the default export of an in-scope
@@ -16,6 +17,12 @@
  * 4. Loading coverage — an in-scope dynamic route must have either a sibling
  *    `loading.tsx` (initial page load) or an in-file `<Suspense>` fallback
  *    (client navigation).
+ *
+ * Governance checks:
+ * - Every page that declares `instant` must be listed in `IN_SCOPE_ROUTES`,
+ *   so the per-route rules cannot silently skip a route.
+ * - Every escape-hatch entry is validated (not only the entry selected for a
+ *   route), duplicates are rejected, and overdue active entries fail.
  *
  * Redirect-only legacy routes, print routes, and public preview document
  * routes are intentionally out of scope and are not scanned by rules 2–4.
@@ -42,8 +49,17 @@ import {
   walk,
   type Offender,
 } from "./audit-lib";
+import { auditEscapeHatchRegistry } from "./instant-navigation/escape-hatch-audit";
+import {
+  findLegacyInstantExport,
+  inspectInstantExport,
+} from "./instant-navigation/instant-export";
+import {
+  findInstantScopeDrift,
+} from "./instant-navigation/instant-scope";
 
 const APP_DIR = path.join(ROOT, "app");
+const REGISTRY_FILE = "lib/instant-navigation/escape-hatch-registry.ts";
 
 async function fileExists(p: string): Promise<boolean> {
   try {
@@ -52,17 +68,6 @@ async function fileExists(p: string): Promise<boolean> {
   } catch {
     return false;
   }
-}
-
-function hasInstantExport(source: string): boolean {
-  if (!/export\s+(const|let|var)\s+instant\b/.test(source)) {
-    return false;
-  }
-  // `instant = false` opts the segment out — not validation coverage.
-  if (/(?<![A-Za-z0-9_])instant\s*=\s*false\b/.test(source)) {
-    return false;
-  }
-  return true;
 }
 
 function hasBlockingPageExport(source: string): number {
@@ -92,20 +97,41 @@ async function main(): Promise<void> {
   );
   for (const file of appFiles) {
     const source = await readText(file);
-    const idx = source.search(
-      /export\s+(const|let|var)\s+unstable_instant\b/,
-    );
-    if (idx !== -1) {
+    const legacy = findLegacyInstantExport(source, relPath(file));
+    if (legacy) {
       offenders.push({
         file: relPath(file),
-        line: lineOf(source, idx),
+        line: legacy.line,
         message:
-          "legacy `unstable_instant` export is not read by Next.js 16.3 — migrate to `export const instant = true`",
+          "legacy `unstable_instant` export is not read by Next.js 16.4 — migrate to `export const instant = true`",
       });
     }
   }
 
-  // Rules 2–4: per in-scope route.
+  // Rule 2 (scope completeness): every page that declares `instant` must be
+  // in the rollout scope, or the per-route rules below never see it.
+  const pageFiles = await walk(APP_DIR, (_abs, rel) =>
+    rel.endsWith("page.tsx"),
+  );
+  for (const file of pageFiles) {
+    const source = await readText(file);
+    const inspection = inspectInstantExport(source, relPath(file));
+
+    if (inspection.state === "missing") continue;
+
+    const drift = findInstantScopeDrift([
+      { route: relPath(file), inspection },
+    ]);
+    for (const message of drift) {
+      offenders.push({
+        file: relPath(file),
+        line: inspection.line,
+        message,
+      });
+    }
+  }
+
+  // Rules 3–4: per in-scope route.
   for (const route of IN_SCOPE_ROUTES) {
     const abs = path.join(ROOT, route);
     const source = await readText(abs);
@@ -122,13 +148,24 @@ async function main(): Promise<void> {
       continue;
     }
 
-    if (!hasInstantExport(source)) {
+    const inspection = inspectInstantExport(source, route);
+    if (inspection.state !== "enabled") {
       const idx = source.search(/export\s+default\b/);
+      const line =
+        inspection.state !== "missing"
+          ? inspection.line
+          : idx === -1
+            ? 1
+            : lineOf(source, idx);
       offenders.push({
         file: route,
-        line: idx === -1 ? 1 : lineOf(source, idx),
+        line,
         message:
-          "in-scope route is missing the supported `instant` export and has no valid escape-hatch entry",
+          inspection.state === "disabled"
+            ? `in-scope route disables instant validation via \`${inspection.disabledBy}\` and has no valid escape-hatch entry`
+            : inspection.state === "unknown"
+              ? "in-scope route has an unresolved instant config and has no valid escape-hatch entry"
+              : "in-scope route is missing the supported `instant` export and has no valid escape-hatch entry",
       });
     }
 
@@ -152,6 +189,15 @@ async function main(): Promise<void> {
           "dynamic route has neither a sibling loading.tsx nor an in-file <Suspense> fallback",
       });
     }
+  }
+
+  // Governance: validate the whole escape-hatch registry, not just the first
+  // active entry selected for a route.
+  for (const message of auditEscapeHatchRegistry(
+    escapeHatchRegistry,
+    new Date(),
+  )) {
+    offenders.push({ file: REGISTRY_FILE, line: 1, message });
   }
 
   exitIfOffenders("audit-instant-navigation", offenders);

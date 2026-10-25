@@ -4,7 +4,6 @@ import { Suspense } from "react";
 
 import { DashboardPage } from "@/components/shared/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
-import { RegionErrorBoundary } from "@/components/shared/region-error-boundary";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getBusinessInvoicePath } from "@/features/businesses/routes";
 import { updateInvoiceDraftAction } from "@/features/invoices/actions";
@@ -27,11 +26,9 @@ export const instant = true;
 export default function EditInvoicePage({ params }: EditInvoicePageProps) {
   return (
     <DashboardPage>
-      <RegionErrorBoundary fallback={<EditInvoiceSkeleton />}>
-        <Suspense fallback={<EditInvoiceSkeleton />}>
-          <EditInvoiceContent params={params} />
-        </Suspense>
-      </RegionErrorBoundary>
+      <Suspense fallback={<EditInvoiceSkeleton />}>
+        <EditInvoiceContent params={params} />
+      </Suspense>
     </DashboardPage>
   );
 }

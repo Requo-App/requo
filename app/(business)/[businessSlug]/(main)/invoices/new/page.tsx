@@ -4,7 +4,6 @@ import { Suspense } from "react";
 
 import { DashboardPage } from "@/components/shared/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
-import { RegionErrorBoundary } from "@/components/shared/region-error-boundary";
 import { getBusinessInvoicesPath } from "@/features/businesses/routes";
 import { createInvoiceAction } from "@/features/invoices/actions";
 import { NewInvoiceForm } from "@/features/invoices/components/new-invoice-form";
@@ -29,16 +28,15 @@ export const instant = true;
  *
  * All dynamic reads (params, searchParams, getAppShellContext, quote
  * prefill) are pushed into a `<Suspense>`-wrapped child server component so
- * the shell paints instantly on client navigation.
+ * the shell paints instantly on client navigation. Failures reach the
+ * dashboard segment `error.tsx` retry card.
  */
 export default function NewInvoicePage({ params, searchParams }: NewInvoicePageProps) {
   return (
     <DashboardPage>
-      <RegionErrorBoundary fallback={<NewInvoiceSkeleton />}>
-        <Suspense fallback={<NewInvoiceSkeleton />}>
-          <NewInvoiceContent params={params} searchParams={searchParams} />
-        </Suspense>
-      </RegionErrorBoundary>
+      <Suspense fallback={<NewInvoiceSkeleton />}>
+        <NewInvoiceContent params={params} searchParams={searchParams} />
+      </Suspense>
     </DashboardPage>
   );
 }
