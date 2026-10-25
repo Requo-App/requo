@@ -8,20 +8,47 @@ hosted Upstash setup and the full-local Docker Compose setup use the same
 
 ## What it is used for
 
+Every Redis consumer is best-effort. No hard limit is enforced by a Redis
+counter, because Redis is optional and its in-process fallback cannot
+coordinate two application instances. Losing Redis degrades caching, routing
+quality, and abuse friction; it never opens a spend or capacity ceiling.
+
 | Consumer | Purpose | Without Redis |
 | --- | --- | --- |
-| `lib/ai/cache-layer.ts` | Shared get/set/delete/increment | In-process `Map` per instance |
+| `lib/ai/cache-layer.ts` | Shared get/set/delete/increment, reservation mirror | In-process `Map` per instance |
 | `lib/ai/embeddings.ts` | 24h content-hash embedding cache | Never hits across cold starts |
 | `lib/ai/ai-cache.ts` | AI response cache | Per-instance only |
 | `lib/ai/request-dedup.ts` | Duplicate-request suppression | Per-instance only |
-| `lib/ai/usage-limiter.ts` | Cooldowns + monthly quota counters | Per-instance counters |
+| `lib/ai/usage-limiter.ts` | Request cooldowns | Per-instance cooldowns |
 | `lib/db/circuit-breaker.ts` | Failure-state sharing | Per-instance only |
-| `lib/ai/capacity-selector.ts` | TPM headroom accounting | Per-instance only |
+| `lib/ai/capacity-selector.ts` | Capacity-selection mirror (ranking) | Per-instance ranking; durable reservations are unaffected |
 | `lib/ai/input-sanitizer.ts` | Lockout counters | Per-instance only |
-| `lib/rate-limit/redis-rate-limiter.ts` | Sliding-window rate limits | Falls back to DB (`public_action_events`) |
+| `lib/rate-limit/redis-rate-limiter.ts` | Sliding-window rate limits | Falls back to the DB ledger (`public_action_events`) |
 
 Every one of these degrades gracefully — nothing throws when Redis is absent.
 That is also why a missing Redis is easy to overlook.
+
+## Limits that do not depend on Redis
+
+These are the correctness-critical paths. They use Postgres so that every
+instance sees the same state even when Redis is missing or unreachable.
+
+- **Monthly AI spend.** `reserveUsage` in `lib/ai/usage-limiter.ts` takes a
+  per-business advisory lock, sums the plan-scoped `ai_usage_events` rows, and
+  inserts the reservation in the same transaction. `checkUsageLimit` reads the
+  same database total; there is no cached quota to go stale.
+- **Provider free-tier capacity.** `reserveDurableCapacity` in
+  `lib/ai/capacity-store.ts` locks the affected counter keys in sorted order,
+  checks every bucket, and increments all of them or none. The counters live in
+  `ai_capacity_counters`. `lib/ai/capacity-selector.ts` mirrors them into Redis
+  after the durable reservation, for selection/ranking only; it never gates a
+  dispatch on the mirror. Direct provider paths (embeddings, importer
+  extraction) record their usage into the same durable counters.
+- **Public action rate limits.** The public limiter falls back to the
+  `public_action_events` ledger and fails closed if neither Redis nor the
+  database can answer. Business action limits fall back fail-open, because the
+  database is already the authorization and tenancy boundary for those
+  requests.
 
 ## Why the embedding cache is the one to care about
 

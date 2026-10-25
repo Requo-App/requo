@@ -170,17 +170,23 @@ export const isNvidiaNimConfigured = Boolean(env.NVIDIA_NIM_API_KEY);
 /**
  * Whether the Upstash Redis cache layer is usable.
  *
- * Deliberately not a hard requirement — every consumer (`lib/ai/cache-layer.ts`,
- * `ai-cache.ts`, `request-dedup.ts`, `usage-limiter.ts`, `circuit-breaker.ts`,
- * `capacity-selector.ts`, `input-sanitizer.ts`, and
- * `lib/rate-limit/redis-rate-limiter.ts`) degrades to an in-process fallback
- * when this is false.
+ * Deliberately not a hard requirement — every consumer is best-effort:
+ * caches, duplicate suppression, cooldowns, lockout counters, circuit-breaker
+ * state, health/selection telemetry, and the capacity selector's ranking
+ * mirror degrade to an in-process fallback (or to the database) when this is
+ * false.
  *
- * The consequence is worth naming: caches become per-instance rather than
- * shared, which on serverless means a near-zero hit rate. The 24h content-hash
- * embedding cache in `lib/ai/embeddings.ts` is the clearest example — identical
- * text re-embeds on every cold start, which is paid for in latency and in
- * rate-limit headroom against the free-tier Gemini quota.
+ * Correctness-critical limits do not depend on it:
+ * - Monthly AI spend is reserved in `ai_usage_events` (`usage-limiter.ts`).
+ * - Provider capacity is reserved in `ai_capacity_counters`
+ *   (`capacity-store.ts`); Redis only mirrors those counters for selection.
+ * - Public action rate limits fall back to `public_action_events`.
+ *
+ * The consequence is still worth naming: caches become per-instance rather
+ * than shared, which on serverless means a near-zero hit rate. The 24h
+ * content-hash embedding cache in `lib/ai/embeddings.ts` is the clearest
+ * example — identical text re-embeds on every cold start, which is paid for in
+ * latency and in rate-limit headroom against the free-tier Gemini quota.
  */
 export const isRedisConfigured = Boolean(
   env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN,

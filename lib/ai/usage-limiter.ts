@@ -38,6 +38,9 @@ import { newEntityId } from "@/lib/ids";
 // Cooldown:
 // - 3-second minimum between consecutive requests (same user + task type)
 // - Cooldown tracked via Cache Layer (Redis with in-memory fallback)
+// - Cooldown is an abuse guard, not a hard spend limit: the monthly quota is
+//   always enforced from the database (`reserveUsage`), so a lost cooldown
+//   cannot let a business exceed its allowance
 // - Cooldown starts when a request is accepted for processing (not on cache hits)
 // - Cooldown rejections do not deduct usage
 // ---------------------------------------------------------------------------
@@ -173,32 +176,6 @@ export type UsageLimitResult =
   | { allowed: false; reason: "quota_exceeded" | "cooldown"; message: string };
 
 // ---------------------------------------------------------------------------
-// Cache key helpers
-// ---------------------------------------------------------------------------
-
-const USAGE_CACHE_TTL_SECONDS = 60;
-
-function getCurrentMonthKey(): string {
-  const now = new Date();
-  const year = now.getUTCFullYear();
-  const month = String(now.getUTCMonth() + 1).padStart(2, "0");
-  return `${year}-${month}`;
-}
-
-/**
- * Cache key for a business's monthly usage under a specific plan.
- *
- * The plan is part of the key on purpose: usage is plan-scoped, so a stale
- * cross-plan count must never be served after a plan change.
- */
-export function getBusinessUsageCacheKey(
-  businessId: string,
-  plan: PlanTier,
-): string {
-  return `ai_usage:business:${businessId}:${plan}:${getCurrentMonthKey()}`;
-}
-
-// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
@@ -224,13 +201,14 @@ function planScope(plan: PlanTier) {
 
 /**
  * Checks whether an AI request is allowed based on:
- * 1. Cooldown (3-second minimum between same user + task type)
+ * 1. Cooldown (3-second minimum between same user + task type, best-effort)
  * 2. Monthly weighted usage quota (business-level, scoped to the current plan)
  *
- * Uses a cache-first strategy:
- * - Reads the cached business usage count from Cache Layer (Redis + in-memory)
- * - On cache miss: falls through to DB SUM aggregate and caches the result
- * - On complete cache unavailability: falls through to DB aggregate
+ * The quota is read from the authoritative `ai_usage_events` rows rather than
+ * a cache: a cached total is not safe to compare against a hard allowance.
+ * Callers that dispatch a provider should use `reserveUsage`, which performs
+ * the check and the reservation (including concurrent requests) under one
+ * per-business database lock.
  *
  * Returns `{ allowed: true }` or `{ allowed: false, reason, message }`.
  */
@@ -242,9 +220,9 @@ export async function checkUsageLimit(
   const cooldown = await checkCooldown(userId, taskType);
   if (cooldown) return cooldown;
 
-  // --- Quota check (cache-first with DB fallback) ---
+  // --- Quota check (database authority) ---
   const limit = PLAN_LIMITS[plan];
-  const businessUsage = await getCachedOrDbBusinessUsage(businessId, plan);
+  const businessUsage = await getBusinessUsageTotal(businessId, plan);
 
   if (businessUsage >= limit) {
     return buildQuotaExceededResult(plan);
@@ -300,8 +278,8 @@ export async function reserveUsage(
       sql`select pg_advisory_xact_lock(hashtext('ai-usage'), hashtext(${businessId}))`,
     );
 
-    // Read the database after acquiring the lock. A cached total cannot
-    // enforce an allowance shared by concurrent requests.
+    // The database is the authority. A cache-first total could be stale, and
+    // two concurrent requests could both pass the same last-credit check.
     const [row] = await tx
       .select({ total: sum(aiUsageEvents.weight) })
       .from(aiUsageEvents)
@@ -322,7 +300,6 @@ export async function reserveUsage(
     return { allowed: true, reservation };
   });
 
-  if (result.allowed) await invalidateUsageCache(result.reservation);
   return result;
 }
 
@@ -360,42 +337,6 @@ async function finalizeUsageReservation(
       await tx.update(aiUsageEvents).set({ weight }).where(condition);
     }
   });
-  await invalidateUsageCache(reservation);
-}
-
-async function invalidateUsageCache(reservation: UsageReservation): Promise<void> {
-  try {
-    await cacheLayer.delete(getBusinessUsageCacheKey(reservation.businessId, reservation.plan));
-  } catch {
-    // Reservations always enforce quota from the DB; display caches expire.
-    console.warn("[usage-limiter] Failed to invalidate usage cache");
-  }
-
-  // Re-prime from the DB. Deleting the key without re-priming it left the
-  // next `recordUsage` incrementing a counter that started at zero, so the
-  // cached total under-reported the month and a business that was over its
-  // allowance passed the quota check.
-  await refreshUsageCache(reservation.businessId, reservation.plan);
-}
-
-/** Recompute the cached monthly total from the authoritative DB rows. */
-async function refreshUsageCache(
-  businessId: string,
-  plan: PlanTier,
-): Promise<void> {
-  try {
-    const total = await getBusinessUsageTotal(businessId, plan);
-    await cacheLayer.set<number>(
-      getBusinessUsageCacheKey(businessId, plan),
-      total,
-      USAGE_CACHE_TTL_SECONDS,
-    );
-  } catch (error) {
-    console.warn(
-      "[usage-limiter] Failed to refresh usage cache:",
-      error instanceof Error ? error.message : error,
-    );
-  }
 }
 
 /** The authoritative monthly weighted usage for a business under a plan. */
@@ -420,56 +361,6 @@ async function getBusinessUsageTotal(
 }
 
 /**
- * Retrieves business-level monthly usage for a plan, using a cache-first
- * strategy with DB fallback.
- *
- * On cache hit: returns the cached value immediately.
- * On cache miss: executes DB SUM aggregate and stores the result with 60s TTL.
- * On complete cache unavailability: falls through to DB aggregate directly.
- */
-async function getCachedOrDbBusinessUsage(
-  businessId: string,
-  plan: PlanTier,
-): Promise<number> {
-  const businessCacheKey = getBusinessUsageCacheKey(businessId, plan);
-
-  // Try a cache-first read
-  let cachedBusinessUsage: number | null = null;
-
-  try {
-    cachedBusinessUsage = await cacheLayer.get<number>(businessCacheKey);
-  } catch {
-    // Complete cache unavailability — fall through to DB
-    console.warn(
-      "[usage-limiter] Cache read failed entirely, falling through to DB aggregate",
-    );
-  }
-
-  if (cachedBusinessUsage !== null) {
-    return cachedBusinessUsage;
-  }
-
-  // Cache miss — query DB for the missing value
-  const businessUsage = await getBusinessUsageTotal(businessId, plan);
-
-  // Cache the value we fetched from DB (non-blocking, ignore failures)
-  try {
-    await cacheLayer.set<number>(
-      businessCacheKey,
-      businessUsage,
-      USAGE_CACHE_TTL_SECONDS,
-    );
-  } catch {
-    // Cache write failure is non-critical — next request will re-query DB
-    console.warn(
-      "[usage-limiter] Failed to cache usage value after DB fetch",
-    );
-  }
-
-  return businessUsage;
-}
-
-/**
  * Records a usage event in the database. Call this after a successful AI
  * invocation (not on cache hits or cooldown rejections).
  *
@@ -477,9 +368,8 @@ async function getCachedOrDbBusinessUsage(
  * `computeUsageWeight`. `plan` is the plan in effect for this invocation and
  * scopes the event, so a later plan change starts a fresh allowance.
  *
- * After the DB insert, atomically increments the plan-scoped cached counter by
- * the invocation weight. On increment failure: deletes the cache key and logs
- * a warning without interrupting the caller.
+ * The insert is the only write: there is no cached quota total to keep in
+ * sync, so a cache outage cannot corrupt the allowance.
  */
 export async function recordUsage(
   userId: string,
@@ -498,10 +388,6 @@ export async function recordUsage(
     weight,
     plan,
   });
-
-  // Keep the cached counter an absolute total so it can never under-report
-  // the month after an invalidation.
-  await safeAddToUsageCache(businessId, plan, weight);
 }
 
 /**
@@ -549,52 +435,6 @@ export async function getMonthlyUsageSummary(
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
-
-/**
- * Atomically increments a cached usage counter by the given weight.
- * On failure: deletes the cache key and logs a warning.
- * Never throws — failures must not interrupt the caller.
- */
-/**
- * Add a weight to the cached monthly total.
- *
- * The cached value has to be an absolute total. A bare increment on a key
- * that was just invalidated starts from zero, so the cache under-reported
- * the month and an over-quota business passed the check until the TTL
- * expired. When the key is missing the DB total is used as the base.
- */
-async function safeAddToUsageCache(
-  businessId: string,
-  plan: PlanTier,
-  weight: number,
-): Promise<void> {
-  const cacheKey = getBusinessUsageCacheKey(businessId, plan);
-
-  let base: number | null = null;
-  try {
-    base = await cacheLayer.get<number>(cacheKey);
-  } catch {
-    // Cache read failed — fall back to the DB total below.
-  }
-
-  if (base === null) {
-    base = await getBusinessUsageTotal(businessId, plan);
-  }
-
-  try {
-    await cacheLayer.set<number>(
-      cacheKey,
-      base + weight,
-      USAGE_CACHE_TTL_SECONDS,
-    );
-  } catch (error) {
-    console.warn(
-      "[usage-limiter] Failed to update usage cache:",
-      cacheKey,
-      error instanceof Error ? error.message : error,
-    );
-  }
-}
 
 function buildQuotaExceededResult(
   plan: PlanTier,

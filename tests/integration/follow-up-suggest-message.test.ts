@@ -27,9 +27,8 @@ vi.mock("@/lib/ai/input-sanitizer", () => ({
 import { POST } from "@/app/api/business/follow-ups/suggest-message/route";
 import { getMemberBusinessActionContext } from "@/lib/db/business-access";
 import { generateWithFallback } from "@/lib/ai/router";
-import { cacheLayer } from "@/lib/ai/cache-layer";
 import {
-  getBusinessUsageCacheKey, getMonthlyUsageSummary, PLAN_LIMITS,
+  getMonthlyUsageSummary, PLAN_LIMITS,
   reserveUsage, releaseUsageReservation, resetCooldown,
 } from "@/lib/ai/usage-limiter";
 import { aiUsageEvents } from "@/lib/db/schema";
@@ -54,7 +53,6 @@ describe("follow-up message credit reservations", () => {
     vi.clearAllMocks();
     await testDb.delete(aiUsageEvents).where(eq(aiUsageEvents.businessId, businessId));
     await resetCooldown(userId, "follow_up_message");
-    await cacheLayer.delete(getBusinessUsageCacheKey(businessId, "free"));
     vi.mocked(getMemberBusinessActionContext).mockResolvedValue({
       ok: true, user: { id: userId },
       businessContext: { business: { id: businessId, name: "Acme" } },
@@ -85,8 +83,8 @@ describe("follow-up message credit reservations", () => {
     const first = POST(request());
     await generating;
     try {
-      // A stale display cache must not bypass the persisted reservation.
-      await cacheLayer.set(getBusinessUsageCacheKey(businessId, "free"), 0, 60);
+      // The first request holds the last credit; concurrent requests must see
+      // the persisted reservation and be refused.
       const others = await Promise.all(Array.from({ length: 4 }, () => POST(request())));
       expect(others.map((response) => response.status)).toEqual([429, 429, 429, 429]);
       expect((await getMonthlyUsageSummary(businessId, "free")).used).toBe(PLAN_LIMITS.free);

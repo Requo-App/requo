@@ -145,21 +145,21 @@ on the free neuron allowance.
   selection. `selectModels` returns only candidates below the ceiling;
   if none remain, the router reports that free capacity is exhausted instead
   of calling a provider.
-- **Every routed dispatch reserves capacity first.** One atomic cache
-  operation checks every enforced bucket and increments all of them only if
-  each can absorb the request. Redis executes it as a single Lua script, so
-  two concurrent turns cannot both claim the last request in a bucket. Without
-  Redis, the in-memory fallback is atomic within one process only; capacity
-  can be overrun across instances until Redis is configured. If the Redis call
-  times out, the router cannot know whether the script committed: it refuses
-  that candidate (the turn continues on the next one) rather than opening a
-  second, unaccounted hold, and any committed hold expires with its TTL.
+- **Every routed dispatch reserves capacity first.** One database transaction
+  in `lib/ai/capacity-store.ts` checks every enforced bucket and increments all
+  of them only if each can absorb the request. Per-key advisory locks make the
+  check-and-increment atomic across application instances, so two concurrent
+  turns cannot both claim the last request in a bucket. This does not depend on
+  Redis: the durable counters live in `ai_capacity_counters`, and the cache
+  counters are a best-effort mirror for selection/ranking only. If the database
+  reservation fails or is unavailable, the candidate is refused rather than
+  dispatching without a recorded hold.
 - **Reservations settle against reality.** A successful call reports the
   provider's usage and posts the difference between the preflight estimate and
-  actual tokens (and Cloudflare's rate-weighted neuron charge). A
-  timeout/network/5xx failure keeps the estimate because the provider may
-  already have processed the request. An explicit refusal (429 or a
-  request-shape 4xx) releases the token hold but keeps the request counted. A
+  actual tokens (and Cloudflare's rate-weighted neuron charge) to the durable
+  counter. A timeout/network/5xx failure keeps the estimate because the
+  provider may already have processed the request. An explicit refusal (429 or
+  a request-shape 4xx) releases the token hold but keeps the request counted. A
   404 rolls the whole reservation back and marks the identifier dead. If a
   long stream outlives a minute-scoped token hold, settlement seeds the new
   minute with reported usage instead of driving the counter negative. A
@@ -201,12 +201,14 @@ on the free neuron allowance.
   profiles, and every profile identifier must exist in the catalog. There is
   no manual override path, so a stale setting cannot reach a provider.
 - **Direct provider paths are metered too.** The file importer preflights
-  each extraction model, records the request and actual tokens after the call,
-  and cools the model after a provider failure. Embedding calls record their
-  token usage under `google:gemini-embedding-001`. These direct paths are not
-  routed through the atomic reservation because they call a provider without a
-  routing profile; their preflight check is advisory and the provider console
-  remains authoritative for usage from other applications sharing the key.
+  each extraction model, records the request and actual tokens after the call
+  in the same durable counters, and cools the model after a provider failure.
+  Embedding calls record their token usage under
+  `google:gemini-embedding-001` in those counters as well. These direct paths
+  do not reserve before the call because they call a provider without a
+  routing profile, so their preflight check is advisory and the provider
+  console remains authoritative for usage from other applications sharing the
+  key.
 
 `costCentsPerMillion` stores provider list prices for observability only.
 Free-tier billing is zero; logged cost is a list-price equivalent, not

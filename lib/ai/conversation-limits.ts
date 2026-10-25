@@ -5,8 +5,7 @@
  * day; the Agent (customer-facing) is limited by sessions per business per
  * month, sessions per business per day (abuse ceiling), and user messages per
  * session. Customer traffic never consumes the owner's allowance and vice
- * versa. The shared weighted monthly credit pool (`checkUsageLimit`) remains
- * as a hard token-spend ceiling behind both buckets.
+ * versa.
  *
  * Plan allowances live in `lib/plans/usage-limits.ts`:
  *   assistantMessagesPerDay: free 25 / pro 250 / business 1000

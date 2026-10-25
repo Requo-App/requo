@@ -17,6 +17,17 @@ import { env } from "@/lib/env";
 //         falls back to in-memory on Redis failure
 // - delete: removes from both Redis and in-memory Map
 // - increment: Redis-first with in-memory fallback
+//
+// Classification: this layer is best-effort. It backs caches, duplicate
+// suppression, cooldowns, lockout counters, health telemetry, and the
+// selection mirror of provider capacity. None of those may be the only guard
+// for a hard limit. Correctness-critical limits do not depend on Redis:
+// - Monthly AI spend: `reserveUsage` in `lib/ai/usage-limiter.ts`
+//   (`ai_usage_events` under a per-business advisory lock)
+// - Provider capacity: `lib/ai/capacity-store.ts`
+//   (`ai_capacity_counters` under per-key advisory locks)
+// - Public action rate limits: `lib/public-action-rate-limit.ts`
+//   (`public_action_events`, fail-closed)
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
@@ -671,8 +682,11 @@ const WINDOW_TTL_SKEW_MS = 1_000;
  * The hold's key can have at most `ttl − heldForMs` left to live, plus the
  * day-TTL rounding allowance. A longer lifetime means the key was recreated
  * after this hold's window expired and belongs to a newer window.
+ *
+ * Shared with the durable capacity store so both implementations settle a
+ * hold across a window boundary the same way.
  */
-function belongsToNewerWindow(
+export function belongsToNewerWindow(
   remainingTtlMs: number,
   maxRemainingTtlMs: number,
 ): boolean {

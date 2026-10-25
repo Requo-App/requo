@@ -2,6 +2,10 @@ import "server-only";
 
 import { cacheLayer } from "@/lib/ai/cache-layer";
 import {
+  adjustDurableCounter,
+  reserveDurableCapacity,
+} from "@/lib/ai/capacity-store";
+import {
   isGroqConfigured,
   isGeminiConfigured,
   isOpenRouterConfigured,
@@ -31,8 +35,9 @@ import type { CacheReservationCounter } from "@/lib/ai/cache-layer";
 // ---------------------------------------------------------------------------
 // Capacity-Aware Model Selector
 //
-// Tracks request counts per model via the distributed Cache Layer and selects
-// the best available model that still has headroom.
+// Tracks request counts per model in Postgres (authoritative) with a
+// distributed Cache Layer mirror (best-effort) and selects the best available
+// model that still has headroom.
 //
 // Metering matches how providers actually bill:
 // - Per-minute AND per-day request counters (RPM/RPD)
@@ -239,25 +244,72 @@ function accountingEntryFor(modelId: string): AccountingEntry | undefined {
 /**
  * Record that a request was made to a model.
  * Increments model-scoped AND provider-scoped counters for shared dimensions.
+ *
+ * Durable DB counters are authoritative (direct provider paths share the
+ * same hard allowance as routed calls); the cache counters are a best-effort
+ * selection mirror.
  */
 export async function recordModelUsage(modelId: string): Promise<void> {
   const entry = accountingEntryFor(modelId);
   const provider = providerOf(modelId);
   const dayTtl = entry ? dayTtlSeconds(entry.dayResets) : 86_400;
-  const writes: Array<Promise<number | void>> = [
-    cacheLayer.increment(getRpmKey(modelId), RPM_TTL_SECONDS),
-    cacheLayer.increment(getRpdKey(modelId), dayTtl),
+  const durableWrites: Array<Promise<number | void>> = [
+    adjustDurableCounter(getRpmKey(modelId), 1, RPM_TTL_SECONDS, 1),
+    adjustDurableCounter(getRpdKey(modelId), 1, dayTtl, 1),
   ];
+  mirrorCapacity(cacheLayer.increment(getRpmKey(modelId), RPM_TTL_SECONDS));
+  mirrorCapacity(cacheLayer.increment(getRpdKey(modelId), dayTtl));
   if (entry && provider) {
-    writes.push(
-      cacheLayer.increment(
+    durableWrites.push(
+      adjustDurableCounter(
         getProviderKey("rpm", provider),
+        1,
         RPM_TTL_SECONDS,
+        1,
       ),
+      adjustDurableCounter(getProviderKey("rpd", provider), 1, dayTtl, 1),
+    );
+    mirrorCapacity(
+      cacheLayer.increment(getProviderKey("rpm", provider), RPM_TTL_SECONDS),
+    );
+    mirrorCapacity(
       cacheLayer.increment(getProviderKey("rpd", provider), dayTtl),
     );
   }
-  await Promise.all(writes);
+  await recordDurableWrites(durableWrites);
+}
+
+/**
+ * Fire a best-effort cache mirror without blocking or failing the caller.
+ * Telemetry is allowed to lag or disappear; the durable store is the
+ * authority for hard limits.
+ */
+function mirrorCapacity(operation: Promise<unknown>): void {
+  void operation.catch((error) => {
+    console.warn(
+      "[ai-capacity] Cache mirror write failed:",
+      error instanceof Error ? error.message : error,
+    );
+  });
+}
+
+/**
+ * Await durable capacity writes without letting one failure break the caller.
+ * A failed durable write under-counts usage, so it is logged; it must not fail
+ * an embedding or extraction that already ran.
+ */
+async function recordDurableWrites(
+  writes: Array<Promise<number | void>>,
+): Promise<void> {
+  const results = await Promise.allSettled(writes);
+  for (const result of results) {
+    if (result.status === "rejected") {
+      console.warn(
+        "[ai-capacity] Failed to record capacity usage:",
+        result.reason instanceof Error ? result.reason.message : result.reason,
+      );
+    }
+  }
 }
 
 /**
@@ -275,15 +327,27 @@ export async function recordModelTokenUsageDetailed(
   if (total <= 0 && !entry?.limits.neuronsPerMillion) return;
   const provider = providerOf(modelId);
   const dayTtl = entry ? dayTtlSeconds(entry.dayResets) : 86_400;
-  const writes: Array<Promise<number | void>> = [];
+  const durableWrites: Array<Promise<number | void>> = [];
   if (total > 0) {
-    writes.push(
-      cacheLayer.incrementBy(getTpmKey(modelId), total, TPM_TTL_SECONDS),
-      cacheLayer.incrementBy(getTpdKey(modelId), total, dayTtl),
+    durableWrites.push(
+      adjustDurableCounter(getTpmKey(modelId), total, TPM_TTL_SECONDS, total),
+      adjustDurableCounter(getTpdKey(modelId), total, dayTtl, total),
     );
+    mirrorCapacity(
+      cacheLayer.incrementBy(getTpmKey(modelId), total, TPM_TTL_SECONDS),
+    );
+    mirrorCapacity(cacheLayer.incrementBy(getTpdKey(modelId), total, dayTtl));
     if (entry && provider) {
       if (entry.sharedWithProvider.includes("tpm")) {
-        writes.push(
+        durableWrites.push(
+          adjustDurableCounter(
+            getProviderKey("tpm", provider),
+            total,
+            TPM_TTL_SECONDS,
+            total,
+          ),
+        );
+        mirrorCapacity(
           cacheLayer.incrementBy(
             getProviderKey("tpm", provider),
             total,
@@ -297,7 +361,15 @@ export async function recordModelTokenUsageDetailed(
         entry.sharedWithProvider.includes("tpd") ||
         entry.sharedWithProvider.includes("tpm")
       ) {
-        writes.push(
+        durableWrites.push(
+          adjustDurableCounter(
+            getProviderKey("tpd", provider),
+            total,
+            dayTtl,
+            total,
+          ),
+        );
+        mirrorCapacity(
           cacheLayer.incrementBy(
             getProviderKey("tpd", provider),
             total,
@@ -320,16 +392,25 @@ export async function recordModelTokenUsageDetailed(
         ? (usage.inputTokens * Math.max(rates.input, rates.output)) / 1_000_000
         : neurons;
     if (charge > 0) {
-      writes.push(
+      const chargedNeurons = Math.ceil(charge * 1000);
+      durableWrites.push(
+        adjustDurableCounter(
+          getNeuronKey(provider || "cloudflare"),
+          chargedNeurons,
+          dayTtl,
+          chargedNeurons,
+        ),
+      );
+      mirrorCapacity(
         cacheLayer.incrementBy(
           getNeuronKey(provider || "cloudflare"),
-          Math.ceil(charge * 1000),
+          chargedNeurons,
           dayTtl,
         ),
       );
     }
   }
-  if (writes.length > 0) await Promise.all(writes);
+  if (durableWrites.length > 0) await recordDurableWrites(durableWrites);
 }
 
 /**
@@ -799,9 +880,12 @@ function loadRatioFor(
 //
 // Selection is a read, so two concurrent turns can both see the last request
 // in a bucket. The router reserves before dispatch; the reservation increments
-// every enforced dimension in one atomic cache operation. A failed attempt
-// keeps its request count (the provider saw it) but releases token capacity
-// unless the failure may already have spent tokens (timeout/network/server).
+// every enforced dimension in one atomic database transaction
+// (`capacity-store.ts`). Redis is an optional dependency, so it can only mirror
+// the counters for ranking; it never decides whether a call may dispatch.
+// A failed attempt keeps its request count (the provider saw it) but releases
+// token capacity unless the failure may already have spent tokens
+// (timeout/network/server).
 // ---------------------------------------------------------------------------
 
 export type ModelCapacityReservation = {
@@ -928,9 +1012,10 @@ function reservationCountersFor(
 /**
  * Reserve request + token capacity for one dispatch attempt.
  *
- * Returns `null` when the cache refuses the reservation. The caller should
- * skip that candidate without spending an attempt: another request already
- * holds the capacity.
+ * Returns `null` when another request already holds the capacity, or when the
+ * durable capacity store is unavailable. The caller should skip that candidate
+ * without spending an attempt. Redis is updated afterwards only as a
+ * best-effort selection mirror.
  */
 export async function reserveModelCapacity(
   modelId: `${string}:${string}` | string,
@@ -944,7 +1029,7 @@ export async function reserveModelCapacity(
     : 0;
   const counters = reservationCountersFor(modelId, entry, estimate);
   const heldCounters = counters.filter((counter) => counter.amount > 0);
-  const result = await cacheLayer.reserve(
+  const result = await reserveDurableCapacity(
     heldCounters.map((counter) => ({
       key: counter.key,
       limit: counter.limit,
@@ -955,15 +1040,34 @@ export async function reserveModelCapacity(
   if (!result.ok) {
     console.warn(
       `[ai-capacity] Reservation refused: model="${modelId}" key="${result.key}"${
-        result.ambiguous ? " (Redis timeout; hold may be committed)" : ""
+        result.unavailable
+          ? " (capacity store unavailable; refusing dispatch)"
+          : ""
       }`,
     );
     return null;
   }
 
-  // Reference for window-aware settlement, sampled after the script returns.
-  // The Redis key can only have been created at or before this instant, so a
-  // counter with a longer remaining lifetime is provably from a newer window.
+  // Mirror the hold so selection/ranking sees it. The durable reservation is
+  // already committed, so this write is fire-and-forget: a slow or missing
+  // cache must not delay dispatch or revoke capacity.
+  if (heldCounters.length > 0) {
+    mirrorCapacity(
+      cacheLayer.reserve(
+        heldCounters.map((counter) => ({
+          key: counter.key,
+          limit: counter.limit,
+          amount: counter.amount,
+          ttlSeconds: counter.ttlSeconds,
+        })),
+      ),
+    );
+  }
+
+  // Reference for window-aware settlement, sampled after the durable
+  // reservation returns. The row can only have been created at or before this
+  // instant, so a counter with a longer remaining lifetime is provably from a
+  // newer window.
   const reservedAt = Date.now();
   const heldForMs = () => Math.max(0, Date.now() - reservedAt);
 
@@ -972,6 +1076,30 @@ export async function reserveModelCapacity(
   const neuronCounters = counters.filter(
     (counter) => counter.kind === "neurons",
   );
+
+  const adjustCounter = async (
+    counter: ReservationCounter,
+    delta: number,
+    whenMissing: number,
+  ) => {
+    const held = heldForMs();
+    mirrorCapacity(
+      cacheLayer.adjustCounter(
+        counter.key,
+        delta,
+        counter.ttlSeconds,
+        whenMissing,
+        held,
+      ),
+    );
+    await adjustDurableCounter(
+      counter.key,
+      delta,
+      counter.ttlSeconds,
+      whenMissing,
+      held,
+    );
+  };
 
   const applyUsage = async (
     usage: { inputTokens: number; outputTokens: number },
@@ -983,13 +1111,7 @@ export async function reserveModelCapacity(
     if (tokenDelta !== 0) {
       await Promise.all(
         tokenCounters.map((counter) =>
-          cacheLayer.adjustCounter(
-            counter.key,
-            tokenDelta,
-            counter.ttlSeconds,
-            actualTotal,
-            heldForMs(),
-          ),
+          adjustCounter(counter, tokenDelta, actualTotal),
         ),
       );
     }
@@ -1007,13 +1129,7 @@ export async function reserveModelCapacity(
       if (neuronDelta !== 0) {
         await Promise.all(
           neuronCounters.map((counter) =>
-            cacheLayer.adjustCounter(
-              counter.key,
-              neuronDelta,
-              counter.ttlSeconds,
-              actualMilli,
-              heldForMs(),
-            ),
+            adjustCounter(counter, neuronDelta, actualMilli),
           ),
         );
       }
@@ -1034,43 +1150,18 @@ export async function reserveModelCapacity(
     async releaseTokens() {
       if (settled) return;
       settled = true;
-      await Promise.all([
-        ...tokenCounters
+      await Promise.all(
+        [...tokenCounters, ...neuronCounters]
           .filter((counter) => counter.amount > 0)
-          .map((counter) =>
-            cacheLayer.adjustCounter(
-              counter.key,
-              -counter.amount,
-              counter.ttlSeconds,
-              0,
-              heldForMs(),
-            ),
-          ),
-        ...neuronCounters
-          .filter((counter) => counter.amount > 0)
-          .map((counter) =>
-            cacheLayer.adjustCounter(
-              counter.key,
-              -counter.amount,
-              counter.ttlSeconds,
-              0,
-              heldForMs(),
-            ),
-          ),
-      ]);
+          .map((counter) => adjustCounter(counter, -counter.amount, 0)),
+      );
     },
     async rollback() {
       if (settled) return;
       settled = true;
       await Promise.all(
         heldCounters.map((counter) =>
-          cacheLayer.adjustCounter(
-            counter.key,
-            -counter.amount,
-            counter.ttlSeconds,
-            0,
-            heldForMs(),
-          ),
+          adjustCounter(counter, -counter.amount, 0),
         ),
       );
     },
@@ -1343,8 +1434,9 @@ export function getAllRegisteredModelIds(): `${string}:${string}`[] {
 }
 
 /**
- * Resets all usage counters. Used for testing.
- * Note: Only clears the in-memory fallback layer. Redis entries expire via TTL.
+ * Resets the best-effort usage mirror. Used for testing.
+ * Durable counters live in Postgres and end with their window; a test that
+ * needs a clean durable state must clear `ai_capacity_counters` directly.
  * @internal
  */
 export async function _resetUsageCounters(): Promise<void> {
