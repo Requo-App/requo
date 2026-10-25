@@ -167,6 +167,9 @@ re-exported through `index.ts`. `drizzle/` contains sequential SQL migrations
 and the Drizzle journal. Edit schema sources and generate a new migration;
 never rewrite an applied migration. `npm run vercel-build` runs strict
 migrations before the Next.js build and requires `DATABASE_MIGRATION_URL`.
+Because the previous deployment keeps serving while that build runs, schema
+changes must stay backward-compatible with the deployed code and destructive
+changes are deferred to a later release.
 The complete workflow and direct-connection constraint are in
 [Database Migrations](../database-migrations.md).
 
