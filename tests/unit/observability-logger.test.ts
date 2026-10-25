@@ -195,18 +195,45 @@ describe("structured logger", () => {
   });
 
   it.each(["development", "production"])(
-    "preserves error names and stack behavior in %s",
+    "preserves error names and sanitizes stack output in %s",
     (environment) => {
       vi.stubEnv("NODE_ENV", environment);
-      const error = new TypeError("failed\nrequest body");
+      const error = new TypeError("failed\nprivate request body");
+      const serialized = serializeError(error);
 
-      expect(serializeError(error)).toEqual({
+      expect(serialized).toMatchObject({
         name: "TypeError",
         message: "failed",
-        ...(environment === "production" ? {} : { stack: error.stack }),
       });
+
+      if (environment === "production") {
+        expect(serialized).not.toHaveProperty("stack");
+      } else {
+        expect(serialized.stack).toContain("TypeError: failed");
+        expect(serialized.stack).toMatch(/\n\s+at\s/);
+        expect(serialized.stack).not.toContain("private request body");
+      }
     },
   );
+
+  it("does not log multiline error text through a development stack", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    logError("job.failed", new TypeError("failed\nprivate request body"));
+
+    expect(capture(error)[0]).toEqual(
+      expect.objectContaining({
+        error: expect.objectContaining({
+          name: "TypeError",
+          message: "failed",
+        }),
+      }),
+    );
+    expect(JSON.stringify(capture(error)[0])).not.toContain(
+      "private request body",
+    );
+  });
 
   it("preserves environment and correlation IDs when serialization fails", () => {
     vi.stubEnv("VERCEL_ENV", "preview");

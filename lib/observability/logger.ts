@@ -9,6 +9,7 @@ const MAX_DEPTH = 5;
 const MAX_ARRAY_LENGTH = 50;
 const MAX_STRING_LENGTH = 2_000;
 const MAX_ERROR_MESSAGE_LENGTH = 500;
+const MAX_STACK_LENGTH = 8_000;
 const REDACTED = "[redacted]";
 
 /**
@@ -59,6 +60,21 @@ function scrubErrorMessage(message: string): string {
     .slice(0, MAX_ERROR_MESSAGE_LENGTH);
 }
 
+/**
+ * Rebuild the stack from the scrubbed message and V8 frame lines only.
+ * `error.stack` starts with the raw message and may retain later lines of a
+ * multiline message, so copying it would reintroduce the text that
+ * `scrubErrorMessage` removes.
+ */
+function scrubStack(error: Error): string {
+  const header = `${error.name}: ${scrubErrorMessage(error.message)}`;
+  const frames = (error.stack ?? "")
+    .split(/\r?\n/)
+    .filter((line) => /^\s+at\s/.test(line));
+
+  return [header, ...frames].join("\n").slice(0, MAX_STACK_LENGTH);
+}
+
 export function serializeError(error: unknown): Record<string, unknown> {
   if (error instanceof Error) {
     const serialized: Record<string, unknown> = {
@@ -67,7 +83,7 @@ export function serializeError(error: unknown): Record<string, unknown> {
     };
 
     if (process.env.NODE_ENV !== "production" && error.stack) {
-      serialized.stack = error.stack;
+      serialized.stack = scrubStack(error);
     }
 
     return serialized;
