@@ -178,6 +178,46 @@ storage and Realtime notification delivery. Private assets are downloaded
 through authenticated server routes. Storage policy/bucket changes are
 migration-owned; service-role credentials stay server-side.
 
+### Customer identity
+
+There is no customer master entity. `inquiries`, `quotes`, and `invoices` each
+store their own customer snapshot: name, optional email, contact method, and
+contact handle (see [`lib/db/schema/`](../../lib/db/schema/)). Creating a quote
+or invoice carries the current values forward; sending records the values shown
+to the customer. Editing one record therefore never rewrites another record or
+an already-issued document.
+
+The invoice list uses `(business_id, customer_email)` as a filtering index. The
+[customer-history query](../../features/customer-history/queries.ts) and
+reporting paths normalize email and contact handles at read time to match
+related records within a business, but that matching does not persist an
+identity or write values back to the source records. Email is optional, so it
+cannot serve as an identity key by itself. This is deliberate:
+
+- Public inquiry and quote journeys require no customer account.
+- A sent quote or invoice preserves exactly what the customer saw.
+- Tenant isolation does not depend on a cross-business identity graph.
+
+Introduce a business-scoped customer entity only when at least one of these is a
+real product requirement:
+
+- Owners need durable cross-inquiry history, shared notes, or preferences for a
+  customer rather than per-record detail.
+- Duplicate detection or merge across email/phone variants is required, not
+  just search.
+- A contact change must propagate to open records while issued documents keep
+  their historical snapshot.
+- Customer-level reporting or segmentation cannot be derived from the existing
+  records.
+
+If those conditions arrive, use the expand/contract sequence from
+[Database Migrations](../database-migrations.md): add `customers` and a nullable
+`customer_id`, backfill within each business using a normalized contact key,
+dual-write during the transition, switch reads, and only then remove redundant
+columns. Plan for merge semantics, deletion, cache invalidation, and document
+snapshots before writing the migration; do not key the entity on email alone.
+Until then, customer fields on commercial records are snapshots, not identity.
+
 ## Identity, authorization, and tenant isolation
 
 Better Auth is the only identity/session provider. It uses the Drizzle/Postgres
@@ -422,7 +462,9 @@ PR CI and remains a local or pre-release check. See
 - Payment entries are attestations of money received elsewhere; no gateway,
   online payment page, or refund processing is implemented.
 - Customer identity remains denormalized on commercial records; there is no
-  customer master/CRM entity.
+  customer master/CRM entity. See
+  [Customer identity](#customer-identity) for the accepted design and the
+  triggers for revisiting it.
 - There are two historical migrations with the `0021` prefix. Journal order
   governs application; do not rename committed migrations.
   `npm run audit:migrations` verifies the file/journal match and rejects new

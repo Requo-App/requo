@@ -124,8 +124,10 @@ market research metrics.
 The current product does not provide dispatch/job management, a general
 calendar or crew scheduling product, a mobile application, a marketplace,
 payroll, a customer identity/CRM entity, payment processing, or a general
-purpose chatbot. Payment schedules and approval workflows in the app are
-quote/work-order concepts, not a general calendar.
+purpose chatbot. Customer details stay as snapshots on commercial records; the
+[technical reference](../architecture/TRD.md#customer-identity) records the
+criteria for revisiting a customer master. Payment schedules and approval
+workflows in the app are quote/work-order concepts, not a general calendar.
 
 The public Agent's proposed inquiry requires customer confirmation before
 creation. Its transcript is not a business-browsable conversation archive;

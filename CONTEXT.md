@@ -40,6 +40,10 @@ _Avoid_: Payments (reserve payments for invoice payment records)
 An offering with a public page and associated intake form. The database retains the historical `business_inquiry_forms` table name.
 _Avoid_: Form, inquiry form (for the offering itself)
 
+**Customer**:
+The person or organization on the other side of an inquiry, quote, or invoice. Requo stores customer details as snapshots on each commercial record; there is no customer master or cross-business identity.
+_Avoid_: Contact, CRM record, client account
+
 **Quote library**:
 Reusable pricing entries and line items used to build quotes. The database table is `quote_library_entries`.
 _Avoid_: Products, product library
