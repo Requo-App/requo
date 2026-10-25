@@ -7,6 +7,7 @@ vi.mock("@/lib/db/client", async () => ({
 
 import {
   adjustDurableCounter,
+  adjustDurableCounters,
   reserveDurableCapacity,
 } from "@/lib/ai/capacity-store";
 import {
@@ -45,6 +46,10 @@ const trackedKeys = [
   testKey("settle"),
   testKey("expired-window"),
   testKey("newer-window"),
+  testKey("batch-a"),
+  testKey("batch-b"),
+  testKey("batch-rollback-a"),
+  testKey("batch-rollback-b"),
 ];
 
 async function cleanCapacityRows(): Promise<void> {
@@ -120,6 +125,49 @@ describe("durable AI capacity reservations", () => {
     await adjustDurableCounter(expiredKey, -100, 60, 350);
 
     expect(await readValue(expiredKey)).toBe(350);
+  });
+
+  it("applies every held counter's settlement in one batch", async () => {
+    const tokenKey = testKey("batch-a");
+    const neuronKey = testKey("batch-b");
+
+    const values = await adjustDurableCounters([
+      { key: tokenKey, delta: 3, ttlSeconds: 60, whenMissing: 3 },
+      { key: neuronKey, delta: -1, ttlSeconds: 60, whenMissing: 4 },
+      { key: tokenKey, delta: -1, ttlSeconds: 60, whenMissing: 0 },
+    ]);
+
+    expect(values.get(tokenKey)).toBe(2);
+    expect(values.get(neuronKey)).toBe(4);
+    expect(await readValue(tokenKey)).toBe(2);
+    expect(await readValue(neuronKey)).toBe(4);
+  });
+
+  it("rolls back every counter when one settlement cannot be written", async () => {
+    const existingKey = testKey("batch-rollback-a");
+    const invalidKey = testKey("batch-rollback-b");
+    await testDb.insert(aiCapacityCounters).values({
+      key: existingKey,
+      value: 5,
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+
+    await expect(
+      adjustDurableCounters([
+        { key: existingKey, delta: -2, ttlSeconds: 60, whenMissing: 0 },
+        {
+          key: invalidKey,
+          delta: 1,
+          ttlSeconds: 60,
+          // Exceeds the integer column, so the insert fails after the first
+          // adjustment in the batch has already been applied.
+          whenMissing: 2_147_483_648,
+        },
+      ]),
+    ).rejects.toThrow(/Failed query: insert into "ai_capacity_counters"/);
+
+    expect(await readValue(existingKey)).toBe(5);
+    expect(await readValue(invalidKey)).toBeUndefined();
   });
 
   it("does not let a late release erase a newer window's usage", async () => {

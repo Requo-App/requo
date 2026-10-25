@@ -41,6 +41,36 @@ type CounterWindow = {
   ttlSeconds: number;
 };
 
+type DatabaseTransaction = Parameters<
+  Parameters<typeof db.transaction>[0]
+>[0];
+
+/**
+ * Read the database clock once per transaction. Window boundaries are compared
+ * against `expires_at`, so using the database's clock keeps two application
+ * instances from disagreeing when their host clocks drift.
+ *
+ * `clock_timestamp()` rather than `now()`: a transaction that waited on an
+ * advisory lock must compare boundaries against the time it resumed, not the
+ * time it began. A missing reading throws, so callers fail closed instead of
+ * silently falling back to a possibly skewed application clock.
+ */
+async function databaseNowMs(tx: DatabaseTransaction): Promise<number> {
+  // postgres-js returns the rows array directly; node-postgres (integration
+  // tests) returns a QueryResult with a `rows` property.
+  const result = (await tx.execute(
+    sql`select (extract(epoch from clock_timestamp()) * 1000)::double precision as now_ms`,
+  )) as unknown as
+    | Array<{ now_ms: number | string }>
+    | { rows: Array<{ now_ms: number | string }> };
+  const rows = Array.isArray(result) ? result : result.rows;
+  const value = Number(rows[0]?.now_ms);
+  if (!Number.isFinite(value)) {
+    throw new Error("Database clock query returned an invalid timestamp");
+  }
+  return value;
+}
+
 /**
  * Collapse counters that name the same key. Reservation callers normally
  * produce unique keys, but aggregating here keeps the transaction from
@@ -90,8 +120,7 @@ export async function reserveDurableCapacity(
         );
       }
 
-      const now = new Date();
-      const nowMs = now.getTime();
+      const nowMs = await databaseNowMs(tx);
       const rows = await tx
         .select()
         .from(aiCapacityCounters)
@@ -143,10 +172,26 @@ export async function reserveDurableCapacity(
   }
 }
 
+export type DurableCounterAdjustment = {
+  key: string;
+  delta: number;
+  ttlSeconds: number;
+  whenMissing: number;
+  heldForMs?: number;
+};
+
+type CounterState = {
+  value: number;
+  expiresAt: Date;
+  exists: boolean;
+};
+
 /**
- * Apply a reservation settlement to a durable counter.
+ * Apply several reservation settlements in one transaction.
  *
- * Mirrors the Redis adjustment script:
+ * Every held counter settles together or not at all, so a failure cannot leave
+ * a reservation half-released or half-charged. The adjustment rules mirror the
+ * Redis script:
  * - A missing (or expired) counter means the hold's window ended. Seed the
  *   new window with `whenMissing` instead of decrementing below zero.
  * - A counter whose remaining lifetime exceeds what this hold's window could
@@ -157,6 +202,114 @@ export async function reserveDurableCapacity(
  * Direct provider paths use this with `heldForMs = 0` to record actual usage
  * in the same counters.
  */
+export async function adjustDurableCounters(
+  adjustments: DurableCounterAdjustment[],
+): Promise<Map<string, number>> {
+  const results = new Map<string, number>();
+  if (adjustments.length === 0) return results;
+
+  const normalized = adjustments.map((adjustment) => ({
+    key: adjustment.key,
+    delta: Number.isFinite(adjustment.delta) ? adjustment.delta : 0,
+    ttlSeconds: adjustment.ttlSeconds,
+    seed: Math.max(0, Math.ceil(adjustment.whenMissing)),
+    held: Number.isFinite(adjustment.heldForMs)
+      ? Math.max(0, adjustment.heldForMs ?? 0)
+      : 0,
+  }));
+  const keys = [
+    ...new Set(normalized.map((adjustment) => adjustment.key)),
+  ].sort();
+
+  return db.transaction(async (tx) => {
+    for (const key of keys) {
+      await tx.execute(
+        sql`select pg_advisory_xact_lock(hashtext('ai-capacity'), hashtext(${key}))`,
+      );
+    }
+
+    const nowMs = await databaseNowMs(tx);
+    const rows = await tx
+      .select()
+      .from(aiCapacityCounters)
+      .where(inArray(aiCapacityCounters.key, keys))
+      .for("update");
+
+    const state = new Map<string, CounterState>(
+      rows.map((row) => [
+        row.key,
+        { value: row.value, expiresAt: row.expiresAt, exists: true },
+      ]),
+    );
+    const dirty = new Set<string>();
+
+    for (const adjustment of normalized) {
+      const { key } = adjustment;
+      const current = state.get(key);
+      const existingExpiresAt = current?.expiresAt.getTime() ?? 0;
+
+      if (!current || existingExpiresAt <= nowMs) {
+        if (adjustment.seed === 0) {
+          results.set(key, 0);
+          continue;
+        }
+        const next: CounterState = {
+          value: adjustment.seed,
+          expiresAt: windowEndsAt(nowMs, adjustment.ttlSeconds),
+          exists: current?.exists ?? false,
+        };
+        state.set(key, next);
+        dirty.add(key);
+        results.set(key, next.value);
+        continue;
+      }
+
+      const remaining = existingExpiresAt - nowMs;
+      const maxRemaining = adjustment.ttlSeconds * 1_000 - adjustment.held;
+
+      if (belongsToNewerWindow(remaining, maxRemaining)) {
+        if (adjustment.delta > 0 && adjustment.seed > 0) {
+          const next = current.value + adjustment.seed;
+          state.set(key, { ...current, value: next });
+          dirty.add(key);
+          results.set(key, next);
+        } else {
+          results.set(key, current.value);
+        }
+        continue;
+      }
+
+      const next = Math.max(0, current.value + adjustment.delta);
+      state.set(key, { ...current, value: next });
+      dirty.add(key);
+      results.set(key, next);
+    }
+
+    for (const key of dirty) {
+      const current = state.get(key);
+      if (!current) continue;
+      if (current.exists) {
+        await tx
+          .update(aiCapacityCounters)
+          .set({ value: current.value, expiresAt: current.expiresAt })
+          .where(eq(aiCapacityCounters.key, key));
+      } else {
+        await tx
+          .insert(aiCapacityCounters)
+          .values({ key, value: current.value, expiresAt: current.expiresAt });
+      }
+    }
+
+    return results;
+  });
+}
+
+/**
+ * Apply one reservation settlement to a durable counter.
+ *
+ * Prefer `adjustDurableCounters` when a reservation holds more than one
+ * counter: the batch form keeps them atomic.
+ */
 export async function adjustDurableCounter(
   key: string,
   delta: number,
@@ -164,59 +317,8 @@ export async function adjustDurableCounter(
   whenMissing: number,
   heldForMs = 0,
 ): Promise<number> {
-  const seed = Math.max(0, Math.ceil(whenMissing));
-  const held = Number.isFinite(heldForMs) ? Math.max(0, heldForMs) : 0;
-
-  return db.transaction(async (tx) => {
-    await tx.execute(
-      sql`select pg_advisory_xact_lock(hashtext('ai-capacity'), hashtext(${key}))`,
-    );
-
-    const [row] = await tx
-      .select()
-      .from(aiCapacityCounters)
-      .where(eq(aiCapacityCounters.key, key))
-      .for("update");
-
-    const now = Date.now();
-    const existingExpiresAt = row?.expiresAt.getTime() ?? 0;
-
-    if (!row || existingExpiresAt <= now) {
-      if (seed === 0) return 0;
-      const expiresAt = windowEndsAt(now, ttlSeconds);
-      if (row) {
-        await tx
-          .update(aiCapacityCounters)
-          .set({ value: seed, expiresAt })
-          .where(eq(aiCapacityCounters.key, key));
-      } else {
-        await tx
-          .insert(aiCapacityCounters)
-          .values({ key, value: seed, expiresAt });
-      }
-      return seed;
-    }
-
-    const remaining = existingExpiresAt - now;
-    const maxRemaining = ttlSeconds * 1_000 - held;
-
-    if (belongsToNewerWindow(remaining, maxRemaining)) {
-      if (delta > 0 && seed > 0) {
-        const next = row.value + seed;
-        await tx
-          .update(aiCapacityCounters)
-          .set({ value: next })
-          .where(eq(aiCapacityCounters.key, key));
-        return next;
-      }
-      return row.value;
-    }
-
-    const next = Math.max(0, row.value + delta);
-    await tx
-      .update(aiCapacityCounters)
-      .set({ value: next })
-      .where(eq(aiCapacityCounters.key, key));
-    return next;
-  });
+  const values = await adjustDurableCounters([
+    { key, delta, ttlSeconds, whenMissing, heldForMs },
+  ]);
+  return values.get(key) ?? 0;
 }

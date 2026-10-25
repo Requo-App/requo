@@ -41,9 +41,11 @@ instance sees the same state even when Redis is missing or unreachable.
   `lib/ai/capacity-store.ts` locks the affected counter keys in sorted order,
   checks every bucket, and increments all of them or none. The counters live in
   `ai_capacity_counters`. `lib/ai/capacity-selector.ts` mirrors them into Redis
-  after the durable reservation, for selection/ranking only; it never gates a
-  dispatch on the mirror. Direct provider paths (embeddings, importer
-  extraction) record their usage into the same durable counters.
+  after the durable reservation. The mirror can demote or exclude a candidate
+  from selection, but only the durable reservation authorizes a dispatch.
+  Direct provider paths (embeddings, importer extraction) record their usage
+  into the same durable counters after the call; their preflight check is
+  advisory.
 - **Public action rate limits.** The public limiter falls back to the
   `public_action_events` ledger and fails closed if neither Redis nor the
   database can answer. Business action limits fall back fail-open, because the

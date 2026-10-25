@@ -125,74 +125,102 @@ vi.mock("@/lib/ai/cache-layer", () => ({
   },
 }));
 
-vi.mock("@/lib/ai/capacity-store", () => ({
+vi.mock("@/lib/ai/capacity-store", () => {
   // In-memory stand-in for the durable store. Reservation tests assert
   // against these maps so they cover the authority rather than the mirror.
-  reserveDurableCapacity: vi.fn(
-    async (
-      counters: Array<{
-        key: string;
-        limit: number;
-        amount: number;
-        ttlSeconds: number;
-      }>,
-    ) => {
-      for (const counter of counters) {
-        if (mocks.durableNum(counter.key) + counter.amount > counter.limit) {
-          return { ok: false, key: counter.key };
-        }
-      }
-      for (const counter of counters) {
-        const next = mocks.durableNum(counter.key) + counter.amount;
-        mocks.durable.set(counter.key, next);
-        mocks.durableTtls.set(counter.key, counter.ttlSeconds);
-        if (!mocks.durableWriteAt.has(counter.key)) {
-          mocks.durableWriteAt.set(counter.key, Date.now());
-        }
-      }
-      return { ok: true };
-    },
-  ),
-  adjustDurableCounter: vi.fn(
-    async (
-      key: string,
-      delta: number,
-      ttlSeconds: number,
-      whenMissing: number,
-      heldForMs = 0,
-    ) => {
-      const now = Date.now();
-      const existing = mocks.durable.get(key);
+  const adjustDurable = async (
+    key: string,
+    delta: number,
+    ttlSeconds: number,
+    whenMissing: number,
+    heldForMs = 0,
+  ) => {
+    const now = Date.now();
+    const existing = mocks.durable.get(key);
 
-      if (existing === undefined) {
-        const next = Math.max(0, Math.ceil(whenMissing));
+    if (existing === undefined) {
+      const next = Math.max(0, Math.ceil(whenMissing));
+      mocks.durable.set(key, next);
+      mocks.durableTtls.set(key, ttlSeconds);
+      mocks.durableWriteAt.set(key, now);
+      return next;
+    }
+
+    const current = mocks.durableNum(key);
+    const remaining =
+      (mocks.durableWriteAt.get(key) ?? now - ttlSeconds * 1000) +
+      ttlSeconds * 1000 -
+      now;
+    const maxRemaining = ttlSeconds * 1000 - Math.max(0, heldForMs);
+    if (remaining > maxRemaining) {
+      if (delta > 0 && whenMissing > 0) {
+        const next = current + Math.ceil(whenMissing);
         mocks.durable.set(key, next);
-        mocks.durableTtls.set(key, ttlSeconds);
-        mocks.durableWriteAt.set(key, now);
         return next;
       }
+      return current;
+    }
 
-      const current = mocks.durableNum(key);
-      const remaining =
-        (mocks.durableWriteAt.get(key) ?? now - ttlSeconds * 1000) +
-        ttlSeconds * 1000 -
-        now;
-      const maxRemaining = ttlSeconds * 1000 - Math.max(0, heldForMs);
-      if (remaining > maxRemaining) {
-        if (delta > 0 && whenMissing > 0) {
-          const next = current + Math.ceil(whenMissing);
-          mocks.durable.set(key, next);
-          return next;
+    const next = Math.max(0, current + delta);
+    mocks.durable.set(key, next);
+    return next;
+  };
+
+  return {
+    reserveDurableCapacity: vi.fn(
+      async (
+        counters: Array<{
+          key: string;
+          limit: number;
+          amount: number;
+          ttlSeconds: number;
+        }>,
+      ) => {
+        for (const counter of counters) {
+          if (mocks.durableNum(counter.key) + counter.amount > counter.limit) {
+            return { ok: false, key: counter.key };
+          }
         }
-        return current;
-      }
-
-      const next = Math.max(0, current + delta);
-      mocks.durable.set(key, next);
-      return next;
-    },
-  ),
-}));
+        for (const counter of counters) {
+          const next = mocks.durableNum(counter.key) + counter.amount;
+          mocks.durable.set(counter.key, next);
+          mocks.durableTtls.set(counter.key, counter.ttlSeconds);
+          if (!mocks.durableWriteAt.has(counter.key)) {
+            mocks.durableWriteAt.set(counter.key, Date.now());
+          }
+        }
+        return { ok: true };
+      },
+    ),
+    adjustDurableCounter: vi.fn(adjustDurable),
+    adjustDurableCounters: vi.fn(
+      async (
+        adjustments: Array<{
+          key: string;
+          delta: number;
+          ttlSeconds: number;
+          whenMissing: number;
+          heldForMs?: number;
+        }>,
+      ) => {
+        const values = new Map<string, number>();
+        for (const adjustment of adjustments) {
+          values.set(
+            adjustment.key,
+            await adjustDurable(
+              adjustment.key,
+              adjustment.delta,
+              adjustment.ttlSeconds,
+              adjustment.whenMissing,
+              adjustment.heldForMs ?? 0,
+            ),
+          );
+        }
+        return values;
+      },
+    ),
+  };
+});
 
 vi.mock("@/lib/env", () => ({
   isGroqConfigured: true,
