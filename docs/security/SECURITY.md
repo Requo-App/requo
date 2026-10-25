@@ -49,11 +49,18 @@ root [`SECURITY.md`](../../SECURITY.md).
   feature module. `npm run audit:tenant-boundary` runs as part of
   `npm run check`.
 - Admin pages and operations use server-side admin guards. Preserve the
-  server checks even where `proxy.ts` also gates `/admin`. The session role
-  fast path can trust a cached `admin` role or unbanned status for up to 300
-  seconds, so a recent demotion or ban may not take effect immediately.
-  `requireAdminUser()` is not a fresh database-authoritative role check in that
-  branch. See [`features/admin/access.ts`](../../features/admin/access.ts),
+  server checks even where `proxy.ts` also gates `/admin`. `requireAdminUser()`
+  always re-reads `user.role` and `user.banned` from the database and grants
+  only on `role = "admin"`, so a demotion or ban is enforced on the next admin
+  request even while Better Auth's cookie cache still shows the old role to the
+  proxy (up to 300 seconds). The proxy gate is an early rejection, not the
+  boundary. `ADMIN_EMAILS` is a bootstrap input for promoting accounts and a
+  hint for that gate, not a runtime grant. Demotion, suspension, session
+  revocation, and account deletion remove the target's own sessions and any
+  impersonation sessions they started. Revoking an impersonation session also
+  expires Better Auth's session cookies, because its signed cookie cache can
+  otherwise keep the deleted session usable until the payload lapses. See
+  [`features/admin/access.ts`](../../features/admin/access.ts),
   [`lib/auth/admin-identity.ts`](../../lib/auth/admin-identity.ts), and
   [`lib/auth/config.ts`](../../lib/auth/config.ts) before changing this boundary.
 

@@ -29,7 +29,7 @@ Scope every business read/write by verified membership + `businessId`:
 
 `proxy.ts` sets business-slug cookies, private/noindex headers, Markdown negotiation, legacy redirects, and an optimistic `/admin` gate (real `403` document, `/admin/stop-impersonating` exempt). It is not the authorization boundary: admin pages/actions/queries also call `requireAdminUser()` (`features/admin/access.ts`).
 
-Bounded consistency risk: the session-role fast path trusts Better Auth's cached `admin` role / unbanned state for up to 300s (`lib/auth/admin-identity.ts`, `lib/auth/config.ts`). A recent demotion/ban may lag. Do not present it as DB-authoritative.
+Bounded consistency risk at the proxy only: the proxy's optimistic gate trusts Better Auth's cached `admin` role / unbanned state for up to 300s (`lib/auth/admin-identity.ts`, `lib/auth/config.ts`). The server guard `requireAdminUser()` (`features/admin/access.ts`) always re-reads role and ban state from the database and grants only on `role = "admin"`, so a demotion/ban is enforced on the next admin operation. `ADMIN_EMAILS` is a bootstrap input and a proxy hint, not an authorization grant. Do not move authorization into the proxy.
 
 ## RLS reality
 

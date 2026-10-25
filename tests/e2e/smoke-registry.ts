@@ -10,7 +10,7 @@ import { test, type TestInfo } from "@playwright/test";
  * The smoke workflows are:
  *   1. owner sign-in
  *   2. public inquiry submission
- *   3. quote creation and sending
+ *   3. quote creation
  *   4. quote sharing
  *   5. public quote response
  *   6. invoice creation
@@ -27,7 +27,7 @@ import { test, type TestInfo } from "@playwright/test";
 export const SMOKE_REGISTRY = {
   "auth-and-dashboard.spec.ts": ["owner sign-in", "quote sharing"],
   "public-inquiry.spec.ts": ["public inquiry submission"],
-  "dashboard-workflows.spec.ts": ["quote creation and sending"],
+  "dashboard-workflows.spec.ts": ["quote creation"],
   "public-quote.spec.ts": ["public quote response"],
   "invoices.spec.ts": ["invoice creation", "payment recording"],
   "agent-conversation.spec.ts": ["Agent conversation"],

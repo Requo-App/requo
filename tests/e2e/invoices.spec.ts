@@ -32,14 +32,26 @@ async function createManualInvoice(page: Page, invoiceTitle: string) {
     waitUntil: "domcontentloaded",
   });
 
-  await expect(
-    page.getByRole("heading", { name: "Create a new invoice" }),
-  ).toBeVisible({ timeout: 120_000 });
+  // The streamed skeleton renders the same "Create a new invoice" heading, so
+  // wait for a form-only field instead. Dashboard routes prefetch their
+  // siblings, so `networkidle` never settles here (see
+  // assistant-conversation.spec.ts); prove hydration through the form itself.
+  const lineItemDescription = page.getByLabel("Line item 1 description");
+  await expect(lineItemDescription).toBeVisible({ timeout: 120_000 });
+
+  // A fill that lands before hydration is discarded when React attaches, so
+  // retry the first edit until the serialized line-item state reflects it.
+  const itemsInput = page.locator('input[name="items"]');
+  await expect(async () => {
+    await lineItemDescription.fill("Smoke line item");
+    await expect(itemsInput).toHaveValue(/"description":"Smoke line item"/, {
+      timeout: 2_000,
+    });
+  }).toPass({ timeout: 90_000 });
 
   await page.getByLabel("Title").fill(invoiceTitle);
   await page.getByLabel("Customer name").fill("Smoke Customer");
   await page.getByLabel("Customer email").fill("smoke.customer@example.com");
-  await page.getByLabel("Line item 1 description").fill("Smoke line item");
   await page.getByLabel("Line item 1 quantity").fill("2");
   await page.getByLabel("Line item 1 unit price").fill("125.00");
 

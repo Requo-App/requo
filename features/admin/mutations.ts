@@ -1,6 +1,6 @@
 "use server";
 
-import { and, count, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, count, desc, eq, isNull, or, sql } from "drizzle-orm";
 import { revalidateTag } from "next/cache";
 import { headers } from "next/headers";
 
@@ -52,6 +52,7 @@ import type { AdminActionResult } from "@/features/admin/types";
 import { writeAccountAuditLogsForUser } from "@/features/audit/mutations";
 import type { AuditAction } from "@/features/audit/types";
 import { getUserSafeErrorMessage } from "@/lib/action-state";
+import { clearAuthSessionCookies } from "@/lib/auth/cookies";
 import { auth } from "@/lib/auth/server";
 import {
   getOptionalSession,
@@ -107,7 +108,20 @@ type TargetUserSummary = {
   id: string;
   email: string;
   name: string;
+  role: string | null;
 };
+
+/**
+ * Raised when a demotion loses the race with another role change. The
+ * transaction rolls back (including the audit row), and the action returns the
+ * same stale-target message as the pre-check.
+ */
+class DemoteTargetNotAdminError extends Error {
+  constructor() {
+    super("Target is no longer an admin.");
+    this.name = "DemoteTargetNotAdminError";
+  }
+}
 
 /**
  * Resolve a minimal target-user snapshot for audit metadata. Returns
@@ -124,6 +138,7 @@ async function loadTargetUserSummary(
       id: user.id,
       email: user.email,
       name: user.name,
+      role: user.role,
     })
     .from(user)
     .where(eq(user.id, userId))
@@ -448,9 +463,17 @@ export async function revokeAllSessionsAction(
         },
       },
       async (tx: DbTransaction) => {
+        // Include impersonation rows the target started; those are owned
+        // by the impersonated user (`userId`) and only reference the
+        // target in `impersonatedBy`.
         const deleted = await tx
           .delete(session)
-          .where(eq(session.userId, target.id))
+          .where(
+            or(
+              eq(session.userId, target.id),
+              eq(session.impersonatedBy, target.id),
+            ),
+          )
           .returning({ id: session.id });
         revokedCount = deleted.length;
       },
@@ -544,10 +567,18 @@ export async function suspendUserAction(
           })
           .where(eq(user.id, target.id));
 
-        // Drop existing sessions so the suspension takes effect
-        // immediately — otherwise the target's live cookie keeps
-        // working until natural expiry.
-        await tx.delete(session).where(eq(session.userId, target.id));
+        // Drop existing sessions so the suspension cannot refresh a cookie
+        // cache that still carries the pre-ban user. An impersonation row is
+        // owned by the impersonated user (`userId`) and references the admin
+        // in `impersonatedBy`, so both directions must go.
+        await tx
+          .delete(session)
+          .where(
+            or(
+              eq(session.userId, target.id),
+              eq(session.impersonatedBy, target.id),
+            ),
+          );
       },
     );
   } catch (error) {
@@ -784,7 +815,18 @@ export async function deleteUserAction(
           );
         }
 
+        // Delete the user row before the impersonation sessions so this path
+        // takes the user lock before session locks, matching demote, suspend,
+        // and the impersonation re-check. The user's own sessions cascade.
         await tx.delete(user).where(eq(user.id, target.id));
+
+        // Impersonation sessions the target started are owned by the
+        // impersonated users and only reference the target in `impersonatedBy`,
+        // so the cascade does not remove them. Delete them explicitly so
+        // deleting an admin cannot leave one active.
+        await tx
+          .delete(session)
+          .where(eq(session.impersonatedBy, target.id));
       },
     );
   } catch (error) {
@@ -960,6 +1002,10 @@ export async function demoteFromAdminAction(
     return { ok: false, error: "That user no longer exists." };
   }
 
+  if (target.role !== "admin") {
+    return { ok: false, error: "That user is no longer an admin." };
+  }
+
   // Last-admin guard: refuse to demote the final remaining admin.
   const [adminCountRow] = await db
     .select({ count: count() })
@@ -1003,13 +1049,43 @@ export async function demoteFromAdminAction(
         },
       },
       async (tx) => {
-        await tx
+        const updated = await tx
           .update(user)
           .set({ role: "user", updatedAt: new Date() })
-          .where(eq(user.id, target.id));
+          .where(and(eq(user.id, target.id), eq(user.role, "admin")))
+          .returning({ id: user.id });
+
+        // The pre-check above is for the normal stale-UI case. Re-assert the
+        // role in the update itself so a concurrent demotion cannot make this
+        // action delete a now-non-admin's fresh session and write a duplicate
+        // success audit row.
+        if (updated.length === 0) {
+          throw new DemoteTargetNotAdminError();
+        }
+
+        // Drop the target's session rows so a demoted admin cannot keep
+        // refreshing a cookie cache that still carries `role = "admin"`.
+        // `requireAdminUser()` already refuses the demotion from the
+        // database on the next request; this also ends the rest of the
+        // session once Better Auth's cache lapses instead of leaving a
+        // valid session row behind. Include impersonation rows, which are
+        // owned by the impersonated user and reference the admin in
+        // `impersonatedBy`.
+        await tx
+          .delete(session)
+          .where(
+            or(
+              eq(session.userId, target.id),
+              eq(session.impersonatedBy, target.id),
+            ),
+          );
       },
     );
   } catch (error) {
+    if (error instanceof DemoteTargetNotAdminError) {
+      return { ok: false, error: "That user is no longer an admin." };
+    }
+
     console.error("Failed to demote user from admin.", error);
     return {
       ok: false,
@@ -2019,6 +2095,56 @@ async function resolveImpersonatingAdmin(
 }
 
 /**
+ * Re-check the acting admin after Better Auth creates the impersonation
+ * session. `requireAdminUser()` is database-authoritative at entry, but a
+ * concurrent demotion or suspension can commit while the impersonation row is
+ * being created. The `FOR UPDATE` read serializes with those mutations (they
+ * update the user row before deleting sessions), so this either observes the
+ * new role/ban or waits for the mutation to commit. Fail closed by deleting the
+ * newly created session when the actor is no longer an active admin.
+ */
+async function revokeImpersonationIfActorLostAdmin(
+  adminUserId: string,
+  impersonationSessionId: string,
+): Promise<boolean> {
+  try {
+    return await db.transaction(async (tx) => {
+      const [actor] = await tx
+        .select({ role: user.role, banned: user.banned })
+        .from(user)
+        .where(eq(user.id, adminUserId))
+        .limit(1)
+        .for("update");
+
+      if (actor && actor.role === "admin" && !actor.banned) {
+        return true;
+      }
+
+      await tx
+        .delete(session)
+        .where(eq(session.id, impersonationSessionId));
+      return false;
+    });
+  } catch (error) {
+    console.error(
+      "Failed to verify the impersonating admin's access; revoking the new session.",
+      error,
+    );
+
+    try {
+      await db.delete(session).where(eq(session.id, impersonationSessionId));
+    } catch (cleanupError) {
+      console.error(
+        "Failed to clean up the impersonation session after the access check failed.",
+        cleanupError,
+      );
+    }
+
+    return false;
+  }
+}
+
+/**
  * Revalidate the admin-scoped cache tags touched by an impersonation
  * lifecycle event. Audit feed + users list both change (the latter
  * because a target user's "last sign-in" moves when a session is
@@ -2033,16 +2159,16 @@ function revalidateImpersonationTags() {
  * Start impersonating a target user (Req 8.1). Flow:
  *
  * 1. `requireAdminUser()` — the caller must be an active admin with
- *    verified email in the allow-list. (This is why
+ *    `role = "admin"` in the database. (This is why
  *    `startImpersonationAction` can't be called while the admin is
  *    already impersonating someone — `requireAdminUser` would see the
  *    impersonated user and reject as non-admin. We accept this: to
  *    switch targets, the admin must explicitly stop first, or reach
  *    this action from a NEW browser session. Req 8.6 is covered via a
  *    defensive pre-cleanup below for the edge case where
- *    `session.impersonatedBy` somehow is set on an allow-listed
- *    account — that can happen briefly during a race if the admin
- *    impersonates themselves, which we already reject in step 3.)
+ *    `session.impersonatedBy` somehow is set on an admin account —
+ *    that can happen briefly during a race if the admin impersonates
+ *    themselves, which we already reject in step 3.)
  * 2. Zod validate the payload.
  * 3. Reject self-target (Req 8.5).
  * 4. Consume the password confirmation token (Req 9.x); on failure
@@ -2114,11 +2240,13 @@ export async function startImpersonationAction(
     }
   }
 
+  let impersonationSessionId: string | null = null;
   try {
-    await auth.api.impersonateUser({
+    const impersonation = await auth.api.impersonateUser({
       body: { userId: target.id },
       headers: requestHeaders,
     });
+    impersonationSessionId = impersonation.session?.id ?? null;
   } catch (error) {
     console.error("Failed to start impersonation.", error);
     return {
@@ -2127,6 +2255,56 @@ export async function startImpersonationAction(
         error,
         "Couldn't start impersonation right now. Try again.",
       ),
+    };
+  }
+
+  if (!impersonationSessionId) {
+    // Better Auth always returns the created session. If that contract ever
+    // changes, fail closed by removing any row for this admin/target pair.
+    try {
+      await db
+        .delete(session)
+        .where(
+          and(
+            eq(session.impersonatedBy, admin.id),
+            eq(session.userId, target.id),
+          ),
+        );
+    } catch (cleanupError) {
+      console.error(
+        "Failed to clean up an impersonation session with no returned id.",
+        cleanupError,
+      );
+    }
+
+    // Better Auth already wrote the impersonation cookies for this response;
+    // expire them so the browser cannot keep a session whose row is gone.
+    await clearAuthSessionCookies();
+
+    return {
+      ok: false,
+      error: "Couldn't start impersonation right now. Try again.",
+    };
+  }
+
+  // A demotion or suspension can commit while Better Auth creates the session.
+  // Re-check under a row lock and revoke the new session if the actor lost
+  // admin access, so a concurrent revocation cannot leave it active.
+  const actorStillAdmin = await revokeImpersonationIfActorLostAdmin(
+    admin.id,
+    impersonationSessionId,
+  );
+  if (!actorStillAdmin) {
+    // The session row is gone, but Better Auth's cookies for the target (and
+    // the signed cookie cache) were already written to this response. Expire
+    // them before returning, or the browser could keep acting as the target
+    // until the cache payload lapses.
+    await clearAuthSessionCookies();
+
+    return {
+      ok: false,
+      error:
+        "Your admin access changed while starting impersonation. Sign in again.",
     };
   }
 
@@ -2178,7 +2356,7 @@ export async function startImpersonationAction(
  *   `impersonation.stop` audit row using the ORIGINATING admin as the
  *   audit actor. `requireAdminUser` deliberately is NOT called here:
  *   during impersonation the active user is the target, which would
- *   fail the allow-list check; the session cookie itself is the
+ *   fail the admin-role check; the session cookie itself is the
  *   authorization signal (Req 8.3 explicitly says no password prompt).
  *
  * The audit row records `impersonatedUserId` so the admin audit feed

@@ -17,10 +17,13 @@ import { env } from "@/lib/env";
 /**
  * Whether the email is in the `ADMIN_EMAILS` allowlist.
  *
- * The allowlist is what the owner actually configures, so it doubles as a
- * runtime fallback: an account signed in with an allowlisted email is
- * admitted even when its `role` column has not been promoted yet (e.g. the
- * bootstrap script has not re-run).
+ * The allowlist is the owner's bootstrap input: `scripts/bootstrap-admin.ts`
+ * and `scripts/seed-prod.ts` promote these accounts to `role = "admin"`. It is
+ * also a hint for the proxy's optimistic gate so a freshly promoted admin is
+ * not bounced while Better Auth's cookie cache catches up.
+ *
+ * It is never an authorization grant: `requireAdminUser()` requires the
+ * database role, so an explicitly demoted allowlisted account stays demoted.
  */
 export function isAllowlistedAdminEmail(
   email: string | null | undefined,
@@ -50,12 +53,15 @@ export type AdminIdentityCandidate = {
  * This runs before the route renders, so it can only see what Better Auth's
  * session cookie cache carries — `role` and `banned` can lag the database by up
  * to `session.cookieCache.maxAge` (300s here). It is therefore a fast rejection
- * path, never the only boundary: `requireAdminUser()` re-checks the same
- * question against the database on the non-`admin` branch.
+ * path, never the only boundary: `requireAdminUser()` always re-reads the same
+ * question from the database, so a demoted or banned admin is refused there
+ * even while this predicate still sees the cached role.
  *
- * Precedence mirrors `isAdminSessionUser` so the two layers cannot disagree on
- * the common cases: a ban wins over everything, then an explicit `admin` role,
- * then the email allowlist.
+ * Precedence for the optimistic gate: a ban wins over everything, then an
+ * explicit `admin` role, then the email allowlist. The allowlist is only a
+ * hint that avoids an early `403` for a freshly promoted admin whose cookie
+ * cache is stale; it does not grant access, because `requireAdminUser()`
+ * re-checks the database role before anything renders.
  */
 export function isOptimisticAdminUser(
   candidate: AdminIdentityCandidate,

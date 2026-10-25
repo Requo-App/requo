@@ -9,7 +9,6 @@ import {
   type AuthSession,
   type AuthUser,
 } from "@/lib/auth/session";
-import { isAllowlistedAdminEmail } from "@/lib/auth/admin-identity";
 import { db } from "@/lib/db/client";
 import { user } from "@/lib/db/schema";
 
@@ -17,7 +16,7 @@ import { user } from "@/lib/db/schema";
  * Context returned to admin pages, route handlers, and server actions
  * after the admin access gate succeeds.
  *
- * The user always has a real Better Auth session. The role is *not* always
+ * The user always has a real Better Auth session. Admin access is always
  * re-read from the database — see `isAdminSessionUser` for the exact rule.
  */
 export type AdminContext = {
@@ -25,45 +24,37 @@ export type AdminContext = {
   readonly user: AuthUser;
 };
 
-type SessionAdminCandidate = Pick<AuthUser, "id" | "email"> & {
-  role?: string | null;
-  banned?: boolean | null;
-};
+type SessionAdminCandidate = Pick<AuthUser, "id" | "banned">;
 
 /**
  * Resolve admin access for a session user.
  *
- * Fast path first (`role === "admin"` straight from the session, no extra
- * query), then a single primary-key lookup that bypasses Better Auth's
- * session `cookieCache` — the cached cookie keeps serving the pre-promotion
- * role until `updateAge` elapses, so without this a freshly promoted admin
- * is bounced until they sign in again. Banned users are always refused,
- * even when allowlisted.
+ * The single primary-key lookup is the authorization decision. `user.role` is
+ * the only grant: Better Auth's signed session `cookieCache` can serve a stale
+ * `admin` role or `banned = false` for up to `session.cookieCache.maxAge`
+ * (300s in this app), so a cached `role === "admin"` must never be enough on
+ * its own — a demoted or banned admin would keep access until the cache
+ * lapsed. This function is the DB-authoritative boundary for every admin page,
+ * query, action, and mutation; the proxy gate stays optimistic and
+ * cookie-derived.
  *
- * Two properties to keep in mind before describing this as authoritative:
+ * `ADMIN_EMAILS` is deliberately not consulted here. It is the bootstrap input
+ * for promoting accounts and a hint for the proxy's early gate; treating it as
+ * a runtime grant would make an explicit demotion ineffective for allowlisted
+ * admins.
  *
- * - A ban is refused from the session itself, before the `role === "admin"`
- *   fast path: precedence mirrors `isOptimisticAdminUser` (ban wins, then
- *   role, then the database, then the allowlist) so the two layers cannot
- *   disagree. A ban that lands after the session was cached is still not
- *   observed until the cache lapses (bounded by
- *   `session.cookieCache.maxAge`, 300s in this app) — same residual as the
- *   proxy gate, and the reason the cache policy itself is out of scope.
- * - The database read only happens on the non-`admin` branch.
+ * A ban is refused from the session itself before the query (fail closed).
+ * Banned users and users without an `admin` database role are always refused.
  *
  * Memoized per request: the console shell streams the gate from several
  * independent Suspense slots (sidebar menu, mobile menu, theme sync) while
- * page regions and queries re-check it, so without this the DB fallback
- * would run once per slot.
+ * page regions and queries re-check it, so without this the lookup would run
+ * once per slot.
  */
 const isAdminSessionUser = cache(
   async (candidate: SessionAdminCandidate): Promise<boolean> => {
   if (candidate.banned === true) {
     return false;
-  }
-
-  if (candidate.role === "admin") {
-    return true;
   }
 
   const [row] = await db
@@ -72,15 +63,7 @@ const isAdminSessionUser = cache(
     .where(eq(user.id, candidate.id))
     .limit(1);
 
-  if (!row || row.banned) {
-    return false;
-  }
-
-  if (row.role === "admin") {
-    return true;
-  }
-
-  return isAllowlistedAdminEmail(candidate.email);
+  return Boolean(row && !row.banned && row.role === "admin");
   },
 );
 
@@ -94,9 +77,8 @@ const isAdminSessionUser = cache(
  *
  * Defence in depth, not the first line. `proxy.ts` answers a non-admin with a
  * real `403` before the route renders anything; this function is the
- * authoritative-looking re-check for the cases the proxy's cookie-derived view
- * cannot decide, plus every server action and query that is not reached through
- * a `/admin` page request.
+ * database-authoritative re-check for every admin page, query, action, and
+ * mutation, including requests the proxy's cookie-derived view admits.
  */
 export async function requireAdminUser(): Promise<AdminContext> {
   const session = await getOptionalSession();

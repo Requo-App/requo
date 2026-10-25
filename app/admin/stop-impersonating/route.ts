@@ -7,7 +7,7 @@ import { redirectToPath } from "@/lib/routing/redirects";
  * Ends the current impersonation session and restores the originating
  * admin's session cookie. Intentionally does NOT call
  * `requireAdminUser()` — during impersonation the active user IS the
- * impersonated target, which fails the allow-list check. The session
+ * impersonated target, which fails the admin-role check. The session
  * cookie's `impersonatedBy` tag is the authorization signal, and
  * `stopImpersonationAction` handles the no-op case when the caller
  * isn't currently impersonating (Req 8.3).

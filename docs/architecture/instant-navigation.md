@@ -192,8 +192,8 @@ shell (`DashboardPage` + `PageHeader`) with per-region Suspense boundaries, and
 the `view.*` audit row is written once from the primary content region via
 `withAdminViewLog` — the same rows as before, recorded just after the shell
 paints instead of before. The per-request `cache()` on the admin role check
-(`features/admin/access.ts`) keeps the gate's DB fallback to one lookup no
-matter how many slots and regions re-check it.
+(`features/admin/access.ts`) keeps the gate's database lookup to one per
+request no matter how many slots and regions re-check it.
 
 ### Router Cache (Stale Times)
 

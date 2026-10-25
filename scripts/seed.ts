@@ -2214,6 +2214,18 @@ async function seedStableSmokeFixtures(input: {
 
   await db.insert(quotes).values([
     {
+      id: "demo_quote_message_length",
+      businessId: input.businessId,
+      status: "sent",
+      quoteNumber: "Q-E2E-MESSAGE-LENGTH",
+      ...tokenFields("demoquotemessagelengthtoken"),
+      title: "Public quote message length fixture",
+      customerName: "Message Length Customer",
+      customerEmail: "message-length@example.com",
+      sentAt: daysAgo(1),
+      validUntil: toDateStr(daysFromNow(5)),
+    },
+    {
       id: historyQuoteId,
       businessId: input.businessId,
       inquiryId: storefrontInquiryId,

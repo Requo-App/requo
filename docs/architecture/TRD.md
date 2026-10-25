@@ -169,11 +169,16 @@ and existing business-scoped query/mutation helpers in
 [`lib/db/business-access.ts`](../../lib/db/business-access.ts); never trust a
 client or model-supplied business ID. Admin routes are rejected by the proxy
 before rendering when its session-derived predicate denies access, and admin
-pages/actions/queries also call the server guard. That predicate has a
-session-role fast path: Better Auth's cookie cache can retain an old role or
-ban state for up to 300 seconds, and an `admin` role from that cached session
-is not re-read from the database on the fast path. This is a bounded
-consistency risk, not a DB-authoritative role check. See
+pages/actions/queries also call the server guard. That guard is
+database-authoritative: it always re-reads `user.role` and `user.banned` and
+grants only on `role = "admin"`, so a demotion or ban is enforced on the next
+admin request even though Better Auth's cookie cache can show the old role to
+the proxy for up to 300 seconds. `ADMIN_EMAILS` is a bootstrap input and a hint
+for the proxy gate, not a runtime grant. Demotion, suspension, session
+revocation, and account deletion remove the target's own sessions and any
+impersonation sessions they started. Revoking an impersonation session also
+expires Better Auth's session cookies, because its signed cookie cache can
+otherwise keep the deleted session usable until the payload lapses. See
 [`features/admin/access.ts`](../../features/admin/access.ts),
 [`lib/auth/admin-identity.ts`](../../lib/auth/admin-identity.ts), and
 [`proxy.ts`](../../proxy.ts). Public tokens and Agent session tokens are
