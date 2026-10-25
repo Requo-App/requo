@@ -339,14 +339,17 @@ export async function updateBusinessMemberRole({
   businessId: string;
   membershipId: string;
   role: "owner" | "manager" | "staff";
-}) {
-  await db
+}): Promise<{ userId: string | null }> {
+  const [row] = await db
     .update(businessMembers)
     .set({
       role,
       updatedAt: new Date(),
     })
-    .where(and(eq(businessMembers.businessId, businessId), eq(businessMembers.id, membershipId)));
+    .where(and(eq(businessMembers.businessId, businessId), eq(businessMembers.id, membershipId)))
+    .returning({ userId: businessMembers.userId });
+
+  return { userId: row?.userId ?? null };
 }
 
 export async function removeBusinessMember({
@@ -355,9 +358,12 @@ export async function removeBusinessMember({
 }: {
   businessId: string;
   membershipId: string;
-}) {
-  await db
+}): Promise<{ userId: string | null }> {
+  const [row] = await db
     .delete(businessMembers)
-    .where(and(eq(businessMembers.businessId, businessId), eq(businessMembers.id, membershipId)));
+    .where(and(eq(businessMembers.businessId, businessId), eq(businessMembers.id, membershipId)))
+    .returning({ userId: businessMembers.userId });
+
+  return { userId: row?.userId ?? null };
 }
 

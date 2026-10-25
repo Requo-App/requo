@@ -9,6 +9,7 @@ import { and, eq, ne } from "drizzle-orm";
 import { getValidationActionState } from "@/lib/action-state";
 import { uniqueCacheTags, getBusinessMembersCacheTags } from "@/lib/cache/business-tags";
 import { getUserPendingInvitesCacheTags } from "@/lib/cache/shell-tags";
+import { updateMembershipChangeCacheTags } from "@/features/business-members/cache";
 import { db } from "@/lib/db/client";
 import { businessMemberInvites, businessMembers } from "@/lib/db/schema";
 import { getOwnerBusinessActionContext } from "@/lib/db/business-access";
@@ -265,13 +266,17 @@ export async function updateBusinessMemberRoleAction(
   }
 
   try {
-    await updateBusinessMemberRole({
+    const { userId: targetUserId } = await updateBusinessMemberRole({
       businessId: businessContext.business.id,
       membershipId: validationResult.data.membershipId,
       role: validationResult.data.role,
     });
 
-    updateCacheTags(getBusinessMembersCacheTags(businessContext.business.id));
+    updateMembershipChangeCacheTags({
+      businessId: businessContext.business.id,
+      businessSlug: businessContext.business.slug,
+      userId: targetUserId,
+    });
     revalidatePath(getBusinessMembersPath(businessContext.business.slug));
 
     return { success: "Member updated." };
@@ -323,12 +328,16 @@ export async function removeBusinessMemberAction(
   }
 
   try {
-    await removeBusinessMember({
+    const { userId: targetUserId } = await removeBusinessMember({
       businessId: businessContext.business.id,
       membershipId: parsedMembershipId.data,
     });
 
-    updateCacheTags(getBusinessMembersCacheTags(businessContext.business.id));
+    updateMembershipChangeCacheTags({
+      businessId: businessContext.business.id,
+      businessSlug: businessContext.business.slug,
+      userId: targetUserId,
+    });
     revalidatePath(getBusinessMembersPath(businessContext.business.slug));
 
     return { success: "Member removed." };
@@ -350,10 +359,12 @@ export async function acceptBusinessMemberInviteAction(inviteToken: string) {
     redirect(`/invite/${inviteToken}?error=1`);
   }
 
-  updateCacheTags([
-    ...getBusinessMembersCacheTags(result.businessId),
-    ...getUserPendingInvitesCacheTags(session.user.id),
-  ]);
+  updateMembershipChangeCacheTags({
+    businessId: result.businessId,
+    businessSlug: result.businessSlug,
+    userId: session.user.id,
+    extraTags: getUserPendingInvitesCacheTags(session.user.id),
+  });
 
   // Persist active business in the shell cookie.
   const cookieStore = await cookies();
@@ -377,7 +388,11 @@ export async function acceptBusinessInviteLinkAction(inviteToken: string) {
     redirect(`/invite/${inviteToken}?error=1`);
   }
 
-  updateCacheTags(getBusinessMembersCacheTags(result.businessId));
+  updateMembershipChangeCacheTags({
+    businessId: result.businessId,
+    businessSlug: result.businessSlug,
+    userId: session.user.id,
+  });
 
   const cookieStore = await cookies();
   cookieStore.set(
@@ -403,8 +418,12 @@ export async function acceptInviteFromHubAction(
     return { error: result.error };
   }
 
-  updateCacheTags(getUserPendingInvitesCacheTags(session.user.id));
-  updateCacheTags(getBusinessMembersCacheTags(result.businessId));
+  updateMembershipChangeCacheTags({
+    businessId: result.businessId,
+    businessSlug: result.businessSlug,
+    userId: session.user.id,
+    extraTags: getUserPendingInvitesCacheTags(session.user.id),
+  });
 
   // Persist active business in the shell cookie.
   const cookieStore = await cookies();
