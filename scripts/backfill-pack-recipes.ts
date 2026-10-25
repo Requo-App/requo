@@ -14,7 +14,7 @@
  */
 import "./load-env";
 
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNotNull, isNull } from "drizzle-orm";
 
 import { isBehaviorPackKey } from "../features/businesses/behavior-packs";
 import { packRecipeDefaults } from "../features/businesses/pack-recipe-defaults";
@@ -51,7 +51,7 @@ async function main() {
           eq(packRecipes.kind, "intake"),
         ),
       )
-      .where(isNull(packRecipes.id))
+      .where(and(isNotNull(businessPackAssignments.pack), isNull(packRecipes.id)))
       .limit(batchSize);
 
     if (missing.length === 0) {
