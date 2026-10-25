@@ -152,7 +152,7 @@ async function main(): Promise<void> {
     if (inspection.state !== "enabled") {
       const idx = source.search(/export\s+default\b/);
       const line =
-        inspection.state === "disabled"
+        inspection.state !== "missing"
           ? inspection.line
           : idx === -1
             ? 1
@@ -163,7 +163,9 @@ async function main(): Promise<void> {
         message:
           inspection.state === "disabled"
             ? `in-scope route disables instant validation via \`${inspection.disabledBy}\` and has no valid escape-hatch entry`
-            : "in-scope route is missing the supported `instant` export and has no valid escape-hatch entry",
+            : inspection.state === "unknown"
+              ? "in-scope route has an unresolved instant config and has no valid escape-hatch entry"
+              : "in-scope route is missing the supported `instant` export and has no valid escape-hatch entry",
       });
     }
 

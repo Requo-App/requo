@@ -77,6 +77,72 @@ describe("instant route export inspection", () => {
       findLegacyInstantExport("export const unstable_instant = true;"),
     ).toMatchObject({ name: "unstable_instant", line: 1 });
   });
+
+  it.each([
+    "const unstable_instant = true;\nexport { unstable_instant };",
+    "const config = true;\nexport { config as unstable_instant };",
+    "\nexport { unstable_instant } from './config';",
+    "\nexport { config as unstable_instant } from './config';",
+    "\nexport { unstable_instant as config } from './config';",
+  ])("finds named legacy exports and aliases: %s", (source) => {
+    expect(findLegacyInstantExport(source)).toEqual({
+      name: "unstable_instant",
+      line: 2,
+    });
+  });
+
+  it.each([
+    "const unstable_instant = true;",
+    "export { instant } from './config';",
+    "export type { unstable_instant } from './config';",
+    "export { type unstable_instant } from './config';",
+  ])("ignores declarations without a legacy value export: %s", (source) => {
+    expect(findLegacyInstantExport(source)).toBeNull();
+  });
+
+  it.each([
+    "{ ...{ unstable_disableValidation: true } }",
+    "{ ...({ ...{ unstable_disableValidation: true } } as const) }",
+    "{ unstable_disableValidation: false, ...{ unstable_disableValidation: true } }",
+    "{ ...unknown, unstable_disableValidation: true }",
+  ])("detects effective disable flags through spreads: %s", (config) => {
+    expect(inspectInstantExport(`export const instant = ${config};`))
+      .toMatchObject({ state: "disabled", disabledBy: "unstable_disableValidation" });
+  });
+
+  it("resolves local constant spreads without evaluating code", () => {
+    expect(inspectInstantExport(`
+      const base = { unstable_disableValidation: true } as const;
+      const config = { ...base };
+      export const instant = { ...config };
+    `)).toMatchObject({ state: "disabled", disabledBy: "unstable_disableValidation" });
+  });
+
+  it.each([
+    "{ ...{ level: 'warning' } }",
+    "{ ...{ unstable_disableValidation: true }, unstable_disableValidation: false }",
+    "{ unstable_disableValidation: true, ...{ unstable_disableValidation: false } }",
+  ])("accepts spreads whose effective config enables validation: %s", (config) => {
+    expect(inspectInstantExport(`export const instant = ${config};`).state)
+      .toBe("enabled");
+  });
+
+  it.each([
+    "{ ...unknown }",
+    "{ ...getConfig() }",
+    "{ unstable_disableValidation: true, ...unknown }",
+    "{ ...unknown, unstable_disableValidation: false }",
+  ])("does not assume unresolved spreads enable validation: %s", (config) => {
+    expect(inspectInstantExport(`export const instant = ${config};`).state)
+      .toBe("unknown");
+  });
+
+  it("terminates when a local spread references itself", () => {
+    expect(inspectInstantExport(`
+      const config = { ...config };
+      export const instant = { ...config };
+    `).state).toBe("unknown");
+  });
 });
 
 describe("instant navigation scope drift", () => {

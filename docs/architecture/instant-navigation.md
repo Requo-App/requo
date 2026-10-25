@@ -324,7 +324,7 @@ Current state: the registry is empty — all 20 admin console pages ship `instan
 2. Return the structural shell with `<Suspense>` boundaries and skeleton fallbacks.
 3. Put all dynamic reads (`params`, `getAppShellContext`, queries) in async child server components inside those boundaries.
 4. Export `instant = true` (the supported Next.js 16.4 route segment config).
-5. Add the route to `IN_SCOPE_ROUTES` and run `npm run check` so scope drift, validation, and static-shell checks all pass.
+5. Add the route to `IN_SCOPE_ROUTES` and run `npm run check` and `npm run build` so scope drift, validation, and static-shell checks all pass.
 
 ### Staging an existing detail page
 

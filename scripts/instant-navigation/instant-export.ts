@@ -13,6 +13,7 @@ import ts from "typescript";
 export type InstantExportInspection =
   | { state: "missing" }
   | { state: "enabled"; line: number }
+  | { state: "unknown"; line: number }
   | { state: "disabled"; line: number; disabledBy: string };
 
 const DISABLE_FLAGS = [
@@ -26,8 +27,8 @@ const DISABLE_FLAGS = [
  *
  * `true` and object configs without a disable flag count as enabled. `false`
  * and object configs that set any `unstable_disable*Validation` flag to `true`
- * count as disabled. Commented-out exports are ignored, as are non-exported
- * variables.
+ * count as disabled. Unresolved spreads count as unknown. Commented-out
+ * exports are ignored, as are non-exported variables.
  */
 export function inspectInstantExport(
   source: string,
@@ -41,6 +42,17 @@ export function inspectInstantExport(
     ts.ScriptKind.TSX,
   );
 
+  const constants = new Map<string, ts.Expression>();
+  for (const statement of sourceFile.statements) {
+    if (!ts.isVariableStatement(statement)) continue;
+    if (!(statement.declarationList.flags & ts.NodeFlags.Const)) continue;
+    for (const declaration of statement.declarationList.declarations) {
+      if (ts.isIdentifier(declaration.name) && declaration.initializer) {
+        constants.set(declaration.name.text, declaration.initializer);
+      }
+    }
+  }
+
   for (const statement of sourceFile.statements) {
     if (!ts.isVariableStatement(statement)) continue;
     if (!hasModifier(statement, ts.SyntaxKind.ExportKeyword)) continue;
@@ -53,11 +65,13 @@ export function inspectInstantExport(
         sourceFile.getLineAndCharacterOfPosition(
           declaration.name.getStart(sourceFile),
         ).line + 1;
-      const disabledBy = findDisableFlag(declaration.initializer);
+      const disabledBy = findDisableFlag(declaration.initializer, constants);
 
-      return disabledBy
-        ? { state: "disabled", line, disabledBy }
-        : { state: "enabled", line };
+      return disabledBy === undefined
+        ? { state: "unknown", line }
+        : disabledBy
+          ? { state: "disabled", line, disabledBy }
+          : { state: "enabled", line };
     }
   }
 
@@ -81,6 +95,28 @@ export function findLegacyInstantExport(
   );
 
   for (const statement of sourceFile.statements) {
+    if (
+      ts.isExportDeclaration(statement) &&
+      !statement.isTypeOnly &&
+      statement.exportClause &&
+      ts.isNamedExports(statement.exportClause)
+    ) {
+      for (const specifier of statement.exportClause.elements) {
+        if (specifier.isTypeOnly) continue;
+        if (
+          specifier.name.text === "unstable_instant" ||
+          specifier.propertyName?.text === "unstable_instant"
+        ) {
+          return {
+            name: "unstable_instant",
+            line: sourceFile.getLineAndCharacterOfPosition(
+              specifier.getStart(sourceFile),
+            ).line + 1,
+          };
+        }
+      }
+    }
+
     if (!ts.isVariableStatement(statement)) continue;
     if (!hasModifier(statement, ts.SyntaxKind.ExportKeyword)) continue;
 
@@ -110,9 +146,11 @@ function hasModifier(
   return node.modifiers?.some((modifier) => modifier.kind === kind) ?? false;
 }
 
+/** A flag name means disabled, null means enabled, undefined means unknown. */
 function findDisableFlag(
   initializer: ts.Expression | undefined,
-): string | null {
+  constants: ReadonlyMap<string, ts.Expression>,
+): string | null | undefined {
   if (!initializer) return null;
 
   const expression = unwrap(initializer);
@@ -125,20 +163,60 @@ function findDisableFlag(
     return null;
   }
 
-  for (const property of expression.properties) {
-    if (!ts.isPropertyAssignment(property)) continue;
+  let unknown = false;
+  for (const flag of DISABLE_FLAGS) {
+    const value = effectiveFlag(expression, flag, constants);
+    if (value === true) return flag;
+    if (value === "unknown") unknown = true;
+  }
 
-    const name = propertyName(property.name);
-    if (!name || !DISABLE_FLAGS.includes(name as (typeof DISABLE_FLAGS)[number])) {
+  return unknown ? undefined : null;
+}
+
+/** Read right to left: later properties and spreads override earlier flags. */
+function effectiveFlag(
+  expression: ts.Expression,
+  flag: string,
+  constants: ReadonlyMap<string, ts.Expression>,
+  seen = new Set<ts.Expression>(),
+): boolean | "absent" | "unknown" {
+  const value = unwrap(expression);
+  if (seen.has(value)) return "unknown";
+  const visited = new Set(seen).add(value);
+
+  if (ts.isIdentifier(value)) {
+    const initializer = constants.get(value.text);
+    return initializer
+      ? effectiveFlag(initializer, flag, constants, visited)
+      : "unknown";
+  }
+  if (!ts.isObjectLiteralExpression(value)) return "unknown";
+
+  for (let index = value.properties.length - 1; index >= 0; index -= 1) {
+    const property = value.properties[index];
+    if (ts.isSpreadAssignment(property)) {
+      const spreadValue = effectiveFlag(
+        property.expression,
+        flag,
+        constants,
+        visited,
+      );
+      if (spreadValue !== "absent") return spreadValue;
       continue;
     }
 
-    if (unwrap(property.initializer).kind === ts.SyntaxKind.TrueKeyword) {
-      return name;
-    }
+    const name = propertyName(property.name);
+    if (name === null) return "unknown";
+    if (name !== flag) continue;
+    if (!ts.isPropertyAssignment(property)) return "unknown";
+
+    const initializer = unwrap(property.initializer);
+    if (initializer.kind === ts.SyntaxKind.TrueKeyword) return true;
+    if (initializer.kind === ts.SyntaxKind.FalseKeyword) return false;
+    return "unknown";
   }
 
-  return null;
+  return "absent";
 }
 
 function unwrap(expression: ts.Expression): ts.Expression {
@@ -158,6 +236,10 @@ function unwrap(expression: ts.Expression): ts.Expression {
 }
 
 function propertyName(name: ts.PropertyName): string | null {
+  if (ts.isComputedPropertyName(name)) {
+    const expression = unwrap(name.expression);
+    return ts.isStringLiteral(expression) ? expression.text : null;
+  }
   if (ts.isIdentifier(name) || ts.isStringLiteral(name)) {
     return name.text;
   }
