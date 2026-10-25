@@ -350,7 +350,7 @@ best-effort. Correctness-critical limits are database-backed and do not depend
 on Redis: monthly AI spend is reserved in `ai_usage_events` under a per-business
 advisory lock, provider capacity is reserved in `ai_capacity_counters` under
 per-key advisory locks, and public action rate limits fall back to
-`public_action_events`. It is not the primary application database. Client
+`public_action_events`. Redis is not the primary application database. Client
 state is local to feature needs; there is no general global state store. The
 Assistant has a tab-local live chat store.
 
