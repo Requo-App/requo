@@ -24,9 +24,10 @@ through every feature signature.
 `logInfo`, `logWarn`, `logError`, and `logDebug` add caller fields. `logError`
 also serializes the thrown value as `{ name, message }` plus a stack outside
 production. Error messages keep only the first line, redact bearer tokens and
-email addresses, and are capped at 500 characters. The development stack is
-rebuilt from the scrubbed message and frame lines, so multiline error text is
-not copied into the log. Debug lines are dropped in production.
+email addresses, and are capped at 500 characters. The development stack
+removes the raw message prefix, rebuilds the header from the scrubbed message,
+and scrubs each retained frame, so multiline error text is not copied into the
+log. Debug lines are dropped in production.
 
 Callers must not log request bodies, prompts, message content, or secrets.
 The logger additionally redacts credential-shaped keys (authorization,

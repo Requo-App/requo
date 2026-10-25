@@ -198,7 +198,9 @@ describe("structured logger", () => {
     "preserves error names and sanitizes stack output in %s",
     (environment) => {
       vi.stubEnv("NODE_ENV", environment);
-      const error = new TypeError("failed\nprivate request body");
+      const error = new TypeError(
+        "failed\nprivate request body\n    at Bearer private-frame-token",
+      );
       const serialized = serializeError(error);
 
       expect(serialized).toMatchObject({
@@ -212,9 +214,22 @@ describe("structured logger", () => {
         expect(serialized.stack).toContain("TypeError: failed");
         expect(serialized.stack).toMatch(/\n\s+at\s/);
         expect(serialized.stack).not.toContain("private request body");
+        expect(serialized.stack).not.toContain("private-frame-token");
       }
     },
   );
+
+  it("scrubs credentials from retained stack frames", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    const error = new TypeError("failed");
+    error.stack = "TypeError: failed\n    at send (Bearer frame-token)";
+
+    const serialized = serializeError(error);
+
+    expect(serialized.stack).toContain("TypeError: failed");
+    expect(serialized.stack).toContain("\n    at send");
+    expect(serialized.stack).not.toContain("frame-token");
+  });
 
   it("does not log multiline error text through a development stack", () => {
     vi.stubEnv("NODE_ENV", "development");

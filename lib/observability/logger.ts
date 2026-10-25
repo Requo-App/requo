@@ -64,13 +64,22 @@ function scrubErrorMessage(message: string): string {
  * Rebuild the stack from the scrubbed message and V8 frame lines only.
  * `error.stack` starts with the raw message and may retain later lines of a
  * multiline message, so copying it would reintroduce the text that
- * `scrubErrorMessage` removes.
+ * `scrubErrorMessage` removes. Strip that raw header before selecting frames,
+ * otherwise a message line shaped like `    at …` is retained as a frame.
  */
 function scrubStack(error: Error): string {
   const header = `${error.name}: ${scrubErrorMessage(error.message)}`;
-  const frames = (error.stack ?? "")
+  const rawStack = error.stack ?? "";
+  const rawHeader = error.message
+    ? `${error.name}: ${error.message}`
+    : error.name;
+  const frameText = rawStack.startsWith(rawHeader)
+    ? rawStack.slice(rawHeader.length)
+    : "";
+  const frames = frameText
     .split(/\r?\n/)
-    .filter((line) => /^\s+at\s/.test(line));
+    .filter((line) => /^\s+at\s/.test(line))
+    .map((line) => scrubErrorMessage(line));
 
   return [header, ...frames].join("\n").slice(0, MAX_STACK_LENGTH);
 }
