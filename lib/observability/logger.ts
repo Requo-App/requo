@@ -8,6 +8,7 @@ export type LogFields = Record<string, unknown>;
 const MAX_DEPTH = 5;
 const MAX_ARRAY_LENGTH = 50;
 const MAX_STRING_LENGTH = 2_000;
+const MAX_ERROR_MESSAGE_LENGTH = 500;
 const REDACTED = "[redacted]";
 
 /**
@@ -49,11 +50,20 @@ function isSensitiveKey(key: string): boolean {
   );
 }
 
+function scrubErrorMessage(message: string): string {
+  const firstLine = message.split(/[\r\n]/, 1)[0] ?? "";
+
+  return firstLine
+    .replace(/\b(Bearer\s+)\S+/gi, `$1${REDACTED}`)
+    .replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, REDACTED)
+    .slice(0, MAX_ERROR_MESSAGE_LENGTH);
+}
+
 export function serializeError(error: unknown): Record<string, unknown> {
   if (error instanceof Error) {
     const serialized: Record<string, unknown> = {
       name: error.name,
-      message: error.message,
+      message: scrubErrorMessage(error.message),
     };
 
     if (process.env.NODE_ENV !== "production" && error.stack) {
@@ -63,7 +73,7 @@ export function serializeError(error: unknown): Record<string, unknown> {
     return serialized;
   }
 
-  return { message: String(error) };
+  return { message: scrubErrorMessage(String(error)) };
 }
 
 function redactValue(
@@ -176,6 +186,8 @@ export function log(
       level,
       event,
       service: "requo",
+      environment: entry.environment,
+      correlationId: entry.correlationId,
       error: "log_serialization_failed",
     });
   }

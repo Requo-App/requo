@@ -165,4 +165,69 @@ describe("structured logger", () => {
     expect(serializeError("nope")).toEqual({ message: "nope" });
     expect(serializeError(404)).toEqual({ message: "404" });
   });
+
+  describe.each([
+    ["Error", (message: string) => new Error(message)],
+    ["non-Error", (message: string) => message],
+  ])("%s messages", (_label, throwable) => {
+    it.each(["\n", "\r\n", "\r"])(
+      "keeps only the first line and redacts credentials and emails (%j)",
+      (newline) => {
+        const message =
+          "Failed for alice+test@example.com and bob@example.org: Bearer abc.def-123_~+/= and bearer second-token";
+
+        expect(
+          serializeError(throwable(`${message}${newline}private request body`)),
+        ).toEqual(
+          expect.objectContaining({
+            message:
+              "Failed for [redacted] and [redacted]: Bearer [redacted] and bearer [redacted]",
+          }),
+        );
+      },
+    );
+
+    it("caps the scrubbed message at 500 characters", () => {
+      expect(serializeError(throwable("x".repeat(501))).message).toBe(
+        "x".repeat(500),
+      );
+    });
+  });
+
+  it.each(["development", "production"])(
+    "preserves error names and stack behavior in %s",
+    (environment) => {
+      vi.stubEnv("NODE_ENV", environment);
+      const error = new TypeError("failed\nrequest body");
+
+      expect(serializeError(error)).toEqual({
+        name: "TypeError",
+        message: "failed",
+        ...(environment === "production" ? {} : { stack: error.stack }),
+      });
+    },
+  );
+
+  it("preserves environment and correlation IDs when serialization fails", () => {
+    vi.stubEnv("VERCEL_ENV", "preview");
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+
+    runWithCorrelationId("ambient", () => {
+      logInfo("payload.failed", { value: BigInt(1) });
+      logInfo("payload.failed", { value: BigInt(1), correlationId: "explicit" });
+    });
+    logInfo("payload.failed", { value: BigInt(1) });
+
+    expect(capture(info)).toEqual(
+      ["ambient", "explicit", null].map((correlationId) => ({
+        timestamp: expect.any(String),
+        level: "info",
+        event: "payload.failed",
+        service: "requo",
+        environment: "preview",
+        correlationId,
+        error: "log_serialization_failed",
+      })),
+    );
+  });
 });

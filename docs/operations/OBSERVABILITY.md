@@ -13,7 +13,7 @@ through every feature signature.
 {
   "timestamp": "2026-01-02T03:04:05.000Z",
   "level": "info",
-  "event": "polar.webhook.completed",
+  "event": "polar_webhook.completed",
   "service": "requo",
   "environment": "production",
   "correlationId": "inngest_run_123",
@@ -23,7 +23,9 @@ through every feature signature.
 
 `logInfo`, `logWarn`, `logError`, and `logDebug` add caller fields. `logError`
 also serializes the thrown value as `{ name, message }` plus a stack outside
-production. Debug lines are dropped in production.
+production. Error messages keep only the first line, redact bearer tokens and
+email addresses, and are capped at 500 characters. Debug lines are dropped in
+production.
 
 Callers must not log request bodies, prompts, message content, or secrets.
 The logger additionally redacts credential-shaped keys (authorization,
