@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import {
   demoExpiredQuotePublicToken,
+  demoMessageLengthQuotePublicToken,
   demoQuotePublicToken,
   demoVoidedQuotePublicToken,
 } from "./fixtures";
@@ -14,7 +15,8 @@ test.describe.configure({ mode: "serial" });
 test("public quote page caps customer messages at 1,200 characters", async ({
   page,
 }) => {
-  await page.goto(`/quote/${demoQuotePublicToken}`);
+  // This fixture is never accepted, so the response form survives retries.
+  await page.goto(`/quote/${demoMessageLengthQuotePublicToken}`);
   await page.waitForLoadState("networkidle");
 
   const messageField = page.getByLabel("Message (optional)");

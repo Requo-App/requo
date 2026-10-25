@@ -53,6 +53,7 @@ export const demoBusinessSlug =
   process.env.DEMO_BUSINESS_SLUG ?? "brightside-print-studio";
 export const demoQuotePublicToken =
   process.env.DEMO_QUOTE_PUBLIC_TOKEN ?? "demoquote1002senttoken";
+export const demoMessageLengthQuotePublicToken = "demoquotemessagelengthtoken";
 export const demoExpiredQuotePublicToken =
   process.env.DEMO_EXPIRED_QUOTE_PUBLIC_TOKEN ?? "demoquote1005expiredtoken";
 export const demoVoidedQuotePublicToken =
