@@ -41,6 +41,8 @@ import {
   recordWebhookEvent,
 } from "@/lib/billing/webhook-processor";
 import { env } from "@/lib/env";
+import { logWarn } from "@/lib/observability/logger";
+import { withRequestCorrelation } from "@/lib/observability/request";
 
 import { resolvePolarBusinessId, type PolarEventPayload } from "./identity";
 import {
@@ -195,11 +197,10 @@ async function handleUnhandledPayload(
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "identity resolution failed";
-    console.warn(
-      "[polar webhook] identity resolution failed for unhandled event",
-      message,
-      { eventType: payload.type },
-    );
+    logWarn("polar.webhook.identity_resolution_failed", {
+      eventType: payload.type,
+      error: message,
+    });
     businessId = null;
   }
 
@@ -239,8 +240,17 @@ const adapter = Webhooks({
 // Fail-closed when the webhook secret is unconfigured (adapter would verify
 // against "" otherwise).
 export async function POST(request: NextRequest): Promise<Response> {
-  if (!env.POLAR_WEBHOOK_SECRET) {
-    return new Response("Webhook not configured.", { status: 503 });
-  }
-  return adapter(request);
+  return withRequestCorrelation(
+    request,
+    "polar_webhook",
+    async () => {
+      if (!env.POLAR_WEBHOOK_SECRET) {
+        logWarn("polar.webhook.unconfigured", { provider: "polar" });
+        return new Response("Webhook not configured.", { status: 503 });
+      }
+
+      return adapter(request);
+    },
+    { provider: "polar" },
+  );
 }

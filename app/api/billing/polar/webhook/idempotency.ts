@@ -32,6 +32,7 @@ import {
   markEventProcessed,
   recordWebhookEvent,
 } from "@/lib/billing/webhook-processor";
+import { logError, logInfo, logWarn } from "@/lib/observability/logger";
 
 type IdempotencyPayload = {
   id?: unknown;
@@ -111,6 +112,7 @@ export async function withIdempotency<TPayload extends IdempotencyPayload>(
 
   if (!recordResult.claimed || !recordResult.claimToken) {
     // Duplicate delivery already processed, ignored, or currently in flight.
+    logInfo("polar.webhook.duplicate", { eventType, providerEventId });
     return;
   }
 
@@ -118,6 +120,10 @@ export async function withIdempotency<TPayload extends IdempotencyPayload>(
   const claimToken = recordResult.claimToken;
 
   if (businessId === null) {
+    logWarn("polar.webhook.business_not_found", {
+      eventType,
+      providerEventId,
+    });
     await markEventFailed(eventId, claimToken, "Business not found");
     return;
   }
@@ -128,7 +134,10 @@ export async function withIdempotency<TPayload extends IdempotencyPayload>(
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Unexpected webhook error.";
-    console.error("[polar webhook] processing error", message, { eventType });
+    logError("polar.webhook.processing_failed", error, {
+      eventType,
+      providerEventId,
+    });
     await markEventFailed(eventId, claimToken, message);
     throw error;
   }

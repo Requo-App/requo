@@ -13,6 +13,8 @@ import {
 } from "@/lib/ai/chat-request";
 import { runAssistant } from "@/features/assistant/orchestrator";
 import { getBusinessSettingsForBusiness } from "@/features/settings/queries";
+import { logError } from "@/lib/observability/logger";
+import { withRequestCorrelation } from "@/lib/observability/request";
 
 // Ephemeral chat attachments ride along as data URLs in the JSON body (never
 // as chat message parts, so history never re-sends bytes). The orchestrator
@@ -46,6 +48,15 @@ function extractText(message: z.infer<typeof uiMessageSchema>): string {
  * identity: the canonical session id is returned in `X-Session-Id`.
  */
 export async function POST(request: Request) {
+  return withRequestCorrelation(
+    request,
+    "ai.assistant.chat",
+    () => handleAssistantChat(request),
+    { surface: "assistant" },
+  );
+}
+
+async function handleAssistantChat(request: Request) {
   try {
     // Authenticate user
     const session = await getSession();
@@ -143,7 +154,7 @@ export async function POST(request: Request) {
       headers,
     });
   } catch (error) {
-    console.error("Owner assistant chat API error:", error);
+    logError("ai.assistant.chat.error", error);
 
     const mapped = mapChatError(
       error,

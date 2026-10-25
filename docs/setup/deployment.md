@@ -217,5 +217,7 @@ login). To make it accessible in production:
 ## Current Operational Gaps
 
 - Live provider behavior is not covered by the default automated suite.
-- There is no deployment-specific observability layer yet for email, AI provider, or Polar failures.
+- Server logs are structured and correlated, but the deployment does not
+  configure a log drain, alert routing, or observability dashboard; see
+  [Observability and correlation IDs](../operations/OBSERVABILITY.md).
 - SQL RLS helpers and policies exist, but the app does not currently inject `app.current_user_id` into the Postgres session, so database-session RLS is not the main enforcement path for runtime queries yet.

@@ -26,6 +26,8 @@ import type {
 } from "@/lib/email/types";
 import { db } from "@/lib/db/client";
 import { emailAttempts, emailOutbox } from "@/lib/db/schema";
+import { ensureCorrelationId } from "@/lib/observability/correlation";
+import { logInfo, logWarn } from "@/lib/observability/logger";
 
 const STALE_SENDING_MS = 10 * 60 * 1000;
 const emailAddressSchema = z.email();
@@ -236,8 +238,8 @@ async function createOrClaimOutbox(input: NormalizedSendEmailInput) {
   const existing = await findOutboxByKey(input.idempotencyKey);
   const sentResult = existing ? getExistingSentResult(existing) : null;
 
-  if (sentResult) {
-    return { existingSentResult: sentResult };
+  if (existing && sentResult) {
+    return { existingSentResult: sentResult, outboxId: existing.id };
   }
 
   if (!existing) {
@@ -257,7 +259,10 @@ async function createOrClaimOutbox(input: NormalizedSendEmailInput) {
     };
     await markOutboxSent(existing.id, recoveredResult);
 
-    return { existingSentResult: recoveredResult };
+    return {
+      existingSentResult: recoveredResult,
+      outboxId: existing.id,
+    };
   }
 
   if (existing.status === "unknown") {
@@ -382,7 +387,7 @@ async function markOutboxFailed(
 
 function logAttempt(
   level: "info" | "warn",
-  message: string,
+  event: string,
   details: Record<string, unknown>,
 ) {
   const payload = {
@@ -394,22 +399,35 @@ function logAttempt(
   };
 
   if (level === "info") {
-    console.info(message, payload);
+    logInfo(event, payload);
     return;
   }
 
-  console.warn(message, payload);
+  logWarn(event, payload);
 }
 
 export async function sendEmailWithFallback(
   input: SendEmailInput,
   options: SendEmailOptions = {},
 ): Promise<SendEmailResult> {
+  // Email is sent from route boundaries and from server actions. Reuse the
+  // request/job correlation ID when one exists; otherwise give the send its
+  // own so every provider attempt can still be joined.
+  return ensureCorrelationId("email", () =>
+    sendEmailWithFallbackInternal(input, options),
+  );
+}
+
+async function sendEmailWithFallbackInternal(
+  input: SendEmailInput,
+  options: SendEmailOptions,
+): Promise<SendEmailResult> {
   const normalizedInput = normalizeSendEmailInput(input);
   const claim = await createOrClaimOutbox(normalizedInput);
 
   if ("existingSentResult" in claim) {
-    logAttempt("info", "Email send skipped because idempotency key is sent.", {
+    logAttempt("info", "email.send.skipped_sent", {
+      emailOutboxId: claim.outboxId,
       idempotencyKey: normalizedInput.idempotencyKey,
       provider: claim.existingSentResult.provider,
       recipientCount: normalizedInput.to.length,
@@ -431,7 +449,8 @@ export async function sendEmailWithFallback(
   let lastRetryableError: EmailProviderError | null = null;
 
   for (const provider of providers) {
-    logAttempt("info", "Email provider attempt started.", {
+    logAttempt("info", "email.provider.attempt_started", {
+      emailOutboxId: claim.id,
       provider: provider.name,
       idempotencyKey: normalizedInput.idempotencyKey,
       recipientCount: normalizedInput.to.length,
@@ -449,7 +468,8 @@ export async function sendEmailWithFallback(
       });
       await markOutboxSent(claim.id, result);
 
-      logAttempt("info", "Email provider accepted message.", {
+      logAttempt("info", "email.provider.accepted", {
+        emailOutboxId: claim.id,
         provider: provider.name,
         idempotencyKey: normalizedInput.idempotencyKey,
         providerMessageId: result.providerMessageId,
@@ -475,7 +495,8 @@ export async function sendEmailWithFallback(
         retryable: classification.retryable,
       });
 
-      logAttempt("warn", "Email provider attempt failed.", {
+      logAttempt("warn", "email.provider.attempt_failed", {
+        emailOutboxId: claim.id,
         provider: provider.name,
         idempotencyKey: normalizedInput.idempotencyKey,
         statusCode: classification.statusCode,

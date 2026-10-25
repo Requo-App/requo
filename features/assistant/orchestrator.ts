@@ -43,6 +43,7 @@ import {
 import { sanitizeAiInput } from "@/lib/ai/input-sanitizer";
 import { getAiCanaryToken } from "@/lib/ai/canary";
 import { filterAiOutput } from "@/lib/ai/output-filter";
+import { logError, logWarn } from "@/lib/observability/logger";
 import { logAiSecurityEvent } from "@/lib/ai/security-events";
 import { logAiInvocation } from "@/lib/ai/token-logger";
 import type { PlanTier } from "@/lib/plans/plans";
@@ -161,7 +162,9 @@ export async function runAssistant({
     try {
       await releaseUsageReservation(usageReservation);
     } catch (releaseError) {
-      console.warn("[assistant] Failed to release AI credit:", releaseError);
+      logError("assistant.credit.release_failed", releaseError, {
+        taskType: "assistant_message",
+      });
     }
   };
 
@@ -179,7 +182,9 @@ export async function runAssistant({
         computeUsageWeight("assistant_message", { inputTokens, outputTokens }),
       );
     } catch (settleError) {
-      console.warn("[assistant] Failed to settle AI credit:", settleError);
+      logError("assistant.credit.settle_failed", settleError, {
+        taskType: "assistant_message",
+      });
     }
   };
 
@@ -414,10 +419,9 @@ export async function runAssistant({
             provider: serving.provider,
             model: serving.model,
           }).catch((err) => {
-            console.error(
-              "[assistant] Failed to persist tool result:",
-              err,
-            );
+            logError("assistant.tool_result.persist_failed", err, {
+              sessionId: session.sessionId,
+            });
           });
 
           const output = toolResult.output as {
@@ -448,10 +452,9 @@ export async function runAssistant({
               lastMentioned: { ...current, ...mentions },
             },
           }).catch((err) => {
-            console.error(
-              "[assistant] Failed to update session state:",
-              err,
-            );
+            logError("assistant.session_state.update_failed", err, {
+              sessionId: session.sessionId,
+            });
           });
         }
       },
@@ -460,9 +463,11 @@ export async function runAssistant({
         const outputTokens = usage?.outputTokens ?? 0;
 
         if (attemptTrail.length > 0) {
-          console.warn(
-            `[assistant] Attempt trail for session ${session.sessionId}: ${attemptTrail.map((t) => `${t.modelId} (${t.reason})`).join("; ")} — served by ${serving.modelId}`,
-          );
+          logWarn("assistant.model.attempt_trail", {
+            sessionId: session.sessionId,
+            servedBy: serving.modelId,
+            trail: attemptTrail.map((t) => `${t.modelId} (${t.reason})`),
+          });
         }
 
         // Filter model output before it is stored.
@@ -501,7 +506,9 @@ export async function runAssistant({
             status: "error",
             errorMessage: `empty_completion finishReason=${finishReason ?? "unknown"} serving=${serving.modelId} trail=${attemptTrail.map((t) => t.modelId).join(",")}`,
           }).catch((err) => {
-            console.warn("[assistant] Failed to log invocation:", err);
+            logError("assistant.invocation.log_failed", err, {
+              taskType: "assistant_message",
+            });
           });
           return;
         }
@@ -514,7 +521,9 @@ export async function runAssistant({
           provider: serving.provider,
           model: serving.model,
         }).catch((err) => {
-          console.error("[assistant] Failed to persist message:", err);
+          logError("assistant.message.persist_failed", err, {
+            sessionId: session.sessionId,
+          });
         });
 
         // Charge the reserved credit with what the turn actually spent. The
@@ -535,11 +544,15 @@ export async function runAssistant({
           latencyMs: Date.now() - startedAt,
           status: "success",
         }).catch((err) => {
-          console.warn("[assistant] Failed to log invocation:", err);
+          logError("assistant.invocation.log_failed", err, {
+            taskType: "assistant_message",
+          });
         });
       },
       onError: async ({ error }) => {
-        console.error("Owner assistant stream error:", error);
+        logError("assistant.stream.failed", error, {
+          sessionId: session.sessionId,
+        });
         // The turn failed after the provider was called: the reserved credit
         // is charged rather than released.
         await settleUsage(0, 0);
@@ -566,7 +579,9 @@ export async function runAssistant({
       sessionId: session.sessionId,
     };
   } catch (error) {
-    console.error("Owner assistant orchestrator error:", error);
+    logError("assistant.turn.failed", error, {
+      sessionId: session.sessionId,
+    });
     // The turn never reached the provider: release the reserved credit.
     await releaseUsage();
     throw error;

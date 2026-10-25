@@ -26,7 +26,8 @@ index is the map to the product, current implementation, and recurring work.
 - Test changes: [`tests/README.md`](../tests/README.md).
 - Security-sensitive work: [Security](security/SECURITY.md).
 - Production operations: [Deployment](operations/DEPLOYMENT.md), the
-  [scheduler ownership inventory](operations/SCHEDULER-OWNERSHIP.md), then the
+  [scheduler ownership inventory](operations/SCHEDULER-OWNERSHIP.md), the
+  [observability guide](operations/OBSERVABILITY.md), then the
   detailed [deployment setup](setup/deployment.md) and
   [database migration guide](database-migrations.md).
 - Billing, email, Redis, or provider setup:

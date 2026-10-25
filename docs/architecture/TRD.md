@@ -419,11 +419,15 @@ state is local to feature needs; there is no general global state store. The
 Assistant has a tab-local live chat store.
 
 Errors are handled at route/feature boundaries and streamed UI boundaries.
-The root layout wires Vercel Analytics and Speed Insights; server-side
-diagnostics use console logs plus persisted AI invocation/security and
-audit/activity records. A general distributed tracing system is not evident
-in the repository. Provider dashboards remain authoritative for external
-quota and health.
+The root layout wires Vercel Analytics and Speed Insights. Server diagnostics
+use the structured JSON logger and correlation IDs described in
+[Observability and correlation IDs](../operations/OBSERVABILITY.md): request
+boundaries accept or mint an ID, Inngest runs use the run ID, and
+`AsyncLocalStorage` attaches it to every line emitted through the structured
+logger without changing feature signatures. Persisted AI invocation,
+security-event, audit, and activity records remain the durable trail. A general
+distributed tracing system is not configured in the repository. Provider
+dashboards remain authoritative for external quota and health.
 
 ## Configuration, development, and deployment
 
