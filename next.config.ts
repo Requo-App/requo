@@ -2,6 +2,10 @@ import withBundleAnalyzer from "@next/bundle-analyzer";
 import type { NextConfig } from "next";
 
 const isProduction = process.env.NODE_ENV === "production";
+// The instant-navigation testing API is for dedicated end-to-end test builds
+// only. `next dev` exposes it automatically; a production build must opt in
+// explicitly. Never set this for a user-facing deployment.
+const exposeTestingApi = process.env.EXPOSE_TESTING_API === "1";
 
 // Dev-only experimental levers. Sourced from this repo's own dev trace
 // (`.next/dev/trace`), where render time — not bundling — dominates request
@@ -53,13 +57,16 @@ const sensitiveNoStoreHeaders = [
 ] satisfies Array<{ key: string; value: string }>;
 
 // Authenticated app shell (dashboard, businesses hub, business-scoped pages).
-// These URLs are user-private but do NOT carry tokens in the path, so we allow
-// the Next.js router cache to prefetch RSC payloads. `private, max-age=0`
-// keeps shared caches (CDNs, proxies) out while letting the browser / router
-// cache serve instant navigations. Without this relaxation the router cannot
-// honor `experimental.staleTimes` and every navigation re-fetches from origin.
+// These URLs are user-private but do NOT carry tokens in the path. Keep them
+// out of shared caches and out of the browser cache: the Next router cache is
+// an in-memory Client Cache regulated by `experimental.staleTimes`, not by
+// HTTP Cache-Control, so `no-store` costs no navigation speed. It also stops a
+// shared device from serving private pages out of history after logout.
 const authenticatedAppShellHeaders = [
-  { key: "Cache-Control", value: "private, max-age=0, must-revalidate" },
+  {
+    key: "Cache-Control",
+    value: "private, no-cache, no-store, max-age=0, must-revalidate",
+  },
   { key: "Referrer-Policy", value: "no-referrer" },
   { key: "X-Robots-Tag", value: "noindex, nofollow, noarchive" },
 ] satisfies Array<{ key: string; value: string }>;
@@ -140,12 +147,14 @@ const nextConfig: NextConfig = {
     // Router cache freshness-vs-reuse (ref: bundled staleTimes.md, prefetching.md).
     // dynamic: RSC payloads gated on per-request data (session, business context)
     //   reuse for a short window so back/forward feels instant without serving
-    //   meaningfully stale business data. 60s (validator max) keeps sibling
-    //   navs and browser-back snappy — e.g. reading an inquiry then going back
-    //   shows the list instantly with no skeleton. Real mutations invalidate
-    //   explicitly via cache tags, so they still surface immediately regardless
-    //   of this window; it only bounds un-invalidated staleness (at worst a
-    //   minute), which read receipts already cover with optimistic client state.
+    //   meaningfully stale business data. 60s keeps sibling navs and
+    //   browser-back snappy — e.g. reading an inquiry then going back shows the
+    //   list instantly with no skeleton. Real mutations invalidate explicitly
+    //   via cache tags, so they still surface immediately regardless of this
+    //   window; it only bounds un-invalidated staleness (at worst a minute),
+    //   which read receipts already cover with optimistic client state. The
+    //   config schema enforces a 30s minimum for `static` but sets no maximum
+    //   on `dynamic`; 60s is a product choice, not a validator limit.
     // static: Segments with no per-request variance (prefetched static shells)
     //   tolerate a longer reuse window since their content changes infrequently
     //   and cache-tag invalidations flush them on mutation anyway. 180s balances
@@ -157,11 +166,11 @@ const nextConfig: NextConfig = {
     // Inlining critical CSS pays off for production first paint, but in dev it
     // re-serializes the stylesheet into the HTML on every update.
     inlineCss: isProduction,
-    // Expose the instant-navigation testing API in production builds so
-    // Playwright `instant()` assertions can run against `next start`.
-    // (Dev exposes it automatically.) Must live outside
-    // `devOnlyExperimental`, which is empty when NODE_ENV=production.
-    exposeTestingApiInProductionBuild: true,
+    // Expose the instant-navigation testing API only in dedicated test builds
+    // (`EXPOSE_TESTING_API=1 npm run build`), for Playwright `instant()`
+    // assertions against `next start`. Dev exposes it automatically. Must live
+    // outside `devOnlyExperimental`, which is empty when NODE_ENV=production.
+    exposeTestingApiInProductionBuild: exposeTestingApi,
     ...devOnlyExperimental,
   },
   async redirects() {

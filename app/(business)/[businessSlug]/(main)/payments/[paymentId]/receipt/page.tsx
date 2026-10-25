@@ -7,6 +7,10 @@ import { DashboardPage, DashboardSection } from "@/components/shared/dashboard-l
 import { PageHeader } from "@/components/shared/page-header";
 import { DetailPageHeaderFallback, DetailSectionFallback } from "@/components/shared/detail-section-fallback";
 import { RegionErrorBoundary } from "@/components/shared/region-error-boundary";
+import {
+  DetailSectionErrorFallback,
+  PageHeaderErrorFallback,
+} from "@/components/shared/region-error-fallback";
 import { InfoTile } from "@/components/shared/info-tile";
 import { Button } from "@/components/ui/button";
 import { getBusinessPaymentPath, getBusinessPaymentReceiptExportPath } from "@/features/businesses/routes";
@@ -31,12 +35,14 @@ export const instant = true;
 export default function PaymentReceiptPage({ params }: PaymentReceiptPageProps) {
   return (
     <DashboardPage>
-      <RegionErrorBoundary fallback={<ReceiptPageSkeleton />}>
+      <RegionErrorBoundary fallback={<PageHeaderErrorFallback />}>
         <Suspense fallback={<DetailPageHeaderFallback />}>
           <ReceiptHeaderRegion params={params} />
         </Suspense>
       </RegionErrorBoundary>
-      <RegionErrorBoundary fallback={<DetailSectionFallback rows={4} />}>
+      <RegionErrorBoundary
+        fallback={<DetailSectionErrorFallback title="Receipt details" />}
+      >
         <Suspense fallback={<DetailSectionFallback rows={4} />}>
           <ReceiptDetailRegion params={params} />
         </Suspense>

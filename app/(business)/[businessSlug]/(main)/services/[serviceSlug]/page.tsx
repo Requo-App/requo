@@ -4,7 +4,6 @@ import { Suspense } from "react";
 
 import { PageHeader } from "@/components/shared/page-header";
 import { DashboardPage } from "@/components/shared/dashboard-layout";
-import { RegionErrorBoundary } from "@/components/shared/region-error-boundary";
 import { DetailPageHeaderFallback } from "@/components/shared/detail-section-fallback";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -55,15 +54,14 @@ type ServicePageProps = {
  * lookup, so the page header and its links paint without waiting on the editor
  * payload. The tabs (normalized form/page configs and form/inquiry counts)
  * stream behind their own boundary, and the onboarding tour streams last.
+ * Failures reach the dashboard segment `error.tsx` retry card.
  */
 export default function BusinessServicePage({ params }: ServicePageProps) {
   return (
     <DashboardPage>
-      <RegionErrorBoundary fallback={<ServiceEditorShellFallback />}>
-        <Suspense fallback={<ServiceEditorShellFallback />}>
-          <ServiceEditorHeaderRegion params={params} />
-        </Suspense>
-      </RegionErrorBoundary>
+      <Suspense fallback={<ServiceEditorShellFallback />}>
+        <ServiceEditorHeaderRegion params={params} />
+      </Suspense>
     </DashboardPage>
   );
 }

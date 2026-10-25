@@ -3,6 +3,7 @@ import { Suspense } from "react";
 
 import { DashboardPage } from "@/components/shared/dashboard-layout";
 import { RegionErrorBoundary } from "@/components/shared/region-error-boundary";
+import { RegionErrorState } from "@/components/shared/region-error-fallback";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getAppShellContext } from "@/lib/app-shell/context";
 import { createNoIndexMetadata } from "@/lib/seo/site";
@@ -114,9 +115,10 @@ export function AssistantSkeleton() {
 function AssistantErrorState() {
   return (
     <div className="flex h-full items-center justify-center p-4">
-      <p className="text-sm text-muted-foreground">
-        The assistant couldn&apos;t be loaded. Please try again.
-      </p>
+      <RegionErrorState
+        className="w-full max-w-md"
+        message="The assistant couldn't be loaded."
+      />
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { Suspense, type ReactNode } from "react";
 import { DashboardPage } from "@/components/shared/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
 import { RegionErrorBoundary } from "@/components/shared/region-error-boundary";
+import { RegionErrorState } from "@/components/shared/region-error-fallback";
 import { AnalyticsFreshness } from "@/features/analytics/components/controls/analytics-freshness";
 import { AnalyticsTabNav } from "@/features/analytics/components/controls/analytics-tab-nav";
 import { AnalyticsToolbar } from "@/features/analytics/components/controls/analytics-toolbar";
@@ -272,8 +273,8 @@ async function AnalyticsContentRegion({ params, searchParams }: AnalyticsPagePro
 
 function AnalyticsErrorFallback() {
   return (
-    <div className="analytics-card px-4 py-10 text-center text-sm text-muted-foreground sm:px-5">
-      Could not load analytics right now. Refresh the page to try again.
+    <div className="analytics-card px-4 py-4 sm:px-5">
+      <RegionErrorState message="Could not load analytics right now." />
     </div>
   );
 }

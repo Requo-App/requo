@@ -14,6 +14,10 @@ import {
 } from "@/components/shared/dashboard-layout";
 import { DetailPageHeaderFallback, DetailSectionFallback } from "@/components/shared/detail-section-fallback";
 import { RegionErrorBoundary } from "@/components/shared/region-error-boundary";
+import {
+  DetailPageHeaderErrorFallback,
+  DetailSectionErrorFallback,
+} from "@/components/shared/region-error-fallback";
 import { Button } from "@/components/ui/button";
 import {
   MobileHeaderSlot,
@@ -53,20 +57,24 @@ export const instant = true;
 export default function PaymentDetailPage({ params }: PaymentDetailPageProps) {
   return (
     <DashboardPage className="pb-24">
-      <RegionErrorBoundary fallback={<DetailPageHeaderFallback />}>
+      <RegionErrorBoundary fallback={<DetailPageHeaderErrorFallback />}>
         <Suspense fallback={<DetailPageHeaderFallback />}>
           <PaymentHeaderRegion params={params} />
         </Suspense>
       </RegionErrorBoundary>
 
       <div className="flex flex-col gap-6">
-        <RegionErrorBoundary fallback={<DetailSectionFallback rows={4} />}>
+        <RegionErrorBoundary
+          fallback={<DetailSectionErrorFallback title="Payment details" />}
+        >
           <Suspense fallback={<DetailSectionFallback rows={4} />}>
             <PaymentDetailsRegion params={params} />
           </Suspense>
         </RegionErrorBoundary>
 
-        <RegionErrorBoundary fallback={<DetailSectionFallback rows={2} />}>
+        <RegionErrorBoundary
+          fallback={<DetailSectionErrorFallback title="Invoice balance" />}
+        >
           <Suspense fallback={<DetailSectionFallback rows={2} />}>
             <PaymentBalanceRegion params={params} />
           </Suspense>

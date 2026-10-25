@@ -53,7 +53,7 @@ the database contract; `tests/` holds executable checks.
 
 ## Framework references
 
-Next.js is pinned to 16.3.8 in `package.json`. Before changing framework code,
+Next.js is pinned to 16.4.2 in `package.json`. Before changing framework code,
 read the relevant installed guide under `node_modules/next/dist/docs/` (resolve
 the package from the project containing the code). The installed docs and
 configuration are authoritative for supported APIs. The public [Next.js AI

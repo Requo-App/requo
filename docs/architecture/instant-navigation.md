@@ -8,7 +8,7 @@ Before this system, every authenticated page awaited `params`, `getAppShellConte
 
 Three root causes:
 
-1. **Validation globally disabled.** Every page exported the legacy `unstable_instant` config with `unstable_disableValidation: true`, turning off the build-time check that verifies routes produce an instant static shell. (Next.js 16.3 replaced this with the supported `instant` export; the repo has been migrated.)
+1. **Validation globally disabled.** Every page exported the legacy `unstable_instant` config with `unstable_disableValidation: true`, turning off the build-time check that verifies routes produce an instant static shell. (The installed Next.js 16.4 supports the `instant` export; the repo has been migrated.)
 2. **Pages block on dynamic data above the return.** The awaits for session, params, and queries sat above `return`, so `<Suspense>` boundaries inside the JSX never reached the prefetchable static shell.
 3. **Unbounded router stale times.** `experimental.staleTimes` was set to 24 hours for both dynamic and static segments.
 
@@ -107,7 +107,7 @@ async function QuoteDetailRegion({ params }: QuoteDetailPageProps) {
       </Suspense>
 
       <RegionErrorBoundary
-        fallback={<p role="alert">Customer history could not be loaded.</p>}
+        fallback={<DetailSectionErrorFallback title="Customer history" />}
       >
         <Suspense fallback={<QuoteCustomerHistoryFallback />}>
           <QuoteCustomerHistoryRegion businessId={businessId} quoteId={quote.id} />
@@ -115,7 +115,7 @@ async function QuoteDetailRegion({ params }: QuoteDetailPageProps) {
       </RegionErrorBoundary>
 
       <RegionErrorBoundary
-        fallback={<p role="alert">Follow-ups could not be loaded.</p>}
+        fallback={<DetailSectionErrorFallback title="Follow-ups" />}
       >
         <Suspense fallback={<FollowUpPanelFallback />}>
           <QuoteFollowUpsRegion businessId={businessId} quoteId={quote.id} />
@@ -144,12 +144,12 @@ Rules that keep the split honest:
   `"use cache"` / `React.cache()` layer makes the repeat read free, and no region
   depends on another having resolved first.
 - **Every feed gets its own `<Suspense>`**, and a `<RegionErrorBoundary>` only
-  where the feed has a fallback that communicates the failure (customer history,
-  follow-up panel). `InquiryDuplicateBannerRegion` currently has only a
-  `<Suspense>` boundary. Quote and inquiry detail deliberately do
-  not wrap the whole page: their skeleton fallback made a thrown region look
-  like a page that never finished loading, so whole-page failures reach the
-  segment `error.tsx` retry card instead.
+  where the feed has a fallback that communicates the failure. Use the shared
+  `DetailSectionErrorFallback` / `RegionErrorState` (or the admin equivalents)
+  so the failure names the section and offers retry. A whole-page surface
+  (new/edit forms, service editor) leaves failures to the segment `error.tsx`
+  retry card instead: a skeleton fallback made a thrown region look like a page
+  that never finished loading.
 - **Keep the aggregate queries.** `getInquiryDetailForBusiness`,
   `getQuoteDetailForBusiness`, and `getInvoiceForBusiness` are still consumed by
   print routes, the public preview, export API routes, and quote/invoice
@@ -174,7 +174,10 @@ Staged detail routes today:
 
 Deliberately not staged: `assistant/chat/[sessionId]` is a pure `redirect()`, and
 `quotes/[id]/preview`, `invoices/[invoiceId]/edit`, `preview/*`, and `print/*`
-are single-payload surfaces where a split would be cosmetic.
+are single-payload surfaces where a split would be cosmetic. Staging and
+validation scope are separate: authenticated previews such as
+`quotes/[id]/preview` still export `instant` and belong to
+`IN_SCOPE_ROUTES`.
 
 The admin console uses the same shape with its own fallbacks
 (`features/admin/components/admin-detail-section-fallback.tsx`) and its
@@ -240,7 +243,14 @@ dev overlay surfaces which routes pass or fail during development.
 
 ### CI
 
-`npm run check` (lint + typecheck + SEO audits) and `npm run build` both pass with zero errors. The audit script (`scripts/audit-instant-navigation.ts`, wired as `audit:instant-navigation` in `package.json`) verifies every in-scope route either has validation enabled or has a valid escape-hatch entry; `scripts/instant-navigation/check-coverage.ts` is the registry consumer used by the migration-coverage check.
+`npm run check` (lint + typecheck + SEO audits) and `npm run build` both pass with zero errors. `check:seo` runs both instant-navigation scripts:
+
+- `audit:instant-navigation` (`scripts/audit-instant-navigation.ts`) verifies every in-scope route either has validation enabled or a valid escape-hatch entry, rejects scope drift (a page exporting `instant` outside `IN_SCOPE_ROUTES`), and audits the whole escape-hatch registry.
+- `audit:instant-navigation-coverage` (`scripts/instant-navigation/check-coverage.ts`) reports per-route coverage and repeats the registry-wide validation.
+
+Both parse route exports with the TypeScript compiler, so a commented-out export cannot satisfy the check and object-form opt-outs (`unstable_disableValidation`, `unstable_disableDevValidation`, `unstable_disableBuildValidation`) count as disabled.
+
+Production builds keep the instant-navigation testing API off unless a dedicated test build sets `EXPOSE_TESTING_API=1` (see `.env.example`). Dev exposes it automatically.
 
 ## Error Handling
 
@@ -258,7 +268,14 @@ Each data-dependent region streams behind its own `<Suspense>`. A feed is additi
 
 If the child throws, only that region shows the error fallback. The structural shell and sibling regions stay rendered.
 
-Do not wrap a whole detail page in `RegionErrorBoundary` with a loading skeleton as the fallback: a thrown frame then renders as a skeleton forever. Quote and inquiry detail leave those failures to `app/(business)/[businessSlug]/(main)/error.tsx`, which renders the retryable "This view did not load" card.
+`RegionErrorBoundary` is built on Next's `catchError`, not a hand-written class boundary. That matters for two framework contracts:
+
+- `notFound()` and `redirect()` are thrown control flow. `catchError` rethrows them to Next's router, so an unknown invoice, a non-draft edit URL, or a role redirect is not swallowed into a region fallback.
+- The error state clears on client navigation, so moving from one record to another does not keep the previous record's fallback on screen.
+
+Section fallbacks render `RegionErrorState`, which exposes `role="alert"` plus a retry button; header fallbacks put the same retry button in their action slot. Retry calls Next's `retry()`, which refreshes the router and re-renders the region.
+
+Do not wrap a whole detail page in `RegionErrorBoundary` with a loading skeleton as the fallback: a thrown frame then renders as a skeleton forever. Whole-page failures reach `app/(business)/[businessSlug]/(main)/error.tsx`, which renders the retryable "This view did not load" card.
 
 ### Authorization
 
@@ -277,25 +294,24 @@ exemption:
 - **Registry:** `lib/instant-navigation/escape-hatch-registry.ts`
 - **Validator:** `lib/instant-navigation/escape-hatches.ts`
 
-Each entry carries `route`, `reason`, `targetReviewDate`, and `active`. The coverage check rejects any page that lacks both validation and a valid registry entry.
+Each entry carries `route`, `reason`, `targetReviewDate`, and `active`. The coverage check rejects any page that lacks both validation and a valid registry entry. A registry-wide audit validates dormant entries too, rejects duplicate route keys, and fails when an active entry passes its `targetReviewDate`.
 
-Current state: the registry is empty — the six admin console pages that
-previously needed exemptions now ship `instant` config blocks after the
-Better Auth migration (see the registry file comment), so no route currently
-requires an exemption.
+Current state: the registry is empty — all 20 admin console pages ship `instant` config blocks after the Better Auth migration (see the registry file comment), so no route requires an exemption. The admin layout keeps `instant = false` for its blocking session read; sibling navigations are still validated by the page exports.
 
 ## File Map
 
 | File/Directory | Purpose |
 |---|---|
-| `next.config.ts` | `staleTimes` configuration |
-| `lib/instant-navigation/stale-times.ts` | Bounds validator |
-| `lib/instant-navigation/escape-hatches.ts` | Escape-hatch validator + overdue detection |
+| `next.config.ts` | `staleTimes` configuration and authenticated `Cache-Control` |
+| `lib/instant-navigation/escape-hatches.ts` | In-scope route set, escape-hatch validator + overdue detection |
 | `lib/instant-navigation/escape-hatch-registry.ts` | Tracked exemption entries |
-| `lib/instant-navigation/migration-coverage.ts` | Coverage derivation |
-| `lib/instant-navigation/rollout.ts` | Verification gate, phase ordering |
-| `scripts/instant-navigation/check-coverage.ts` | CI coverage check |
-| `components/shared/region-error-boundary.tsx` | Error boundary for independently-failing regions |
+| `scripts/audit-instant-navigation.ts` | Route, scope-drift, and registry audit (`npm run check`) |
+| `scripts/instant-navigation/check-coverage.ts` | Per-route coverage report (`npm run check`) |
+| `scripts/instant-navigation/instant-export.ts` | AST inspection of the `instant` export |
+| `scripts/instant-navigation/escape-hatch-audit.ts` | Registry-wide duplicate/invalid/overdue checks |
+| `scripts/instant-navigation/instant-scope.ts` | Scope-drift check against `IN_SCOPE_ROUTES` |
+| `components/shared/region-error-boundary.tsx` | `catchError`-based boundary for independently-failing regions |
+| `components/shared/region-error-fallback.tsx` | Shared `role="alert"` failure UI and retry |
 | `components/shared/detail-section-fallback.tsx` | `DetailSectionFallback` / `DetailHeaderFallback` / `DetailPageHeaderFallback` for staged detail routes |
 | `features/admin/components/admin-detail-section-fallback.tsx` | Admin console equivalents of the detail fallbacks |
 | `features/auth/components/auth-form-skeleton.tsx` | Skeleton for auth form Suspense fallbacks |
@@ -307,8 +323,8 @@ requires an exemption.
 1. Make the default export function synchronous (no `async`, no awaits above return).
 2. Return the structural shell with `<Suspense>` boundaries and skeleton fallbacks.
 3. Put all dynamic reads (`params`, `getAppShellContext`, queries) in async child server components inside those boundaries.
-4. Export `instant = true` (the supported Next.js 16.3 route segment config).
-5. Run `npm run build` to verify the static shell still prerenders.
+4. Export `instant = true` (the supported Next.js 16.4 route segment config).
+5. Add the route to `IN_SCOPE_ROUTES` and run `npm run check` so scope drift, validation, and static-shell checks all pass.
 
 ### Staging an existing detail page
 
@@ -341,10 +357,11 @@ escape-hatch registry (`lib/instant-navigation/escape-hatch-registry.ts`).
 ### Checking migration coverage
 
 ```bash
-npx tsx scripts/instant-navigation/check-coverage.ts
+npm run audit:instant-navigation
+npm run audit:instant-navigation-coverage
 ```
 
-Reports which in-scope routes have validation enabled, which have valid escape hatches, and which are failing.
+Both run from `npm run check` via `check:seo`. They report scope drift, which in-scope routes have validation enabled, which have valid escape hatches, which are failing, and any registry-wide escape-hatch problem.
 
 ## Reference
 

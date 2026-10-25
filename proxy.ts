@@ -15,14 +15,14 @@ import {
 
 const AUTHENTICATED_APP_NOINDEX = "noindex, nofollow, noarchive";
 // Mirrors `authenticatedAppShellHeaders` in `next.config.ts`: user-private
-// app routes must not hit shared caches, but the Next.js router cache needs
-// `private, max-age=0, must-revalidate` to honor `experimental.staleTimes`.
-// Without it every sibling/back navigation re-fetches from origin and the
-// destination flashes its Suspense skeleton instead of painting instantly.
-// Static header rules cannot express `/:businessSlug/*`, so business-scoped
-// routes are covered here (precisely: paths that are neither public nor
-// private per the route registry).
-const AUTHENTICATED_APP_CACHE_CONTROL = "private, max-age=0, must-revalidate";
+// app routes must not be stored by shared or browser caches. Router
+// prefetching is unaffected — the Next Client Cache is in-memory and governed
+// by `experimental.staleTimes`, not HTTP Cache-Control. Static header rules
+// cannot express `/:businessSlug/*`, so business-scoped routes are covered
+// here (precisely: paths that are neither public nor private per the route
+// registry).
+const AUTHENTICATED_APP_CACHE_CONTROL =
+  "private, no-cache, no-store, max-age=0, must-revalidate";
 
 const ADMIN_CONSOLE_PREFIX = "/admin";
 
@@ -121,9 +121,9 @@ async function guardAdminConsoleRequest(
 }
 
 /**
- * Adds `X-Robots-Tag` (and router-cache `Cache-Control`) for authenticated
- * business-scoped app routes at `/:businessSlug/*` that are not covered by
- * static header rules in `next.config.ts`.
+ * Adds `X-Robots-Tag` (and the private no-store `Cache-Control`) for
+ * authenticated business-scoped app routes at `/:businessSlug/*` that are not
+ * covered by static header rules in `next.config.ts`.
  */
 function finalizeProxyResponse(request: NextRequest, response: NextResponse) {
   const pathname = request.nextUrl.pathname;

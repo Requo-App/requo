@@ -13,6 +13,7 @@ import {
 import { ArchivedRecordBanner } from "@/components/shared/archived-record-banner";
 import { DetailSectionFallback } from "@/components/shared/detail-section-fallback";
 import { RegionErrorBoundary } from "@/components/shared/region-error-boundary";
+import { DetailSectionErrorFallback } from "@/components/shared/region-error-fallback";
 import {
   DashboardDetailPageSkeleton,
   DashboardQuoteEditorSkeleton,
@@ -371,7 +372,7 @@ async function QuoteDetailRegion({ params }: QuoteDetailPageProps) {
               <Suspense fallback={<DetailSectionFallback rows={2} />}>
                 <QuoteActivityRegion businessId={businessId} quoteId={quote.id} />
               </Suspense>
-              <RegionErrorBoundary fallback={<QuoteCustomerHistoryFallback />}>
+              <RegionErrorBoundary fallback={<DetailSectionErrorFallback title="Customer history" />}>
                 <Suspense fallback={<QuoteCustomerHistoryFallback />}>
                   <QuoteCustomerHistoryRegion
                     businessId={businessId}
@@ -398,7 +399,7 @@ async function QuoteDetailRegion({ params }: QuoteDetailPageProps) {
               </div>
 
               <div id="follow-ups">
-                <RegionErrorBoundary fallback={<FollowUpPanelFallback />}>
+                <RegionErrorBoundary fallback={<DetailSectionErrorFallback title="Follow-ups" />}>
                   <Suspense fallback={<FollowUpPanelFallback />}>
                     <QuoteFollowUpsRegion
                       businessId={businessId}
@@ -434,7 +435,7 @@ async function QuoteDetailRegion({ params }: QuoteDetailPageProps) {
             <Suspense fallback={<DetailSectionFallback rows={2} />}>
               <QuoteActivityRegion businessId={businessId} quoteId={quote.id} />
             </Suspense>
-            <RegionErrorBoundary fallback={<QuoteCustomerHistoryFallback />}>
+            <RegionErrorBoundary fallback={<DetailSectionErrorFallback title="Customer history" />}>
               <Suspense fallback={<QuoteCustomerHistoryFallback />}>
                 <QuoteCustomerHistoryRegion
                   businessId={businessId}
@@ -475,7 +476,7 @@ async function QuoteDetailRegion({ params }: QuoteDetailPageProps) {
             />
 
             <div id="follow-ups">
-              <RegionErrorBoundary fallback={<FollowUpPanelFallback />}>
+              <RegionErrorBoundary fallback={<DetailSectionErrorFallback title="Follow-ups" />}>
                 <Suspense fallback={<FollowUpPanelFallback />}>
                   <QuoteFollowUpsRegion
                     businessId={businessId}

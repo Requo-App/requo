@@ -5,7 +5,6 @@ import { Suspense } from "react";
 
 import { DashboardEmptyState, DashboardPage } from "@/components/shared/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
-import { RegionErrorBoundary } from "@/components/shared/region-error-boundary";
 import { ManagerBodySkeleton } from "@/components/shell/settings-body-skeletons";
 import { Button } from "@/components/ui/button";
 import { createManualInquiryAction } from "@/features/inquiries/actions";
@@ -33,7 +32,8 @@ export const instant = true;
  *
  * All dynamic reads (params, searchParams, getAppShellContext, form queries) are
  * pushed into a `<Suspense>`-wrapped child server component so the shell paints
- * instantly on client navigation.
+ * instantly on client navigation. Failures reach the dashboard segment
+ * `error.tsx` retry card.
  */
 export default function NewInquiryPage({
   params,
@@ -46,11 +46,9 @@ export default function NewInquiryPage({
         title="Quick-add inquiry"
         description="Capture the essentials from a call, chat, walk-in, or forwarded message. You can add deeper intake details later."
       />
-      <RegionErrorBoundary fallback={<ManagerBodySkeleton />}>
-        <Suspense fallback={<ManagerBodySkeleton />}>
-          <NewInquiryContent params={params} searchParams={searchParams} />
-        </Suspense>
-      </RegionErrorBoundary>
+      <Suspense fallback={<ManagerBodySkeleton />}>
+        <NewInquiryContent params={params} searchParams={searchParams} />
+      </Suspense>
     </DashboardPage>
   );
 }
