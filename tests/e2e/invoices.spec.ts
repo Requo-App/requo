@@ -33,24 +33,27 @@ async function createManualInvoice(page: Page, invoiceTitle: string) {
   });
 
   // The streamed skeleton renders the same "Create a new invoice" heading, so
-  // wait for a form-only field instead. networkidle doubles as the hydration
-  // wait for the client form, matching the public inquiry spec.
+  // wait for a form-only field instead. Dashboard routes prefetch their
+  // siblings, so `networkidle` never settles here (see
+  // assistant-conversation.spec.ts); prove hydration through the form itself.
   const lineItemDescription = page.getByLabel("Line item 1 description");
   await expect(lineItemDescription).toBeVisible({ timeout: 120_000 });
-  await page.waitForLoadState("networkidle", { timeout: 90_000 });
+
+  // A fill that lands before hydration is discarded when React attaches, so
+  // retry the first edit until the serialized line-item state reflects it.
+  const itemsInput = page.locator('input[name="items"]');
+  await expect(async () => {
+    await lineItemDescription.fill("Smoke line item");
+    await expect(itemsInput).toHaveValue(/"description":"Smoke line item"/, {
+      timeout: 2_000,
+    });
+  }).toPass({ timeout: 90_000 });
 
   await page.getByLabel("Title").fill(invoiceTitle);
   await page.getByLabel("Customer name").fill("Smoke Customer");
   await page.getByLabel("Customer email").fill("smoke.customer@example.com");
-  await lineItemDescription.fill("Smoke line item");
   await page.getByLabel("Line item 1 quantity").fill("2");
   await page.getByLabel("Line item 1 unit price").fill("125.00");
-
-  // Line items live in React state and are serialized into the hidden `items`
-  // input, so this proves the editor is interactive before submitting.
-  await expect(page.locator('input[name="items"]')).toHaveValue(
-    /"description":"Smoke line item"/,
-  );
 
   await page.getByRole("button", { name: "Create invoice" }).click();
 
