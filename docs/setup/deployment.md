@@ -205,7 +205,10 @@ login). To make it accessible in production:
    ```
    npx tsx scripts/bootstrap-admin.ts
    ```
-   Re-runs are idempotent.
+   Re-runs are idempotent. `ADMIN_EMAILS` seeds that list and keeps the
+   proxy from rejecting a freshly promoted admin while the session cache
+   catches up; it does not grant console access by itself, so an account
+   added to the allowlist still needs the promotion step.
 
 2. **Verify.**
    Sign in with a promoted admin's Requo account, then visit `/admin`.

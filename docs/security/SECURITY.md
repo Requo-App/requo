@@ -50,11 +50,16 @@ root [`SECURITY.md`](../../SECURITY.md).
   `npm run check`.
 - Admin pages and operations use server-side admin guards. Preserve the
   server checks even where `proxy.ts` also gates `/admin`. `requireAdminUser()`
-  always re-reads `user.role` and `user.banned` from the database, so a
-  demotion or ban is enforced on the next admin request even while Better
-  Auth's cookie cache still shows the old role to the proxy (up to 300
-  seconds). The proxy gate is an early rejection, not the boundary. Demotion
-  and suspension also delete the target's session rows. See
+  always re-reads `user.role` and `user.banned` from the database and grants
+  only on `role = "admin"`, so a demotion or ban is enforced on the next admin
+  request even while Better Auth's cookie cache still shows the old role to the
+  proxy (up to 300 seconds). The proxy gate is an early rejection, not the
+  boundary. `ADMIN_EMAILS` is a bootstrap input for promoting accounts and a
+  hint for that gate, not a runtime grant. Demotion, suspension, session
+  revocation, and account deletion remove the target's own sessions and any
+  impersonation sessions they started. Revoking an impersonation session also
+  expires Better Auth's session cookies, because its signed cookie cache can
+  otherwise keep the deleted session usable until the payload lapses. See
   [`features/admin/access.ts`](../../features/admin/access.ts),
   [`lib/auth/admin-identity.ts`](../../lib/auth/admin-identity.ts), and
   [`lib/auth/config.ts`](../../lib/auth/config.ts) before changing this boundary.
