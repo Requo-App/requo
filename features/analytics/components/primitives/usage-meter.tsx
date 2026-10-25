@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import { formatNumber } from "@/features/analytics/lib/format";
+import { formatNumber } from "@/features/analytics/format";
 import type { AnalyticsUsageMeter } from "@/features/analytics/types";
 import { cn } from "@/lib/utils";
 

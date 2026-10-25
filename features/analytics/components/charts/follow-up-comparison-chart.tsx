@@ -8,7 +8,7 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart";
 import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
-import { formatPercent } from "@/features/analytics/lib/format";
+import { formatPercent } from "@/features/analytics/format";
 import type { FollowUpEffectivenessData } from "@/features/analytics/types";
 
 import { ANALYTICS_PLOT_HEIGHT } from "../primitives/plot-frame";

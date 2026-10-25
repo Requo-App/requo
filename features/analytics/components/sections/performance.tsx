@@ -12,7 +12,7 @@ import {
   formatPercentValue,
   formatSpeedDelta,
   getDeltaSentiment,
-} from "@/features/analytics/lib/format";
+} from "@/features/analytics/format";
 import {
   getInquiriesListHref,
   getQuotesListHref,

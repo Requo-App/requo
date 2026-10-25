@@ -41,6 +41,8 @@ import { pathToFileURL } from "node:url";
 
 import ts from "typescript";
 
+import { collectRuntimeImportHits } from "./audit-imports";
+
 const ROOT = process.cwd();
 const SCAN_DIRS = ["app", "components", "features"];
 const SKIP_DIRS = new Set(["node_modules", ".next", ".git", "dist", "build"]);
@@ -94,11 +96,6 @@ export type SourceFile = {
   source: string;
 };
 
-type ImportHit = {
-  specifier: string;
-  line: number;
-};
-
 function walk(dir: string, acc: string[] = []): string[] {
   if (!fs.existsSync(dir)) return acc;
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -128,87 +125,6 @@ function hasDirective(sourceFile: ts.SourceFile, directive: string): boolean {
       ts.isStringLiteral(first.expression) &&
       first.expression.text === directive,
   );
-}
-
-function importIsTypeOnly(clause: ts.ImportClause): boolean {
-  if (clause.isTypeOnly) return true;
-  if (clause.name) return false;
-
-  const bindings = clause.namedBindings;
-  if (!bindings) return false;
-  if (ts.isNamespaceImport(bindings)) return false;
-
-  return (
-    bindings.elements.length > 0 &&
-    bindings.elements.every((element) => element.isTypeOnly)
-  );
-}
-
-function exportIsTypeOnly(node: ts.ExportDeclaration): boolean {
-  if (node.isTypeOnly) return true;
-  if (!node.exportClause || !ts.isNamedExports(node.exportClause)) return false;
-
-  return (
-    node.exportClause.elements.length > 0 &&
-    node.exportClause.elements.every((element) => element.isTypeOnly)
-  );
-}
-
-function collectImportHits(sourceFile: ts.SourceFile): ImportHit[] {
-  const hits: ImportHit[] = [];
-
-  const add = (node: ts.Node, specifier: string) => {
-    const { line } = sourceFile.getLineAndCharacterOfPosition(
-      node.getStart(sourceFile),
-    );
-    hits.push({ specifier, line: line + 1 });
-  };
-
-  const visit = (node: ts.Node): void => {
-    if (ts.isImportDeclaration(node)) {
-      const clause = node.importClause;
-      const runtimeImport =
-        !clause || !importIsTypeOnly(clause);
-
-      if (runtimeImport && ts.isStringLiteral(node.moduleSpecifier)) {
-        add(node, node.moduleSpecifier.text);
-      }
-    } else if (
-      ts.isExportDeclaration(node) &&
-      node.moduleSpecifier &&
-      ts.isStringLiteral(node.moduleSpecifier) &&
-      !exportIsTypeOnly(node)
-    ) {
-      add(node, node.moduleSpecifier.text);
-    } else if (ts.isImportEqualsDeclaration(node)) {
-      const reference = node.moduleReference;
-      if (
-        ts.isExternalModuleReference(reference) &&
-        ts.isStringLiteral(reference.expression)
-      ) {
-        add(node, reference.expression.text);
-      }
-    } else if (ts.isCallExpression(node)) {
-      const isDynamicImport =
-        node.expression.kind === ts.SyntaxKind.ImportKeyword;
-      const isRequire =
-        ts.isIdentifier(node.expression) && node.expression.text === "require";
-      const [firstArgument] = node.arguments;
-
-      if (
-        (isDynamicImport || isRequire) &&
-        firstArgument &&
-        ts.isStringLiteralLike(firstArgument)
-      ) {
-        add(node, firstArgument.text);
-      }
-    }
-
-    ts.forEachChild(node, visit);
-  };
-
-  visit(sourceFile);
-  return hits;
 }
 
 function resolveLocalSpecifier(
@@ -304,7 +220,7 @@ export function auditSource(relPath: string, source: string): Offender[] {
 
   const offenders: Offender[] = [];
 
-  for (const hit of collectImportHits(sourceFile)) {
+  for (const hit of collectRuntimeImportHits(sourceFile)) {
     const restrictedName = restrictedImportName(relPath, hit.specifier);
     if (!restrictedName) continue;
 

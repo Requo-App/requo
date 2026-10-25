@@ -1,4 +1,4 @@
-import { formatNumber, formatPercent } from "@/features/analytics/lib/format";
+import { formatNumber, formatPercent } from "@/features/analytics/format";
 import type { AnalyticsFunnelStep } from "@/features/analytics/types";
 
 import { BarList, type BarListItem } from "./bar-list";

@@ -51,7 +51,7 @@ import {
   formatBucketLabel,
   type AnalyticsWindow,
 } from "@/features/analytics/lib/window";
-import { formatDayLabel, formatMonthLabel } from "@/features/analytics/lib/format";
+import { formatDayLabel, formatMonthLabel } from "@/features/analytics/format";
 import {
   ANALYTICS_GOAL_METRICS,
   type AnalyticsGoalMetricKey,

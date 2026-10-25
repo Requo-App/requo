@@ -12,12 +12,12 @@ import {
   formatRelativeDelta,
   formatSpeedDelta,
   getDeltaSentiment,
-} from "@/features/analytics/lib/format";
+} from "@/features/analytics/format";
 
 /** `formatMoney` groups with a non-breaking space in some ICU versions. */
 const nbspSafe = (value: string) => value.replace(/\u00a0/g, " ");
 
-describe("features/analytics/lib/format", () => {
+describe("features/analytics/format", () => {
   describe("money", () => {
     it("formats whole currency units from cents", () => {
       expect(nbspSafe(formatMoney(123456, "USD"))).toBe("$1,235");

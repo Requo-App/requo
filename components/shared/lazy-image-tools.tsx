@@ -40,15 +40,6 @@ const InternalCropper = dynamic(
   { ssr: false, loading: () => <CropperSkeleton /> }
 );
 
-// ssr: false — CropDialog wraps react-easy-crop which uses browser APIs (touch/pointer events, canvas 2D context)
-const InternalCropDialog = dynamic(
-  () =>
-    import(
-      "@/features/settings/components/service-page-sections/crop-dialog"
-    ).then((mod) => mod.CropDialog),
-  { ssr: false, loading: () => <CropperSkeleton /> }
-);
-
 /**
  * Lazy-loaded Cropper from react-easy-crop.
  * Only downloads the crop library when the crop dialog is rendered.
@@ -64,22 +55,6 @@ export function LazyCropper(
   return (
     <LazyErrorBoundary>
       <InternalCropper {...(props as ComponentProps<typeof InternalCropper>)} />
-    </LazyErrorBoundary>
-  );
-}
-
-/**
- * Lazy-loaded CropDialog from inquiry page form settings.
- * Wraps the full crop dialog with react-easy-crop dependency.
- * Wrapped in an error boundary that catches chunk download failures and
- * offers a retry button to re-attempt the import.
- */
-export function LazyCropDialog(
-  props: ComponentProps<typeof InternalCropDialog>
-) {
-  return (
-    <LazyErrorBoundary>
-      <InternalCropDialog {...props} />
     </LazyErrorBoundary>
   );
 }

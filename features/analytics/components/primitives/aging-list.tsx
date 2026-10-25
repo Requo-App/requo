@@ -1,4 +1,4 @@
-import { formatMoney, formatNumber } from "@/features/analytics/lib/format";
+import { formatMoney, formatNumber } from "@/features/analytics/format";
 import type { AnalyticsAgingBucket } from "@/features/analytics/types";
 
 import { BarList, type BarListItem } from "./bar-list";
