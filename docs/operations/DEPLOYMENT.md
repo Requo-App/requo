@@ -35,9 +35,11 @@ email sender/provider settings aligned with the deployment.
 
 Vercel cron routes use `CRON_SECRET` where implemented. Inngest schedules and
 event functions are registered in `lib/inngest/functions/`; Vercel Cron and
-Inngest are separate scheduling systems. Verify both service dashboards after
-changing job registration or schedules. Provider dashboards are authoritative
-for external service health and quotas.
+Inngest are separate scheduling systems. The
+[scheduler ownership inventory](SCHEDULER-OWNERSHIP.md) is the authoritative
+list of which scheduler owns each recurring task. Verify both service
+dashboards after changing job registration or schedules. Provider dashboards
+are authoritative for external service health and quotas.
 
 Vercel Analytics and Speed Insights are included in the application layout.
 The repository does not document a tested rollback process or a general
