@@ -38,6 +38,7 @@ import {
 import { sanitizeAiInput } from "@/lib/ai/input-sanitizer";
 import { getAiCanaryDirective, getAiCanaryToken } from "@/lib/ai/canary";
 import { filterAiOutput } from "@/lib/ai/output-filter";
+import { logError } from "@/lib/observability/logger";
 import { logAiSecurityEvent } from "@/lib/ai/security-events";
 import { logAiInvocation } from "@/lib/ai/token-logger";
 import { hasFeatureAccess } from "@/lib/plans/entitlements";
@@ -279,7 +280,9 @@ export async function runAgent({
     try {
       await releaseUsageReservation(usageReservation);
     } catch (releaseError) {
-      console.warn("[agent] Failed to release AI credit:", releaseError);
+      logError("agent.credit.release_failed", releaseError, {
+        taskType: "agent_conversation",
+      });
     }
   };
 
@@ -293,7 +296,9 @@ export async function runAgent({
         computeUsageWeight("agent_conversation", { inputTokens, outputTokens }),
       );
     } catch (settleError) {
-      console.warn("[agent] Failed to settle AI credit:", settleError);
+      logError("agent.credit.settle_failed", settleError, {
+        taskType: "agent_conversation",
+      });
     }
   };
 
@@ -645,7 +650,10 @@ export async function runAgent({
             status: "error",
             errorMessage: `empty_completion finishReason=${String(finishReason)}`,
           }).catch((err) => {
-            console.warn("[agent] Failed to log invocation:", err);
+            logError("agent.invocation.log_failed", err, {
+              sessionId,
+              taskType: "agent_conversation",
+            });
           });
           return;
         }
@@ -676,7 +684,10 @@ export async function runAgent({
           latencyMs: Date.now() - startedAt,
           status: "success",
         }).catch((err) => {
-          console.warn("[agent] Failed to log invocation:", err);
+          logError("agent.invocation.log_failed", err, {
+            sessionId,
+            taskType: "agent_conversation",
+          });
         });
       },
       onAbort: async () => {
@@ -698,7 +709,10 @@ export async function runAgent({
         }).catch(() => {});
       },
       onError: async ({ error }) => {
-        console.error("Agent stream error:", error);
+        logError("agent.stream.failed", error, {
+          sessionId,
+          runId,
+        });
         // The turn failed after the provider was called: the reserved credit
         // is charged for what was spent rather than released.
         await settleUsage(0, 0);
@@ -742,7 +756,10 @@ export async function runAgent({
         runId,
         error: error instanceof Error ? error.message : "Unknown error",
       }).catch((telemetryError) => {
-        console.warn("[agent] Failed to record run failure:", telemetryError);
+        logError("agent.run.failure_record_failed", telemetryError, {
+          sessionId: sessionData.id,
+          runId,
+        });
       });
     }
 

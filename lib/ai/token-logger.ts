@@ -4,6 +4,7 @@ import { db } from "@/lib/db/client";
 import { aiTokenLogs } from "@/lib/db/schema";
 import { getDerivedCostTable } from "@/lib/ai/catalog";
 import { newEntityId } from "@/lib/ids";
+import { logError, logInfo } from "@/lib/observability/logger";
 
 // ---------------------------------------------------------------------------
 // Token Logger — records every AI invocation for cost monitoring and debugging
@@ -181,30 +182,28 @@ export async function logAiInvocation(
     unpriced,
   };
 
-  // Structured JSON console.info line for server log aggregation.
+  // Structured JSON line for server log aggregation. `type` is retained for
+  // existing dashboards; the logger adds level, service, and correlation ID.
   //
   // Emitted BEFORE the insert on purpose: this line is the fallback when the
   // database write fails, so a throw from `db.insert` must not take the log
   // line down with it — that would lose the invocation from both sinks at
   // once, which is precisely when the record matters most.
-  console.info(
-    JSON.stringify({
-      type: "ai_invocation",
-      timestamp: new Date().toISOString(),
-      userId,
-      businessId,
-      taskType,
-      model,
-      provider,
-      inputTokens,
-      outputTokens,
-      totalTokens,
-      estimatedCostCents,
-      latencyMs,
-      cacheHit,
-      status,
-    }),
-  );
+  logInfo("ai.invocation", {
+    type: "ai_invocation",
+    userId,
+    businessId,
+    taskType,
+    model,
+    provider,
+    inputTokens,
+    outputTokens,
+    totalTokens,
+    estimatedCostCents,
+    latencyMs,
+    cacheHit,
+    status,
+  });
 
   // Database insert.
   //
@@ -232,7 +231,11 @@ export async function logAiInvocation(
       unpriced,
     });
   } catch (error) {
-    console.error("[ai-token-logger] Failed to persist invocation log:", error);
+    logError("ai.invocation.persist_failed", error, {
+      taskType,
+      provider,
+      model,
+    });
   }
 
   return entry;

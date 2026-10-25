@@ -57,6 +57,7 @@ import {
 import { db } from "@/lib/db/client";
 import { businesses } from "@/lib/db/schema";
 import type { BillingCurrency } from "@/lib/db/schema/subscriptions";
+import { logError } from "@/lib/observability/logger";
 
 import { resolvePolarBusinessId, type PolarEventPayload } from "../identity";
 
@@ -251,7 +252,7 @@ async function processOrderEvent(params: {
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Unexpected webhook error.";
-    console.error("[polar webhook] order processing error", message, {
+    logError("polar.webhook.order.failed", error, {
       eventType: payload.type,
     });
     await markEventFailed(eventId, claimToken, message);

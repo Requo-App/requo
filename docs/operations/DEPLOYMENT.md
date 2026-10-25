@@ -46,7 +46,10 @@ dashboards after changing job registration or schedules. Provider dashboards
 are authoritative for external service health and quotas.
 
 Vercel Analytics and Speed Insights are included in the application layout.
-The repository does not document a tested rollback process or a general
-distributed tracing setup. Confirm operational procedures with the deployment
-owner before relying on them. For provider-specific steps, see
+Server logs are structured JSON and carry a correlation ID; see
+[Observability and correlation IDs](OBSERVABILITY.md) for the fields, sources,
+and diagnosis steps. The repository does not configure a log drain, alert
+routing, or dashboard, and does not document a tested rollback process or a
+general distributed tracing setup. Confirm operational procedures with the
+deployment owner before relying on them. For provider-specific steps, see
 [`docs/setup/`](../README.md#setup-guides).

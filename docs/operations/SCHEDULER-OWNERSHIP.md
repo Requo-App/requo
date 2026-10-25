@@ -71,10 +71,11 @@ fails closed when the secret is missing.
   A non-2xx response is a failed run. Cron routes request
   `Authorization: Bearer <CRON_SECRET>`; a missing or rotated secret produces
   `401` responses rather than silent success.
-- **Application logs:** use the route path or Inngest function ID from the
-  provider run to find the matching application logs. A run that returns a
-  non-2xx response or ends in a final Inngest failure is not a success, even
-  when earlier retries passed.
+- **Application logs:** use the route path, Inngest function ID, or the
+  `x-correlation-id` returned by a cron route to find the matching structured
+  log lines (`correlationId`). A run that returns a non-2xx response or ends in
+  a final Inngest failure is not a success, even when earlier retries passed.
+  See [Observability and correlation IDs](OBSERVABILITY.md).
 - **Admin console:** the system health surface reports provider configuration
   and availability where implemented. It does not replace the scheduler
   dashboards.

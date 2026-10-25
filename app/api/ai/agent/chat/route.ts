@@ -13,6 +13,8 @@ import {
   assertPublicActionRateLimit,
   getPublicActionClientIpAddress,
 } from "@/lib/public-action-rate-limit";
+import { logError } from "@/lib/observability/logger";
+import { withRequestCorrelation } from "@/lib/observability/request";
 import { headers } from "next/headers";
 
 /**
@@ -28,6 +30,15 @@ import { headers } from "next/headers";
  * enforced in the orchestrator. Always offers the inquiry form fallback.
  */
 export async function POST(request: Request) {
+  return withRequestCorrelation(
+    request,
+    "ai.agent.chat",
+    () => handleAgentChat(request),
+    { surface: "agent" },
+  );
+}
+
+async function handleAgentChat(request: Request) {
   try {
     // Parse and validate request body
     const body = await request.json().catch(() => null);
@@ -143,7 +154,7 @@ export async function POST(request: Request) {
 
     return response;
   } catch (error) {
-    console.error("Agent chat API error:", error);
+    logError("ai.agent.chat.error", error);
 
     if (
       error instanceof Error &&
