@@ -52,6 +52,7 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ### Fixed
 
+- Admin authorization is now database-authoritative. `requireAdminUser()` always re-reads `user.role` and `user.banned` instead of trusting the cached `admin` role in Better Auth's cookie cache, so a demoted or banned admin is refused on the next admin operation; demotion now also deletes the target's sessions, matching suspension. The proxy's cookie-derived gate remains an early rejection only.
 - Billing was hardened end to end: subscriptions are business-scoped, Polar webhooks claim and finalize events atomically (including retries and stale claims), checkout and portal mutations are owner-only while other members can view billing read-only, and plan entitlements resolve from the subscription row instead of the denormalized cache. The runtime is pinned to Node 24 for the current Polar adapters.
 
 - The AI features were reviewed end to end and the defects are fixed. The full findings and their resolutions are in [the AI features review](docs/reviews/ai-features-review.md). The ones that changed user-visible behaviour:

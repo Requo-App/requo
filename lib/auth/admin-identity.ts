@@ -50,12 +50,13 @@ export type AdminIdentityCandidate = {
  * This runs before the route renders, so it can only see what Better Auth's
  * session cookie cache carries — `role` and `banned` can lag the database by up
  * to `session.cookieCache.maxAge` (300s here). It is therefore a fast rejection
- * path, never the only boundary: `requireAdminUser()` re-checks the same
- * question against the database on the non-`admin` branch.
+ * path, never the only boundary: `requireAdminUser()` always re-reads the same
+ * question from the database, so a demoted or banned admin is refused there
+ * even while this predicate still sees the cached role.
  *
- * Precedence mirrors `isAdminSessionUser` so the two layers cannot disagree on
- * the common cases: a ban wins over everything, then an explicit `admin` role,
- * then the email allowlist.
+ * Precedence mirrors `isAdminSessionUser` for the cases both can decide: a ban
+ * wins over everything, then an explicit `admin` role, then the email
+ * allowlist.
  */
 export function isOptimisticAdminUser(
   candidate: AdminIdentityCandidate,

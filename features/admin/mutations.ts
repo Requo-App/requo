@@ -544,9 +544,11 @@ export async function suspendUserAction(
           })
           .where(eq(user.id, target.id));
 
-        // Drop existing sessions so the suspension takes effect
-        // immediately — otherwise the target's live cookie keeps
-        // working until natural expiry.
+        // Drop existing sessions so the suspension cannot refresh a cookie
+        // cache that still carries the pre-ban user. Better Auth may keep
+        // serving the cached session for up to its 300s maxAge, but
+        // `requireAdminUser()` already refuses a banned admin from the
+        // database on the next request, and the row cannot be refreshed.
         await tx.delete(session).where(eq(session.userId, target.id));
       },
     );
@@ -1007,6 +1009,14 @@ export async function demoteFromAdminAction(
           .update(user)
           .set({ role: "user", updatedAt: new Date() })
           .where(eq(user.id, target.id));
+
+        // Drop the target's session rows so a demoted admin cannot keep
+        // refreshing a cookie cache that still carries `role = "admin"`.
+        // `requireAdminUser()` already refuses the demotion from the
+        // database on the next request; this also ends the rest of the
+        // session once Better Auth's cache lapses instead of leaving a
+        // valid session row behind.
+        await tx.delete(session).where(eq(session.userId, target.id));
       },
     );
   } catch (error) {
