@@ -3,7 +3,7 @@
  *
  * Every query in `features/analytics/queries.ts` returns one of these shapes.
  * Sections render them directly; formatting and delta semantics live in
- * `features/analytics/lib/format.ts` so the same number reads identically in a
+ * `features/analytics/format.ts` so the same number reads identically in a
  * KPI card, a chart tooltip, and an export.
  */
 

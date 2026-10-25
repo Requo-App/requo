@@ -4,7 +4,7 @@ import {
   formatMoney,
   formatNumber,
   formatPercent,
-} from "@/features/analytics/lib/format";
+} from "@/features/analytics/format";
 import { getFollowUpsListHref, getInquiriesListHref } from "@/features/analytics/lib/links";
 import type { AnalyticsWindow } from "@/features/analytics/lib/window";
 import type { TeamData, TeamMemberRole, TeamMemberRow } from "@/features/analytics/types";

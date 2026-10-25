@@ -7,7 +7,7 @@
  */
 
 import type { PlanTier } from "@/lib/plans/plans";
-import { formatRangeLabel } from "@/features/analytics/lib/format";
+import { formatRangeLabel } from "@/features/analytics/format";
 
 export const analyticsTabs = [
   "overview",

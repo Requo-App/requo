@@ -9,7 +9,7 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart";
 import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
-import { formatMoney } from "@/features/analytics/lib/format";
+import { formatMoney } from "@/features/analytics/format";
 import { cn } from "@/lib/utils";
 
 import { EmptyState } from "../primitives/empty-state";

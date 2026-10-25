@@ -99,6 +99,25 @@ describe("tenant boundary audit", () => {
     expect(found).toEqual([]);
   });
 
+  it("ignores type-only import-equals declarations", () => {
+    const found = violations(
+      "components/example.tsx",
+      'import type Db = require("@/lib/db/client");\n',
+    );
+
+    expect(found).toEqual([]);
+  });
+
+  it("blocks runtime import-equals declarations", () => {
+    const found = violations(
+      "components/example.tsx",
+      'import Db = require("@/lib/db/client");\n',
+    );
+
+    expect(found).toHaveLength(1);
+    expect(found[0]?.reason).toContain("@/lib/db/client");
+  });
+
   it("requires a reason for every allowlisted action", () => {
     for (const [file, reason] of Object.entries(ACTION_ALLOWLIST)) {
       expect(file, "allowlist key").toMatch(/\.tsx?$/);

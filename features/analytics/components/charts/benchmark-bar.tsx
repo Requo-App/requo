@@ -1,5 +1,5 @@
 import { chartSeries } from "@/features/analytics/lib/chart-theme";
-import { formatDuration, formatPercent } from "@/features/analytics/lib/format";
+import { formatDuration, formatPercent } from "@/features/analytics/format";
 import type { AnalyticsBenchmarkRow } from "@/features/analytics/types";
 import { cn } from "@/lib/utils";
 

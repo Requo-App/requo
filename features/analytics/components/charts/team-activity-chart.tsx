@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/chart";
 import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
 import { chartStackSeries } from "@/features/analytics/lib/chart-theme";
-import { formatNumber } from "@/features/analytics/lib/format";
+import { formatNumber } from "@/features/analytics/format";
 import type { TeamData } from "@/features/analytics/types";
 
 import { AnalyticsTooltip, type AnalyticsTooltipSeries } from "./analytics-tooltip";

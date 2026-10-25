@@ -20,7 +20,7 @@ import {
   formatMoney,
   formatNumber,
   formatPercent,
-} from "@/features/analytics/lib/format";
+} from "@/features/analytics/format";
 import { cn } from "@/lib/utils";
 
 import { EmptyState } from "../primitives/empty-state";

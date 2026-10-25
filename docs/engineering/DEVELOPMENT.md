@@ -101,6 +101,13 @@ code; do not copy legacy variants described in
   `status-badge.tsx`), `components/shell/*` are navigation/shell behavior.
 - Imports use the `@/` alias (`@/*` maps to `./*` in `tsconfig.json`).
   Reuse a matching component, helper, or schema before adding a new one.
+- Cross-feature imports use the target's public entry points: root-level
+  modules (`features/<domain>/queries.ts`, `types.ts`, and so on) or its
+  `components/` tree. Other nested folders are private. `lib/` must not import
+  features at runtime, and `components/` outside the shell, provider, and
+  marketing composition layers must not import product features. The rules and
+  their reviewed exceptions live in `scripts/audit-feature-boundaries.ts` and
+  run as `npm run audit:feature-boundaries` (part of `npm run check`).
 
 ### TypeScript and validation
 

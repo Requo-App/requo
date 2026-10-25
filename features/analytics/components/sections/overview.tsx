@@ -14,7 +14,7 @@ import {
   formatRelativeDelta,
   formatSpeedDelta,
   getDeltaSentiment,
-} from "@/features/analytics/lib/format";
+} from "@/features/analytics/format";
 import { getInvoicesListHref } from "@/features/analytics/lib/links";
 import { averageWonInCents } from "@/features/analytics/lib/kpi";
 import type { AnalyticsWindow } from "@/features/analytics/lib/window";

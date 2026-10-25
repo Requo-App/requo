@@ -4,7 +4,7 @@ import {
   formatRelativeDelta,
   formatSpeedDelta,
   type DeltaLabel,
-} from "@/features/analytics/lib/format";
+} from "@/features/analytics/format";
 import type { getBusinessMoneySnapshot } from "@/features/businesses/queries";
 import type {
   DashboardKpiComparison,

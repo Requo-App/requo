@@ -44,9 +44,29 @@ Provider clients, database access, auth, caching, and shared policies live in
 `lib/`. `components/` contains shared UI primitives, compositions, providers,
 and shell/navigation; `emails/templates/` owns transactional email content.
 
-The boundary is a convention supported by the current module layout, not a
-separate package-enforced architecture. Follow established feature ownership
-and inspect imports before moving behavior.
+The boundary is enforced by
+[`scripts/audit-feature-boundaries.ts`](../../scripts/audit-feature-boundaries.ts)
+(`npm run audit:feature-boundaries`, part of `npm run check`), not only by
+convention:
+
+- `app/` may import `features/`, `lib/`, and `components/`; the reverse imports
+  are rejected.
+- `lib/` must not import `features/` at runtime. `lib/inngest/functions/` is
+  the async composition root because it registers feature jobs; other reviewed
+  exceptions are listed in the audit.
+- `components/` outside the composition layers stays feature-agnostic; existing
+  reviewed exceptions are listed in the audit. `components/shell/`,
+  `components/providers/`, and `components/marketing/` compose product surfaces
+  and may import features.
+- A feature's public entry points are its root-level modules
+  (`features/<domain>/*.ts[x]`) and its `components/` tree. Nested folders such
+  as `jobs/`, `tools/`, `prompts/`, and other helpers are private, so a
+  cross-feature import cannot reach an internal module.
+
+UI access to database internals is enforced separately by
+[`scripts/audit-tenant-boundary.ts`](../../scripts/audit-tenant-boundary.ts).
+Follow established feature ownership and inspect imports before moving
+behavior; these are lightweight module rules, not separate packages.
 
 ## Request and rendering model
 

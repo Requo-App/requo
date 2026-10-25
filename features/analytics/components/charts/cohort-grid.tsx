@@ -6,7 +6,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatPercent } from "@/features/analytics/lib/format";
+import { formatPercent } from "@/features/analytics/format";
 import type { AnalyticsCohortRow } from "@/features/analytics/types";
 
 /**
