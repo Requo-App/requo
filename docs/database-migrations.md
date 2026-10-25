@@ -147,6 +147,11 @@ This records migration tags in `drizzle.__drizzle_migrations` without re-running
    application; destructive changes land one release after the code stops
    using them. See
    [Deployment order and backward compatibility](#3-deployment-order-and-backward-compatibility).
+7. Run `npm run audit:migrations` after generating a migration. It checks that
+   every SQL file and journal entry agree, that journal indices are contiguous,
+   that journal order never moves backwards, and that prefixes stay unique
+   (the historical `0021` pair is the only allowed duplicate). It prints the
+   next generated prefix.
 
 ## Troubleshooting
 
