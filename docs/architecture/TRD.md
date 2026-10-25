@@ -269,9 +269,9 @@ The customer-facing **Agent** and authenticated owner **Assistant** are
 separate products and data scopes. An Agent session is visible to a business
 only through an inquiry it produced; abandoned sessions have bounded
 retention. Assistant history is scoped to its owner and business. Model
-selection reserves estimated provider request and token capacity atomically
-before every dispatch, settles the hold against reported usage, and treats
-health/latency as ranking signals rather than circuit breakers. Both the
+selection reserves estimated provider request and token capacity atomically in
+Postgres before every dispatch, settles the hold against reported usage, and
+treats health/latency as ranking signals rather than circuit breakers. Both the
 streaming and non-streaming entry points run through the same fallback
 wrapper, so failure classification, cooldowns, attempt accounting, deadlines,
 and cancellation cannot drift between them. Turns have bounded context and
@@ -343,13 +343,16 @@ business keeps no public intake or chat surface.
 
 Server data uses Next.js Cache Components and tagged invalidation for business,
 membership, and billing views; consult `lib/cache/` and mutation call sites
-before changing invalidation. Upstash Redis is optional for selected AI cache,
-deduplication, capacity, and rate-limit paths; those modules have in-process
-fallbacks. Atomic capacity reservations are cross-instance only when Redis is
-configured; the in-process fallback is atomic within one process. It is not
-the primary application database. Client state is local to feature needs;
-there is no general global state store. The Assistant has a tab-local
-live chat store.
+before changing invalidation. Upstash Redis is optional for AI response and
+embedding caches, duplicate suppression, cooldowns, telemetry, and the capacity
+selector's ranking mirror; those modules fall back to in-process state and are
+best-effort. Correctness-critical limits are database-backed and do not depend
+on Redis: monthly AI spend is reserved in `ai_usage_events` under a per-business
+advisory lock, provider capacity is reserved in `ai_capacity_counters` under
+per-key advisory locks, and public action rate limits fall back to
+`public_action_events`. Redis is not the primary application database. Client
+state is local to feature needs; there is no general global state store. The
+Assistant has a tab-local live chat store.
 
 Errors are handled at route/feature boundaries and streamed UI boundaries.
 The root layout wires Vercel Analytics and Speed Insights; server-side

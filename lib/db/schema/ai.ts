@@ -39,6 +39,25 @@ export const aiUsageEvents = pgTable(
   ],
 );
 
+/**
+ * Correctness-critical provider-capacity counters.
+ *
+ * Request and token buckets are reserved here in one transaction under
+ * per-key advisory locks, so concurrent application instances cannot both
+ * claim the last slot in a provider's free allowance. Redis mirrors the same
+ * counters for selection/ranking, but the mirror is best-effort: losing it
+ * degrades routing, it does not relax a hard limit.
+ *
+ * Keys are the same identifiers the capacity selector uses
+ * (`cap:rpm:<model>`, `cap:tpd:<provider>`, …). A row is a fixed window; when
+ * `expires_at` passes, the next reservation starts the window again.
+ */
+export const aiCapacityCounters = pgTable("ai_capacity_counters", {
+  key: text("key").primaryKey(),
+  value: integer("value").notNull().default(0),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+});
+
 export const aiTokenLogs = pgTable(
   "ai_token_logs",
   {
