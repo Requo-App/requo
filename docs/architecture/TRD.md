@@ -242,9 +242,10 @@ cron functions from [`lib/inngest/functions/`](../../lib/inngest/functions/).
 These drive qualification, knowledge-file processing,
 reminders, report delivery, follow-ups, expiry, and maintenance work. Selected
 Additional scheduled tasks are exposed as Vercel Cron routes in
-[`vercel.json`](../../vercel.json); do not
-assume every scheduled job uses the same scheduler. Check registrations and
-provider dashboards for operational state.
+[`vercel.json`](../../vercel.json). Each recurring task has exactly one
+scheduler owner; the [scheduler ownership inventory](../operations/SCHEDULER-OWNERSHIP.md)
+records the owner, schedule, re-run safety, and failure visibility for every
+task. Check registrations and provider dashboards for operational state.
 
 Unattended customer emails are a paid capability. Both automatic follow-up
 paths — the quote sequence in

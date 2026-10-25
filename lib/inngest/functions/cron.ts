@@ -12,8 +12,6 @@ import { backfillMissingEmbeddings } from "@/features/knowledge/jobs/embedding-b
 import { processQuoteAutoFollowUps } from "@/features/quotes/jobs/auto-follow-ups";
 import { processQuoteExpiringSoon } from "@/features/quotes/jobs/expiring-soon";
 import { processQuoteViewedFollowUps } from "@/features/quotes/jobs/viewed-follow-ups";
-import { syncExpiredQuotesGlobal } from "@/features/quotes/mutations";
-import { processExpiredSubscriptions } from "@/lib/billing/jobs/expire-subscriptions";
 
 export const followUpRemindersCron = inngest.createFunction(
   {
@@ -99,40 +97,6 @@ export const autoArchiveStaleInquiriesCron = inngest.createFunction(
   async ({ step }) =>
     step.run("process-auto-archive", async () =>
       processAutoArchiveStaleInquiries(),
-    ),
-);
-
-/**
- * @deprecated Migrated to Vercel Cron at /api/cron/expire-quotes.
- * Simple UPDATE query — no step functions, no retry logic, completes in <10s.
- * Kept here for reference; removed from cronFunctions registration.
- */
-export const expireQuotesCron = inngest.createFunction(
-  {
-    id: "cron-expire-quotes",
-    name: "Expire stale quotes",
-    triggers: [{ cron: "0 1 * * *" }],
-    retries: 2,
-  },
-  async ({ step }) =>
-    step.run("sync-expired-quotes", async () => syncExpiredQuotesGlobal()),
-);
-
-/**
- * @deprecated Migrated to Vercel Cron at /api/cron/expire-subscriptions.
- * Simple UPDATE query — no step functions, no retry logic, completes in <5s.
- * Kept here for reference; removed from cronFunctions registration.
- */
-export const expireSubscriptionsCron = inngest.createFunction(
-  {
-    id: "cron-expire-subscriptions",
-    name: "Expire canceled subscriptions",
-    triggers: [{ cron: "0 2 * * *" }],
-    retries: 2,
-  },
-  async ({ step }) =>
-    step.run("process-expired-subscriptions", async () =>
-      processExpiredSubscriptions(),
     ),
 );
 
@@ -242,11 +206,8 @@ export const cronFunctions = [
   invoiceOverdueCron,
   expireAgentSessionsCron,
   embeddingBackfillCron,
-  // expireQuotesCron — migrated to Vercel Cron (/api/cron/expire-quotes)
-  // expireSubscriptionsCron — migrated to Vercel Cron (/api/cron/expire-subscriptions)
   analyticsRollupCron,
   analyticsDigestCron,
   analyticsScheduledReportsCron,
   analyticsBenchmarksCron,
-  // tokenLogCleanupCron — migrated to Vercel Cron (/api/cron/token-log-cleanup)
 ];
