@@ -12,7 +12,8 @@ import { DashboardWalkthroughVideo } from "@/components/marketing/dashboard-walk
  * viewport, and it must stop decoding whenever the visitor cannot see it:
  * scrolled away or hidden tab. Manually pausing always wins over the
  * autoplay/auto-resume rules, and reduced motion keeps the static stage with
- * no clip and no control at all.
+ * no clip and no control at all. The recorded clip is light-only, so the dark
+ * theme deliberately keeps the theme-aware static stage too.
  */
 
 type ObserverCallback = (
@@ -203,6 +204,43 @@ describe("DashboardWalkthroughVideo", () => {
 
     expect(container.querySelector("video")).toBeNull();
     expect(screen.queryByRole("button", { name: /walkthrough/i })).toBeNull();
+    expect(playSpy).not.toHaveBeenCalled();
+  });
+
+  it("keeps the theme-aware static stage in the dark theme", async () => {
+    document.documentElement.classList.add("dark");
+
+    try {
+      const { container } = render(<DashboardWalkthroughVideo />);
+      await emitIntersection(1);
+
+      expect(container.querySelector("video")).toBeNull();
+      expect(screen.queryByRole("button", { name: /walkthrough/i })).toBeNull();
+      expect(playSpy).not.toHaveBeenCalled();
+    } finally {
+      document.documentElement.classList.remove("dark");
+    }
+  });
+
+  it("does not resume a stale in-view clip after the theme reopens the gate", async () => {
+    const { container } = render(<DashboardWalkthroughVideo />);
+    await emitIntersection(1);
+    await waitFor(() => expect(playSpy).toHaveBeenCalled());
+
+    await act(async () => {
+      document.documentElement.classList.add("dark");
+    });
+    await waitFor(() => expect(container.querySelector("video")).toBeNull());
+
+    playSpy.mockClear();
+
+    // Back to light without a fresh intersection: the old in-view measurement
+    // must not remount and autoplay the clip off-screen.
+    await act(async () => {
+      document.documentElement.classList.remove("dark");
+    });
+
+    expect(container.querySelector("video")).toBeNull();
     expect(playSpy).not.toHaveBeenCalled();
   });
 });

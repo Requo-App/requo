@@ -9,9 +9,24 @@ import { cn } from "@/lib/utils";
 const STAGE_WIDTH = 1440;
 const STAGE_HEIGHT = 725;
 
+// Below this stage width the full composition would shrink to unreadable type.
+// Show the main content column instead, starting after the 232px sidebar. The
+// 864px crop ends in the gutter after the third stat card, so the window never
+// shows a sliced card at narrow widths. Keep these values in sync with the
+// `.dashboard-stage-aspect` container query in app/globals.css.
+const CROP_BELOW_WIDTH = 864;
+const CROP_WIDTH = 864;
+const CROP_LEFT = 232;
+
+type StageLayout = {
+  height: number;
+  offset: number;
+  scale: number;
+};
+
 export function ScaledDashboardStage({ children }: { children: ReactNode }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const [scale, setScale] = useState<number | null>(null);
+  const [layout, setLayout] = useState<StageLayout | null>(null);
 
   useLayoutEffect(() => {
     const element = containerRef.current;
@@ -20,7 +35,24 @@ export function ScaledDashboardStage({ children }: { children: ReactNode }) {
     }
 
     const update = () => {
-      setScale(Math.min(1, element.clientWidth / STAGE_WIDTH));
+      const width = element.clientWidth;
+
+      if (width <= 0) {
+        return;
+      }
+
+      const cropped = width < CROP_BELOW_WIDTH;
+      const visibleWidth = cropped ? CROP_WIDTH : STAGE_WIDTH;
+      const scale = Math.min(1, width / visibleWidth);
+      const offset = cropped
+        ? Math.min(CROP_LEFT, STAGE_WIDTH - visibleWidth)
+        : 0;
+
+      setLayout({
+        height: Math.round(STAGE_HEIGHT * scale),
+        offset: Math.round(offset * scale),
+        scale,
+      });
     };
 
     update();
@@ -33,28 +65,28 @@ export function ScaledDashboardStage({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const measured = scale !== null;
+  const measured = layout !== null;
 
   return (
-    <div
-      ref={containerRef}
-      className={cn(
-        "w-full overflow-hidden",
-        !measured && "aspect-[1440/725]",
-      )}
-      style={
-        measured ? { height: Math.round(STAGE_HEIGHT * scale) } : undefined
-      }
-    >
+    <div className="dashboard-stage-container w-full" ref={containerRef}>
       <div
-        className={cn("origin-top-left", !measured && "invisible")}
-        style={{
-          width: STAGE_WIDTH,
-          height: STAGE_HEIGHT,
-          transform: `scale(${scale ?? 1})`,
-        }}
+        className={cn(
+          "w-full overflow-hidden",
+          !measured && "dashboard-stage-aspect",
+        )}
+        style={measured ? { height: layout.height } : undefined}
       >
-        {children}
+        <div
+          className={cn("relative origin-top-left", !measured && "invisible")}
+          style={{
+            width: STAGE_WIDTH,
+            height: STAGE_HEIGHT,
+            left: measured ? -layout.offset : 0,
+            transform: `scale(${layout?.scale ?? 1})`,
+          }}
+        >
+          {children}
+        </div>
       </div>
     </div>
   );

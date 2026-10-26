@@ -1,402 +1,496 @@
 import {
   CheckCircle2,
+  CircleDot,
+  Clock3,
+  FileText,
+  Globe,
+  Phone,
   Plus,
   ReceiptText,
+  Search,
   SendHorizontal,
   Sparkles,
   TrendingUp,
+  Users,
 } from "lucide-react";
 import type { ReactNode } from "react";
 
 import type { LandingFeatureId } from "@/components/marketing/marketing-data";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { FollowUpDueBadge } from "@/features/follow-ups/components/follow-up-status-badge";
-import { InquiryStatusBadge } from "@/features/inquiries/components/inquiry-status-badge";
-import { InvoiceStatusBadge } from "@/features/invoices/components/invoice-status-badge";
-import { QuoteStatusBadge } from "@/features/quotes/components/quote-status-badge";
+import {
+  MockAvatar,
+  MockBadge,
+  MockButton,
+  MockCardHeader,
+  MockList,
+  MockRow,
+  MockSourceLabel,
+  mockMonoClassName,
+  mockSecondaryClassName,
+  mockTitleClassName,
+  type MockBadgeTone,
+} from "@/components/marketing/marketing-mock-primitives";
 import { cn } from "@/lib/utils";
 
 export function MarketingFeatureMock({
   featureId,
+  compact = false,
 }: {
   featureId: LandingFeatureId;
+  compact?: boolean;
 }) {
-  if (featureId === "inquiries") return <InquiriesPreviewMock />;
-  if (featureId === "quotes") return <QuotePreviewMock />;
-  if (featureId === "followUps") return <FollowUpsPreviewMock />;
-  if (featureId === "ai") return <AIDraftPreviewMock />;
-  if (featureId === "invoices") return <InvoicesPreviewMock />;
-  return <AnalyticsPreviewMock />;
+  if (featureId === "inquiries")
+    return <InquiriesPreviewMock compact={compact} />;
+  if (featureId === "quotes") return <QuotePreviewMock compact={compact} />;
+  if (featureId === "followUps")
+    return <FollowUpsPreviewMock compact={compact} />;
+  if (featureId === "ai") return <AIDraftPreviewMock compact={compact} />;
+  if (featureId === "invoices") return <InvoicesPreviewMock compact={compact} />;
+  return <AnalyticsPreviewMock compact={compact} />;
 }
 
 export function MarketingMockFrame({
   title,
   action,
   children,
+  compact = false,
+  chrome = "card",
+  flush = false,
 }: {
   title: string;
   action?: ReactNode;
   children: ReactNode;
+  /** The landing illustration shell; content sets the height. */
+  compact?: boolean;
+  /**
+   * `none` keeps an outer surface in charge of the frame. The landing mocks
+   * always use the card shell; only the standalone solution demos opt out.
+   */
+  chrome?: "card" | "none";
+  /** Full-bleed rows instead of the padded article-style body. */
+  flush?: boolean;
 }) {
   return (
     <div
       aria-hidden="true"
-      className="pointer-events-none flex h-[20.5rem] w-full flex-col bg-background text-left font-sans select-none sm:h-[22rem]"
+      className={cn(
+        "pointer-events-none flex w-full flex-col font-sans text-left select-none",
+        chrome === "card" ? "marketing-mock-card" : "bg-transparent",
+        compact ? "" : "h-[20.5rem] sm:h-[22rem]",
+      )}
       inert
     >
-      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border/70 px-4 py-3">
-        <p className="truncate text-base font-semibold tracking-tight text-foreground">
-          {title}
-        </p>
-        {action ? (
-          <div className="flex shrink-0 items-center gap-2">{action}</div>
-        ) : null}
+      <MockCardHeader action={action} title={title} />
+      <div
+        className={cn(
+          "flex min-h-0 flex-1 flex-col",
+          flush ? "overflow-hidden" : "gap-3 p-4",
+        )}
+      >
+        {children}
       </div>
-      <div className="flex min-h-0 flex-1 flex-col gap-3 p-4">{children}</div>
     </div>
   );
 }
 
-function MockButton({
-  children,
-  variant = "default",
-  size = "sm",
-}: {
-  children: ReactNode;
-  variant?: "default" | "outline" | "secondary" | "ghost";
-  size?: "xs" | "sm" | "default";
-}) {
-  return (
-    <Button size={size} tabIndex={-1} type="button" variant={variant}>
-      {children}
-    </Button>
-  );
-}
+const inquiries = [
+  {
+    name: "Sarah Jenkins",
+    initials: "SJ",
+    service: "Kitchen remodel",
+    time: "2m ago",
+    status: {
+      tone: "info" as MockBadgeTone,
+      label: "New",
+      icon: CircleDot,
+    },
+    source: { label: "Web form", icon: Globe },
+    selected: true,
+  },
+  {
+    name: "Leo Park",
+    initials: "LP",
+    service: "Custom bookshelves",
+    time: "1h ago",
+    status: {
+      tone: "highlight" as MockBadgeTone,
+      label: "Quoted",
+      icon: FileText,
+    },
+    source: { label: "Phone", icon: Phone },
+    selected: false,
+  },
+  {
+    name: "Maya Fields",
+    initials: "MF",
+    service: "Hardwood refinishing",
+    time: "Yesterday",
+    status: {
+      tone: "warning" as MockBadgeTone,
+      label: "Waiting",
+      icon: Clock3,
+    },
+    source: { label: "Referral", icon: Users },
+    selected: false,
+  },
+] as const;
 
-function InquiriesPreviewMock() {
-  const inquiries = [
-    {
-      name: "Sarah Jenkins",
-      service: "Kitchen remodel",
-      time: "2m ago",
-      status: "new" as const,
-      selected: true,
-    },
-    {
-      name: "Leo Park",
-      service: "Custom bookshelves",
-      time: "1h ago",
-      status: "quoted" as const,
-      selected: false,
-    },
-    {
-      name: "Maya Fields",
-      service: "Hardwood refinishing",
-      time: "Yesterday",
-      status: "waiting" as const,
-      selected: false,
-    },
-  ];
+const inquiryFilters = ["All", "New", "Quoted", "Waiting"] as const;
 
+function InquiriesPreviewMock({ compact }: { compact: boolean }) {
   return (
     <MarketingMockFrame
       action={
-        <MockButton>
-          <Plus data-icon="inline-start" />
-          Quick-add inquiry
-        </MockButton>
+        <MockButton icon={Plus}>Quick-add inquiry</MockButton>
       }
+      compact={compact}
+      flush
       title="Inquiries"
     >
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-border/80 bg-card">
-        {inquiries.map((inquiry, index) => (
-          <div
-            className={cn(
-              "flex flex-1 items-center justify-between gap-3 px-4 py-3",
-              index > 0 && "border-t border-border/70",
-              inquiry.selected && "bg-primary/5",
-            )}
+      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border/60 px-4 py-2">
+        <div className="flex min-w-0 items-center gap-3 overflow-hidden text-[0.6875rem] leading-4 font-medium">
+          {inquiryFilters.map((filter, index) => (
+            <span
+              className={cn(
+                "shrink-0",
+                index === 0 ? "text-foreground" : "text-muted-foreground",
+              )}
+              key={filter}
+            >
+              {filter}
+            </span>
+          ))}
+        </div>
+        <Search
+          aria-hidden="true"
+          className="size-3.5 shrink-0 text-muted-foreground"
+        />
+      </div>
+
+      <MockList className="flex-1">
+        {inquiries.map((inquiry) => (
+          <MockRow
+            className="min-h-0 flex-1 py-2"
+            highlighted={inquiry.selected}
             key={inquiry.name}
           >
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold tracking-tight text-foreground">
-                {inquiry.name}
-              </p>
-              <p className="mt-0.5 truncate text-sm text-muted-foreground">
+            <MockAvatar initials={inquiry.initials} />
+            <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+              <div className="flex items-center justify-between gap-2">
+                <p className={cn(mockTitleClassName, "min-w-0")}>
+                  {inquiry.name}
+                </p>
+                <MockBadge
+                  icon={inquiry.status.icon}
+                  label={inquiry.status.label}
+                  tone={inquiry.status.tone}
+                />
+              </div>
+              <p className={cn(mockSecondaryClassName, "min-w-0")}>
                 {inquiry.service}
-                <span aria-hidden="true" className="text-muted-foreground/40">
-                  {" "}
-                  ·{" "}
-                </span>
-                {inquiry.time}
               </p>
+              <div className="flex min-w-0 items-center justify-between gap-2 text-[0.6875rem] leading-4 text-muted-foreground">
+                <MockSourceLabel icon={inquiry.source.icon}>
+                  {inquiry.source.label}
+                </MockSourceLabel>
+                <span className={cn(mockMonoClassName, "shrink-0")}>
+                  {inquiry.time}
+                </span>
+              </div>
             </div>
-            <InquiryStatusBadge status={inquiry.status} />
-          </div>
+          </MockRow>
         ))}
-      </div>
+      </MockList>
     </MarketingMockFrame>
   );
 }
 
-function QuotePreviewMock() {
-  const lineItems = [
-    { description: "Maple cabinets", total: "$4,480" },
-    { description: "Quartz countertop", total: "$3,740" },
-  ] as const;
+const quoteLineItems = [
+  {
+    description: "Maple cabinets",
+    total: "$4,480",
+    source: "From pricing library",
+  },
+  {
+    description: "Quartz countertop",
+    total: "$3,740",
+    source: "Matched from Q-1031",
+  },
+] as const;
 
+function QuotePreviewMock({ compact }: { compact: boolean }) {
   return (
     <MarketingMockFrame
-      action={
-        <MockButton>
-          <SendHorizontal data-icon="inline-start" />
-          Send quote
-        </MockButton>
-      }
+      action={<MockButton icon={SendHorizontal}>Send quote</MockButton>}
+      compact={compact}
+      flush
       title="Quote Q-1048"
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="truncate text-sm font-semibold tracking-tight text-foreground">
-            Sarah Jenkins
-          </p>
-          <p className="mt-0.5 truncate text-sm text-muted-foreground">
+      <div className="flex shrink-0 items-center gap-2.5 border-b border-border/60 px-4 py-3">
+        <MockAvatar initials="SJ" />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-2">
+            <p className={cn(mockTitleClassName, "min-w-0")}>
+              Sarah Jenkins
+            </p>
+            <MockBadge icon={FileText} label="Draft" tone="neutral" />
+          </div>
+          <p className={cn(mockSecondaryClassName, "min-w-0")}>
             Kitchen remodel
           </p>
         </div>
-        <QuoteStatusBadge status="draft" />
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-border/80 bg-card">
-        {lineItems.map((item, index) => (
+      <MockList className="flex-1">
+        {quoteLineItems.map((item) => (
           <div
-            className={cn(
-              "flex flex-1 items-center justify-between gap-3 px-4 py-3",
-              index > 0 && "border-t border-border/70",
-            )}
+            className="flex min-h-0 flex-1 items-center justify-between gap-3 px-4 py-2.5"
             key={item.description}
           >
-            <p className="truncate text-sm font-medium text-foreground">
-              {item.description}
-            </p>
-            <p className="shrink-0 text-sm font-semibold tabular-nums text-foreground">
+            <div className="min-w-0">
+              <p className={mockTitleClassName}>{item.description}</p>
+              <p className="mt-0.5 flex items-center gap-1 text-[0.6875rem] leading-4 text-muted-foreground">
+                <Sparkles
+                  aria-hidden="true"
+                  className="size-3 shrink-0"
+                />
+                <span className="truncate">{item.source}</span>
+              </p>
+            </div>
+            <p className="shrink-0 font-mono text-xs leading-4 font-semibold tabular-nums text-foreground">
               {item.total}
             </p>
           </div>
         ))}
-        <div className="flex items-center justify-between gap-3 border-t border-border/80 bg-muted/30 px-4 py-3">
-          <p className="text-sm text-muted-foreground">Total</p>
-          <p className="text-base font-semibold tabular-nums tracking-tight text-foreground">
-            $8,220
-          </p>
-        </div>
+      </MockList>
+
+      <div className="flex shrink-0 items-baseline justify-between gap-3 border-t border-border/60 px-4 py-3">
+        <p className="text-xs leading-4 font-medium text-muted-foreground">
+          Total
+        </p>
+        <p className="font-mono text-sm leading-5 font-semibold tabular-nums tracking-tight text-foreground">
+          $8,220
+        </p>
       </div>
     </MarketingMockFrame>
   );
 }
 
-function FollowUpsPreviewMock() {
-  const followUps = [
-    {
-      title: "Follow up on kitchen quote",
-      customer: "Sarah Jenkins",
-      bucket: "today" as const,
-      primary: true,
-    },
-    {
-      title: "Check in on bookshelves",
-      customer: "Leo Park",
-      bucket: "upcoming" as const,
-      primary: false,
-    },
-  ];
+const followUps = [
+  {
+    title: "Follow up on kitchen quote",
+    customer: "Sarah Jenkins",
+    quoteId: "Q-1048",
+    amount: "$8,220",
+    bucket: "today" as const,
+    primary: true,
+  },
+  {
+    title: "Check in on bookshelves",
+    customer: "Leo Park",
+    quoteId: "Q-1049",
+    amount: "$5,120",
+    bucket: "upcoming" as const,
+    primary: false,
+  },
+] as const;
 
+function FollowUpsPreviewMock({ compact }: { compact: boolean }) {
   return (
-    <MarketingMockFrame title="Follow-ups">
-      <div className="flex min-h-0 flex-1 flex-col gap-3">
+    <MarketingMockFrame compact={compact} flush title="Follow-ups">
+      <MockList className="flex-1 justify-center">
         {followUps.map((item) => (
-          <div
+          <MockRow
             className={cn(
-              "flex min-h-0 flex-1 flex-col justify-center gap-3 rounded-xl border px-4 py-3",
-              item.primary
-                ? "border-border/80 bg-primary/5"
-                : "border-border/80 bg-card",
+              "min-h-[5.25rem] items-start",
+              item.primary && "bg-foreground/[0.04]",
             )}
             key={item.title}
           >
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold tracking-tight text-foreground">
-                  {item.title}
-                </p>
-                <p className="mt-0.5 truncate text-sm text-muted-foreground">
-                  {item.customer}
-                </p>
-              </div>
-              <FollowUpDueBadge bucket={item.bucket} />
+            <span
+              aria-hidden="true"
+              className="mt-0.5 size-4 shrink-0 rounded-full border border-border/80 bg-transparent"
+            />
+            <div className="min-w-0 flex-1">
+              <p className={mockTitleClassName}>{item.title}</p>
+              <p className={cn(mockSecondaryClassName, "mt-0.5")}>
+                {item.customer}
+              </p>
+              <p className={cn(mockMonoClassName, "mt-1")}>
+                <span>{item.quoteId}</span>
+                <span className="font-sans"> · </span>
+                <span>{item.amount}</span>
+              </p>
             </div>
-            <div className="flex justify-end">
-              <MockButton variant={item.primary ? "default" : "outline"}>
-                <CheckCircle2 data-icon="inline-start" />
+            <div className="flex shrink-0 flex-col items-end gap-2">
+              <MockBadge
+                label={item.bucket === "today" ? "Due today" : "Upcoming"}
+                tone={item.bucket === "today" ? "warning" : "neutral"}
+              />
+              <MockButton variant={item.primary ? "default" : "ghost"}>
                 Mark done
               </MockButton>
             </div>
-          </div>
+          </MockRow>
         ))}
-      </div>
+      </MockList>
     </MarketingMockFrame>
   );
 }
 
-function AIDraftPreviewMock() {
-  const lineItems = [
-    { description: "Maple cabinets", total: "$4,480" },
-    { description: "Quartz countertop", total: "$3,740" },
-  ] as const;
-
+function AIDraftPreviewMock({ compact }: { compact: boolean }) {
   return (
     <MarketingMockFrame
       action={
-        <MockButton>
-          <Sparkles data-icon="inline-start" />
-          Generate with AI
-        </MockButton>
+        <MockButton icon={Sparkles}>Generate with AI</MockButton>
       }
+      compact={compact}
+      flush
       title="Draft with AI"
     >
-      <div className="flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
-        <Sparkles className="size-4 shrink-0 text-primary" />
-        <p className="truncate text-sm text-foreground">
-          <span className="font-semibold">Sarah Jenkins</span>
-          <span className="text-muted-foreground"> · Kitchen remodel</span>
+      <div className="flex shrink-0 items-center gap-2 border-b border-border/60 bg-accent/50 px-4 py-3">
+        <Sparkles
+          aria-hidden="true"
+          className="size-3.5 shrink-0 text-primary"
+        />
+        <p className="min-w-0 truncate text-xs leading-4 text-muted-foreground">
+          <span className="font-semibold text-foreground">
+            Sarah Jenkins
+          </span>
+          <span> · Kitchen remodel</span>
         </p>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-border/80 bg-card">
-        {lineItems.map((item, index) => (
+      <MockList className="flex-1 justify-center">
+        {quoteLineItems.map((item) => (
           <div
-            className={cn(
-              "flex flex-1 items-center justify-between gap-3 px-4 py-3",
-              index > 0 && "border-t border-border/70",
-            )}
+            className="flex items-start justify-between gap-3 px-4 py-2.5"
             key={item.description}
           >
-            <p className="truncate text-sm font-medium text-foreground">
-              {item.description}
-            </p>
-            <p className="shrink-0 text-sm font-semibold tabular-nums text-foreground">
+            <div className="min-w-0">
+              <p className={mockTitleClassName}>{item.description}</p>
+              <p className="mt-0.5 flex items-center gap-1 text-[0.6875rem] leading-4 text-muted-foreground">
+                <Sparkles
+                  aria-hidden="true"
+                  className="size-3 shrink-0"
+                />
+                <span className="truncate">{item.source}</span>
+              </p>
+            </div>
+            <p className="shrink-0 font-mono text-xs leading-4 font-semibold tabular-nums text-foreground">
               {item.total}
             </p>
           </div>
         ))}
-      </div>
+      </MockList>
 
-      <div className="flex justify-end">
-        <MockButton>
-          <ReceiptText data-icon="inline-start" />
-          Apply draft
-        </MockButton>
+      <div className="mt-auto flex shrink-0 justify-end border-t border-border/60 px-4 py-3">
+        <MockButton icon={ReceiptText}>Apply draft</MockButton>
       </div>
     </MarketingMockFrame>
   );
 }
 
-function InvoicesPreviewMock() {
-  const invoices = [
-    {
-      number: "INV-1042",
-      customer: "Sarah Jenkins · Kitchen remodel",
-      total: "$3,740",
-      status: "sent" as const,
-    },
-    {
-      number: "INV-1041",
-      customer: "Oakridge Property Management",
-      total: "$8,400",
-      status: "paid" as const,
-    },
-  ] as const;
+const invoices = [
+  {
+    number: "INV-1042",
+    customer: "Sarah Jenkins",
+    service: "Kitchen remodel",
+    total: "$3,740",
+    status: "sent" as const,
+  },
+  {
+    number: "INV-1041",
+    customer: "Oakridge Property Management",
+    service: "Maintenance",
+    total: "$8,400",
+    status: "paid" as const,
+  },
+] as const;
 
+function InvoicesPreviewMock({ compact }: { compact: boolean }) {
   return (
-    <MarketingMockFrame title="Invoices">
-      <div className="flex min-h-0 flex-1 flex-col gap-3">
+    <MarketingMockFrame compact={compact} flush title="Invoices">
+      <MockList className="flex-1 justify-center">
         {invoices.map((invoice) => (
-          <div
-            className="flex min-h-0 flex-1 flex-col justify-center gap-3 rounded-xl border border-border/80 bg-card px-4 py-3"
-            key={invoice.number}
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold tracking-tight text-foreground">
-                  {invoice.number}
-                </p>
-                <p className="mt-0.5 truncate text-sm text-muted-foreground">
-                  {invoice.customer}
-                </p>
-              </div>
-              <InvoiceStatusBadge status={invoice.status} />
-            </div>
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-sm font-semibold tabular-nums text-foreground">
+          <MockRow className="items-start" key={invoice.number}>
+            <div className="min-w-0 flex-1">
+              <p className={mockMonoClassName}>{invoice.number}</p>
+              <p className={cn(mockTitleClassName, "mt-0.5")}>
+                {invoice.customer}
+              </p>
+              <p className={cn(mockSecondaryClassName, "mt-0.5")}>
+                {invoice.service}
+              </p>
+              <p className="mt-1 font-mono text-xs leading-4 font-semibold tabular-nums text-foreground">
                 {invoice.total}
               </p>
-              <MockButton variant="outline">
-                <CheckCircle2 data-icon="inline-start" />
+            </div>
+            <div className="flex shrink-0 flex-col items-end gap-2">
+              <MockBadge
+                label={invoice.status === "paid" ? "Paid" : "Sent"}
+                tone={invoice.status === "paid" ? "success" : "highlight"}
+              />
+              <MockButton icon={CheckCircle2} variant="outline">
                 Record payment
               </MockButton>
             </div>
-          </div>
+          </MockRow>
         ))}
-      </div>
+      </MockList>
     </MarketingMockFrame>
   );
 }
 
-function AnalyticsPreviewMock() {
-  const metrics = [
-    { label: "Inquiries", value: "24" },
-    { label: "Quotes sent", value: "16" },
-    { label: "Accepted", value: "11" },
-  ] as const;
+const analyticsMetrics = [
+  { label: "Inquiries", value: "24" },
+  { label: "Quotes sent", value: "16" },
+  { label: "Accepted", value: "11" },
+] as const;
 
-  const funnel = [
-    { label: "Inquiries", value: 24, width: "100%" },
-    { label: "Quoted", value: 16, width: "67%" },
-    { label: "Accepted", value: 11, width: "46%" },
-  ] as const;
+const analyticsFunnel = [
+  { label: "Inquiries", value: 24, width: "100%" },
+  { label: "Quoted", value: 16, width: "67%" },
+  { label: "Accepted", value: 11, width: "46%" },
+] as const;
 
+function AnalyticsPreviewMock({ compact }: { compact: boolean }) {
   return (
     <MarketingMockFrame
       action={
-        <Badge variant="secondary">
-          <TrendingUp data-icon="inline-start" />
+        <span className="inline-flex items-center gap-1 text-xs leading-4 font-medium text-muted-foreground">
+          <TrendingUp aria-hidden="true" className="size-3.5 shrink-0" />
           Last 30 days
-        </Badge>
+        </span>
       }
+      compact={compact}
+      flush
       title="Analytics"
     >
-      <div className="grid grid-cols-3 gap-3">
-        {metrics.map((metric) => (
-          <div data-padding="none" className="soft-panel px-3 py-3" key={metric.label}>
-            <p className="meta-label">{metric.label}</p>
-            <p className="mt-2 text-2xl font-semibold tracking-tight text-foreground">
+      <div className="grid shrink-0 grid-cols-3 divide-x divide-border/60 border-b border-border/60">
+        {analyticsMetrics.map((metric) => (
+          <div className="min-w-0 px-3 py-2.5" key={metric.label}>
+            <p className="truncate text-[0.6875rem] leading-4 font-medium text-muted-foreground">
+              {metric.label}
+            </p>
+            <p className="mt-1.5 text-xl leading-6 font-semibold tracking-tight tabular-nums text-foreground">
               {metric.value}
             </p>
           </div>
         ))}
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col justify-center gap-3 rounded-xl border border-border/80 bg-card px-4 py-3">
-        {funnel.map((step) => (
+      <div className="flex min-h-0 flex-1 flex-col justify-center gap-2.5 px-4 py-3">
+        {analyticsFunnel.map((step) => (
           <div className="flex flex-col gap-1.5" key={step.label}>
             <div className="flex items-center justify-between gap-3">
-              <p className="text-sm font-medium text-foreground">{step.label}</p>
-              <p className="text-sm font-semibold tabular-nums text-foreground">
+              <p className="truncate text-xs leading-4 font-medium text-foreground">
+                {step.label}
+              </p>
+              <p className="shrink-0 font-mono text-xs leading-4 font-semibold tabular-nums text-foreground">
                 {step.value}
               </p>
             </div>
-            <div className="h-1.5 overflow-hidden rounded-full bg-muted/50">
+            <div className="h-1.5 overflow-hidden rounded-full bg-border/60">
               <div
                 className="h-full rounded-full bg-primary/80"
                 style={{ width: step.width }}
