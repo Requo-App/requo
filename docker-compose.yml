@@ -50,8 +50,12 @@ services:
       UPSTASH_REDIS_REST_TOKEN: local-dev-token
       INNGEST_DEV: 1
       INNGEST_BASE_URL: http://inngest:8288
-      # Bind mounts need polling for reliable hot reload.
-      WATCHPACK_POLLING: "true"
+      # Docker Desktop bind mounts don't forward inotify events into the
+      # container. Turbopack ignores WATCHPACK_POLLING (webpack-only), so opt
+      # into Next's watcher polling by setting NEXT_DEV_WATCH_POLL_MS=1000 in
+      # `.env.local`. Leave it unset on native Linux: polling there watches
+      # Turbopack's own `.next` writes and can put the dev server in a reload
+      # loop.
     command: npm run dev:app -- --hostname 0.0.0.0 --port 3000
     extra_hosts:
       - "host.docker.internal:host-gateway"
