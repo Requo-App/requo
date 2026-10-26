@@ -33,7 +33,7 @@ function DesktopActions() {
 
   if (session?.user) {
     return (
-      <Button asChild size="sm" className="font-mono text-xs uppercase tracking-wider">
+      <Button asChild size="sm">
         <Link href={homePath}>
           Dashboard
           <ArrowRight data-icon="inline-end" />
@@ -46,12 +46,12 @@ function DesktopActions() {
     <>
       <BookDemoDialog
         size="sm"
-        variant="outline"
-        className="border-border/80 bg-background font-mono text-xs uppercase tracking-wider hover:bg-accent"
+        variant="ghost"
+        className="marketing-button-ghost px-2 text-sm font-medium text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:[outline-style:solid]"
       >
         Book a demo
       </BookDemoDialog>
-      <Button asChild size="sm" className="bg-primary font-mono text-xs uppercase tracking-wider text-primary-foreground hover:bg-primary/90">
+      <Button asChild size="sm">
         <Link href="/signup">
           Start free
           <ArrowRight data-icon="inline-end" />
@@ -64,10 +64,15 @@ function DesktopActions() {
 function DesktopActionsFallback() {
   return (
     <>
-      <Button size="sm" variant="outline" disabled className="font-mono text-xs uppercase tracking-wider">
+      <Button
+        className="marketing-button-ghost px-2 text-sm font-medium text-muted-foreground"
+        size="sm"
+        variant="ghost"
+        disabled
+      >
         Book a demo
       </Button>
-      <Button size="sm" disabled className="font-mono text-xs uppercase tracking-wider">
+      <Button size="sm" disabled>
         Start free
         <ArrowRight data-icon="inline-end" />
       </Button>
@@ -85,7 +90,7 @@ function MobileActions() {
   if (session?.user) {
     return (
       <SheetClose asChild>
-        <Button asChild className="w-full font-mono text-xs uppercase tracking-wider" size="lg">
+        <Button asChild className="h-11 w-full" size="lg">
           <Link href={homePath}>
             Go to dashboard
             <ArrowRight data-icon="inline-end" />
@@ -101,15 +106,15 @@ function MobileActions() {
         <div>
           <BookDemoDialog
             size="lg"
-            variant="outline"
-            className="w-full font-mono text-xs uppercase tracking-wider"
+            variant="ghost"
+            className="marketing-button-ghost h-11 w-full text-sm font-medium text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:[outline-style:solid]"
           >
             Book a demo
           </BookDemoDialog>
         </div>
       </SheetClose>
       <SheetClose asChild>
-        <Button asChild className="w-full bg-primary font-mono text-xs uppercase tracking-wider text-primary-foreground hover:bg-primary/90" size="lg">
+        <Button asChild className="h-11 w-full" size="lg">
           <Link href="/signup">
             Start free
             <ArrowRight data-icon="inline-end" />
@@ -131,10 +136,15 @@ function MobileActions() {
 function MobileActionsFallback() {
   return (
     <>
-      <Button className="w-full font-mono text-xs uppercase tracking-wider" size="lg" variant="outline" disabled>
+      <Button
+        className="h-11 w-full text-sm font-medium"
+        size="lg"
+        variant="ghost"
+        disabled
+      >
         Book a demo
       </Button>
-      <Button className="w-full font-mono text-xs uppercase tracking-wider" size="lg" disabled>
+      <Button className="h-11 w-full" size="lg" disabled>
         Start free
         <ArrowRight data-icon="inline-end" />
       </Button>

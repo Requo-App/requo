@@ -1,14 +1,23 @@
 "use client";
 
-import { ArrowRight, CheckCircle2 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { ArrowRight, CheckCircle2, Pause } from "lucide-react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type KeyboardEvent,
+} from "react";
 
 import {
   MarketingFeatureMock,
   MarketingMockFrame,
 } from "@/components/marketing/marketing-feature-mocks";
-import { Button } from "@/components/ui/button";
-import { QuoteStatusBadge } from "@/features/quotes/components/quote-status-badge";
+import {
+  MockBadge,
+  MockButton,
+} from "@/components/marketing/marketing-mock-primitives";
 import { usePageVisible } from "@/hooks/use-page-visible";
 import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
 import { cn } from "@/lib/utils";
@@ -48,44 +57,39 @@ const steps = [
 
 function AcceptedPreview() {
   return (
-    <MarketingMockFrame title="Quote Q-1048">
-      <div className="flex min-h-0 flex-1 flex-col justify-center gap-3 rounded-xl border border-primary/20 bg-primary/5 px-4 py-4">
-        <div className="flex items-center gap-3">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <CheckCircle2 className="size-5" />
+    <MarketingMockFrame
+      action={<MockBadge label="Accepted" tone="success" />}
+      compact
+      flush
+      title="Quote Q-1048"
+    >
+      <div className="flex min-h-0 flex-1 flex-col justify-center gap-3 p-4">
+        <div className="flex items-center gap-3 rounded-lg bg-accent/60 px-3 py-3">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border/60 bg-card text-success">
+            <CheckCircle2 aria-hidden="true" className="size-4" />
           </span>
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold tracking-tight text-foreground">
+            <p className="truncate text-sm leading-5 font-semibold tracking-tight text-foreground">
               Sarah accepted your quote
             </p>
-            <p className="mt-0.5 truncate text-sm text-muted-foreground">
+            <p className="mt-0.5 truncate text-xs leading-4 text-muted-foreground">
               Kitchen remodel · Today
             </p>
           </div>
         </div>
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div data-padding="none" className="soft-panel px-4 py-3">
-          <p className="meta-label">Quote total</p>
-          <p className="mt-2 text-2xl font-semibold tracking-tight text-foreground">
+
+        <div className="flex items-baseline justify-between gap-3 border-t border-border/60 pt-3">
+          <p className="text-[0.6875rem] leading-4 font-medium tracking-[0.12em] text-muted-foreground uppercase">
+            Quote total
+          </p>
+          <p className="font-mono text-base leading-5 font-semibold tabular-nums tracking-tight text-foreground">
             $8,220
           </p>
         </div>
-        <div
-          data-padding="none"
-          className="soft-panel flex flex-col justify-between px-4 py-3"
-        >
-          <p className="meta-label">Status</p>
-          <div className="mt-2">
-            <QuoteStatusBadge status="accepted" />
-          </div>
+
+        <div className="flex justify-end">
+          <MockButton icon={ArrowRight}>View quote</MockButton>
         </div>
-      </div>
-      <div className="flex justify-end">
-        <Button size="sm" tabIndex={-1} type="button">
-          View quote
-          <ArrowRight data-icon="inline-end" />
-        </Button>
       </div>
     </MarketingMockFrame>
   );
@@ -96,40 +100,69 @@ function StepPreview({ step }: { step: (typeof steps)[number] }) {
     return <AcceptedPreview />;
   }
 
-  return <MarketingFeatureMock featureId={step.preview} />;
+  return <MarketingFeatureMock compact featureId={step.preview} />;
 }
 
 /**
- * "How it works" stepper: the four-step journey with the active step on stage
- * and every step's copy readable underneath.
+ * "How it works" tour: the four-step journey is a vertical tab list beside a
+ * fixed-height product stage.
  *
- * Each column owns a hairline bar. The active bar fills in primary over the
- * token duration in `app/globals.css` (`--animate-workflow-progress`) and the
- * browser's own `animationend` hands the cycle to the next step, so React
- * state can never disagree with what the bar shows. The listener stays
- * attached whenever motion is allowed — not only while cycling — so a fill
- * that ends exactly as the gate closes still advances instead of stranding a
- * full bar.
+ * The active rail fills in the marketing accent over the token duration in
+ * `app/globals.css` (`--animate-workflow-progress`) and the browser's own
+ * `animationend` hands the cycle to the next tab, so React state can never
+ * disagree with what the rail shows. The listener stays attached whenever
+ * motion is allowed — not only while cycling — so a fill that ends exactly as
+ * the gate closes still advances instead of stranding a full rail.
  *
- * - The cycle runs only while the stepper is in view on a visible tab.
- * - Selecting a column shows that step and starts its bar fresh; clicking the
- *   current step restarts its five seconds.
- * - Reduced motion keeps the manual stepper: no cycle, and the active bar
- *   settled full.
- * - Inactive columns keep their copy at full contrast — only the label and
- *   title tone soften — so the whole journey stays readable at every step.
- * - Titles stay short enough to hold one line in the four-column row.
+ * - The cycle runs only while the tour is in view on a visible tab, and pauses
+ *   while the visitor hovers or focuses inside it.
+ * - Selecting a tab or pressing "Stop auto-play" stops the cycle for the rest
+ *   of the visit; the active rail settles full instead of continuing to count.
+ *   The control gives touch and keyboard visitors a mechanism that does not
+ *   depend on hover (WCAG 2.2.2).
+ * - Reduced motion keeps the manual tour: no cycle, no crossfade, and the
+ *   active rail settled full.
+ * - The stage renders all four mocks in place and crossfades between them, so
+ *   every step keeps the same height; the mocks themselves are decorative.
+ * - Every description reserves the tallest copy's three-line height, so
+ *   advancing the tour never changes the tab list height.
  */
 export function WorkflowSteps() {
   const [active, setActive] = useState(0);
-  const [runKey, setRunKey] = useState(0);
   const [inView, setInView] = useState(false);
+  const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const [hasInteracted, setHasInteracted] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const hasInteractedRef = useRef(false);
+  const baseId = useId();
   const prefersReducedMotion = usePrefersReducedMotion();
   const pageVisible = usePageVisible();
   const motionAllowed = !prefersReducedMotion;
-  const cycling = motionAllowed && inView && pageVisible;
-  const currentStep = steps[active];
+  const cycling =
+    motionAllowed &&
+    !hasInteracted &&
+    inView &&
+    pageVisible &&
+    !hovered &&
+    !focused;
+  const progressState =
+    !motionAllowed || hasInteracted ? "static" : cycling ? "running" : "paused";
+  /* A settled rail (manual pick or reduced motion) must not keep a paused
+     animation at scaleY(0). `motion-reduce:animate-none` also covers the
+     server render, before the media-query hook has hydrated. */
+  const railAnimated = motionAllowed && !hasInteracted;
+
+  const tabId = useCallback(
+    (index: number) => `${baseId}-tab-${index}`,
+    [baseId],
+  );
+  const panelId = `${baseId}-panel`;
+  const descriptionId = useCallback(
+    (index: number) => `${baseId}-description-${index}`,
+    [baseId],
+  );
 
   useEffect(() => {
     const root = rootRef.current;
@@ -153,97 +186,216 @@ export function WorkflowSteps() {
   }, []);
 
   const selectStep = useCallback((index: number) => {
+    hasInteractedRef.current = true;
+    setHasInteracted(true);
     setActive(index);
-    // A fresh key remounts the selected bar, so re-selecting the current step
-    // restarts its five seconds instead of leaving it mid-fill.
-    setRunKey((current) => current + 1);
   }, []);
 
+  const stopCycle = useCallback(() => {
+    hasInteractedRef.current = true;
+    setHasInteracted(true);
+
+    // The control unmounts once the tour stops, so hand focus to the active
+    // tab instead of dropping the keyboard user back to the document.
+    tabRefs.current[active]?.focus();
+  }, [active]);
+
   const advance = useCallback(() => {
+    if (hasInteractedRef.current) {
+      return;
+    }
+
     setActive((current) => (current + 1) % steps.length);
   }, []);
 
+  function moveToStep(index: number) {
+    selectStep(index);
+    tabRefs.current[index]?.focus();
+  }
+
+  function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    const lastIndex = steps.length - 1;
+    let nextIndex: number;
+
+    switch (event.key) {
+      case "ArrowDown":
+      case "ArrowRight":
+        nextIndex = active === lastIndex ? 0 : active + 1;
+        break;
+      case "ArrowUp":
+      case "ArrowLeft":
+        nextIndex = active === 0 ? lastIndex : active - 1;
+        break;
+      case "Home":
+        nextIndex = 0;
+        break;
+      case "End":
+        nextIndex = lastIndex;
+        break;
+      default:
+        return;
+    }
+
+    event.preventDefault();
+    moveToStep(nextIndex);
+  }
+
   return (
-    <div className="flex flex-col gap-8 sm:gap-10" ref={rootRef}>
-      <div className="flex items-center justify-center rounded-xl bg-muted px-4 py-8 sm:px-10 sm:py-12">
+    <div
+      className="grid grid-cols-1 gap-8 lg:grid-cols-3 lg:items-start lg:gap-x-5 lg:gap-y-0"
+      data-workflow-root
+      onBlur={(event) => {
+        if (
+          !event.currentTarget.contains(event.relatedTarget as Node | null)
+        ) {
+          setFocused(false);
+        }
+      }}
+      onFocus={() => setFocused(true)}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      ref={rootRef}
+    >
+      <div className="order-2 flex flex-col items-start gap-4 lg:order-1 lg:col-span-1">
         <div
-          className="w-full max-w-xl animate-[subtle-fade-up_var(--motion-duration-slow)_var(--motion-ease-standard)] overflow-hidden rounded-xl border border-border/60 bg-background"
-          key={active}
+          aria-label="How it works"
+          aria-orientation="vertical"
+          className="marketing-step-list flex w-full flex-col gap-5 lg:gap-6"
+          onKeyDown={handleKeyDown}
+          role="tablist"
         >
-          <StepPreview step={currentStep} />
-        </div>
-      </div>
+          {steps.map((step, index) => {
+            const isActive = index === active;
+            const tabElementId = tabId(index);
+            const labelElementId = `${tabElementId}-label`;
+            const titleElementId = `${tabElementId}-title`;
 
-      <div className="grid gap-y-10 sm:grid-cols-2 sm:gap-x-8 lg:grid-cols-4">
-        {steps.map((step, index) => {
-          const isActive = index === active;
-          const progressState = motionAllowed
-            ? cycling
-              ? "running"
-              : "paused"
-            : "static";
-
-          return (
-            <button
-              aria-current={isActive ? "step" : undefined}
-              className={cn(
-                "group flex cursor-pointer flex-col items-start gap-4 rounded-lg text-left outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                index > 0 && "lg:border-l lg:border-border/50 lg:pl-8",
-              )}
-              key={step.label}
-              onClick={() => selectStep(index)}
-              type="button"
-            >
-              <span
-                aria-hidden="true"
-                className="relative block h-0.5 w-full overflow-hidden bg-border"
+            return (
+              <button
+                aria-controls={panelId}
+                aria-describedby={isActive ? descriptionId(index) : undefined}
+                aria-labelledby={`${labelElementId} ${titleElementId}`}
+                aria-selected={isActive}
+                className="marketing-step group relative flex w-full cursor-pointer flex-col items-start rounded-lg text-left outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                id={tabElementId}
+                key={step.label}
+                onClick={() => moveToStep(index)}
+                ref={(node) => {
+                  tabRefs.current[index] = node;
+                }}
+                role="tab"
+                tabIndex={isActive ? 0 : -1}
+                type="button"
               >
-                {isActive ? (
-                  <span
-                    className={cn(
-                      "absolute inset-y-0 left-0 w-full origin-left bg-primary",
-                      motionAllowed && "animate-workflow-progress",
-                    )}
-                    data-workflow-progress={progressState}
-                    key={runKey}
-                    onAnimationEnd={motionAllowed ? advance : undefined}
-                    style={
-                      motionAllowed
-                        ? {
-                            animationPlayState: cycling ? "running" : "paused",
-                          }
-                        : undefined
-                    }
-                  />
-                ) : null}
-              </span>
+                <span
+                  aria-hidden="true"
+                  className="marketing-step-node"
+                  data-active={isActive ? "true" : "false"}
+                />
+                <span
+                  aria-hidden="true"
+                  className="marketing-step-progress-track"
+                >
+                  {isActive ? (
+                    <span
+                      className={cn(
+                        "marketing-step-progress marketing-accent-bg motion-reduce:animate-none",
+                        railAnimated && "animate-workflow-progress",
+                      )}
+                      data-workflow-progress={progressState}
+                      onAnimationEnd={railAnimated ? advance : undefined}
+                      style={
+                        railAnimated
+                          ? {
+                              animationPlayState: cycling ? "running" : "paused",
+                            }
+                          : undefined
+                      }
+                    />
+                  ) : null}
+                </span>
 
-              <span className="flex flex-col gap-3">
                 <span
                   className={cn(
-                    "meta-label-plain transition-colors duration-300",
-                    isActive ? "text-primary" : "text-muted-foreground",
+                    "text-marketing-label transition-colors duration-200",
+                    isActive
+                      ? "marketing-accent-text"
+                      : "text-muted-foreground group-hover:text-foreground",
                   )}
+                  id={labelElementId}
                 >
                   {step.label}
                 </span>
+
                 <span
-                  className={cn(
-                    "font-heading text-xl font-semibold tracking-tight transition-colors duration-300",
-                    isActive
-                      ? "text-foreground"
-                      : "text-muted-foreground group-hover:text-foreground",
-                  )}
+                  className="mt-1 text-marketing-card-title text-foreground"
+                  id={titleElementId}
                 >
                   {step.title}
                 </span>
-                <span className="text-sm leading-snug text-muted-foreground sm:text-base sm:leading-6">
-                  {step.description}
+
+                <span
+                  className={cn(
+                    "grid w-full transition-[grid-template-rows] duration-[250ms] ease-out motion-reduce:transition-none",
+                    isActive ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+                  )}
+                >
+                  <span className="min-h-0 overflow-hidden">
+                    <span
+                      aria-hidden={!isActive}
+                      className="marketing-step-description block pt-2 text-marketing-body text-pretty text-muted-foreground"
+                      data-workflow-description
+                      id={descriptionId(index)}
+                    >
+                      {step.description}
+                    </span>
+                  </span>
                 </span>
-              </span>
-            </button>
-          );
-        })}
+              </button>
+            );
+          })}
+        </div>
+
+        {motionAllowed && !hasInteracted ? (
+          <button
+            className="inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            onClick={stopCycle}
+            type="button"
+          >
+            <Pause aria-hidden="true" className="size-3" />
+            Stop auto-play
+          </button>
+        ) : null}
+      </div>
+
+      <div
+        aria-labelledby={tabId(active)}
+        className="order-1 flex h-[22rem] items-center justify-center p-5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:h-[24rem] sm:p-8 lg:order-2 lg:col-span-2 lg:h-[26rem] lg:p-10"
+        id={panelId}
+        role="tabpanel"
+        tabIndex={0}
+      >
+        <div className="relative h-full w-full lg:w-[94%]">
+          {steps.map((step, index) => {
+            const isActive = index === active;
+
+            return (
+              <div
+                aria-hidden="true"
+                className={cn(
+                  "pointer-events-none absolute inset-0 flex items-center transition-[opacity,translate] duration-200 ease-out motion-reduce:transition-none",
+                  isActive
+                    ? "z-10 translate-y-0 opacity-100"
+                    : "z-0 translate-y-1.5 opacity-0",
+                )}
+                data-workflow-preview={isActive ? "active" : "inactive"}
+                key={step.label}
+              >
+                <StepPreview step={step} />
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

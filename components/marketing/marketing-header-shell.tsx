@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { FileText, Menu, type LucideIcon } from "lucide-react";
 
@@ -30,8 +30,7 @@ import {
 } from "@/components/ui/sheet";
 
 /** Shared nav-link class for public/marketing headers. */
-const navLinkClass =
-  "public-page-header-link font-mono text-xs font-medium uppercase tracking-wider";
+const navLinkClass = "public-page-header-link marketing-nav-link";
 
 /**
  * Fullscreen mobile nav row — same icon/title/description vocabulary as the
@@ -54,7 +53,7 @@ function MobileNavLink({
         href={href}
         className="flex items-start gap-3 rounded-xl px-3 py-2.5 outline-none transition-colors hover:bg-accent focus-visible:bg-accent"
       >
-        <span className="border button-primary-fixed flex size-9 shrink-0 items-center justify-center rounded-md">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-md border border-border/70 bg-muted text-foreground">
           <Icon className="size-4" aria-hidden="true" />
         </span>
         <span className="flex min-w-0 flex-col gap-0.5">
@@ -84,10 +83,23 @@ export function MarketingHeaderShell({
   mobileActions,
 }: MarketingHeaderShellProps) {
   const [open, setOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const update = () => setScrolled(window.scrollY > 8);
+
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+
+    return () => window.removeEventListener("scroll", update);
+  }, []);
 
   return (
-    <header className="sticky top-0 z-50 w-full border-none bg-[#fdfdfd] transition-colors duration-200 dark:bg-[#161616]">
-      <div className="relative mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
+    <header
+      className="marketing-header sticky top-0 z-50 w-full"
+      data-scrolled={scrolled ? "true" : "false"}
+    >
+      <div className="marketing-shell-container relative flex items-center justify-between gap-4 py-3">
         {/* Left side: Brand + Nav items */}
         <div className="flex items-center gap-6 lg:gap-8">
           <BrandMark subtitle={null} size="default" />
@@ -133,7 +145,7 @@ export function MarketingHeaderShell({
 
                 <SheetBody className="gap-1">
                   <div className="flex flex-col gap-0.5">
-                    <p className="meta-label px-3 pb-1">Product</p>
+                    <p className="px-3 pb-1 text-[13px] font-medium leading-5 text-muted-foreground">Product</p>
                     {productLinks.map((link) => (
                       <MobileNavLink
                         key={link.href}
@@ -154,7 +166,7 @@ export function MarketingHeaderShell({
                   </div>
 
                   <div className="mt-4 flex flex-col gap-0.5">
-                    <p className="meta-label px-3 pb-1">Solutions</p>
+                    <p className="px-3 pb-1 text-[13px] font-medium leading-5 text-muted-foreground">Solutions</p>
                     {solutionLinks.map((solution) => (
                       <MobileNavLink
                         key={solution.slug}
@@ -167,7 +179,7 @@ export function MarketingHeaderShell({
                   </div>
 
                   <div className="mt-4 flex flex-col gap-0.5">
-                    <p className="meta-label px-3 pb-1">Resources</p>
+                    <p className="px-3 pb-1 text-[13px] font-medium leading-5 text-muted-foreground">Resources</p>
                     {resourceLinks.map((link) => {
                       const details = resourceDetails[link.href] ?? {
                         description: "",

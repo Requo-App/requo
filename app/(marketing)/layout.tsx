@@ -6,7 +6,7 @@ export default function MarketingLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="font-scope-geist relative isolate min-h-screen dark:[--background:#161616] dark:bg-[#161616]">
+    <div className="font-scope-geist relative isolate min-h-screen bg-background">
       {children}
       <CrispChatWidgetServer />
     </div>

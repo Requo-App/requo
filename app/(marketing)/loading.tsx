@@ -9,59 +9,72 @@ import { cn } from "@/lib/utils";
  */
 export default function MarketingHomeLoading() {
   return (
-    <div className="overflow-x-clip">
+    <div className="marketing-landing overflow-x-clip">
       {/* Hero section */}
-      <section className="relative overflow-hidden px-4 pb-16 pt-10 sm:px-6 sm:pb-28 sm:pt-16 lg:px-8 lg:pb-36 lg:pt-24 xl:px-0">
-        <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col items-start gap-8 sm:gap-10 lg:gap-12">
-          <div className="flex w-full max-w-4xl flex-col items-start gap-4 sm:gap-5">
-            <div className="flex flex-col gap-3">
+      <section className="relative overflow-hidden pb-16 pt-8 sm:pb-24 sm:pt-10 lg:pb-32 lg:pt-12">
+        <div className="marketing-shell-container relative z-10 flex flex-col">
+          <div className="flex w-full max-w-4xl flex-col items-start gap-3">
+            <Skeleton className="h-5 w-60 max-w-full rounded-md" />
+            <div className="flex w-full flex-col gap-3">
               <Skeleton className="h-12 w-full max-w-xl rounded-lg sm:h-16 lg:h-20" />
               <Skeleton className="h-12 w-72 max-w-full rounded-lg sm:h-16 lg:h-20" />
             </div>
-            <Skeleton className="h-5 w-full max-w-lg rounded-md sm:h-6" />
-            <div className="flex flex-row items-center gap-3 pt-2">
-              <Skeleton className="h-11 w-36 rounded-lg" />
-              <Skeleton className="h-11 w-32 rounded-lg" />
+          </div>
+          <div className="mt-4 flex w-full flex-col gap-2">
+            <Skeleton className="h-5 w-full max-w-[36ch] rounded-md" />
+            <Skeleton className="h-5 w-4/5 max-w-[30ch] rounded-md" />
+          </div>
+          <div className="mt-6 flex w-full flex-col gap-4">
+            <div className="flex w-full flex-col gap-4 sm:w-auto sm:flex-row sm:items-center">
+              <Skeleton className="h-11 w-full rounded-lg sm:h-12 sm:w-36" />
+              <Skeleton className="h-11 w-full rounded-lg sm:h-12 sm:w-36" />
             </div>
+            <Skeleton className="h-4 w-44 rounded-md" />
           </div>
 
-          {/* Device frame */}
-          <div className="w-full">
-            <Skeleton className="h-72 w-full rounded-xl sm:h-96 lg:h-[30rem]" />
+          {/* Product window */}
+          <div className="marketing-hero-visual mt-6 w-full sm:mt-8 lg:mt-12">
+            <div className="dashboard-stage-container w-full">
+              <div className="dashboard-stage-aspect marketing-hero-frame animate-pulse bg-muted/30" />
+            </div>
           </div>
         </div>
       </section>
 
-      <div className="border-b border-border/70" />
-
       {/* Why Requo section */}
-      <section className="mx-auto mt-24 w-full max-w-6xl px-4 sm:mt-32 sm:px-6 lg:mt-40 lg:px-8 xl:px-0">
-        <div className="grid gap-6 lg:grid-cols-2 lg:gap-12 xl:gap-16">
-          <div className="flex flex-col gap-4">
+      <section className="mx-auto w-full max-w-6xl px-4 py-14 sm:px-6 sm:py-16 lg:px-8 lg:py-20 xl:px-0 xl:py-24">
+        <div className="grid gap-6 lg:grid-cols-3 lg:items-baseline-last lg:gap-x-5">
+          <div className="flex flex-col gap-4 lg:col-span-2">
             <Skeleton className="h-4 w-24 rounded-md" />
-            <Skeleton className="h-10 w-full max-w-lg rounded-lg sm:h-14" />
+            <div className="flex w-full max-w-[50rem] flex-col gap-2">
+              <Skeleton className="h-9 w-full rounded-lg sm:h-10 lg:h-14" />
+              <Skeleton className="h-9 w-full rounded-lg sm:h-10 lg:h-14" />
+              <Skeleton className="h-9 w-4/5 rounded-lg sm:h-10 lg:h-14" />
+            </div>
           </div>
-          <div className="flex items-center">
-            <Skeleton className="h-4 w-full max-w-md rounded-md" />
-          </div>
+          <Skeleton className="h-20 w-full max-w-[36ch] rounded-md lg:mb-1" />
         </div>
 
-        <div className="mt-14 grid gap-4 sm:mt-16 sm:grid-cols-2 lg:mt-20 lg:grid-cols-3 lg:gap-5">
+        <div className="mt-9 grid gap-5 lg:mt-[3.25rem] lg:grid-cols-3">
           {Array.from({ length: 3 }).map((_, i) => (
             <div
-              className="flex h-full flex-col overflow-hidden rounded-2xl border border-border/70 bg-card"
+              className="mx-auto flex h-full w-full max-w-[35rem] flex-col lg:max-w-none"
               key={`why-card-${i}`}
             >
-              <Skeleton className="aspect-[16/9] w-full rounded-none" />
-              <div className="flex flex-col gap-5 p-6 sm:p-7">
-                <div className="flex items-center justify-between">
-                  <Skeleton className="size-11 rounded-xl" />
+              <Skeleton className="h-60 w-full rounded-lg" />
+              <div className="flex flex-1 flex-col pb-6">
+                <div className="mt-7 flex items-center gap-3">
                   <Skeleton className="h-3 w-6 rounded-md" />
+                  <span className="h-px flex-1 bg-border" />
                 </div>
-                <Skeleton className="h-5 w-4/5 rounded-md" />
-                <div className="flex flex-col gap-2">
+                <div className="mt-4 flex flex-col gap-2">
+                  <Skeleton className="h-5 w-4/5 rounded-md" />
+                  <Skeleton className="h-5 w-3/5 rounded-md" />
+                </div>
+                <div className="mt-2 flex flex-col gap-2">
                   <Skeleton className="h-4 w-full rounded-md" />
-                  <Skeleton className="h-4 w-3/4 rounded-md" />
+                  <Skeleton className="h-4 w-full rounded-md" />
+                  <Skeleton className="h-4 w-2/3 rounded-md" />
                 </div>
               </div>
             </div>
@@ -70,70 +83,98 @@ export default function MarketingHomeLoading() {
       </section>
 
       {/* How it works section */}
-      <section className="mx-auto mt-24 w-full max-w-6xl px-4 sm:mt-32 sm:px-6 lg:mt-40 lg:px-8 xl:px-0">
-        <div className="mx-auto flex max-w-2xl flex-col items-center gap-4 text-center">
-          <Skeleton className="h-4 w-28 rounded-md" />
-          <Skeleton className="h-10 w-full max-w-lg rounded-lg sm:h-14" />
-          <Skeleton className="h-4 w-full max-w-md rounded-md" />
-        </div>
-        <div className="mt-14 sm:mt-16 lg:mt-20">
-          <div className="flex flex-col gap-8 sm:gap-10">
-            <div className="flex items-center justify-center rounded-xl bg-muted px-4 py-8 sm:px-10 sm:py-12">
-              <Skeleton className="h-[20.5rem] w-full max-w-xl rounded-xl sm:h-[22rem]" />
+      <section className="mx-auto w-full max-w-6xl px-4 py-14 sm:px-6 sm:py-16 lg:px-8 lg:py-20 xl:px-0 xl:py-24">
+        <div className="grid gap-6 lg:grid-cols-3 lg:items-baseline-last lg:gap-x-5">
+          <div className="flex flex-col gap-4 lg:col-span-2">
+            <Skeleton className="h-4 w-28 rounded-md" />
+            <div className="flex w-full max-w-[50rem] flex-col gap-2">
+              <Skeleton className="h-9 w-full rounded-lg sm:h-10 lg:h-14" />
+              <Skeleton className="h-9 w-2/3 rounded-lg sm:h-10 lg:h-14" />
             </div>
+          </div>
+          <Skeleton className="h-20 w-full max-w-[36ch] rounded-md" />
+        </div>
 
-            <div className="grid gap-y-10 sm:grid-cols-2 sm:gap-x-8 lg:grid-cols-4">
-              {Array.from({ length: 4 }).map((_, i) => (
+        <div className="mt-8 grid grid-cols-1 gap-8 sm:mt-10 lg:mt-14 lg:grid-cols-3 lg:items-start lg:gap-x-5">
+          <div className="order-1 flex h-[22rem] items-center justify-center p-5 sm:h-[24rem] sm:p-8 lg:order-2 lg:col-span-2 lg:h-[26rem] lg:p-10">
+            <Skeleton className="h-full w-full rounded-xl lg:w-[94%]" />
+          </div>
+
+          <div className="order-2 flex flex-col gap-5 lg:order-1 lg:col-span-1 lg:gap-6">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div className="flex gap-5" key={`workflow-step-${i}`}>
                 <div
                   className={cn(
-                    "flex flex-col gap-4",
-                    i > 0 && "lg:border-l lg:border-border/50 lg:pl-8",
+                    "w-0.5 shrink-0 rounded-full",
+                    i === 0 ? "bg-primary/50" : "bg-border",
                   )}
-                  key={`workflow-step-${i}`}
-                >
-                  <div className="h-0.5 w-full bg-border" />
-                  <div className="flex flex-col gap-3">
-                    <Skeleton className="h-3 w-16 rounded-md" />
-                    <Skeleton
-                      className={cn(
-                        "h-7 rounded-md",
-                        ["w-40", "w-44", "w-52", "w-52"][i],
-                      )}
-                    />
-                    <div className="flex flex-col gap-2">
-                      <Skeleton className="h-4 w-full rounded-md" />
-                      <Skeleton className="h-4 w-5/6 rounded-md" />
+                />
+                <div className="flex flex-1 flex-col">
+                  <Skeleton className="h-3 w-16 rounded-md" />
+                  <Skeleton
+                    className={cn(
+                      "mt-1 h-5 rounded-md",
+                      ["w-40", "w-44", "w-52", "w-52"][i],
+                    )}
+                  />
+                  {i === 0 ? (
+                    <div className="mt-2 flex flex-col gap-1.5">
+                      <Skeleton className="h-3.5 w-full rounded-md" />
+                      <Skeleton className="h-3.5 w-5/6 rounded-md" />
+                      <Skeleton className="h-3.5 w-2/3 rounded-md" />
                     </div>
-                  </div>
+                  ) : null}
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
       {/* The Requo business section */}
-      <section className="relative left-1/2 mt-24 w-screen -translate-x-1/2 overflow-x-clip py-16 sm:mt-32 sm:py-20 lg:mt-40 lg:py-24">
-        <div className="mx-auto grid w-full max-w-6xl gap-4 px-4 sm:gap-5 sm:px-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-end lg:px-8 xl:px-0">
-          <div className="flex flex-col gap-3 sm:gap-4">
-            <Skeleton className="h-4 w-48 rounded-md" />
-            <Skeleton className="h-10 w-full max-w-3xl rounded-lg sm:h-14" />
+      <section className="mx-auto w-full max-w-6xl px-4 py-14 sm:px-6 sm:py-16 lg:px-8 lg:py-20 xl:px-0 xl:py-24">
+        <div className="grid gap-6 lg:grid-cols-3 lg:items-baseline-last lg:gap-x-5">
+          <div className="flex flex-col gap-4 lg:col-span-2">
+            <Skeleton className="h-4 w-40 rounded-md" />
+            <div className="flex w-full max-w-[50rem] flex-col gap-2">
+              <Skeleton className="h-9 w-full rounded-lg sm:h-10 lg:h-14" />
+              <Skeleton className="h-9 w-3/4 rounded-lg sm:h-10 lg:h-14" />
+            </div>
           </div>
-          <Skeleton className="h-4 w-full max-w-md rounded-md" />
+          <Skeleton className="h-20 w-full max-w-[36ch] rounded-md" />
         </div>
 
-        <div className="mt-10 flex flex-col sm:mt-12">
-          {Array.from({ length: 4 }).map((_, i) => (
+        <div className="mt-14 flex flex-col gap-12 lg:mt-16 lg:gap-16">
+          {Array.from({ length: 6 }).map((_, i) => (
             <div
-              className="mx-auto grid w-full max-w-6xl gap-6 border-b border-border/60 px-4 py-10 sm:gap-8 sm:px-6 lg:grid-cols-2 lg:items-center lg:gap-12 lg:px-8 xl:px-0"
+              className={cn(
+                "grid gap-y-8 lg:items-center lg:gap-x-14",
+                i % 2 === 1
+                  ? "lg:grid-cols-[7fr_5fr]"
+                  : "lg:grid-cols-[5fr_7fr]",
+              )}
               key={`feature-row-${i}`}
             >
-              <div className="flex flex-col gap-3">
-                <Skeleton className="h-6 w-40 rounded-md" />
-                <Skeleton className="h-4 w-full max-w-md rounded-md" />
-                <Skeleton className="h-4 w-4/5 max-w-md rounded-md" />
+              <div
+                className={cn(
+                  "flex flex-col gap-3",
+                  i % 2 === 1 && "lg:order-2",
+                )}
+              >
+                <Skeleton className="h-3 w-20 rounded-md" />
+                <Skeleton className="h-7 w-4/5 rounded-md" />
+                <div className="flex flex-col gap-2 pt-1">
+                  <Skeleton className="h-4 w-full rounded-md" />
+                  <Skeleton className="h-4 w-full rounded-md" />
+                  <Skeleton className="h-4 w-2/3 rounded-md" />
+                </div>
               </div>
-              <Skeleton className="h-56 w-full rounded-xl" />
+              <Skeleton
+                className={cn(
+                  "h-[18.75rem] w-full rounded-lg",
+                  i % 2 === 1 && "lg:order-1",
+                )}
+              />
             </div>
           ))}
         </div>
@@ -141,7 +182,6 @@ export default function MarketingHomeLoading() {
 
       <section className="mx-auto mt-24 w-full max-w-4xl px-4 sm:mt-32 sm:px-6 lg:mt-40 lg:px-8 xl:px-0">
         <div className="flex flex-col items-start gap-3 sm:gap-4">
-          <Skeleton className="h-4 w-16 rounded-md" />
           <Skeleton className="h-10 w-full max-w-lg rounded-lg sm:h-14" />
           <Skeleton className="h-4 w-full max-w-xl rounded-md" />
         </div>
@@ -167,23 +207,27 @@ export default function MarketingHomeLoading() {
       </section>
 
       {/* Final CTA section */}
-      <section className="mx-auto mt-24 w-full max-w-4xl px-4 sm:mt-32 sm:px-6 lg:mt-40 lg:px-8 xl:px-0">
-        <div className="flex flex-col items-center gap-6 py-10 text-center sm:gap-8 sm:py-14">
-          <Skeleton className="h-12 w-full max-w-xl rounded-lg sm:h-16" />
-          <Skeleton className="h-11 w-40 rounded-full" />
-          <Skeleton className="h-4 w-80 max-w-full rounded-md" />
+      <section className="mx-auto mt-24 w-full max-w-6xl px-4 sm:mt-32 sm:px-6 lg:mt-40 lg:px-8 xl:px-0">
+        <div className="marketing-cta-panel flex flex-col items-center gap-5 sm:gap-6">
+          <Skeleton className="h-12 w-full max-w-xl rounded-lg bg-white/20 sm:h-16" />
+          <Skeleton className="h-5 w-80 max-w-full rounded-md bg-white/20" />
+          <div className="flex w-full flex-col justify-center gap-3 sm:w-auto sm:flex-row">
+            <Skeleton className="h-11 w-full rounded-lg bg-white/20 sm:h-12 sm:w-32" />
+            <Skeleton className="h-11 w-full rounded-lg bg-white/20 sm:h-12 sm:w-32" />
+          </div>
+          <Skeleton className="h-4 w-44 rounded-md bg-white/20" />
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="w-full text-muted-foreground">
+      <footer className="marketing-footer w-full text-muted-foreground">
         <div className="mx-auto flex max-w-6xl flex-col justify-between gap-12 px-4 py-16 sm:px-6 lg:flex-row lg:items-start lg:gap-16 lg:px-8 xl:px-0">
           <div className="flex flex-col justify-between self-stretch">
             <Skeleton className="h-7 w-24 rounded-md" />
             <Skeleton className="mt-14 hidden h-3 w-48 rounded-md lg:block" />
           </div>
-          <div className="grid grid-cols-2 gap-8 sm:grid-cols-4 sm:gap-10 lg:gap-12 xl:gap-16">
-            {Array.from({ length: 4 }).map((_, columnIndex) => (
+          <div className="grid grid-cols-2 gap-8 sm:grid-cols-3 sm:gap-10 lg:grid-cols-5 lg:gap-12 xl:gap-16">
+            {Array.from({ length: 5 }).map((_, columnIndex) => (
               <div className="flex flex-col gap-3.5" key={columnIndex}>
                 <Skeleton className="h-3 w-16 rounded-md" />
                 {Array.from({ length: 3 }).map((_, linkIndex) => (
