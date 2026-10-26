@@ -70,15 +70,29 @@ export function DashboardWalkthroughVideo() {
   const [canPlay, setCanPlay] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [userPaused, setUserPaused] = useState(false);
+  const [previousMotionAllowed, setPreviousMotionAllowed] =
+    useState(motionAllowed);
+
+  // The theme or motion preference can close the gate while the stage is
+  // still mounted. Clear the per-video state during the transition so opening
+  // it again starts from the observer's fresh measurement instead of a stale
+  // in-view/playing pair. Adjusting state during render is the supported
+  // pattern for deriving state from a changed input.
+  if (previousMotionAllowed !== motionAllowed) {
+    setPreviousMotionAllowed(motionAllowed);
+
+    if (!motionAllowed) {
+      setNearViewport(false);
+      setInView(false);
+      setCanPlay(false);
+      setPlaying(false);
+    }
+  }
 
   useEffect(() => {
     const stage = stageRef.current;
 
-    if (
-      !stage ||
-      !motionAllowed ||
-      typeof IntersectionObserver === "undefined"
-    ) {
+    if (!stage || !motionAllowed || typeof IntersectionObserver === "undefined") {
       return;
     }
 

@@ -221,4 +221,26 @@ describe("DashboardWalkthroughVideo", () => {
       document.documentElement.classList.remove("dark");
     }
   });
+
+  it("does not resume a stale in-view clip after the theme reopens the gate", async () => {
+    const { container } = render(<DashboardWalkthroughVideo />);
+    await emitIntersection(1);
+    await waitFor(() => expect(playSpy).toHaveBeenCalled());
+
+    await act(async () => {
+      document.documentElement.classList.add("dark");
+    });
+    await waitFor(() => expect(container.querySelector("video")).toBeNull());
+
+    playSpy.mockClear();
+
+    // Back to light without a fresh intersection: the old in-view measurement
+    // must not remount and autoplay the clip off-screen.
+    await act(async () => {
+      document.documentElement.classList.remove("dark");
+    });
+
+    expect(container.querySelector("video")).toBeNull();
+    expect(playSpy).not.toHaveBeenCalled();
+  });
 });
