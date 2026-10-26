@@ -27,8 +27,7 @@ import {
 } from "@/components/ui/navigation-menu";
 import { cn } from "@/lib/utils";
 
-const defaultTriggerClass =
-  "public-page-header-link font-mono text-xs font-medium uppercase tracking-wider";
+const defaultTriggerClass = "public-page-header-link";
 
 export const productLinks = [
   {

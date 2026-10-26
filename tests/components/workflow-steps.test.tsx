@@ -1,18 +1,25 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { WorkflowSteps } from "@/components/marketing/workflow-steps";
 
 /**
- * "How it works" stepper tests.
+ * "How it works" tour tests.
  *
- * The stepper advances on its own, so these pin the contract that keeps it
- * safe: the bar runs only while the stepper is in view on a visible tab, a
- * click selects a step (and re-selecting the current one restarts its bar),
- * the cycle hands on when the active bar fills — even if it fills exactly as
- * the stepper leaves view — wraps at the end, and reduced motion keeps the
- * manual stepper with a settled bar and no cycle.
+ * The tour advances on its own, so these pin the contract that keeps it safe:
+ * it is a tablist with one exposed description at a time, the rail runs only
+ * while the tour is in view on a visible tab and pauses on hover or focus, a
+ * manual pick or the stop control ends the cycle for good, arrow keys move
+ * between tabs, the cycle hands on when the active rail fills — even if it
+ * fills exactly as the tour leaves view — wraps at the end, and reduced motion
+ * keeps the manual tour with a settled rail and no cycle.
  */
 
 type ObserverCallback = (
@@ -68,18 +75,28 @@ async function emitIntersection(ratio: number) {
   });
 }
 
+function tabOf(stepName: RegExp) {
+  return screen.getByRole("tab", { name: stepName });
+}
+
 function progressBarOf(stepName: RegExp) {
-  const bar = screen
-    .getByRole("button", { name: stepName })
-    .querySelector("[data-workflow-progress]");
+  const bar = tabOf(stepName).querySelector("[data-workflow-progress]");
 
   expect(bar).not.toBeNull();
 
   return bar as HTMLElement;
 }
 
+function activePreview() {
+  const preview = document.querySelector('[data-workflow-preview="active"]');
+
+  expect(preview).not.toBeNull();
+
+  return within(preview as HTMLElement);
+}
+
 /**
- * End the active bar's fill.
+ * End the active rail's fill.
  *
  * React resolves the animation event through vendor-prefix detection and
  * jsdom ships no `AnimationEvent`, so it listens on the prefixed
@@ -105,30 +122,46 @@ async function setDocumentVisibility(value: DocumentVisibilityState) {
 }
 
 describe("WorkflowSteps", () => {
-  it("keeps every step readable and marks the first one current", () => {
+  it("exposes the tour as tabs and describes only the active step", () => {
     render(<WorkflowSteps />);
 
-    expect(
-      screen.getByRole("button", { name: /Request comes in/ }),
-    ).toHaveAttribute("aria-current", "step");
-    expect(
-      screen.getByRole("button", { name: /Quote sent same day/ }),
-    ).not.toHaveAttribute("aria-current");
+    const tablist = screen.getByRole("tablist", { name: "How it works" });
 
-    // The inactive steps' copy stays in the document at full contrast — tone
-    // only — so the journey reads top to bottom without interaction.
-    expect(
-      screen.getByText(/Scheduled reminders keep the next step/),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(/See accepted quotes instantly/),
-    ).toBeInTheDocument();
+    expect(tablist).toHaveAttribute("aria-orientation", "vertical");
+    expect(within(tablist).getAllByRole("tab")).toHaveLength(4);
 
-    // The stage shows the active step's preview.
-    expect(screen.getByText("Sarah Jenkins")).toBeInTheDocument();
+    const firstTab = tabOf(/Request comes in/);
+
+    expect(firstTab).toHaveAttribute("aria-selected", "true");
+    expect(firstTab).toHaveAttribute("tabindex", "0");
+    expect(tabOf(/Quote sent same day/)).toHaveAttribute(
+      "aria-selected",
+      "false",
+    );
+    expect(tabOf(/Quote sent same day/)).toHaveAttribute("tabindex", "-1");
+
+    expect(screen.getByRole("tabpanel")).toHaveAccessibleName(
+      /Request comes in/,
+    );
+
+    // Only the active step's description is exposed; the rest stay collapsed
+    // in the tab list. Every description reserves the tallest copy's height,
+    // so switching steps does not move the section.
+    expect(
+      screen
+        .getByText(/Customer fills out your form/)
+        .closest("[data-workflow-description]"),
+    ).toHaveAttribute("aria-hidden", "false");
+    expect(
+      screen
+        .getByText(/AI drafts line items/)
+        .closest("[data-workflow-description]"),
+    ).toHaveAttribute("aria-hidden", "true");
+
+    expect(activePreview().getByText("Sarah Jenkins")).toBeInTheDocument();
   });
 
-  it("hands the cycle to the next step when the active bar fills", async () => {
+  it("hands the cycle to the next step when the active rail fills", async () => {
     render(<WorkflowSteps />);
     await emitIntersection(1);
 
@@ -138,13 +171,14 @@ describe("WorkflowSteps", () => {
 
     await finishProgressBar(firstBar);
 
-    expect(
-      screen.getByRole("button", { name: /Quote sent same day/ }),
-    ).toHaveAttribute("aria-current", "step");
-    expect(screen.getByText("Send quote")).toBeInTheDocument();
+    expect(tabOf(/Quote sent same day/)).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(activePreview().getByText("Send quote")).toBeInTheDocument();
   });
 
-  it("hands a finished bar on even when the stepper leaves view as it fills", async () => {
+  it("hands a finished rail on even when the tour leaves view as it fills", async () => {
     render(<WorkflowSteps />);
     await emitIntersection(1);
 
@@ -155,12 +189,13 @@ describe("WorkflowSteps", () => {
     await emitIntersection(0.1);
     await finishProgressBar(firstBar);
 
-    expect(
-      screen.getByRole("button", { name: /Quote sent same day/ }),
-    ).toHaveAttribute("aria-current", "step");
+    expect(tabOf(/Quote sent same day/)).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
   });
 
-  it("runs the bar only while the stepper is in view", async () => {
+  it("runs the rail only while the tour is in view", async () => {
     render(<WorkflowSteps />);
 
     expect(progressBarOf(/Request comes in/)).toHaveAttribute(
@@ -183,7 +218,48 @@ describe("WorkflowSteps", () => {
     );
   });
 
-  it("pauses the bar while the tab is hidden and resumes on return", async () => {
+  it("pauses while the visitor hovers or focuses inside the tour", async () => {
+    const user = userEvent.setup();
+
+    render(<WorkflowSteps />);
+    await emitIntersection(1);
+
+    const root = document.querySelector("[data-workflow-root]") as HTMLElement;
+
+    expect(progressBarOf(/Request comes in/)).toHaveAttribute(
+      "data-workflow-progress",
+      "running",
+    );
+
+    await user.hover(root);
+    expect(progressBarOf(/Request comes in/)).toHaveAttribute(
+      "data-workflow-progress",
+      "paused",
+    );
+
+    await user.unhover(root);
+    expect(progressBarOf(/Request comes in/)).toHaveAttribute(
+      "data-workflow-progress",
+      "running",
+    );
+
+    await user.tab();
+    expect(progressBarOf(/Request comes in/)).toHaveAttribute(
+      "data-workflow-progress",
+      "paused",
+    );
+
+    act(() => {
+      (document.activeElement as HTMLElement).blur();
+    });
+
+    expect(progressBarOf(/Request comes in/)).toHaveAttribute(
+      "data-workflow-progress",
+      "running",
+    );
+  });
+
+  it("pauses the rail while the tab is hidden and resumes on return", async () => {
     render(<WorkflowSteps />);
     await emitIntersection(1);
 
@@ -207,59 +283,132 @@ describe("WorkflowSteps", () => {
     );
   });
 
-  it("shows the step a column is clicked for", async () => {
+  it("shows the step a tab is clicked for", async () => {
     const user = userEvent.setup();
 
     render(<WorkflowSteps />);
 
-    await user.click(
-      screen.getByRole("button", { name: /Ready for what's next/ }),
-    );
+    await user.click(tabOf(/Ready for what's next/));
 
+    expect(tabOf(/Ready for what's next/)).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
     expect(
-      screen.getByRole("button", { name: /Ready for what's next/ }),
-    ).toHaveAttribute("aria-current", "step");
-    expect(screen.getByText("Sarah accepted your quote")).toBeInTheDocument();
+      activePreview().getByText("Sarah accepted your quote"),
+    ).toBeInTheDocument();
   });
 
-  it("restarts the current step's bar when its column is clicked again", async () => {
+  it("stops the cycle after the visitor picks a step", async () => {
     const user = userEvent.setup();
 
     render(<WorkflowSteps />);
     await emitIntersection(1);
 
-    const originalBar = progressBarOf(/Request comes in/);
+    await user.click(tabOf(/Quote sent same day/));
 
-    await user.click(
-      screen.getByRole("button", { name: /Request comes in/ }),
+    const selectedBar = progressBarOf(/Quote sent same day/);
+
+    expect(selectedBar).toHaveAttribute("data-workflow-progress", "static");
+    // A settled rail is full height, not a paused animation stuck at zero.
+    expect(selectedBar).not.toHaveClass("animate-workflow-progress");
+
+    await finishProgressBar(selectedBar);
+
+    expect(tabOf(/Quote sent same day/)).toHaveAttribute(
+      "aria-selected",
+      "true",
     );
-
-    const restartedBar = progressBarOf(/Request comes in/);
-
-    expect(restartedBar).not.toBe(originalBar);
-    expect(restartedBar).toHaveAttribute("data-workflow-progress", "running");
+    expect(tabOf(/Follow up/)).toHaveAttribute("aria-selected", "false");
   });
 
-  it("wraps to the first step when the last step's bar fills", async () => {
+  it("lets the visitor stop the auto-play tour without picking a step", async () => {
     const user = userEvent.setup();
 
     render(<WorkflowSteps />);
     await emitIntersection(1);
 
-    await user.click(
-      screen.getByRole("button", { name: /Ready for what's next/ }),
+    expect(progressBarOf(/Request comes in/)).toHaveAttribute(
+      "data-workflow-progress",
+      "running",
     );
 
-    const lastBar = progressBarOf(/Ready for what's next/);
+    await user.click(
+      screen.getByRole("button", { name: "Stop auto-play" }),
+    );
 
-    await finishProgressBar(lastBar);
+    const bar = progressBarOf(/Request comes in/);
 
+    // The rail settles full instead of continuing to count, the control is
+    // gone, and the cycle cannot hand on even if the old fill ends late.
+    expect(bar).toHaveAttribute("data-workflow-progress", "static");
+    expect(bar).not.toHaveClass("animate-workflow-progress");
     expect(
-      screen.getByRole("button", { name: /Request comes in/ }),
-    ).toHaveAttribute("aria-current", "step");
+      screen.queryByRole("button", { name: "Stop auto-play" }),
+    ).not.toBeInTheDocument();
+    expect(document.activeElement).toBe(tabOf(/Request comes in/));
+
+    await finishProgressBar(bar);
+
+    expect(tabOf(/Request comes in/)).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
   });
 
-  it("keeps the manual stepper, with no cycle, under reduced motion", async () => {
+  it("moves between tabs with the keyboard", async () => {
+    const user = userEvent.setup();
+
+    render(<WorkflowSteps />);
+
+    tabOf(/Request comes in/).focus();
+
+    await user.keyboard("{ArrowDown}");
+
+    expect(tabOf(/Quote sent same day/)).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(document.activeElement).toBe(tabOf(/Quote sent same day/));
+
+    await user.keyboard("{End}");
+
+    expect(tabOf(/Ready for what's next/)).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(document.activeElement).toBe(tabOf(/Ready for what's next/));
+
+    await user.keyboard("{Home}");
+
+    expect(tabOf(/Request comes in/)).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(document.activeElement).toBe(tabOf(/Request comes in/));
+    expect(progressBarOf(/Request comes in/)).toHaveAttribute(
+      "data-workflow-progress",
+      "static",
+    );
+  });
+
+  it("wraps to the first step when the last step's rail fills", async () => {
+    render(<WorkflowSteps />);
+    await emitIntersection(1);
+
+    // Let the cycle walk from Capture to Accepted, then finish Accepted.
+    await finishProgressBar(progressBarOf(/Request comes in/));
+    await finishProgressBar(progressBarOf(/Quote sent same day/));
+    await finishProgressBar(progressBarOf(/Follow up/));
+    await finishProgressBar(progressBarOf(/Ready for what's next/));
+
+    expect(tabOf(/Request comes in/)).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+  });
+
+  it("keeps the manual tour, with no cycle, under reduced motion", async () => {
     vi.stubGlobal("matchMedia", (query: string) => ({
       matches: true,
       media: query,
@@ -276,14 +425,16 @@ describe("WorkflowSteps", () => {
 
     const bar = progressBarOf(/Request comes in/);
 
-    // The active bar settles full and never runs, so nothing can hand the
+    // The active rail settles full and never runs, so nothing can hand the
     // cycle on.
     expect(bar).toHaveAttribute("data-workflow-progress", "static");
+    expect(bar).not.toHaveClass("animate-workflow-progress");
 
     await finishProgressBar(bar);
 
-    expect(
-      screen.getByRole("button", { name: /Request comes in/ }),
-    ).toHaveAttribute("aria-current", "step");
+    expect(tabOf(/Request comes in/)).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
   });
 });

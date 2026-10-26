@@ -59,7 +59,7 @@ type FooterColumn = {
 
 const footerColumns: FooterColumn[] = [
   {
-    title: "PLATFORM",
+    title: "Platform",
     links: [
       { label: "Inquiries", href: "/features/inquiries" },
       { label: "Quotes", href: "/features/quotes" },
@@ -70,7 +70,7 @@ const footerColumns: FooterColumn[] = [
     ],
   },
   {
-    title: "SOLUTIONS",
+    title: "Solutions",
     links: [
       { label: "Contractors", href: "/solutions/contractors-home-services" },
       { label: "Professional & IT", href: "/solutions/professional-it-services" },
@@ -84,7 +84,7 @@ const footerColumns: FooterColumn[] = [
     ],
   },
   {
-    title: "RESOURCES",
+    title: "Resources",
     links: [
       { label: "Why Requo", href: "/#why-requo" },
       { label: "How it works", href: "/#workflow" },
@@ -94,7 +94,7 @@ const footerColumns: FooterColumn[] = [
     ],
   },
   {
-    title: "LEGAL",
+    title: "Legal",
     links: [
       { label: "Security", href: "/security" },
       { label: "Terms of use", href: "/terms" },
@@ -105,7 +105,7 @@ const footerColumns: FooterColumn[] = [
     ],
   },
   {
-    title: "SOCIALS",
+    title: "Socials",
     links: [
       {
         label: "X (Twitter)",
@@ -131,7 +131,7 @@ const footerColumns: FooterColumn[] = [
 
 export function MarketingFooter() {
   return (
-    <footer className="relative z-10 w-full bg-background text-muted-foreground">
+    <footer className="marketing-footer relative z-10 w-full text-muted-foreground">
       <div className="mx-auto flex max-w-6xl flex-col justify-between gap-12 px-4 py-16 sm:px-6 lg:flex-row lg:items-start lg:gap-16 lg:px-8 xl:px-0">
         {/* Left column: Brand & Desktop Copyright */}
         <div className="flex flex-col justify-between self-stretch">
@@ -150,7 +150,7 @@ export function MarketingFooter() {
             </Link>
           </div>
 
-          <p className="mt-14 hidden text-xs text-muted-foreground/70 lg:block">
+          <p className="mt-14 hidden text-xs leading-5 text-muted-foreground lg:block">
             © 2026 Requo, Inc. All rights reserved.
           </p>
         </div>
@@ -159,9 +159,7 @@ export function MarketingFooter() {
         <div className="grid grid-cols-2 gap-8 sm:grid-cols-3 sm:gap-10 lg:grid-cols-5 lg:gap-12 xl:gap-16">
           {footerColumns.map((column) => (
             <div className="flex flex-col gap-3.5" key={column.title}>
-              <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                {column.title}
-              </p>
+              <p className="marketing-footer-heading">{column.title}</p>
               <div className="flex flex-col gap-2.5 text-[13px]">
                 {column.links.map((link) => {
                   const Icon = link.icon;
@@ -170,14 +168,16 @@ export function MarketingFooter() {
                       {Icon ? (
                         <Icon className="size-3.5 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground" />
                       ) : null}
-                      <span>{link.label}</span>
+                      <span className="marketing-footer-link-label">
+                        {link.label}
+                      </span>
                     </>
                   );
 
                   if (link.external) {
                     return (
                       <a
-                        className="group inline-flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground"
+                        className="marketing-footer-link group inline-flex w-fit items-center gap-2 text-muted-foreground transition-colors hover:text-foreground"
                         href={link.href}
                         key={link.label}
                         rel="noopener noreferrer"
@@ -190,7 +190,7 @@ export function MarketingFooter() {
 
                   return (
                     <Link
-                      className="text-muted-foreground transition-colors hover:text-foreground"
+                      className="marketing-footer-link w-fit text-muted-foreground transition-colors hover:text-foreground"
                       href={link.href}
                       key={link.label}
                     >
@@ -204,7 +204,7 @@ export function MarketingFooter() {
         </div>
 
         {/* Mobile Copyright */}
-        <p className="text-xs text-muted-foreground/70 lg:hidden">
+        <p className="text-xs leading-5 text-muted-foreground lg:hidden">
           © 2026 Requo, Inc. All rights reserved.
         </p>
       </div>

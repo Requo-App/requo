@@ -114,7 +114,7 @@ Use role-based typography instead of ad hoc text sizes. Full spec lives in
 | Long-form supporting | `text-sm leading-5 text-muted-foreground` | Page descriptions and detail copy |
 | Small supporting | `text-xs` (12px) | Timestamps, counts, badges, menus — meta only |
 | Field label | `text-sm leading-[1.35] font-medium` | `FieldLabel` |
-| Meta label | `meta-label` (`text-[0.6875rem] font-medium uppercase tracking-[0.14em] text-muted-foreground`, 11px) | Filters, eyebrow labels, meta chips |
+| Meta label | `meta-label` (`text-[0.6875rem] font-medium uppercase tracking-[0.14em] text-muted-foreground`, 11px) | Filters, meta chips, product mock labels |
 | Caption/code | `font-mono text-[0.72rem]` | IDs, tokens, technical metadata |
 
 Control text is a single size: `text-sm` on every control primitive at every
@@ -287,8 +287,21 @@ Do not invent new variant or size names in feature code. Add a new name only if 
 ### Auth and Public Surfaces
 
 - Auth, marketing, and public pages still use the same semantic color and surface system.
-- Reuse existing shared classes such as `hero-panel`, `section-panel`, `soft-panel`, `eyebrow`, and `meta-label`.
-- The marketing home renders cards flat: `MarketingHero` sets `data-marketing-flat-cards`, and `app/globals.css` suppresses `surface-card` / `soft-panel` elevation under that root. Do not add card shadows there.
+- Reuse existing shared classes such as `hero-panel`, `section-panel`, `soft-panel`, `eyebrow` (product/editorial), and `meta-label` (product mock labels). Marketing sections use `MarketingEyebrow` instead.
+- The marketing home renders standard cards flat: `MarketingHero` sets `data-marketing-flat-cards`, and `app/globals.css` suppresses `surface-card` / `soft-panel` elevation under that root. Landing-specific surfaces (hero window, workflow stage, business mocks, Why Requo cards) use a single hairline border; only the hero window and the shared illustration card carry a neutral shadow, and only in light mode.
+- The landing atmosphere is tokenized under the `--marketing-*` namespace in `app/globals.css`: surfaces, hairlines, the 16px panel radius, the 12px illustration-card radius, a light-only mock shadow, and the reveal/parallax pace. There is no dot-grid token or texture; the hero keeps one soft radial behind the product window. Reveal pace is `--marketing-reveal-duration` / `--marketing-reveal-distance` (600ms / 12px); parallax is capped by `--marketing-parallax-distance` (12px). Effects must remain removable without changing layout.
+- `MarketingEyebrow` is a sentence-case sans label: 14/20, weight 500, no tracking, node, rule, or icon, in the accent ink. It sits 12px above its headline. Use it for section labels, feature kickers, and FAQ groups; footer headings use the quieter 13px `marketing-footer-heading`.
+- The landing hero product window (`.marketing-hero-frame`) is the intentional radius exception: an 18px shell, a flat hairline border, and a neutral shadow read as an app window while every control inside stays on `--radius` (8px). The header and hero share `.marketing-shell-container` so their left and right edges align at every breakpoint. The window's bottom edge uses a layered background-colour fade (`.marketing-hero-bottom-fade`) so the dashboard crop dissolves into the page instead of ending on a card edge; the mockup itself stays crisp beneath the overlay.
+- The landing header is translucent with a backdrop blur and gains a hairline after 8px of scroll, never an inset highlight. Desktop nav items use a sage hover pill (`marketing-nav-link`); the underline is reserved for body and footer links.
+- Hero atmosphere is one soft accent radial behind the product window, contained so it reaches transparent before the visual's edges. There is no dot field or top wash. The product window may drift by at most 12px through `MarketingHeroParallax`; reduced motion removes the drift and all one-time entrances.
+- Why Requo problem cards are single `.marketing-mock-card` fragments, not window panes: no chrome strip, dot texture, or floating pill. Each leaves the card layout intact and pins a warning footer strip to the bottom; card 02 uses a right-aligned dashed timeline and card 03 a broken-link connector.
+- The Requo business section reuses `MarketingSectionHeader` and alternates a 5fr text / 7fr mock grid (`56px` column gap, `64px` row gap). Its mocks share `.marketing-mock-card` with content-driven height, a hairline border, and no glow or pointer spotlight; rows use the one-time `MarketingFeatureReveal` entrance. Do not add per-row parallax or hover movement.
+- The decorative product fragments compose `components/marketing/marketing-mock-primitives.tsx` (`MockCard`, `MockCardHeader`, `MockList`, `MockRow`, `MockAvatar`, `MockBadge`, `MockButton`, `MockFooterStrip`, `MockSectionLabel`) so every landing illustration keeps one shell, row rhythm, and status vocabulary.
+- The FAQ keeps Radix's height animation. Only the open row shows the accent rail; hover uses a neutral tint. The closing CTA is a flat ink panel at section width (`max-w-6xl`): a two-tone section-size headline, solid white primary, quiet 80%-white secondary, and no gradient, glow, dot grid, ornament, or shadow. The footer ends on a hairline shelf, not a ghost wordmark.
+- The marketing type ramp is tokenized in `app/globals.css`: `text-marketing-label` (12px, no tracking), `text-marketing-intro` (17px), `text-marketing-body` (15px), `text-marketing-card-title` (20px), `text-marketing-row-title` (28px), and `text-marketing-section-title` (`clamp(34px, 4.4vw, 54px)`). Use these tokens for public marketing sections instead of arbitrary sizes.
+- Landing conversion CTAs use the shared primary `Button` treatment for “Start free” and `marketing-button-secondary` for the outline demo action. The secondary stays flat: 10px radius, hairline surface, one-step hover, and no coloured shadow. Hero and closing-panel actions run 44–48px tall. The closing panel swaps in a solid white primary and a quiet underlined secondary.
+- Marketing pages use the app's original dark palette (`#121212` background, neutral cards and hairlines) instead of a landing-specific green-tinted surface family; green stays reserved for accents.
+- Marketing navigation, headings, eyebrows, and actions use sentence-case sans. Mono is reserved for IDs and ordinals, not navigation, kickers, headings, or actions.
 - Avoid one-off gradients, shadows, radii, or raw palette utilities unless they are promoted into shared tokens or classes first.
 
 ## Do's and Don'ts
@@ -405,14 +418,14 @@ Established patterns above win for new work. These contradictions exist in the c
 - **BoardUI migration (done).** The former `components/base/*` + `components/application/` + `components/foundations/` system was recreated 1:1 as shadcn-style components (`cva` + `cn`, same classes/DOM/props) under `components/shared/*` and deleted. One component system remains: `components/ui/*` (primitives) + `components/shared/*` (composed). See [`docs/technical-debt.md`](docs/technical-debt.md). `app/globals.css` still carries the shared token layer (tone aliases, composite type ramp) — `components/ui/*` uses it, so it stays.
 - **Legacy styling debt.** Remaining `space-y-*`/`space-x-*` stacks (use `flex`/`grid` + `gap-*`). Flagged by `audit:density`.
 - **Raw palette on non-pill surfaces.** Status *pills* are tokenized — `components/shared/status-badge.tsx` owns them and `audit:status-tokens` enforces it — but raw palette still colours some semantic surfaces: the archived-record banner, the upgrade accent, the quote-editor amber alerts, and the public quote option cards. Move them to `--warning`/`--success`/`--destructive` opportunistically. See `docs/technical-debt.md` §4.
-- **`!important` outside status.** `!bg-sidebar-accent` (`dashboard-sidebar.tsx`) is the same cascade-order problem the status migration removed: a custom class in `@layer utilities` setting a colour a utility then cannot override. Fix by giving the custom class a variant that sets no colour, not by keeping the `!` (marketing eyebrows already use the colourless `meta-label-plain`).
+- **`!important` outside status.** `!bg-sidebar-accent` (`dashboard-sidebar.tsx`) is the same cascade-order problem the status migration removed: a custom class in `@layer utilities` setting a colour a utility then cannot override. Fix by giving the custom class a variant that sets no colour, not by keeping the `!`.
 - **Quote editor grid class.** The quote editor `<form>` carries the raw `dashboard-detail-layout` grid class because the shared layout wrapper cannot wrap forms yet — migrate when the wrapper supports form elements.
 
 ## Cleanup Targets
 
 - Replace remaining `space-y-*` and `space-x-*` stacks with `flex`/`grid` plus `gap-*`.
 - Replace raw palette colours on non-pill semantic surfaces with `--warning`/`--success`/`--destructive`. Status pills are already done and enforced by `audit:status-tokens`.
-- Remove the remaining `!important` colour override by giving the flat variant in `dashboard-sidebar` a colourless equivalent (`meta-label-plain` completed the marketing `meta-label` half).
+- Remove the remaining `!important` colour override by giving the flat variant in `dashboard-sidebar` a colourless equivalent.
 - Reduce repeated arbitrary shadows and hard-coded visual values by promoting reusable classes or tokens when a pattern repeats (radii are done: single shared `--radius`, enforced by `audit:radius`).
 - The quote editor `<form>` carries the raw `dashboard-detail-layout` grid
   class directly because the shared layout wrapper cannot currently be used
