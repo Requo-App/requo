@@ -125,6 +125,11 @@
     }
   }
 
+  /*
+   * The workflow rail is a 2px vertical track with `transform-origin: top`
+   * (see `.marketing-step-progress`), so progress fills downward. Keep the
+   * vertical scale: switching to scaleX would expand the line sideways.
+   */
   @keyframes workflow-progress {
     from {
       transform: scaleY(0);
