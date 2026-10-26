@@ -41,7 +41,7 @@ export function QuoteSettingsTabs({ quote, templates }: QuoteSettingsTabsProps) 
       }
       selectedKey={selected}
     >
-      <div className="sticky top-13 z-20 bg-muted lg:top-12">
+      <div className="sticky top-0 z-20 bg-muted">
         <TabList aria-label="Quote settings sections" className="justify-center">
           <Tab id="quote" icon={RiFileTextLine}>
             Quote

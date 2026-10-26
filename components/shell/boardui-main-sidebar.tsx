@@ -114,6 +114,7 @@ export function BoarduiMainSidebar({
       onClose={onClose}
       showThemeToggle={showThemeToggle}
       hideSecondaryNav={hideSecondaryNav}
+      inset
       className={className}
     />
   );

@@ -92,13 +92,18 @@ export function NeedsAttentionTabs({
     const sentinel = sentinelRef.current;
     if (!sentinel || !hasMore) return;
 
+    // Dashboard content scrolls inside the shell card, not the window. Anchor
+    // the preload margin to that scrollport so the sentinel still triggers
+    // before it reaches the card's bottom edge.
+    const root = sentinel.closest<HTMLElement>("[data-shell-scroll]");
+
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0]?.isIntersecting) {
           loadMore();
         }
       },
-      { rootMargin: "100px" },
+      { root, rootMargin: "100px" },
     );
 
     observer.observe(sentinel);

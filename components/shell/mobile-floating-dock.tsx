@@ -44,11 +44,22 @@ export function MobileFloatingDock({
 
   useEffect(() => {
     let frameId = 0;
+    // The dashboard shell scrolls inside its card, not the window.
+    const scrollTarget =
+      document.querySelector<HTMLElement>("[data-shell-scroll]") ?? window;
+
+    const readScrollTop = () =>
+      Math.max(
+        scrollTarget instanceof HTMLElement
+          ? scrollTarget.scrollTop
+          : scrollTarget.scrollY,
+        0,
+      );
 
     const updateState = () => {
       frameId = 0;
 
-      const currentScrollY = Math.max(window.scrollY, 0);
+      const currentScrollY = readScrollTop();
       const previousScrollY = lastScrollYRef.current;
       const scrollDelta = currentScrollY - previousScrollY;
 
@@ -73,20 +84,21 @@ export function MobileFloatingDock({
       frameId = window.requestAnimationFrame(updateState);
     };
 
-    lastScrollYRef.current = Math.max(window.scrollY, 0);
-    window.addEventListener("scroll", requestUpdate, { passive: true });
+    lastScrollYRef.current = readScrollTop();
+
+    scrollTarget.addEventListener("scroll", requestUpdate, { passive: true });
 
     return () => {
       if (frameId) {
         window.cancelAnimationFrame(frameId);
       }
 
-      window.removeEventListener("scroll", requestUpdate);
+      scrollTarget.removeEventListener("scroll", requestUpdate);
     };
   }, [directionThreshold, threshold]);
 
-  // No route-change reset needed: navigation scrolls the page back to the
-  // top, which fires the handler above and returns the dock to "top".
+  // Route changes reset the shell scroller, which fires the handler above and
+  // returns the dock to "top".
   const hidden = scrollState === "hidden";
 
   return (

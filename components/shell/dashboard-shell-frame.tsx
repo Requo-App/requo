@@ -72,9 +72,12 @@ export type DashboardShellFrameProps = {
  *
  * The sidebar follows the BoardUI docs usage example: `BoarduiMainSidebar`
  * maps Requo navigation onto BoardUI's `DashboardSidebar` (`items` +
- * `selected`) inside a `flex min-h-screen bg-background` layout. The
- * business switcher, checklist, and user menu stream in as BoardUI sidebar
- * slots; the topbar, breadcrumbs, and mobile navigation stay Requo-owned.
+ * `selected`) as a seamless rail on the shell frame. The main area is an
+ * inset card — a flex sibling of the rail — with constant top/right/bottom
+ * gaps, a 1px border, and its own scroll container; the document itself does
+ * not scroll. The business switcher, checklist, and user menu stream in as
+ * BoardUI sidebar slots; the topbar, breadcrumbs, and mobile navigation stay
+ * Requo-owned.
  *
  * On mobile the shell shows a two-row top bar (bell left, section strip
  * below) plus a floating 3-action dock: Home always opens the fullscreen
@@ -138,9 +141,12 @@ export function DashboardShellFrame({
       {themeSyncSlot}
       <NavBadgeProvider>
       {navBadgeSlot}
-      <div className="flex min-h-svh flex-1 bg-background transition-[padding-left] duration-300 ease-in-out lg:pl-[14.5rem] lg:has-[aside[data-collapsed=true]]:pl-[3.75rem]">
-        {/* Desktop sidebar — fixed BoardUI panel flush to the left screen edge (hidden below lg; mobile uses the top bar + floating dock). Fixed, not sticky: sticky rails ride up over the last pixels of long pages whenever the viewport shrinks below `h-svh` (e.g. a horizontal scrollbar), while a fixed rail never moves. This row reserves the rail width via padding, tracking the collapsed rail through the aside's `data-collapsed` flag. */}
-        <div className="fixed inset-y-0 left-0 z-40 hidden lg:block">
+      <div
+        className="flex h-svh min-w-0 flex-1 overflow-hidden bg-shell-frame"
+        data-shell-root
+      >
+        {/* Desktop sidebar — a seamless rail in the shell frame (hidden below lg; mobile uses the top bar + floating dock). Its width animates; the content card is a flex sibling, so it resizes in the same layout pass with no margin switch. */}
+        <div className="hidden h-full shrink-0 lg:block">
           <BoarduiMainSidebar
             businessSlug={businessSlug}
             role={role}
@@ -150,116 +156,124 @@ export function DashboardShellFrame({
           />
         </div>
 
-        <div
-          className="flex min-w-0 flex-1 flex-col"
-          data-assistant-route={isAssistantPaneRoute || undefined}
-          data-slot="sidebar-inset"
-        >
-          <MobileHeaderSlotProvider>
-          {/* Mobile top app bar (below lg) */}
-          <MobileTopBar
-            businessControl={mobileBusinessSwitcherSlot}
-            pageTitle={currentPageLabel}
-            notificationSlot={notificationSlot}
-          />
+        {/* Inset content card. Below lg it fills the viewport edge-to-edge; from lg it floats inside the sidebar frame with constant top/right/bottom gaps and no left margin. */}
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col p-0 lg:p-2 lg:pl-0">
+          <div
+            className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-shell-card lg:rounded-xl lg:border lg:border-border lg:shadow-sm"
+            data-assistant-route={isAssistantPaneRoute || undefined}
+            data-slot="sidebar-inset"
+          >
+            <MobileHeaderSlotProvider>
+            {/* Mobile top app bar (below lg) */}
+            <MobileTopBar
+              businessControl={mobileBusinessSwitcherSlot}
+              pageTitle={currentPageLabel}
+              notificationSlot={notificationSlot}
+            />
 
-          {/* Desktop Topbar row (lg and above) */}
-          <div className="sticky top-0 z-30 hidden h-12 items-stretch bg-background lg:flex">
-            <header className="flex min-w-0 flex-1 items-center">
-              <div className="dashboard-topbar-inner min-w-0 flex-1">
-                <div className="flex min-h-9 min-w-0 items-center gap-2 md:gap-2.5">
-                  <div className="min-w-0 flex-1">
-                    <Breadcrumb aria-label="Pages">
-                      {breadcrumbs.map((item, index) => {
-                        const isLast = index === breadcrumbs.length - 1;
+            {/* Desktop Topbar row (lg and above) */}
+            <div className="relative z-30 hidden h-12 shrink-0 items-stretch bg-transparent lg:flex">
+              <header className="flex min-w-0 flex-1 items-center">
+                <div className="dashboard-topbar-inner min-w-0 flex-1">
+                  <div className="flex min-h-9 min-w-0 items-center gap-2 md:gap-2.5">
+                    <div className="min-w-0 flex-1">
+                      <Breadcrumb aria-label="Pages">
+                        {breadcrumbs.map((item, index) => {
+                          const isLast = index === breadcrumbs.length - 1;
 
-                    if (isLast || !item.href) {
+                      if (isLast || !item.href) {
+                        return (
+                          <BreadcrumbItem
+                            key={`${item.label}-${item.href ?? index}`}
+                            current
+                            icon={ActiveIcon}
+                            className="text-sm font-normal text-foreground"
+                          >
+                            {item.label}
+                          </BreadcrumbItem>
+                        );
+                      }
+
                       return (
                         <BreadcrumbItem
                           key={`${item.label}-${item.href ?? index}`}
-                          current
-                          icon={ActiveIcon}
-                          className="text-sm font-normal text-foreground"
+                          href={item.href}
+                          className="text-sm text-muted-foreground hover:bg-transparent hover:text-foreground"
                         >
                           {item.label}
                         </BreadcrumbItem>
                       );
-                    }
-
-                    return (
-                      <BreadcrumbItem
-                        key={`${item.label}-${item.href ?? index}`}
-                        href={item.href}
-                        className="text-sm text-muted-foreground hover:bg-transparent hover:text-foreground"
-                      >
-                        {item.label}
-                      </BreadcrumbItem>
-                    );
-                      })}
-                    </Breadcrumb>
-                  </div>
-                  <div className="flex min-w-0 shrink-0 items-center justify-end gap-2 md:min-w-0 md:flex-initial md:justify-start">
-                    {notificationSlot}
+                        })}
+                      </Breadcrumb>
+                    </div>
+                    <div className="flex min-w-0 shrink-0 items-center justify-end gap-2 md:min-w-0 md:flex-initial md:justify-start">
+                      {notificationSlot}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </header>
-          </div>
-          {bannerSlot}
+              </header>
+            </div>
+            {bannerSlot}
 
-          {/* Content */}
-          <div className="min-w-0 flex-1 pb-28 lg:pb-0" data-slot="dashboard-scroll-area">
-            <main className="dashboard-main">
-              <div className="dashboard-content">{children}</div>
-            </main>
-          </div>
+            {/* Content — the card is the only scroll container; the header and
+                banner above stay pinned. */}
+            <div
+              className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain pb-28 lg:pb-0"
+              data-shell-scroll
+              data-slot="dashboard-scroll-area"
+            >
+              <main className="dashboard-main">
+                <div className="dashboard-content">{children}</div>
+              </main>
+            </div>
 
-          {/* Mobile floating dock + fullscreen overlays */}
-          <MobileFloatingDock
-            navOpen={navOpen}
-            settingsOpen={settingsNavOpen}
-            searchOpen={searchOpen}
-            onHomeClick={() => {
-              setSearchOpen(false);
-              setSettingsNavOpen(false);
-              setNavOpen((current) => !current);
-            }}
-            onSearchClick={() => {
-              setNavOpen(false);
-              setSettingsNavOpen(false);
-              setSearchOpen((current) => !current);
-            }}
-            onSettingsClick={() => {
-              setNavOpen(false);
-              setSearchOpen(false);
-              setSettingsNavOpen((current) => !current);
-            }}
-          />
-          <MobileFullscreenNav
-            open={navOpen}
-            onOpenChange={setNavOpen}
-            businessSlug={businessSlug}
-            role={role}
-            variant="main"
-            topSlot={businessSwitcherSlot}
-            bottomSlot={sidebarBottomSlot}
-            onQuickSearch={() => setCommandOpen(true)}
-          />
-          <MobileFullscreenNav
-            open={settingsNavOpen}
-            onOpenChange={setSettingsNavOpen}
-            businessSlug={businessSlug}
-            variant="settings"
-            groups={settingsGroups}
-            topSlot={businessSwitcherSlot}
-            bottomSlot={sidebarBottomSlot}
-          />
-          <MobileGlobalSearch
-            open={searchOpen}
-            onOpenChange={setSearchOpen}
-            businessSlug={businessSlug}
-          />
-          </MobileHeaderSlotProvider>
+            {/* Mobile floating dock + fullscreen overlays */}
+            <MobileFloatingDock
+              navOpen={navOpen}
+              settingsOpen={settingsNavOpen}
+              searchOpen={searchOpen}
+              onHomeClick={() => {
+                setSearchOpen(false);
+                setSettingsNavOpen(false);
+                setNavOpen((current) => !current);
+              }}
+              onSearchClick={() => {
+                setNavOpen(false);
+                setSettingsNavOpen(false);
+                setSearchOpen((current) => !current);
+              }}
+              onSettingsClick={() => {
+                setNavOpen(false);
+                setSearchOpen(false);
+                setSettingsNavOpen((current) => !current);
+              }}
+            />
+            <MobileFullscreenNav
+              open={navOpen}
+              onOpenChange={setNavOpen}
+              businessSlug={businessSlug}
+              role={role}
+              variant="main"
+              topSlot={businessSwitcherSlot}
+              bottomSlot={sidebarBottomSlot}
+              onQuickSearch={() => setCommandOpen(true)}
+            />
+            <MobileFullscreenNav
+              open={settingsNavOpen}
+              onOpenChange={setSettingsNavOpen}
+              businessSlug={businessSlug}
+              variant="settings"
+              groups={settingsGroups}
+              topSlot={businessSwitcherSlot}
+              bottomSlot={sidebarBottomSlot}
+            />
+            <MobileGlobalSearch
+              open={searchOpen}
+              onOpenChange={setSearchOpen}
+              businessSlug={businessSlug}
+            />
+            </MobileHeaderSlotProvider>
+          </div>
         </div>
       </div>
       </NavBadgeProvider>

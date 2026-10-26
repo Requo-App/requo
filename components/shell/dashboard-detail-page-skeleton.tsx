@@ -140,7 +140,7 @@ export function DashboardQuoteEditorSkeleton() {
           </SectionSkeleton>
         </DashboardSidebarStack>
 
-        <QuotePreviewSkeleton className="xl:sticky xl:top-[5.5rem] xl:self-start" />
+        <QuotePreviewSkeleton className="xl:sticky xl:top-6 xl:self-start" />
       </div>
     </DashboardPage>
   );
@@ -197,7 +197,7 @@ export function DashboardInquiryEditorSkeleton() {
           </SectionSkeleton>
         </DashboardSidebarStack>
 
-        <InquiryPreviewSkeleton className="xl:sticky xl:top-[5.5rem] xl:self-start" />
+        <InquiryPreviewSkeleton className="xl:sticky xl:top-6 xl:self-start" />
       </div>
     </DashboardPage>
   );
