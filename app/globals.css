@@ -77,7 +77,7 @@
   --animate-accordion-up: accordion-up 200ms cubic-bezier(0.32, 0.72, 0, 1);
   --animate-collapsible-down: collapsible-down 220ms var(--motion-ease-standard);
   --animate-collapsible-up: collapsible-up 200ms var(--motion-ease-standard);
-  /* The "How it works" stepper's active bar: one 5s fill per step. The step
+  /* The "How it works" stepper's active rail: one 5s fill per step. The step
      advances on `animationend`, so this duration is the pace of the cycle. */
   --animate-workflow-progress: workflow-progress 5s linear forwards;
 
@@ -127,10 +127,10 @@
 
   @keyframes workflow-progress {
     from {
-      transform: scaleX(0);
+      transform: scaleY(0);
     }
     to {
-      transform: scaleX(1);
+      transform: scaleY(1);
     }
   }
 }
@@ -175,6 +175,38 @@
   --text-caption-1-semibold--font-weight: 600;
 }
 
+@theme {
+  /* Marketing section type ramp: 12 / 15 / 20 / 28 / clamp(34–54).
+     These tokens drive the landing sections' label, body, card-title,
+     feature-row title, and section-headline roles, so the marketing scale is
+     reusable. Values are rem-based (except the viewport clamp) and follow the
+     root UI scale. */
+  --text-marketing-label: 0.75rem;
+  --text-marketing-label--line-height: 1rem;
+  --text-marketing-label--letter-spacing: 0;
+  --text-marketing-label--font-weight: 500;
+  --text-marketing-intro: 1.0625rem;
+  --text-marketing-intro--line-height: 1.55;
+  --text-marketing-intro--letter-spacing: 0;
+  --text-marketing-intro--font-weight: 400;
+  --text-marketing-body: 0.9375rem;
+  --text-marketing-body--line-height: 1.55;
+  --text-marketing-body--letter-spacing: 0;
+  --text-marketing-body--font-weight: 400;
+  --text-marketing-card-title: 1.25rem;
+  --text-marketing-card-title--line-height: 1.25;
+  --text-marketing-card-title--letter-spacing: -0.01em;
+  --text-marketing-card-title--font-weight: 600;
+  --text-marketing-row-title: 1.75rem;
+  --text-marketing-row-title--line-height: 1.2;
+  --text-marketing-row-title--letter-spacing: -0.02em;
+  --text-marketing-row-title--font-weight: 600;
+  --text-marketing-section-title: clamp(2.125rem, 4.4vw, 3.375rem);
+  --text-marketing-section-title--line-height: 1.05;
+  --text-marketing-section-title--letter-spacing: -0.03em;
+  --text-marketing-section-title--font-weight: 600;
+}
+
 :root {
   --background: #f7f9f7;
   --foreground: #172b24;
@@ -197,6 +229,32 @@
   --border: #d6ddd8;
   --input: #d6ddd8;
   --ring: #1b9b79;
+  /* Marketing accent text and rails: the brand green on light, the lighter
+     focus green on dark so labels and the 2px rails keep their contrast. */
+  --marketing-accent: var(--primary);
+  /* Landing surfaces and hairlines. The hero keeps one soft radial behind the
+     product window; the illustrations stay flat. */
+  --marketing-surface-raised: #ffffff;
+  --marketing-surface-muted: #f0f4f1;
+  --marketing-hairline: rgb(23 43 36 / 0.1);
+  --marketing-hairline-strong: rgb(23 43 36 / 0.16);
+  --marketing-muted: #5a6f66;
+  --marketing-glow-opacity: 0.12;
+  --marketing-radius-lg: 1rem;
+  /* One step above the 8px control radius, so illustration cards sit between
+     the product scale and the larger landing panels. */
+  --marketing-mock-radius: 0.75rem;
+  --marketing-ease: var(--motion-ease-emphasized);
+  --marketing-reveal-duration: 600ms;
+  --marketing-reveal-distance: 12px;
+  --marketing-parallax-distance: 12px;
+  --marketing-parallax-progress: 0.5;
+  --marketing-shadow-raised:
+    0 1px 2px rgb(15 23 42 / 0.04),
+    0 16px 32px -24px rgb(0 0 0 / 0.18);
+  --marketing-mock-shadow:
+    0 1px 2px rgb(15 23 42 / 0.04),
+    0 10px 24px -20px rgb(15 23 42 / 0.18);
   /* BoardUI compat — FROZEN (issue #73, ADR-015). Resolves the var() tone
      references the frozen dot-wave indicator sets inline. Do not expand. */
   --color-text-primary: var(--foreground);
@@ -442,6 +500,19 @@ html[data-reload-loading="fade-out"] #app-root-content {
   --border: rgb(255 255 255 / 0.07);
   --input: rgb(255 255 255 / 0.08);
   --ring: #1b9b79;
+  --marketing-accent: var(--ring);
+  /* Marketing surfaces use the app's original neutral dark palette. */
+  --marketing-surface-raised: var(--card);
+  --marketing-surface-muted: var(--muted);
+  --marketing-hairline: var(--border);
+  --marketing-hairline-strong: rgb(255 255 255 / 0.16);
+  --marketing-muted: var(--muted-foreground);
+  --marketing-glow-opacity: 0.18;
+  --marketing-shadow-raised:
+    0 1px 2px rgb(0 0 0 / 0.3),
+    0 16px 32px -24px rgb(0 0 0 / 0.5);
+  /* Border-led in dark: a shadow would read as a glow against the page. */
+  --marketing-mock-shadow: none;
   --chart-1: #008060;
   --chart-2: #53a36f;
   --chart-3: #5fa4bc;
@@ -1454,6 +1525,25 @@ html[data-reload-loading="fade-out"] #app-root-content {
     @apply mx-auto w-full max-w-[90rem] px-4 pb-6 pt-3 sm:px-6 sm:pb-8 sm:pt-4 lg:px-8 lg:pb-10 lg:pt-4;
   }
 
+  /*
+   * Marketing landing rhythm: the header and every hero edge share this exact
+   * container, so the wordmark, headline, CTAs, and product frame all start on
+   * the same vertical line at every breakpoint. The 76rem cap leaves a 1152px
+   * content column once the desktop gutter is applied.
+   */
+  .marketing-shell-container {
+    @apply mx-auto w-full max-w-[76rem] px-4 sm:px-6 lg:px-8;
+  }
+
+  /*
+   * The public-page wrapper pads every routed page. The landing hero supplies
+   * its own shell instead, so it opts out of that padding rather than applying
+   * a second, narrower gutter inside the same width.
+   */
+  .public-page--flush {
+    padding-inline: 0;
+  }
+
   .public-page-stack {
     @apply flex flex-col gap-6 lg:gap-8;
   }
@@ -1532,13 +1622,8 @@ html[data-reload-loading="fade-out"] #app-root-content {
   }
 
   .public-page-header-link {
-    @apply relative inline-flex items-center rounded-lg px-3.5 py-2 font-mono text-xs font-medium uppercase tracking-wider text-foreground/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring;
-    font-family: var(--font-geist-mono), var(--font-mono), monospace;
-    font-size: 0.75rem;
-    line-height: 1rem;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+    @apply relative inline-flex items-center rounded-lg px-3.5 py-2 text-sm font-medium text-foreground/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring;
+    letter-spacing: -0.01em;
     transition:
       color var(--motion-duration-fast) var(--motion-ease-standard);
   }
@@ -1577,6 +1662,52 @@ html[data-reload-loading="fade-out"] #app-root-content {
   .public-page-header-link[data-state="open"] .nav-underline {
     opacity: 1;
     transform: scaleX(1);
+  }
+
+  /*
+   * Marketing header: a translucent sheet over the page rather than a solid
+   * bar. The hairline and its shadow only arrive once the page has scrolled,
+   * so the hero opens on the page itself. The underline stays available for
+   * body and footer links.
+   */
+  .marketing-header {
+    background: color-mix(in srgb, var(--background) 82%, transparent);
+    -webkit-backdrop-filter: blur(14px) saturate(1.04);
+    backdrop-filter: blur(14px) saturate(1.04);
+    border-bottom: 1px solid transparent;
+    transition:
+      background-color var(--motion-duration-base) var(--motion-ease-standard),
+      border-color var(--motion-duration-base) var(--motion-ease-standard),
+      box-shadow var(--motion-duration-base) var(--motion-ease-standard);
+  }
+
+  .marketing-header[data-scrolled="true"] {
+    background: color-mix(in srgb, var(--background) 91%, transparent);
+    border-bottom-color: var(--marketing-hairline);
+  }
+
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .marketing-header {
+      background: var(--background);
+    }
+  }
+
+  .marketing-nav-link {
+    border-radius: 999px;
+    transition:
+      color var(--motion-duration-fast) var(--motion-ease-standard),
+      background-color var(--motion-duration-fast) var(--motion-ease-standard);
+  }
+
+  .marketing-nav-link:hover,
+  .marketing-nav-link:focus-visible,
+  .marketing-nav-link[data-state="open"] {
+    background: color-mix(in srgb, var(--marketing-accent) 9%, transparent);
+    color: var(--marketing-accent);
+  }
+
+  .marketing-header .nav-underline {
+    display: none;
   }
 
   @media (max-width: 1023.98px) {
@@ -1625,6 +1756,320 @@ html[data-reload-loading="fade-out"] #app-root-content {
     box-shadow: var(--surface-shadow-lg);
   }
 
+  /*
+   * Landing scope. Background and muted copy come from the app tokens; the
+   * landing does not carry a separate dark palette.
+   */
+  .marketing-landing {
+    background-color: var(--background);
+    --muted-foreground: var(--marketing-muted);
+  }
+
+  /* Sentence-case label above a landing headline or list. No node, rule, or
+     tracking: the weight and accent colour do the work. */
+  .marketing-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    color: var(--marketing-accent);
+    font-size: 0.875rem;
+    font-weight: 500;
+    letter-spacing: 0;
+    line-height: 1.25rem;
+    text-transform: none;
+  }
+
+  /*
+   * Landing product window. This is the one intentional radius exception to
+   * the 8px product scale: the hero presents the app as a real window, so it
+   * uses an 18px shell while every control inside stays on `--radius`. The
+   * border is a flat hairline and the elevation stays neutral.
+   */
+  .marketing-hero-frame {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid var(--marketing-hairline-strong);
+    border-radius: 1.125rem;
+    background: var(--background);
+    box-shadow: var(--marketing-shadow-raised);
+  }
+
+  /*
+   * The product window dissolves into the page instead of ending on a card
+   * edge. The overlay sits above the window so its opaque end covers the
+   * bottom hairline, rounded corners, and shadow; the visual wrapper clips the
+   * shadow so no dark seam survives below the fade. Stops use the page
+   * background at increasing alpha so light and dark mode both stay flat.
+   */
+  .marketing-hero-bottom-fade {
+    position: absolute;
+    inset-inline: 0;
+    bottom: -1px;
+    z-index: 20;
+    height: calc(42% + 1px);
+    pointer-events: none;
+    background: linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--background) 0%, transparent) 0%,
+      color-mix(in srgb, var(--background) 14%, transparent) 20%,
+      color-mix(in srgb, var(--background) 42%, transparent) 45%,
+      color-mix(in srgb, var(--background) 76%, transparent) 70%,
+      var(--background) 100%
+    );
+  }
+
+  /*
+   * One card shell for every landing illustration. A hairline and the landing
+   * radius do the framing; light adds a shallow neutral shadow while dark stays
+   * border-only. Rows are separated by hairlines, never by nested bordered
+   * cards, and controls inside stay on `--radius`.
+   */
+  .marketing-mock-card {
+    position: relative;
+    z-index: 0;
+    overflow: hidden;
+    border: 1px solid var(--marketing-hairline);
+    border-radius: var(--marketing-mock-radius);
+    background: var(--marketing-surface-raised);
+    box-shadow: var(--marketing-mock-shadow);
+  }
+
+  /* The selected row is a neutral fill with a 2px accent rail, never a tint. */
+  .marketing-mock-row-highlight {
+    background: color-mix(in srgb, var(--foreground) 3%, transparent);
+  }
+
+  .marketing-mock-row-highlight::before {
+    content: "";
+    position: absolute;
+    inset-block: 0;
+    left: 0;
+    width: 2px;
+    background: var(--marketing-accent);
+  }
+
+  .marketing-accent-text {
+    color: var(--marketing-accent);
+  }
+
+  .marketing-accent-bg {
+    background-color: var(--marketing-accent);
+  }
+
+  /*
+   * One-time Why Requo entrance. Items rise 12px over 600ms, 80ms apart. The
+   * component leaves `data-motion="idle"` when motion is reduced or JS is
+   * unavailable, which keeps the final state visible.
+   */
+  .marketing-why-reveal[data-motion="waiting"] [data-why-card] {
+    opacity: 0;
+    transform: translate3d(0, var(--marketing-reveal-distance), 0);
+  }
+
+  .marketing-why-reveal[data-motion="visible"] [data-why-card] {
+    animation: marketing-why-card-in var(--marketing-reveal-duration)
+      var(--marketing-ease) both;
+    animation-delay: calc(var(--why-index) * 80ms);
+  }
+
+  @keyframes marketing-why-card-in {
+    from {
+      opacity: 0;
+      transform: translate3d(0, var(--marketing-reveal-distance), 0);
+    }
+    to {
+      opacity: 1;
+      transform: translate3d(0, 0, 0);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .marketing-why-reveal[data-motion] [data-why-card] {
+      animation: none;
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  /*
+   * One-time business-row entrance. The text and mock rise 12px over 600ms;
+   * the mock follows its text by 80ms. The component leaves
+   * `data-motion="idle"` when motion is reduced or JS is unavailable, which
+   * keeps the final state visible, and the media query below makes the static
+   * fallback explicit.
+   */
+  .marketing-feature-reveal[data-motion="waiting"] [data-feature-text],
+  .marketing-feature-reveal[data-motion="waiting"] [data-feature-mock] {
+    opacity: 0;
+    transform: translate3d(0, var(--marketing-reveal-distance), 0);
+  }
+
+  .marketing-feature-reveal[data-motion="visible"] [data-feature-text] {
+    animation: marketing-feature-row-in var(--marketing-reveal-duration)
+      var(--marketing-ease) both;
+  }
+
+  .marketing-feature-reveal[data-motion="visible"] [data-feature-mock] {
+    animation: marketing-feature-row-in var(--marketing-reveal-duration)
+      var(--marketing-ease) 80ms both;
+  }
+
+  @keyframes marketing-feature-row-in {
+    from {
+      opacity: 0;
+      transform: translate3d(0, var(--marketing-reveal-distance), 0);
+    }
+    to {
+      opacity: 1;
+      transform: translate3d(0, 0, 0);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .marketing-feature-reveal[data-motion] [data-feature-text],
+    .marketing-feature-reveal[data-motion] [data-feature-mock] {
+      animation: none;
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  /*
+   * The hero keeps one soft accent radial behind the product window. It lives
+   * inside the visual container and reaches transparent before its edges, so
+   * the page itself stays flat. The wrapper also clips the window's lower
+   * shadow, letting the bottom fade end on the page with no card seam.
+   * Parallax uses the independent `translate` property so the entrance
+   * animation can keep owning `transform`.
+   */
+  .marketing-hero-visual {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .marketing-hero-parallax {
+    translate: 0
+      calc(
+        (var(--marketing-parallax-progress) - 0.5) * -2 *
+          var(--marketing-parallax-distance)
+      );
+    will-change: translate;
+  }
+
+  .marketing-hero-glow {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(
+      44% 46% at 50% 48%,
+      color-mix(
+        in srgb,
+        var(--primary) calc(var(--marketing-glow-opacity) * 100%),
+        transparent
+      ),
+      transparent 100%
+    );
+  }
+
+  /* One-time hero entrance: opacity plus a 12px lift, 70ms apart. */
+  .marketing-hero-enter > * {
+    animation: marketing-hero-enter var(--marketing-reveal-duration)
+      var(--marketing-ease) both;
+  }
+
+  .marketing-hero-enter > :nth-child(1) {
+    animation-delay: 0ms;
+  }
+
+  .marketing-hero-enter > :nth-child(2) {
+    animation-delay: 70ms;
+  }
+
+  .marketing-hero-enter > :nth-child(3) {
+    animation-delay: 140ms;
+  }
+
+  .marketing-hero-enter > :nth-child(4) {
+    animation-delay: 210ms;
+  }
+
+  .marketing-hero-enter > :nth-child(5) {
+    animation-delay: 280ms;
+  }
+
+  .marketing-hero-enter > :nth-child(6) {
+    animation-delay: 350ms;
+  }
+
+  @keyframes marketing-hero-enter {
+    from {
+      opacity: 0;
+      transform: translate3d(0, var(--marketing-reveal-distance), 0);
+    }
+    to {
+      opacity: 1;
+      transform: translate3d(0, 0, 0);
+    }
+  }
+
+  /* Generic one-time scroll reveal for marketing sections and lists. */
+  .marketing-reveal[data-motion="waiting"] {
+    opacity: 0;
+    transform: translate3d(0, var(--marketing-reveal-distance), 0);
+  }
+
+  .marketing-reveal[data-motion="visible"] {
+    animation: marketing-reveal-in var(--marketing-reveal-duration)
+      var(--marketing-ease) var(--marketing-reveal-delay, 0ms) both;
+  }
+
+  @keyframes marketing-reveal-in {
+    from {
+      opacity: 0;
+      transform: translate3d(0, var(--marketing-reveal-distance), 0);
+    }
+    to {
+      opacity: 1;
+      transform: translate3d(0, 0, 0);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .marketing-hero-enter > * {
+      animation: none;
+      opacity: 1;
+      transform: none;
+    }
+
+    .marketing-hero-parallax {
+      translate: none;
+    }
+
+    .marketing-reveal[data-motion] {
+      animation: none;
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  /*
+   * The dashboard stage keeps its measured crop while it loads: a container
+   * query reserves the same aspect ratio JS will measure, so the hero never
+   * shifts when the scaled frame resolves.
+   */
+  .dashboard-stage-container {
+    container-type: inline-size;
+  }
+
+  .dashboard-stage-aspect {
+    aspect-ratio: 864 / 725;
+  }
+
+  @container (min-width: 864px) {
+    .dashboard-stage-aspect {
+      aspect-ratio: 1440 / 725;
+    }
+  }
+
   .marketing-proof-grid {
     @apply grid gap-3 sm:grid-cols-2 xl:grid-cols-4;
   }
@@ -1633,11 +2078,284 @@ html[data-reload-loading="fade-out"] #app-root-content {
     @apply grid gap-6 xl:grid-cols-[18rem_minmax(0,1fr)] xl:items-start;
   }
 
+  /*
+   * How it works stepper: each step is a node on a continuous hairline. The
+   * active rail fills that same line rather than introducing a second track,
+   * so the node, connector, and five-second progress read as one object.
+   */
+  .marketing-step-list {
+    --marketing-step-gap: 1.25rem;
+  }
+
+  @media (min-width: 1024px) {
+    .marketing-step-list {
+      --marketing-step-gap: 1.5rem;
+    }
+  }
+
+  .marketing-step {
+    position: relative;
+    padding-left: 1.5rem;
+  }
+
+  /*
+   * Reserve the tallest step copy (three lines at the token size) on every
+   * tab so advancing the tour never changes the tab list height.
+   */
+  .marketing-step-description {
+    min-height: calc(3 * 1.55em + 0.5rem);
+  }
+
+  .marketing-step::before {
+    content: "";
+    position: absolute;
+    top: 0.5rem;
+    bottom: calc(-1 * var(--marketing-step-gap));
+    left: 5px;
+    width: 1px;
+    background: var(--marketing-hairline);
+    pointer-events: none;
+  }
+
+  .marketing-step:last-child::before {
+    display: none;
+  }
+
+  .marketing-step-node {
+    position: absolute;
+    top: 2px;
+    left: 5px;
+    z-index: 2;
+    width: 11px;
+    height: 11px;
+    border: 1px solid var(--marketing-hairline-strong);
+    border-radius: 999px;
+    background: var(--background);
+    transform: translateX(-50%);
+    transition: border-color var(--motion-duration-base) var(--marketing-ease);
+    pointer-events: none;
+  }
+
+  .marketing-step-node::after {
+    content: "";
+    position: absolute;
+    inset: 2px;
+    border-radius: inherit;
+    background: var(--marketing-accent);
+    opacity: 0;
+    transform: scale(0.35);
+    transition:
+      opacity var(--motion-duration-fast) var(--motion-ease-standard),
+      transform var(--motion-duration-fast) var(--motion-ease-standard);
+  }
+
+  .marketing-step:hover .marketing-step-node {
+    border-color: color-mix(in srgb, var(--marketing-accent) 50%, transparent);
+  }
+
+  .marketing-step-node[data-active="true"] {
+    border-color: var(--marketing-accent);
+  }
+
+  .marketing-step-node[data-active="true"]::after {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  .marketing-step-progress-track {
+    position: absolute;
+    top: 0.5rem;
+    bottom: calc(-1 * var(--marketing-step-gap));
+    left: 4px;
+    width: 2px;
+    overflow: hidden;
+    border-radius: 999px;
+    pointer-events: none;
+  }
+
+  .marketing-step:last-child .marketing-step-progress-track {
+    bottom: 0;
+  }
+
+  .marketing-step-progress {
+    display: block;
+    width: 100%;
+    height: 100%;
+    transform-origin: top;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .marketing-step-node,
+    .marketing-step-node::after {
+      transition: none;
+    }
+  }
+
+  /*
+   * FAQ rail. The group keeps its hairline rows; each row adds a quiet rail
+   * that wakes on hover and fills when open. Radix owns the height animation,
+   * so the content still opens and closes without a layout jump.
+   */
   .marketing-faq-item {
-    @apply rounded-xl border border-border/80 px-5 py-5 sm:px-6 sm:py-6;
-    background: var(--surface-muted-bg);
-    border-color: color-mix(in srgb, var(--surface-stroke) 88%, transparent);
-    box-shadow: var(--surface-shadow-sm);
+    position: relative;
+  }
+
+  .marketing-faq-item::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 1px;
+    background: var(--marketing-hairline);
+    pointer-events: none;
+  }
+
+  .marketing-faq-item::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 2px;
+    background: var(--marketing-accent);
+    opacity: 0;
+    transform: scaleY(0);
+    transform-origin: top;
+    transition:
+      opacity var(--motion-duration-base) var(--marketing-ease),
+      transform var(--motion-duration-slow) var(--marketing-ease);
+    pointer-events: none;
+  }
+
+  .marketing-faq-item[data-state="open"]::after {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+
+  .marketing-faq-trigger {
+    border-radius: 0;
+    padding-left: 1rem;
+    padding-right: 0.25rem;
+    transition:
+      background-color var(--motion-duration-fast) var(--motion-ease-standard),
+      color var(--motion-duration-fast) var(--motion-ease-standard);
+  }
+
+  .marketing-faq-trigger:hover,
+  .marketing-faq-trigger[data-state="open"] {
+    background-color: color-mix(in srgb, var(--foreground) 3.5%, transparent);
+    text-decoration: none;
+  }
+
+  .marketing-faq-trigger [data-slot="accordion-trigger-icon"] {
+    color: var(--marketing-muted);
+    transition:
+      color var(--motion-duration-fast) var(--motion-ease-standard),
+      transform var(--motion-duration-slow) var(--marketing-ease);
+  }
+
+  .marketing-faq-trigger[data-state="open"]
+    [data-slot="accordion-trigger-icon"] {
+    color: var(--marketing-accent);
+  }
+
+  .marketing-faq-content {
+    padding-right: 0.25rem;
+    padding-left: 1rem;
+  }
+
+  .marketing-faq [data-slot="accordion-content"] {
+    animation-duration: var(--motion-duration-slow);
+    animation-timing-function: var(--marketing-ease);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .marketing-faq-item::after,
+    .marketing-faq-trigger,
+    .marketing-faq-trigger [data-slot="accordion-trigger-icon"] {
+      transition: none;
+    }
+  }
+
+  /*
+   * Inverse closing panel: a flat ink block with no border, glow, texture, or
+   * shadow. Light theme uses the headline ink; dark theme steps one surface
+   * lighter than the page so the block still reads as a panel.
+   */
+  .marketing-cta-panel {
+    padding: 4rem 1.5rem;
+    border-radius: var(--marketing-radius-lg);
+    background: var(--foreground);
+    text-align: center;
+  }
+
+  .dark .marketing-cta-panel {
+    background: var(--marketing-surface-raised);
+  }
+
+  .marketing-cta-panel h2 {
+    color: #ffffff;
+  }
+
+  .marketing-cta-lead {
+    color: rgb(255 255 255 / 0.65);
+  }
+
+  .marketing-cta-emphasis {
+    color: #ffffff;
+  }
+
+  .marketing-cta-panel p {
+    color: rgb(255 255 255 / 0.8);
+  }
+
+  .marketing-cta-panel .marketing-cta-note {
+    color: rgb(255 255 255 / 0.7);
+  }
+
+  @media (min-width: 640px) {
+    .marketing-cta-panel {
+      padding: 5rem 3rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .marketing-cta-panel {
+      padding: 5rem 4.5rem;
+    }
+  }
+
+  /* Footer: hairline shelf, flat headings, animated link underlines. */
+  .marketing-footer {
+    border-top: 1px solid var(--marketing-hairline);
+  }
+
+  .marketing-footer-heading {
+    color: var(--marketing-muted);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    line-height: 1.25rem;
+  }
+
+  .marketing-footer-link-label {
+    padding-bottom: 1px;
+    background-image: linear-gradient(currentColor, currentColor);
+    background-position: 0 100%;
+    background-repeat: no-repeat;
+    background-size: 0 1px;
+    transition: background-size var(--motion-duration-base) var(--marketing-ease);
+  }
+
+  .marketing-footer-link:hover .marketing-footer-link-label,
+  .marketing-footer-link:focus-visible .marketing-footer-link-label {
+    background-size: 100% 1px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .marketing-footer-link-label {
+      transition: none;
+    }
   }
 
   .auth-page {
@@ -1946,6 +2664,156 @@ html[data-reload-loading="fade-out"] #app-root-content {
       inset 0 -1px 0 rgb(6 36 28 / 0.38),
       0 1px 2px rgb(0 0 0 / 0.34),
       0 14px 24px -16px rgb(0 128 96 / 0.22);
+  }
+
+  /*
+   * The dark primary shadow above would otherwise mask the component's ring
+   * (both are box-shadows). An outline keeps the focus indicator visible in
+   * both themes without changing the resting button.
+   */
+  .button-primary-fixed:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  /*
+   * Marketing header and menu actions that opt into the flat treatment: a
+   * 10px radius with no inset highlight, coloured shadow, or hover lift. The
+   * pressed state moves down 1px; the arrow nudges 2px. Start free uses the
+   * shared primary Button, so only the secondary and ghost treatments are
+   * overridden here.
+   */
+  .marketing-landing .marketing-button-secondary,
+  .marketing-header .marketing-button-secondary {
+    border: 1px solid var(--marketing-hairline-strong);
+    border-radius: 10px;
+    background: var(--card);
+    color: var(--foreground);
+    box-shadow: none;
+    translate: 0 0;
+  }
+
+  .marketing-landing .marketing-button-secondary:hover,
+  .marketing-header .marketing-button-secondary:hover {
+    border-color: var(--border);
+    background: var(--muted);
+    color: var(--foreground);
+    box-shadow: none;
+  }
+
+  .marketing-landing .marketing-button-secondary:active,
+  .marketing-header .marketing-button-secondary:active {
+    translate: 0 1px;
+  }
+
+  .marketing-landing .marketing-button-secondary:focus-visible,
+  .marketing-header .marketing-button-secondary:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+    box-shadow: none;
+  }
+
+  .marketing-landing .marketing-button-secondary [data-icon="inline-end"],
+  .marketing-header .marketing-button-secondary [data-icon="inline-end"] {
+    transition: translate 150ms var(--motion-ease-standard);
+  }
+
+  .marketing-landing .marketing-button-secondary:hover [data-icon="inline-end"],
+  .marketing-header .marketing-button-secondary:hover [data-icon="inline-end"] {
+    translate: 2px 0;
+  }
+
+  .marketing-landing .marketing-button-ghost,
+  .marketing-header .marketing-button-ghost {
+    border-color: transparent;
+    background: transparent;
+    box-shadow: none;
+    translate: 0 0;
+  }
+
+  .marketing-landing .marketing-button-ghost:hover,
+  .marketing-header .marketing-button-ghost:hover {
+    border-color: transparent;
+    background: var(--muted);
+    color: var(--foreground);
+    box-shadow: none;
+  }
+
+  .marketing-landing .marketing-button-ghost:active,
+  .marketing-header .marketing-button-ghost:active {
+    translate: 0 1px;
+  }
+
+  .marketing-landing .marketing-button-ghost:focus-visible,
+  .marketing-header .marketing-button-ghost:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+    box-shadow: none;
+  }
+
+  /* Closing CTA: solid white primary, quiet underlined secondary. */
+  .marketing-cta-panel .marketing-cta-button-primary {
+    border: 1px solid #ffffff;
+    border-radius: 10px;
+    background: #ffffff;
+    color: #172b24;
+    box-shadow: none;
+    translate: 0 0;
+  }
+
+  .marketing-cta-panel .marketing-cta-button-primary:hover {
+    border-color: #e8eeea;
+    background: #e8eeea;
+    color: #0b1d17;
+    box-shadow: none;
+  }
+
+  .marketing-cta-panel .marketing-cta-button-primary:active {
+    translate: 0 1px;
+  }
+
+  .marketing-cta-panel .marketing-cta-button-primary:focus-visible {
+    outline: 2px solid #ffffff;
+    outline-offset: 2px;
+    box-shadow: none;
+  }
+
+  .marketing-cta-panel .marketing-cta-button-primary [data-icon="inline-end"] {
+    transition: translate 150ms var(--motion-ease-standard);
+  }
+
+  .marketing-cta-panel
+    .marketing-cta-button-primary:hover
+    [data-icon="inline-end"] {
+    translate: 2px 0;
+  }
+
+  .marketing-cta-panel .marketing-cta-button-secondary {
+    border-color: transparent;
+    border-radius: 10px;
+    background: transparent;
+    color: rgb(255 255 255 / 0.8);
+    box-shadow: none;
+    translate: 0 0;
+  }
+
+  .marketing-cta-panel .marketing-cta-button-secondary:hover {
+    border-color: transparent;
+    background: transparent;
+    color: #ffffff;
+    box-shadow: none;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+  }
+
+  .marketing-cta-panel .marketing-cta-button-secondary:active {
+    translate: 0 1px;
+  }
+
+  .marketing-cta-panel .marketing-cta-button-secondary:focus-visible {
+    outline: 2px solid rgb(255 255 255 / 0.8);
+    outline-offset: 2px;
+    box-shadow: none;
   }
 
   .button-destructive-fixed {
