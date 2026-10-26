@@ -33,11 +33,15 @@ import { DashboardTeamMenu } from "./dashboard-team-menu";
 import { DashboardUserMenu } from "./dashboard-user-menu";
 
 /**
- * Floating sidebar panel. Expanded: 260px wide, p 12, radius/3xl (24px),
- * white 1px border, sidebar-elevation shadow, secondary bg. Collapsed: 60px
- * wide (36px icon items + 12px padding); collapse button sits centered above
- * the business avatar, quick search becomes a 36px square, nav items become
- * icon-only squares, the team card reduces to its avatar.
+ * Collapsible navigation panel with two presentations:
+ *
+ * - Panel (default): expanded 232px wide with p 12, radius/3xl (24px), a white
+ *   1px border, elevation shadow, and secondary bg; collapsed 60px wide
+ *   (36px icon items + 12px padding).
+ * - Inset (`inset`): a seamless rail on the shell frame with a constant 8px
+ *   padding. Expanded 232px, collapsed 52px (8px padding + a 36px icon
+ *   column). Rows stay left-anchored while the rail narrows, so icons hold
+ *   their x instead of sliding.
  *
  * The two states morph into each other: the panel width animates while
  * labels / badges / kbd collapse via max-width + opacity.
@@ -57,7 +61,7 @@ function Collapsible({ collapsed, children, className }: { collapsed: boolean; c
   return (
     <span
       className={cn(
-        "flex min-w-0 items-center overflow-hidden transition-[max-width,opacity,filter] duration-300 ease-in-out",
+        "flex min-w-0 items-center overflow-hidden whitespace-nowrap transition-[max-width,opacity,filter] shell-sidebar-motion",
         // Expanded, the cap is the row itself: a fixed cap (it was 160px)
         // clipped any label wider than it, "Components and Blocks" included.
         collapsed ? "max-w-0 opacity-0 blur-[3px]" : "max-w-full opacity-100 blur-0",
@@ -76,6 +80,7 @@ function NavItem({
   badgeLabel,
   isSelected = false,
   collapsed = false,
+  inset = false,
   href = "#",
   onClick,
 }: {
@@ -85,6 +90,12 @@ function NavItem({
   badgeLabel?: string;
   isSelected?: boolean;
   collapsed?: boolean;
+  /**
+   * Inset rail: the row keeps its full width and horizontal padding while the
+   * rail animates, so the icon is left-anchored instead of being re-centered
+   * inside a shrinking row.
+   */
+  inset?: boolean;
   href?: string;
   /** Action rows (e.g. Settings → modal) intercept the navigation. */
   onClick?: () => void;
@@ -115,8 +126,12 @@ function NavItem({
   );
   const className = cn(
     "flex items-center justify-between gap-2 overflow-hidden rounded-md px-2 py-1.5",
-    "transition-[width,background-color] duration-300 ease-in-out",
-    collapsed ? "w-9 justify-center gap-0 px-0" : "w-full",
+    "transition-[width,background-color] shell-sidebar-motion",
+    collapsed
+      ? inset
+        ? "w-full justify-start gap-0"
+        : "w-9 justify-center gap-0 px-0"
+      : "w-full",
     // Selected state mirrors the previous Requo sidebar: muted text that
     // turns sidebar-foreground on hover/select, with a quiet black/8
     // (white/10 in dark mode) pill behind the active row.
@@ -220,12 +235,14 @@ function NavRows({
   query,
   selected,
   collapsed,
+  inset,
   secondaryMatch,
 }: {
   items: DashboardNavItem[];
   query: string;
   selected: string;
   collapsed: boolean;
+  inset: boolean;
   /** Whether Support or Settings matches, so "No results" only shows when nothing does. */
   secondaryMatch: boolean;
 }) {
@@ -243,6 +260,7 @@ function NavRows({
           href={item.href}
           isSelected={isSelected}
           collapsed={collapsed}
+          inset={inset}
           badge={
             item.badge !== undefined ? (
               <Badge color="neutral">{item.badge}</Badge>
@@ -259,12 +277,14 @@ function GroupedNavRows({
   query,
   selected,
   collapsed,
+  inset,
   secondaryMatch,
 }: {
   groups: DashboardNavGroup[];
   query: string;
   selected: string;
   collapsed: boolean;
+  inset: boolean;
   /** Whether Support or Settings matches, so "No results" only shows when nothing does. */
   secondaryMatch: boolean;
 }) {
@@ -280,12 +300,17 @@ function GroupedNavRows({
     return <p className="px-2 py-3 text-body-regular text-muted-foreground">No results</p>;
   }
   return filtered.map((group) => (
-    <div key={group.label} className={cn("flex w-full flex-col gap-1", collapsed && "items-center")}>
-      {collapsed ? null : (
-        <span className="px-2 pt-2 text-body-2-medium text-muted-foreground/60">
+    <div key={group.label} className={cn("flex w-full flex-col gap-1", collapsed && "items-start")}>
+      <div
+        className={cn(
+          "overflow-hidden whitespace-nowrap transition-[max-height,opacity] shell-sidebar-motion",
+          collapsed ? "max-h-0 opacity-0" : "max-h-8 opacity-100",
+        )}
+      >
+        <span className="block px-2 pt-2 text-body-2-medium text-muted-foreground/60">
           {group.label}
         </span>
-      )}
+      </div>
       {group.items.map((item) => {
         const isSelected = selected === item.key;
         return (
@@ -296,6 +321,7 @@ function GroupedNavRows({
             href={item.href}
             isSelected={isSelected}
             collapsed={collapsed}
+            inset={inset}
             badge={
               item.badge !== undefined ? (
                 <Badge color="neutral">{item.badge}</Badge>
@@ -318,6 +344,7 @@ export function DashboardSidebar({
   items = DASHBOARD_NAV,
   groups,
   flat = false,
+  inset = false,
   className,
   topSlot,
   bottomSlot,
@@ -330,10 +357,10 @@ export function DashboardSidebar({
   mobile?: boolean;
   onClose?: () => void;
   /** Expanded width fills its container below `lg` instead of the fixed
-   *  260px (e.g. the landing page, where the sidebar isn't in a drawer).
-   *  Collapsed width stays the fixed 60px rail at every breakpoint — the
-   *  whole point of collapsing is to shrink, so it must never get
-   *  overridden back to full width. */
+   *  232px (e.g. the landing page, where the sidebar isn't in a drawer).
+   *  Collapsed width stays the fixed rail at every breakpoint — the whole
+   *  point of collapsing is to shrink, so it must never get overridden back
+   *  to full width. */
   fluid?: boolean;
   /** Hide the app-level theme control when the sidebar is used as marketing artwork. */
   showThemeToggle?: boolean;
@@ -345,6 +372,11 @@ export function DashboardSidebar({
   groups?: DashboardNavGroup[];
   /** Removes the floating panel treatment for a sidebar revealed beneath mobile content. */
   flat?: boolean;
+  /**
+   * Inset-app-shell rail: seamless frame background, 8px edge padding, and a
+   * tight icon rail. The rail size is tuned here once; callers only place it.
+   */
+  inset?: boolean;
   className?: string;
   /** Replaces the demo business switcher at the top (e.g. with a business switcher). */
   topSlot?: ReactNode;
@@ -371,6 +403,9 @@ export function DashboardSidebar({
   const searchFieldRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const collapsed = mobile ? false : collapsedState;
+  // The inset presentation belongs to the desktop shell; the mobile drawer
+  // keeps the panel's padding and nav inset.
+  const railInset = inset && !mobile;
   const normalizedQuery = query.trim().toLocaleLowerCase();
   const matches = (label: string) => label.toLocaleLowerCase().includes(normalizedQuery);
   const secondaryLabels = ["Support", "Settings"];
@@ -431,19 +466,34 @@ export function DashboardSidebar({
         "group/sidebar flex h-full shrink-0 flex-col overflow-hidden",
         flat
           ? "bg-background"
-          : // Flush to the screen's left edge: no left border or inset gap,
-            // with rounding kept only on the top-right/bottom-right corners.
-            // Depth comes from the sidebar surface + border + elevation shadow
-            // (all flip in dark mode via CSS vars), matching the reference rail.
-            "rounded-l-none rounded-r-3xl border border-l-0 border-sidebar-border bg-sidebar shadow-[var(--surface-shadow-md)]",
-        "transition-[width] duration-300 ease-in-out",
-        // Collapsed rail keeps the 60px spec: 1px border + 11px padding on each
-        // side leaves an exactly 36px column so the w-9 (36px) icon items center.
+          : railInset
+            ? // The inset shell uses one frame colour; the rail has no border,
+              // panel fill, rounding, or shadow of its own.
+              "bg-shell-frame"
+            : // Flush to the screen's left edge: no left border or inset gap,
+              // with rounding kept only on the top-right/bottom-right corners.
+              // Depth comes from the sidebar surface + border + elevation shadow
+              // (all flip in dark mode via CSS vars), matching the reference rail.
+              "rounded-l-none rounded-r-3xl border border-l-0 border-sidebar-border bg-sidebar shadow-[var(--surface-shadow-md)]",
+        railInset
+          ? "transition-[width] shell-sidebar-motion"
+          : "transition-[width] duration-300 ease-in-out",
         collapsed
-          ? "w-[3.75rem] px-[0.6875rem] py-3"
-          : fluid
-            ? "w-full p-3 lg:w-[14.5rem]"
-            : "w-[14.5rem] p-3",
+          ? railInset
+            ? // 8px frame padding + the 36px icon column. Collapsed rows are
+              // left-anchored (never re-centered) so icons hold their x while
+              // the rail animates.
+              "w-[3.25rem] p-2"
+            : // Collapsed panel rail keeps the 60px spec: 1px border + 11px
+              // padding on each side leaves an exactly 36px column.
+              "w-[3.75rem] px-[0.6875rem] py-3"
+          : mobile || fluid
+            ? railInset
+              ? "w-full p-2"
+              : "w-full p-3 lg:w-[14.5rem]"
+            : railInset
+              ? "w-[14.5rem] p-2"
+              : "w-[14.5rem] p-3",
         className,
       )}
     >
@@ -458,9 +508,9 @@ export function DashboardSidebar({
         {/* Business switcher / collapse control */}
         <div
           className={cn(
-            "flex w-full transition-[gap] duration-300 ease-in-out",
+            "flex w-full transition-[gap] shell-sidebar-motion",
             collapsed
-              ? "flex-col-reverse items-center justify-center gap-2.5"
+              ? "flex-col-reverse items-start justify-center gap-2.5"
               : "flex-row items-center justify-between",
           )}
         >
@@ -471,7 +521,7 @@ export function DashboardSidebar({
               widths below are 16px larger than the footprint they produce. */}
           <div
             className={cn(
-              "min-w-0 transition-[max-width,opacity,transform] duration-300 ease-in-out",
+              "min-w-0 transition-[max-width,opacity,transform] shell-sidebar-motion",
               // Collapsed: the slot stays mounted in a centered 36px column.
               // Expanded-only rows hide themselves via
               // `group-data-[collapsed=true]/sidebar` (the aside carries
@@ -589,7 +639,7 @@ export function DashboardSidebar({
           )}
         </div>
 
-        <div className={cn("flex w-full flex-col gap-3", collapsed && "items-center")}>
+        <div className={cn("flex w-full flex-col gap-3", collapsed && "items-start")}>
           {/* Quick search */}
           {!flat && (searchActive && !collapsed ? (
             <div
@@ -627,11 +677,14 @@ export function DashboardSidebar({
               title={collapsed ? "Search" : undefined}
               onClick={activateSearch}
               className={cn(
-                "flex cursor-pointer items-center hover:bg-sidebar-accent/70",
-                "transition-[width,border-radius,background-color] duration-300 ease-in-out",
-                collapsed
-                  ? "size-9 justify-center gap-0 rounded-full bg-sidebar-accent p-0"
-                  : "w-full gap-2 rounded-full bg-sidebar-accent px-2 py-1.5",
+                "flex w-full cursor-pointer items-center gap-2 rounded-full bg-sidebar-accent px-2 py-1.5 hover:bg-sidebar-accent/70",
+                "transition-[width,border-radius,background-color] shell-sidebar-motion",
+                collapsed &&
+                  (railInset
+                    ? // Keep the same 8px inset so the icon does not slide as
+                      // the rail narrows; the parent supplies the 36px width.
+                      "justify-start gap-0 p-2"
+                    : "size-9 justify-center gap-0 p-0"),
               )}
             >
               <span
@@ -662,13 +715,18 @@ export function DashboardSidebar({
         <div
           className="-mx-2 flex min-h-0 w-[calc(100%+1rem)] flex-1 flex-col overflow-y-auto px-2 py-2 [scrollbar-width:none]"
         >
-          {/* Primary nav. The 2px inset is for the expanded rail only: the
-              collapsed column is exactly as wide as a 36px item, so padding
-              here pushes every item 2px right and the rail's own clip shaves
-              that much off its selected fill and hover state. */}
+          {/* Primary nav. The 2px inset applies to the panel rail's expanded
+              state only: its collapsed column is exactly as wide as a 36px
+              item, so extra padding would push every item right and the panel
+              clip would shave the selected fill. The inset rail instead keeps
+              rows at `w-full` and left-anchors their content, so no per-state
+              padding is needed. */}
           <nav
             aria-label="Primary"
-            className={cn("flex w-full flex-col gap-1", collapsed ? "items-center" : "px-0.5")}
+            className={cn(
+              "flex w-full flex-col gap-1",
+              collapsed ? "items-start" : !railInset && "px-0.5",
+            )}
           >
             {groups && groups.length > 0 ? (
               <GroupedNavRows
@@ -676,6 +734,7 @@ export function DashboardSidebar({
                 query={normalizedQuery}
                 selected={selected}
                 collapsed={collapsed}
+                inset={railInset}
                 secondaryMatch={secondaryMatch}
               />
             ) : (
@@ -684,13 +743,14 @@ export function DashboardSidebar({
                 query={normalizedQuery}
                 selected={selected}
                 collapsed={collapsed}
+                inset={railInset}
                 secondaryMatch={secondaryMatch}
               />
             )}
           </nav>
         </div>
 
-      <div className={cn("flex w-full shrink-0 flex-col gap-3", collapsed && "items-center")}>
+      <div className={cn("flex w-full shrink-0 flex-col gap-3", collapsed && "items-start")}>
         {showThemeToggle &&
           (collapsed ? (
             <ThemeToggle collapsed />
@@ -702,12 +762,13 @@ export function DashboardSidebar({
           ))}
         {/* Secondary nav */}
         {hideSecondaryNav ? null : (
-          <nav className={cn("flex w-full flex-col gap-1", collapsed && "items-center")}>
+          <nav className={cn("flex w-full flex-col gap-1", collapsed && "items-start")}>
             {matches("Support") && (
               <NavItem
                 icon={RiCustomerServiceLine}
                 label="Support"
                 collapsed={collapsed}
+                inset={railInset}
                 href={supportHref}
               />
             )}
@@ -717,6 +778,7 @@ export function DashboardSidebar({
                   icon={RiSettings4Line}
                   label="Settings"
                   collapsed={collapsed}
+                  inset={railInset}
                   href={settingsHref}
                 />
               ) : (
@@ -724,6 +786,7 @@ export function DashboardSidebar({
                   icon={RiSettings4Line}
                   label="Settings"
                   collapsed={collapsed}
+                  inset={railInset}
                   onClick={() => setSettingsOpen(true)}
                 />
               ))}

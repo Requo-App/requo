@@ -304,7 +304,7 @@ export function BusinessEmailTemplateForm({
           handleKindChange(key as EmailTemplateKind)
         }
       >
-        <div className="sticky top-13 z-20 bg-muted lg:top-12">
+        <div className="sticky top-0 z-20 bg-muted">
           <TabList aria-label="Email templates" className="justify-center">
             {EMAIL_TEMPLATE_KINDS.map((kind) => {
               const Icon = EMAIL_TEMPLATE_KIND_ICONS[kind];
@@ -423,7 +423,7 @@ export function BusinessEmailTemplateForm({
                   onInsert={addBlock}
                 />
               </div>
-              <div className="mx-auto w-full max-w-[640px] min-w-0 lg:mx-0 lg:w-[320px] lg:max-w-none lg:sticky lg:top-24">
+              <div className="mx-auto w-full max-w-[640px] min-w-0 lg:mx-0 lg:w-[320px] lg:max-w-none lg:sticky lg:top-13">
                 <EmailTemplateInspector
                   block={selectedBlock}
                   templateKind={activeKind}

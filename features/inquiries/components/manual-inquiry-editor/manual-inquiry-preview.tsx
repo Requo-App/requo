@@ -67,7 +67,7 @@ export function ManualInquiryPreview({
     : "Not provided";
 
   return (
-    <article data-padding="none" className="section-panel overflow-hidden p-5 sm:p-6 xl:sticky xl:top-[5.5rem] xl:self-start">
+    <article data-padding="none" className="section-panel overflow-hidden p-5 sm:p-6 xl:sticky xl:top-6 xl:self-start">
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-4 border-b border-border/80 pb-5">
           <div className="flex flex-wrap items-start justify-between gap-4">

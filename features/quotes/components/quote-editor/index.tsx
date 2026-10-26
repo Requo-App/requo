@@ -1259,7 +1259,7 @@ export function QuoteEditor({
         taxInCents={totals.taxInCents}
         taxLabel={taxLabel || undefined}
         totalInCents={totals.totalInCents}
-        className="xl:sticky xl:top-[5.5rem] xl:self-start"
+        className="xl:sticky xl:top-6 xl:self-start"
       />
     </form>
   );

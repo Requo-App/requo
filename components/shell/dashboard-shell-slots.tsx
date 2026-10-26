@@ -145,7 +145,7 @@ export function BusinessSwitcher({
         <DropdownMenuTrigger asChild>
         {compact ? (
           <button
-            className="group/business-switcher flex w-full cursor-pointer items-center gap-2 rounded-xl px-2 py-1.5 text-left transition-colors group-data-[collapsed=true]/sidebar:size-9 group-data-[collapsed=true]/sidebar:justify-center group-data-[collapsed=true]/sidebar:gap-0 group-data-[collapsed=true]/sidebar:rounded-full group-data-[collapsed=true]/sidebar:p-0 hover:bg-sidebar-accent data-[state=open]:bg-sidebar-accent"
+            className="group/business-switcher flex w-full cursor-pointer items-center gap-2 overflow-hidden rounded-xl px-2 py-1.5 text-left transition-[width,background-color,color] shell-sidebar-motion group-data-[collapsed=true]/sidebar:size-9 group-data-[collapsed=true]/sidebar:justify-start group-data-[collapsed=true]/sidebar:gap-0 group-data-[collapsed=true]/sidebar:rounded-full group-data-[collapsed=true]/sidebar:pl-1 group-data-[collapsed=true]/sidebar:pr-0 group-data-[collapsed=true]/sidebar:py-0 hover:bg-sidebar-accent data-[state=open]:bg-sidebar-accent"
             data-tour="business-switcher"
             type="button"
             aria-label={`Switch business — current business ${business.name}`}
@@ -156,10 +156,10 @@ export function BusinessSwitcher({
               logoUrl={getSwitcherLogoUrl("/api/business/logo", business)}
               loading="eager"
             />
-            <span className="min-w-0 flex-1 truncate text-sm font-medium text-sidebar-foreground group-data-[collapsed=true]/sidebar:hidden">
+            <span className="min-w-0 max-w-full flex-1 overflow-hidden whitespace-nowrap text-sm font-medium text-sidebar-foreground opacity-100 transition-[max-width,opacity] shell-sidebar-motion group-data-[collapsed=true]/sidebar:max-w-0 group-data-[collapsed=true]/sidebar:opacity-0">
               {business.name}
             </span>
-            <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground group-data-[collapsed=true]/sidebar:hidden" />
+            <ChevronsUpDown className="size-4 max-w-4 shrink-0 overflow-hidden text-muted-foreground opacity-100 transition-[max-width,opacity] shell-sidebar-motion group-data-[collapsed=true]/sidebar:max-w-0 group-data-[collapsed=true]/sidebar:opacity-0" />
           </button>
         ) : (
         <button
@@ -408,20 +408,20 @@ export function DashboardUserMenu({
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
-              className="group/user-menu h-auto cursor-pointer justify-between rounded-xl border-2 border-transparent bg-sidebar-accent py-2 pr-3 pl-2.5 hover:border-sidebar-border hover:bg-sidebar-accent group-data-[collapsed=true]/sidebar:h-9 group-data-[collapsed=true]/sidebar:w-9 group-data-[collapsed=true]/sidebar:justify-center group-data-[collapsed=true]/sidebar:gap-0 group-data-[collapsed=true]/sidebar:rounded-full group-data-[collapsed=true]/sidebar:border-transparent group-data-[collapsed=true]/sidebar:bg-transparent group-data-[collapsed=true]/sidebar:p-0 data-[state=open]:border-sidebar-border data-[state=open]:bg-sidebar-accent"
+              className="group/user-menu h-auto cursor-pointer justify-between rounded-xl border-2 border-transparent bg-sidebar-accent py-2 pr-3 pl-2.5 shell-sidebar-motion hover:border-sidebar-border hover:bg-sidebar-accent group-data-[collapsed=true]/sidebar:h-9 group-data-[collapsed=true]/sidebar:w-9 group-data-[collapsed=true]/sidebar:justify-center group-data-[collapsed=true]/sidebar:gap-0 group-data-[collapsed=true]/sidebar:rounded-full group-data-[collapsed=true]/sidebar:border-transparent group-data-[collapsed=true]/sidebar:bg-transparent group-data-[collapsed=true]/sidebar:p-0 data-[state=open]:border-sidebar-border data-[state=open]:bg-sidebar-accent"
               size="lg"
               tooltip={displayName}
             >
-              <span className="flex min-w-0 flex-1 items-center gap-2">
-                <Avatar className="rounded-full border-0 bg-transparent">
-                  {user.avatarSrc ? (
-                    <AvatarImage alt={`${displayName} avatar`} src={user.avatarSrc} loading="lazy" decoding="async" fetchPriority="low" />
-                  ) : null}
-                  <AvatarFallback className="border-0 bg-transparent text-foreground">
-                    {getInitials(displayName)}
-                  </AvatarFallback>
-                </Avatar>
-                <span className="flex min-w-0 flex-1 flex-col items-start justify-center group-data-[collapsed=true]/sidebar:hidden group-data-[collapsible=icon]:hidden">
+              <Avatar className="shrink-0 rounded-full border-0 bg-transparent">
+                {user.avatarSrc ? (
+                  <AvatarImage alt={`${displayName} avatar`} src={user.avatarSrc} loading="lazy" decoding="async" fetchPriority="low" />
+                ) : null}
+                <AvatarFallback className="border-0 bg-transparent text-foreground">
+                  {getInitials(displayName)}
+                </AvatarFallback>
+              </Avatar>
+              <span className="flex min-w-0 max-w-full flex-1 items-center gap-2 overflow-hidden whitespace-nowrap opacity-100 transition-[max-width,opacity] shell-sidebar-motion group-data-[collapsed=true]/sidebar:max-w-0 group-data-[collapsed=true]/sidebar:opacity-0">
+                <span className="flex min-w-0 flex-1 flex-col items-start justify-center">
                   <span className="w-full truncate text-body-medium text-foreground">
                     {displayName}
                   </span>
@@ -429,9 +429,9 @@ export function DashboardUserMenu({
                     {user.email}
                   </span>
                 </span>
-              </span>
-              <span className="flex size-4 shrink-0 items-center justify-center rounded-xs text-muted-foreground transition-colors group-data-[collapsed=true]/sidebar:hidden group-data-[collapsible=icon]:hidden group-data-[state=open]/user-menu:text-foreground">
-                <ChevronDownSmall className="size-4 transition-transform [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)] group-data-[state=open]/user-menu:rotate-180" />
+                <span className="flex size-4 shrink-0 items-center justify-center rounded-xs text-muted-foreground transition-colors group-data-[state=open]/user-menu:text-foreground">
+                  <ChevronDownSmall className="size-4 transition-transform [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)] group-data-[state=open]/user-menu:rotate-180" />
+                </span>
               </span>
             </SidebarMenuButton>
           </DropdownMenuTrigger>

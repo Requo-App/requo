@@ -29,6 +29,9 @@
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar: var(--sidebar);
+  /* App shell: the frame wraps the inset content card. */
+  --color-shell-frame: var(--shell-frame);
+  --color-shell-card: var(--shell-card);
   --color-chart-5: var(--chart-5);
   --color-chart-4: var(--chart-4);
   --color-chart-3: var(--chart-3);
@@ -240,6 +243,15 @@
   --sidebar-accent-foreground: #173128;
   --sidebar-border: #d7ded9;
   --sidebar-ring: #1b9b79;
+  /* App shell frame and inset card. The card is a touch lighter than the
+     faintly tinted frame so the shell reads as one raised panel in both
+     themes; sidebar row states keep their own tokens. */
+  --shell-frame: #f1f4f1;
+  --shell-card: #ffffff;
+  /* One place to tune the sidebar/card resize. The card follows the rail
+     purely through flex layout, so only the width transition needs these. */
+  --shell-motion-duration: 200ms;
+  --shell-motion-easing: linear;
   --surface-elevated-bg:
     linear-gradient(180deg, rgb(255 255 255 / 0.96) 0%, rgb(255 255 255 / 0.99) 100%);
   --surface-soft-bg:
@@ -447,6 +459,8 @@ html[data-reload-loading="fade-out"] #app-root-content {
   --sidebar-accent-foreground: #ededed;
   --sidebar-border: rgb(255 255 255 / 0.06);
   --sidebar-ring: #1b9b79;
+  --shell-frame: #0e0e0e;
+  --shell-card: #181818;
   --surface-elevated-bg:
     linear-gradient(180deg, rgb(28 28 28 / 0.98) 0%, rgb(24 24 24 / 1) 100%);
   --surface-soft-bg:
@@ -731,6 +745,13 @@ html[data-reload-loading="fade-out"] #app-root-content {
     overflow-y: scroll;
   }
 
+  /* The dashboard shell owns the viewport: its content card is the only
+     scroll container, so the document must never show a scrollbar. */
+  html:has([data-shell-root]) {
+    overflow: hidden;
+    scrollbar-gutter: auto;
+  }
+
   /* Minimal scrollbars everywhere: page, dropdowns, modals, sheets,
      selects, popovers, tables, sidebars. Thin transparent track with a
      small rounded thumb derived from foreground, so light/dark adapt
@@ -881,6 +902,13 @@ html[data-reload-loading="fade-out"] #app-root-content {
   .motion-sidebar-panel {
     transition-duration: var(--motion-duration-base);
     transition-timing-function: var(--motion-ease-standard);
+  }
+
+  /* Inset-shell resize, labels, badges, and group labels share one clock so
+     the rail and card never drift during the width transition. */
+  .shell-sidebar-motion {
+    transition-duration: var(--shell-motion-duration);
+    transition-timing-function: var(--shell-motion-easing);
   }
 
   .motion-sheet-overlay {
@@ -1334,24 +1362,18 @@ html[data-reload-loading="fade-out"] #app-root-content {
     height: calc(100svh - 65px);
   }
 
-  /* Home page — flows with the window scroll (single scroll context), uses
-     full available width. The horizontal bleed exactly cancels
-     dashboard-main's padding (`px-3 / sm:px-5 / xl:px-6`): any overshoot
-     creates page-level horizontal overflow, which summons a horizontal
-     scrollbar, shrinks the layout viewport below the `h-svh` sticky rail,
-     and makes the whole sidebar ride up over the last pixels of page
-     scroll. Deliberately no inner `overflow-y-auto`: a nested scroller
-     here fights the window scroll (scroll chaining / anchoring) with the
-     same visible effect. */
+  /* Home page — flows with the shell card's internal scroll, uses full
+     available width. The horizontal bleed exactly cancels dashboard-main's
+     padding (`px-3 / sm:px-5 / xl:px-6`). No viewport-height minimum: the card
+     already supplies the frame, so adding viewport height here would force a
+     scrollbar on short pages. */
   .home-page-container {
     @apply -mx-3 -mb-5 sm:-mx-5 sm:-mb-7 xl:-mx-6 xl:-mb-8;
     @apply -mt-5 sm:-mt-7 xl:-mt-8;
     @apply flex min-w-0 flex-col px-4 pt-6 pb-8 sm:px-6 sm:pt-8 lg:px-10;
-    min-height: calc(100svh - 65px);
     /* Contain over-wide home children (e.g. a long nowrap KPI value) so they
-       can never summon a page-level horizontal scrollbar and ride the sticky
-       sidebar rail up. `clip` creates no scroll container: the page keeps its
-       single window scroll and inner `overflow-x-auto` tables keep working. */
+       can never create a horizontal scrollbar in the card. `clip` creates no
+       scroll container, so inner `overflow-x-auto` tables keep working. */
     overflow-x: clip;
   }
 
@@ -1386,10 +1408,6 @@ html[data-reload-loading="fade-out"] #app-root-content {
   @media (min-width: 640px) {
     .chat-page-container {
       height: calc(100svh - 73px);
-    }
-
-    .home-page-container {
-      min-height: calc(100svh - 73px);
     }
 
     .automations-builder-container {
@@ -2739,20 +2757,18 @@ html[data-reload-loading="fade-out"] #app-root-content {
   }
 
   /* ── Assistant pane height opt-in (scoped, no arithmetic) ──
-     Nothing in the dashboard shell chain establishes a resolvable height
-     (minimum-height all the way down), so the pane's full-height request
-     resolves to auto and the transcript never scrolls. The persistent shell
-     derives [data-assistant-route] from the current pathname; this avoids
-     leaking these styles to the next page while React retains the previous
-     Assistant subtree during a client navigation.
-     The BoardUI shell renders the assistant column as
+     The inset shell card supplies a definite height, so the assistant chain
+     can fill it without arithmetic. The persistent shell derives
+     [data-assistant-route] from the current pathname; this avoids leaking
+     these styles to the next page while React retains the previous Assistant
+     subtree during a client navigation.
+     The shell renders the assistant column as
      `div[data-assistant-route][data-slot="sidebar-inset"]` (see
      `dashboard-shell-frame.tsx`); the `[data-assistant-route]`-only
      selectors below keep the pane bounded even if the slot attribute is
      ever dropped again. */
   [data-slot="sidebar-inset"][data-assistant-route],
   [data-assistant-route] {
-    height: 100svh;
     min-height: 0;
     overflow: hidden;
   }

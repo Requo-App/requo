@@ -122,6 +122,7 @@ export function BoarduiSettingsSidebar({
       mobile={mobile}
       onClose={onClose}
       showThemeToggle={showThemeToggle}
+      inset
       className={className}
     />
   );

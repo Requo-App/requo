@@ -16,6 +16,18 @@ export function ScrollToTop() {
     }
 
     previousPathname.current = pathname;
+
+    // Dashboard/settings keep the document fixed and scroll inside the shell
+    // card. Fall back to the window for public and marketing routes.
+    const shellScroller = document.querySelector<HTMLElement>(
+      "[data-shell-scroll]",
+    );
+
+    if (shellScroller) {
+      shellScroller.scrollTo({ top: 0, behavior: "instant" });
+      return;
+    }
+
     window.scrollTo({ top: 0, behavior: "instant" });
   }, [pathname]);
 

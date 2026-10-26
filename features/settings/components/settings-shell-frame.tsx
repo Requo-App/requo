@@ -100,9 +100,10 @@ export type SettingsShellFrameProps = {
  * Settings shell frame using the BoardUI Sidebar.
  *
  * `BoarduiSettingsSidebar` maps the grouped settings navigation onto
- * BoardUI's `DashboardSidebar` (`groups` + `selected`) inside a
- * `flex min-h-screen bg-background-full` layout, following the docs usage
- * example. The business switcher streams in as the top slot (same compact
+ * BoardUI's `DashboardSidebar` (`groups` + `selected`) as a seamless rail on
+ * the shell frame, following the docs usage example. The main area is an
+ * inset card with constant top/right/bottom gaps and its own scroll
+ * container. The business switcher streams in as the top slot (same compact
  * switcher as the main sidebar); the user menu streams in as the bottom
  * slot. Help & Support lives in the Other navigation group.
  *
@@ -137,9 +138,12 @@ export function SettingsShellFrame({
 
   return (
     <SidebarProvider defaultOpen>
-      <div className="flex min-h-svh flex-1 bg-background-full">
-        {/* Desktop sidebar — BoardUI panel flush to the left screen edge (hidden below lg; mobile uses the top/bottom bars). */}
-        <div className="sticky top-0 hidden h-svh shrink-0 self-start lg:block">
+      <div
+        className="flex h-svh min-w-0 flex-1 overflow-hidden bg-shell-frame"
+        data-shell-root
+      >
+        {/* Desktop sidebar — a seamless rail in the shell frame (hidden below lg; mobile uses the top/bottom bars). */}
+        <div className="hidden h-full shrink-0 lg:block">
           <BoarduiSettingsSidebar
             businessSlug={businessSlug}
             groups={groups}
@@ -148,117 +152,127 @@ export function SettingsShellFrame({
           />
         </div>
 
-        <div className="flex min-w-0 flex-1 flex-col">
-          {/* Mobile top app bar (below lg) */}
-          <MobileTopBar
-            businessControl={mobileBusinessSwitcherSlot}
-            pageTitle={currentSectionLabel}
-          />
+        {/* Inset content card; edge-to-edge below lg. */}
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col p-0 lg:p-2 lg:pl-0">
+          <div
+            className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-shell-card lg:rounded-xl lg:border lg:border-border lg:shadow-sm"
+            data-slot="sidebar-inset"
+          >
+            {/* Mobile top app bar (below lg) */}
+            <MobileTopBar
+              businessControl={mobileBusinessSwitcherSlot}
+              pageTitle={currentSectionLabel}
+            />
 
-          {/* Desktop topbar (lg and above) */}
-          <div className="sticky top-0 z-30 hidden h-12 items-stretch bg-background lg:flex">
-            <header className="flex min-w-0 flex-1 items-center">
-              <div className="dashboard-topbar-inner min-w-0 flex-1">
-                <div className="flex min-h-9 min-w-0 items-center gap-2 md:gap-2.5">
-                  <Button
-                    asChild
-                    variant="ghost"
-                    size="icon-sm"
-                    className="hidden size-8 shrink-0 lg:inline-flex"
-                  >
-                    <Link href={businessHomePath} aria-label="Home">
-                      <HomeIcon className="size-4" />
-                    </Link>
-                  </Button>
-                  <span
-                    aria-hidden="true"
-                    className="hidden h-3.5 w-px shrink-0 self-center bg-border lg:block"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <Breadcrumb aria-label="Pages">
-                      {breadcrumbs.map((item, index) => {
-                        const isLast = index === breadcrumbs.length - 1;
+            {/* Desktop topbar (lg and above) */}
+            <div className="relative z-30 hidden h-12 shrink-0 items-stretch bg-transparent lg:flex">
+              <header className="flex min-w-0 flex-1 items-center">
+                <div className="dashboard-topbar-inner min-w-0 flex-1">
+                  <div className="flex min-h-9 min-w-0 items-center gap-2 md:gap-2.5">
+                    <Button
+                      asChild
+                      variant="ghost"
+                      size="icon-sm"
+                      className="hidden size-8 shrink-0 lg:inline-flex"
+                    >
+                      <Link href={businessHomePath} aria-label="Home">
+                        <HomeIcon className="size-4" />
+                      </Link>
+                    </Button>
+                    <span
+                      aria-hidden="true"
+                      className="hidden h-3.5 w-px shrink-0 self-center bg-border lg:block"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <Breadcrumb aria-label="Pages">
+                        {breadcrumbs.map((item, index) => {
+                          const isLast = index === breadcrumbs.length - 1;
 
-                        if (isLast || !item.href) {
+                          if (isLast || !item.href) {
+                            return (
+                              <BreadcrumbItem
+                                key={`${item.label}-${item.href ?? index}`}
+                                current
+                                className="text-sm font-normal text-foreground"
+                              >
+                                {item.label}
+                              </BreadcrumbItem>
+                            );
+                          }
+
                           return (
                             <BreadcrumbItem
                               key={`${item.label}-${item.href ?? index}`}
-                              current
-                              className="text-sm font-normal text-foreground"
+                              href={item.href}
+                              className="text-sm text-muted-foreground hover:bg-transparent hover:text-foreground"
                             >
                               {item.label}
                             </BreadcrumbItem>
                           );
-                        }
-
-                        return (
-                          <BreadcrumbItem
-                            key={`${item.label}-${item.href ?? index}`}
-                            href={item.href}
-                            className="text-sm text-muted-foreground hover:bg-transparent hover:text-foreground"
-                          >
-                            {item.label}
-                          </BreadcrumbItem>
-                        );
-                      })}
-                    </Breadcrumb>
+                        })}
+                      </Breadcrumb>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </header>
-          </div>
+              </header>
+            </div>
 
-          <div className="flex flex-1 flex-col pb-28 lg:pb-0">
-            <main className="dashboard-main">
-              <div className="dashboard-content dashboard-page px-1 sm:px-0">{children}</div>
-            </main>
-          </div>
+            <div
+              className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain pb-28 lg:pb-0"
+              data-shell-scroll
+              data-slot="dashboard-scroll-area"
+            >
+              <main className="dashboard-main">
+                <div className="dashboard-content dashboard-page px-1 sm:px-0">{children}</div>
+              </main>
+            </div>
 
-          {/* Mobile floating dock + fullscreen navs + global search.
-              Home always opens the main navigation, Settings opens the
-              settings navigation. */}
-          <MobileFloatingDock
-            navOpen={mainNavOpen}
-            settingsOpen={navOpen}
-            searchOpen={searchOpen}
-            onHomeClick={() => {
-              setSearchOpen(false);
-              setNavOpen(false);
-              setMainNavOpen((current) => !current);
-            }}
-            onSearchClick={() => {
-              setNavOpen(false);
-              setMainNavOpen(false);
-              setSearchOpen((current) => !current);
-            }}
-            onSettingsClick={() => {
-              setMainNavOpen(false);
-              setSearchOpen(false);
-              setNavOpen((current) => !current);
-            }}
-          />
-          <MobileFullscreenNav
-            open={mainNavOpen}
-            onOpenChange={setMainNavOpen}
-            businessSlug={businessSlug}
-            variant="main"
-            topSlot={businessSwitcherSlot}
-            bottomSlot={sidebarBottomSlot}
-          />
-          <MobileFullscreenNav
-            open={navOpen}
-            onOpenChange={setNavOpen}
-            businessSlug={businessSlug}
-            variant="settings"
-            groups={groups}
-            topSlot={businessSwitcherSlot}
-            bottomSlot={sidebarBottomSlot}
-          />
-          <MobileGlobalSearch
-            open={searchOpen}
-            onOpenChange={setSearchOpen}
-            businessSlug={businessSlug}
-          />
+            {/* Mobile floating dock + fullscreen navs + global search.
+                Home always opens the main navigation, Settings opens the
+                settings navigation. */}
+            <MobileFloatingDock
+              navOpen={mainNavOpen}
+              settingsOpen={navOpen}
+              searchOpen={searchOpen}
+              onHomeClick={() => {
+                setSearchOpen(false);
+                setNavOpen(false);
+                setMainNavOpen((current) => !current);
+              }}
+              onSearchClick={() => {
+                setNavOpen(false);
+                setMainNavOpen(false);
+                setSearchOpen((current) => !current);
+              }}
+              onSettingsClick={() => {
+                setMainNavOpen(false);
+                setSearchOpen(false);
+                setNavOpen((current) => !current);
+              }}
+            />
+            <MobileFullscreenNav
+              open={mainNavOpen}
+              onOpenChange={setMainNavOpen}
+              businessSlug={businessSlug}
+              variant="main"
+              topSlot={businessSwitcherSlot}
+              bottomSlot={sidebarBottomSlot}
+            />
+            <MobileFullscreenNav
+              open={navOpen}
+              onOpenChange={setNavOpen}
+              businessSlug={businessSlug}
+              variant="settings"
+              groups={groups}
+              topSlot={businessSwitcherSlot}
+              bottomSlot={sidebarBottomSlot}
+            />
+            <MobileGlobalSearch
+              open={searchOpen}
+              onOpenChange={setSearchOpen}
+              businessSlug={businessSlug}
+            />
+          </div>
         </div>
       </div>
     </SidebarProvider>
@@ -299,26 +313,26 @@ export function SettingsUserMenu({ user, businessSlug }: { user: SettingsUserDat
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
-              className="group/user-menu h-auto cursor-pointer justify-between rounded-xl border-2 border-transparent bg-sidebar-accent py-2 pr-3 pl-2.5 hover:border-sidebar-border hover:bg-sidebar-accent group-data-[collapsed=true]/sidebar:h-9 group-data-[collapsed=true]/sidebar:w-9 group-data-[collapsed=true]/sidebar:justify-center group-data-[collapsed=true]/sidebar:gap-0 group-data-[collapsed=true]/sidebar:rounded-full group-data-[collapsed=true]/sidebar:border-transparent group-data-[collapsed=true]/sidebar:bg-transparent group-data-[collapsed=true]/sidebar:p-0 data-[state=open]:border-sidebar-border data-[state=open]:bg-sidebar-accent"
+              className="group/user-menu h-auto cursor-pointer justify-between rounded-xl border-2 border-transparent bg-sidebar-accent py-2 pr-3 pl-2.5 shell-sidebar-motion hover:border-sidebar-border hover:bg-sidebar-accent group-data-[collapsed=true]/sidebar:h-9 group-data-[collapsed=true]/sidebar:w-9 group-data-[collapsed=true]/sidebar:justify-center group-data-[collapsed=true]/sidebar:gap-0 group-data-[collapsed=true]/sidebar:rounded-full group-data-[collapsed=true]/sidebar:border-transparent group-data-[collapsed=true]/sidebar:bg-transparent group-data-[collapsed=true]/sidebar:p-0 data-[state=open]:border-sidebar-border data-[state=open]:bg-sidebar-accent"
               size="lg"
               tooltip={displayName}
             >
-              <span className="flex min-w-0 flex-1 items-center gap-2">
-                <Avatar className="size-8 rounded-full border-0 bg-transparent">
-                  {user.avatarSrc ? (
-                    <AvatarImage
-                      alt={`${displayName} avatar`}
-                      src={user.avatarSrc}
-                      loading="eager"
-                      decoding="async"
-                      fetchPriority="high"
-                    />
-                  ) : null}
-                  <AvatarFallback className="border-0 bg-transparent text-foreground">
-                    {getInitials(displayName)}
-                  </AvatarFallback>
-                </Avatar>
-                <span className="flex min-w-0 flex-1 flex-col items-start justify-center group-data-[collapsed=true]/sidebar:hidden group-data-[collapsible=icon]:hidden">
+              <Avatar className="size-8 shrink-0 rounded-full border-0 bg-transparent">
+                {user.avatarSrc ? (
+                  <AvatarImage
+                    alt={`${displayName} avatar`}
+                    src={user.avatarSrc}
+                    loading="eager"
+                    decoding="async"
+                    fetchPriority="high"
+                  />
+                ) : null}
+                <AvatarFallback className="border-0 bg-transparent text-foreground">
+                  {getInitials(displayName)}
+                </AvatarFallback>
+              </Avatar>
+              <span className="flex min-w-0 max-w-full flex-1 items-center gap-2 overflow-hidden whitespace-nowrap opacity-100 transition-[max-width,opacity] shell-sidebar-motion group-data-[collapsed=true]/sidebar:max-w-0 group-data-[collapsed=true]/sidebar:opacity-0">
+                <span className="flex min-w-0 flex-1 flex-col items-start justify-center">
                   <span className="w-full truncate text-body-medium text-foreground">
                     {displayName}
                   </span>
@@ -326,9 +340,9 @@ export function SettingsUserMenu({ user, businessSlug }: { user: SettingsUserDat
                     {user.email}
                   </span>
                 </span>
-              </span>
-              <span className="flex size-4 shrink-0 items-center justify-center rounded-xs text-muted-foreground transition-colors group-data-[collapsed=true]/sidebar:hidden group-data-[collapsible=icon]:hidden group-data-[state=open]/user-menu:text-foreground">
-                <ChevronDownSmall className="size-4 transition-transform [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)] group-data-[state=open]/user-menu:rotate-180" />
+                <span className="flex size-4 shrink-0 items-center justify-center rounded-xs text-muted-foreground transition-colors group-data-[state=open]/user-menu:text-foreground">
+                  <ChevronDownSmall className="size-4 transition-transform [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)] group-data-[state=open]/user-menu:rotate-180" />
+                </span>
               </span>
             </SidebarMenuButton>
           </DropdownMenuTrigger>

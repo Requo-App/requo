@@ -44,7 +44,7 @@ export function AssistantSettingsTabs({
       }
       selectedKey={selected}
     >
-      <div className="sticky top-13 z-20 bg-muted lg:top-12">
+      <div className="sticky top-0 z-20 bg-muted">
         <TabList
           aria-label="Customer agent settings sections"
           className="justify-center"

@@ -1,101 +1,99 @@
-import { BrandMark } from "@/components/shared/brand-mark";
 import { DashboardPageSkeleton } from "@/components/shell/dashboard-page-skeleton";
 import { Skeleton } from "@/components/ui/skeleton";
 
 /**
  * Progressive shell skeleton for entering a business.
  *
- * Renders the structural sidebar and topbar frame immediately with real
- * chrome (brand mark, nav item shapes, separator lines) so users see the
- * app structure before the business context resolves. Only dynamic parts
- * (business name, avatar, plan badge, nav labels) are skeletonized.
+ * Renders the inset shell frame immediately — seamless sidebar rail, content
+ * card, and topbar — so users see the destination structure before the
+ * business context resolves. Only dynamic parts (business name, avatar, nav
+ * labels, page content) are skeletonized.
  */
 export default function BusinessSlugLoading() {
+  const navLabelWidths = ["w-16", "w-20", "w-14", "w-24", "w-16", "w-20", "w-14", "w-20"];
+
   return (
-    <div className="group/sidebar-wrapper flex min-h-svh w-full bg-background">
-      {/* Sidebar frame — structural chrome renders immediately */}
-      <div className="group peer hidden text-sidebar-foreground lg:block">
+    <div
+      className="flex h-svh min-w-0 flex-1 overflow-hidden bg-shell-frame"
+      data-shell-root
+    >
+      {/* Seamless desktop rail — same geometry as the real sidebar. */}
+      <aside
+        aria-hidden="true"
+        className="hidden h-full w-[14.5rem] shrink-0 flex-col bg-shell-frame p-2 lg:flex"
+      >
+        {/* Business switcher */}
+        <div className="flex w-full items-center gap-2 px-2 py-1.5">
+          <Skeleton className="size-8 shrink-0 rounded-lg" />
+          <Skeleton className="h-4 w-28 rounded-md" />
+          <Skeleton className="size-4 shrink-0 rounded-sm" />
+        </div>
+
+        {/* Quick search */}
+        <div className="mt-3 flex w-full items-center gap-2 rounded-full bg-sidebar-accent px-2 py-1.5">
+          <Skeleton className="size-5 shrink-0 rounded-full" />
+          <Skeleton className="h-4 w-14 rounded-md" />
+        </div>
+
+        {/* Navigation rows */}
+        <div className="mt-2 flex min-h-0 flex-1 flex-col gap-1 overflow-hidden py-2">
+          {navLabelWidths.map((width, index) => (
+            <div className="flex w-full items-center gap-2 px-2 py-1.5" key={index}>
+              <Skeleton className="size-[18px] shrink-0 rounded-sm" />
+              <Skeleton className={`h-4 rounded-md ${width}`} />
+            </div>
+          ))}
+        </div>
+
+        {/* Theme + user menu */}
+        <div className="flex w-full flex-col gap-3">
+          <Skeleton className="h-9 w-20 rounded-full" />
+          <div className="flex items-center gap-2 rounded-xl bg-sidebar-accent px-2 py-2">
+            <Skeleton className="size-8 shrink-0 rounded-full" />
+            <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+              <Skeleton className="h-3.5 w-24 rounded-md" />
+              <Skeleton className="h-3 w-32 rounded-md" />
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      {/* Inset content card — edge-to-edge below lg. */}
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col p-0 lg:p-2 lg:pl-0">
         <div
-          className="relative w-(--sidebar-width) bg-transparent transition-[width]"
-          data-slot="sidebar-gap"
-        />
-        <div
-          className="fixed inset-y-0 left-0 z-10 hidden h-svh w-(--sidebar-width) border-r border-border/70 lg:flex"
-          data-slot="sidebar-container"
+          className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-shell-card lg:rounded-xl lg:border lg:border-border lg:shadow-sm"
+          data-slot="sidebar-inset"
         >
-          <div className="flex size-full flex-col bg-sidebar">
-            {/* Real brand mark renders immediately */}
-            <div className="flex h-12 items-center justify-between border-b border-sidebar-border px-3.5">
-              <BrandMark collapseLabel className="min-w-0 px-2 py-1.5" subtitle={null} />
+          {/* Mobile top app bar */}
+          <div className="flex h-13 shrink-0 items-center gap-2 border-b border-border/70 bg-background px-3 lg:hidden">
+            <Skeleton className="size-8 shrink-0 rounded-lg" />
+            <Skeleton className="h-4 w-32 rounded-md" />
+            <div className="flex-1" />
+            <Skeleton className="size-9 shrink-0 rounded-full" />
+          </div>
+
+          {/* Desktop topbar */}
+          <header className="hidden h-12 shrink-0 items-center px-4 lg:flex">
+            <div className="flex w-full min-w-0 items-center justify-between gap-3">
+              <Skeleton className="h-4 w-44 rounded-md" />
+              <Skeleton className="size-8 shrink-0 rounded-md" />
             </div>
-            {/* Business switcher skeleton */}
-            <div className="px-3 py-3">
-              <div className="w-full rounded-xl border border-sidebar-border/90 bg-background/92 p-3.5">
-                <div className="flex items-start gap-3.5">
-                  <Skeleton className="size-14 shrink-0 rounded-xl" />
-                  <div className="min-w-0 flex-1 space-y-2">
-                    <Skeleton className="h-3 w-14 rounded-md" />
-                    <Skeleton className="h-4 w-28 rounded-md" />
-                    <Skeleton className="h-3.5 w-20 rounded-md" />
-                  </div>
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <Skeleton className="h-5 w-12 rounded-full" />
-                  <Skeleton className="h-5 w-10 rounded-full" />
-                </div>
+          </header>
+
+          {/* Page content skeleton — same inner scroll container as the shell. */}
+          <div
+            className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain pb-28 lg:pb-0"
+            data-shell-scroll
+            data-slot="dashboard-scroll-area"
+          >
+            <main className="dashboard-main">
+              <div className="dashboard-content">
+                <DashboardPageSkeleton />
               </div>
-            </div>
-            {/* Navigation items skeleton */}
-            <div className="flex flex-1 flex-col gap-1 px-3 py-3">
-              {Array.from({ length: 6 }).map((_, index) => (
-                <Skeleton className="h-8 w-full rounded-md" key={index} />
-              ))}
-            </div>
-            {/* User menu skeleton */}
-            <div className="border-t border-sidebar-border px-3 py-3">
-              <div className="flex items-center gap-3 rounded-lg px-2 py-2">
-                <Skeleton className="size-9 rounded-lg" />
-                <div className="min-w-0 flex-1 space-y-1.5">
-                  <Skeleton className="h-3.5 w-24 rounded-md" />
-                  <Skeleton className="h-3 w-36 rounded-md" />
-                </div>
-              </div>
-            </div>
+            </main>
           </div>
         </div>
       </div>
-
-      {/* Main content area */}
-      <main className="relative flex min-w-0 flex-1 flex-col bg-transparent">
-        {/* Topbar — structural frame with minimal skeletons */}
-        <header className="dashboard-topbar flex h-12 items-center">
-          <div className="dashboard-topbar-inner">
-            <div className="flex min-h-8 min-w-0 flex-wrap items-center gap-3 md:flex-nowrap">
-              <Skeleton className="size-8 shrink-0 rounded-lg" />
-              <span
-                aria-hidden="true"
-                className="hidden h-4 w-px shrink-0 self-center bg-border md:block"
-              />
-              <div className="min-w-0 flex-1">
-                <Skeleton className="h-4 w-44 rounded-md" />
-              </div>
-              <div className="flex items-center gap-2">
-                <Skeleton className="hidden h-8 w-64 rounded-lg md:block lg:w-80" />
-                <Skeleton className="size-8 rounded-lg" />
-              </div>
-            </div>
-          </div>
-        </header>
-
-        {/* Page content skeleton */}
-        <div className="flex flex-1 flex-col">
-          <div className="dashboard-main">
-            <div className="dashboard-content">
-              <DashboardPageSkeleton />
-            </div>
-          </div>
-        </div>
-      </main>
     </div>
   );
 }

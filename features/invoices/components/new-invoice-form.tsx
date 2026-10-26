@@ -521,7 +521,7 @@ export function NewInvoiceForm({
         totalInCents={totalInCents}
         notes={notes.trim() ? notes : null}
         paymentTerms={paymentTerms.trim() ? paymentTerms : null}
-        className="xl:sticky xl:top-[5.5rem] xl:self-start"
+        className="xl:sticky xl:top-6 xl:self-start"
       />
     </form>
   );
