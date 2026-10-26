@@ -10,6 +10,7 @@ import {
 } from "react";
 
 import { MarketingDashboardPreview } from "@/components/marketing/marketing-dashboard-preview";
+import { useIsDarkTheme } from "@/hooks/use-is-dark-theme";
 import { usePageVisible } from "@/hooks/use-page-visible";
 import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
 import { cn } from "@/lib/utils";
@@ -29,7 +30,8 @@ const MOUNT_ROOT_MARGIN = "320px";
  *
  * Playback model:
  *
- * - The clip autoplays once the stage is in view on a capable client.
+ * - The clip autoplays once the stage is in view on a capable light-theme
+ *   client.
  * - It pauses by itself when the stage leaves the viewport or the tab is
  *   hidden, and picks back up when either returns — unless the visitor paused
  *   it by hand, which always wins.
@@ -45,6 +47,10 @@ const MOUNT_ROOT_MARGIN = "320px";
  *   with static server snapshots, so the server render, the hydration render,
  *   and the first paint all agree on the static stage. Reduced motion, no
  *   JavaScript, and unsupported codecs keep it that way.
+ * - The clip was recorded in the light theme. Dark theme keeps the
+ *   theme-aware static stage instead of dropping a bright recording onto a
+ *   dark page; once a dark recording exists, this gate can open without
+ *   changing the frame or playback behavior.
  * - The `<video>` element and its control mount only once the stage comes
  *   near the viewport, so layouts and scroll positions that never bring the
  *   art close do not pay for the clip at all.
@@ -56,8 +62,9 @@ export function DashboardWalkthroughVideo() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const playable = useWalkthroughPlayable();
   const prefersReducedMotion = usePrefersReducedMotion();
+  const isDarkTheme = useIsDarkTheme();
   const pageVisible = usePageVisible();
-  const motionAllowed = playable && !prefersReducedMotion;
+  const motionAllowed = playable && !prefersReducedMotion && !isDarkTheme;
   const [nearViewport, setNearViewport] = useState(false);
   const [inView, setInView] = useState(false);
   const [canPlay, setCanPlay] = useState(false);

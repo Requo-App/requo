@@ -57,6 +57,7 @@ function MockRows({ tab }: { tab: SolutionDemoTab }) {
 function InquiryMock({ tab }: { tab: SolutionDemoTab }) {
   return (
     <MarketingMockFrame
+      chrome="none"
       action={<InquiryStatusBadge status="new" />}
       title="New inquiry"
     >
@@ -80,6 +81,7 @@ function InquiryMock({ tab }: { tab: SolutionDemoTab }) {
 function QuoteMock({ tab }: { tab: SolutionDemoTab }) {
   return (
     <MarketingMockFrame
+      chrome="none"
       action={<QuoteStatusBadge status="sent" />}
       title="Quote"
     >
@@ -115,6 +117,7 @@ function QuoteMock({ tab }: { tab: SolutionDemoTab }) {
 function FollowUpMock({ tab }: { tab: SolutionDemoTab }) {
   return (
     <MarketingMockFrame
+      chrome="none"
       action={<FollowUpDueBadge bucket="today" />}
       title="Follow-up"
     >
@@ -139,6 +142,7 @@ function FollowUpMock({ tab }: { tab: SolutionDemoTab }) {
 function ApprovalMock({ tab }: { tab: SolutionDemoTab }) {
   return (
     <MarketingMockFrame
+      chrome="none"
       action={<QuoteStatusBadge status="accepted" />}
       title="Approval"
     >
@@ -176,6 +180,7 @@ function PaidMock({ tab, total }: { tab: SolutionDemoTab; total: string }) {
   const payment = tab.fields.find((field) => field.label === "Payment");
   return (
     <MarketingMockFrame
+      chrome="none"
       action={<InvoiceStatusBadge status="paid" />}
       title="Invoice"
     >
