@@ -138,8 +138,11 @@ Notes:
   the bell falls back to polling).
 - Rebuild the app image after dependency changes (`docker compose up
   --build`); code edits hot-reload without a rebuild.
-- Bind mounts use polling for hot reload (`WATCHPACK_POLLING` is set in
-  `docker-compose.yml`).
+- Native Linux uses the normal file watchers and needs no polling. On Docker
+  Desktop, bind mounts do not forward filesystem events; set
+  `NEXT_DEV_WATCH_POLL_MS=1000` in `.env.local` to enable Turbopack polling
+  (`WATCHPACK_POLLING` only affects webpack). Leave it unset on native Linux,
+  where polling Turbopack's own `.next` writes can cause a reload loop.
 - The default `npm run dev:docker` leaves ngrok out. If you already run ngrok
   on the host, stop one of the two before using the reserved domain or port
   `4040`.

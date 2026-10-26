@@ -2,6 +2,15 @@ import withBundleAnalyzer from "@next/bundle-analyzer";
 import type { NextConfig } from "next";
 
 const isProduction = process.env.NODE_ENV === "production";
+// Docker Desktop bind mounts do not forward filesystem events from the host
+// into the container, so Turbopack (Next 16's default bundler) never sees
+// edits. `WATCHPACK_POLLING` only affects webpack. Polling is opt-in because
+// it costs CPU/I/O and adds latency wherever native watchers work.
+const devWatchPollMs = Number(process.env.NEXT_DEV_WATCH_POLL_MS);
+const watchOptions =
+  !isProduction && Number.isFinite(devWatchPollMs) && devWatchPollMs > 0
+    ? { pollIntervalMs: devWatchPollMs }
+    : undefined;
 // The instant-navigation testing API is for dedicated end-to-end test builds
 // only. `next dev` exposes it automatically; a production build must opt in
 // explicitly. Never set this for a user-facing deployment.
@@ -97,6 +106,9 @@ const nextConfig: NextConfig = {
     /facebookexternalhit|Facebot|LinkedInBot|Twitterbot|Pinterest|Slackbot|Discordbot|vkShare|redditbot|Applebot|WhatsApp|TelegramBot|Googlebot|bingbot|Embedly|ChatGPT-User|GPTBot|OAI-SearchBot|anthropic-ai|ClaudeBot|Claude-Web|PerplexityBot|Bytespider|CCBot/i,
   // Allow both localhost and 127.0.0.1 in development to prevent cross-origin dev resource blocks in E2E tests
   allowedDevOrigins: ["127.0.0.1", "localhost"],
+  // Turbopack-compatible watcher polling for bind mounts that drop inotify
+  // events (see `devWatchPollMs` above). Unset everywhere else.
+  watchOptions,
   cacheComponents: true,
   // Partial Prefetching: each visible <Link> prefetches its destination's
   // App Shell (static + cached content) instead of a full per-link render.
