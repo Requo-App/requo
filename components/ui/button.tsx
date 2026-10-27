@@ -5,18 +5,18 @@ import { Slot } from "radix-ui"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "group/button inline-flex shrink-0 cursor-pointer items-center justify-center rounded-md border text-sm font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow,transform] duration-150 outline-none select-none focus-visible:border-ring focus-visible:ring-4 focus-visible:ring-ring/15 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-4 aria-invalid:ring-destructive/15 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/30 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "group/button inline-flex shrink-0 cursor-pointer items-center justify-center rounded-md border text-sm font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow,transform] duration-150 outline-none select-none focus-visible:border-ring/50 focus-visible:ring-4 focus-visible:ring-ring/40 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-4 aria-invalid:ring-destructive/15 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/30 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
         default:
           "button-primary-fixed enabled:hover:-translate-y-px",
         outline:
-          "control-surface border-border/85 text-foreground enabled:hover:border-border enabled:hover:bg-[var(--control-bg-strong)] enabled:hover:text-accent-foreground enabled:hover:shadow-[var(--control-shadow-hover)] aria-expanded:bg-[var(--control-accent-bg)] aria-expanded:shadow-[var(--control-shadow-hover)]",
+          "control-surface text-foreground enabled:hover:border-[var(--control-border-hover)] enabled:hover:bg-[var(--control-bg-hover)] enabled:hover:text-accent-foreground enabled:hover:shadow-[var(--control-shadow-hover)] aria-expanded:border-[var(--control-border-hover)] aria-expanded:bg-[var(--control-bg-hover)] aria-expanded:shadow-[var(--control-shadow-hover)] disabled:border-[var(--control-disabled-border)] disabled:bg-transparent disabled:text-[var(--control-disabled-fg)] disabled:shadow-none disabled:opacity-100",
         secondary:
-          "control-surface-secondary border-border/55 text-secondary-foreground enabled:hover:bg-[var(--control-secondary-bg-strong)] enabled:hover:shadow-[var(--control-shadow-hover)] aria-expanded:bg-[var(--control-secondary-bg-strong)] aria-expanded:shadow-[var(--control-shadow-hover)]",
+          "control-surface-secondary text-secondary-foreground enabled:hover:border-[var(--control-border-hover)] enabled:hover:bg-[var(--control-secondary-bg-strong)] enabled:hover:shadow-[var(--control-shadow-hover)] aria-expanded:border-[var(--control-border-hover)] aria-expanded:bg-[var(--control-secondary-bg-strong)] aria-expanded:shadow-[var(--control-shadow-hover)] disabled:border-[var(--control-disabled-border)] disabled:bg-transparent disabled:text-[var(--control-disabled-fg)] disabled:shadow-none disabled:opacity-100",
         ghost:
-          "control-ghost-surface text-muted-foreground enabled:hover:border-border/60 enabled:hover:bg-[var(--control-accent-bg)] enabled:hover:text-foreground enabled:hover:shadow-[var(--control-shadow)] aria-expanded:border-border/60 aria-expanded:bg-[var(--control-accent-bg)] aria-expanded:text-foreground aria-expanded:shadow-[var(--control-shadow)]",
+          "control-ghost-surface text-muted-foreground enabled:hover:border-transparent enabled:hover:bg-[var(--control-accent-bg)] enabled:hover:text-foreground aria-expanded:border-transparent aria-expanded:bg-[var(--control-accent-bg)] aria-expanded:text-foreground disabled:text-[var(--control-disabled-fg)] disabled:opacity-100",
         destructive:
           "button-destructive-fixed enabled:hover:-translate-y-px focus-visible:border-destructive focus-visible:ring-destructive/20",
         link: "text-primary-ink underline-offset-4 hover:underline",

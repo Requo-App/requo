@@ -164,7 +164,7 @@ export function LayoutSection({
           </div>
 
           <div className="mt-4 soft-panel flex items-center gap-4 shadow-none">
-            <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-border/70 bg-background/92 shadow-[inset_0_1px_0_var(--surface-highlight)]">
+            <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-border/70 bg-card shadow-[inset_0_1px_0_var(--surface-highlight)]">
               {logoPreviewUrl ? (
                 <Image
                   src={logoPreviewUrl}
@@ -204,7 +204,7 @@ function TemplateMiniPreview({
     return (
       <div className="grid flex-1 gap-2">
         <div data-padding="none" className="soft-panel h-8 bg-secondary/70 shadow-none" />
-        <div data-padding="none" className="soft-panel h-20 bg-background/95 shadow-none" />
+        <div data-padding="none" className="soft-panel h-20 bg-card shadow-none" />
       </div>
     );
   }
@@ -212,12 +212,12 @@ function TemplateMiniPreview({
   if (template === "showcase") {
     return (
       <div className="grid flex-1 gap-2 md:grid-cols-[0.8fr_1.2fr]">
-        <div data-padding="none" className="soft-panel h-full min-h-20 bg-background/95 shadow-none" />
+        <div data-padding="none" className="soft-panel h-full min-h-20 bg-card shadow-none" />
         <div className="grid gap-2">
           <div data-padding="none" className="soft-panel h-10 bg-secondary/70 shadow-none" />
           <div className="grid gap-2 md:grid-cols-2">
-            <div data-padding="none" className="soft-panel h-9 bg-background/95 shadow-none" />
-            <div data-padding="none" className="soft-panel h-9 bg-background/95 shadow-none" />
+            <div data-padding="none" className="soft-panel h-9 bg-card shadow-none" />
+            <div data-padding="none" className="soft-panel h-9 bg-card shadow-none" />
           </div>
         </div>
       </div>
@@ -228,10 +228,10 @@ function TemplateMiniPreview({
     <div className="grid flex-1 gap-2 md:grid-cols-[1.15fr_0.85fr]">
       <div className="grid gap-2">
         <div data-padding="none" className="soft-panel h-7 bg-secondary/70 shadow-none" />
-        <div data-padding="none" className="soft-panel h-10 bg-background/95 shadow-none" />
-        <div data-padding="none" className="soft-panel h-10 bg-background/95 shadow-none" />
+        <div data-padding="none" className="soft-panel h-10 bg-card shadow-none" />
+        <div data-padding="none" className="soft-panel h-10 bg-card shadow-none" />
       </div>
-      <div data-padding="none" className="soft-panel h-full min-h-20 bg-background/95 shadow-none" />
+      <div data-padding="none" className="soft-panel h-full min-h-20 bg-card shadow-none" />
     </div>
   );
 }

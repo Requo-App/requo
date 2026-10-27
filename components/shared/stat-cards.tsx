@@ -31,9 +31,9 @@ import { cn } from "@/lib/utils";
  * KPI stat cards in two looks, rendered on Requo surfaces and type utilities:
  *
  *   plain   icon tile, label, value, delta chip — the compact dashboard row
- *   footer  tinted gradient icon tile beside the label (plus an optional
- *           info tooltip), a display-size value, and a muted footer band
- *           carrying the comparison caption and a delta pill
+ *   footer  icon tile beside the label (plus an optional info tooltip), a
+ *           display-size value, and a footer row carrying the comparison
+ *           caption and a delta pill, separated by a hairline
  */
 
 type IconComponent = ComponentType<{
@@ -161,7 +161,7 @@ function StatHint({ label, hint }: { label: string; hint: string }) {
           <button
             type="button"
             aria-label={`About ${label}`}
-            className="flex shrink-0 cursor-pointer items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex shrink-0 cursor-pointer items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40"
           >
             <RiInformationFill className="size-4" aria-hidden />
           </button>
@@ -200,9 +200,9 @@ function PlainStatCard({ stat }: { stat: Stat }) {
 
 function FooterStatCard({ stat }: { stat: Stat }) {
   return (
-    <section className="flex min-w-0 flex-col rounded-2xl border border-border/60 bg-card p-2">
+    <section className="flex min-w-0 flex-col rounded-2xl border border-border/60 bg-card">
       {/* Icon tile + optional info glyph, both hanging from the same top inset */}
-      <div className="flex w-full items-start justify-between gap-2.5 p-2">
+      <div className="flex w-full items-start justify-between gap-2.5 p-4">
         <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted text-foreground">
           <stat.icon className="size-5 shrink-0" aria-hidden />
         </span>
@@ -210,15 +210,15 @@ function FooterStatCard({ stat }: { stat: Stat }) {
       </div>
 
       {/* Label sits directly over the number, as on the plain cards */}
-      <div className="flex flex-col gap-0.5 px-2 pt-2.5 pb-3.5">
+      <div className="flex flex-col gap-0.5 px-4 pb-4">
         <p className="truncate text-sm font-medium text-muted-foreground">{stat.label}</p>
         <p className="whitespace-nowrap text-2xl font-semibold tracking-tight text-foreground tabular-nums">
           {stat.value}
         </p>
       </div>
 
-      {/* Footer band: comparison caption + delta pill on an inner tile */}
-      <div className="mt-auto flex w-full items-center justify-between gap-2 rounded-xl bg-muted py-1.5 pr-1.5 pl-2.5">
+      {/* Footer shares the card fill; the top border is the divider. */}
+      <div className="mt-auto flex w-full items-center justify-between gap-2 border-t border-[var(--surface-stroke)] px-4 py-2.5">
         <p className="truncate text-xs text-muted-foreground">
           {stat.caption ?? "From last month"}
         </p>

@@ -83,7 +83,7 @@ export function DisclosureSection({
             </p>
           ) : null}
         </div>
-        <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-full border border-border/70 bg-background/80 text-muted-foreground transition-colors group-hover:border-border">
+        <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-full border border-border/70 bg-muted text-muted-foreground transition-colors group-hover:border-border">
           <ChevronDown
             className={cn(
               "size-4 transition-transform duration-200",
@@ -145,7 +145,7 @@ export function OptionTile({
             <span className="sr-only">{selectedLabel}</span>
             <span
               aria-hidden="true"
-              className="inline-flex size-5 shrink-0 items-center justify-center rounded-full border border-primary/25 bg-background/90 text-primary-ink"
+              className="inline-flex size-5 shrink-0 items-center justify-center rounded-full border border-primary/25 bg-card text-primary-ink"
             >
               <Check className="size-3" />
             </span>

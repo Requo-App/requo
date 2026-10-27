@@ -264,7 +264,7 @@ export function NotificationsList({
                 >
                   <div
                     className={cn(
-                      "mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-background text-muted-foreground",
+                      "mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-muted text-muted-foreground",
                       item.unread && "border-primary/20 bg-primary/10 text-primary-ink",
                     )}
                   >

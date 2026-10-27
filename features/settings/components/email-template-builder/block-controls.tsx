@@ -225,7 +225,7 @@ export function BlockControls({
           <span className="meta-label">Button</span>
           <input
             aria-label="Pick button color"
-            className="h-7 w-8 shrink-0 cursor-pointer rounded-md border border-input bg-background"
+            className="h-7 w-8 shrink-0 cursor-pointer rounded-md border border-[var(--control-border)] bg-card"
             disabled={disabled}
             onChange={(event) => onUpdateStyle(block.id, "buttonColor", event.currentTarget.value)}
             type="color"
@@ -250,7 +250,7 @@ export function BlockControls({
           <span className="meta-label">Text</span>
           <input
             aria-label="Pick button text color"
-            className="h-7 w-8 shrink-0 cursor-pointer rounded-md border border-input bg-background"
+            className="h-7 w-8 shrink-0 cursor-pointer rounded-md border border-[var(--control-border)] bg-card"
             disabled={disabled}
             onChange={(event) =>
               onUpdateStyle(block.id, "buttonTextColor", event.currentTarget.value)

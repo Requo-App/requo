@@ -272,7 +272,7 @@ function BusinessBrandBadge({
   return (
     <div
       className={cn(
-        "flex shrink-0 items-center justify-center overflow-hidden border border-border/70 bg-background/92 shadow-[inset_0_1px_0_var(--surface-highlight)]",
+        "flex shrink-0 items-center justify-center overflow-hidden border border-border/70 bg-card shadow-[inset_0_1px_0_var(--surface-highlight)]",
         sizeClassName,
       )}
     >
@@ -375,7 +375,7 @@ function InquirySupportCards({
           <Card
             key={card.id}
             size="sm"
-            className="w-full bg-background/94"
+            className="w-full"
           >
             <CardHeader className="px-3.5 py-3 sm:px-5 sm:py-4">
               <div className="flex items-center gap-3 sm:gap-3.5">
@@ -623,7 +623,7 @@ function BusinessContactLink({
 
   return (
     <a
-      className="rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring/55 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      className="rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       href={href}
       rel={external ? "noreferrer" : undefined}
       target={external ? "_blank" : undefined}

@@ -412,7 +412,7 @@ export function AnalyticsReportsSheet({
                   <Label htmlFor={`${fieldId}-goal-metric`}>Metric</Label>
                   <select
                     id={`${fieldId}-goal-metric`}
-                    className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-4 focus-visible:ring-ring/15"
+                    className="control-surface h-9 w-full rounded-md border px-3 text-sm outline-none focus-visible:border-ring/60 focus-visible:ring-4 focus-visible:ring-ring/40"
                     value={goalMetric}
                     onChange={(event) => setGoalMetric(event.target.value)}
                   >
@@ -625,7 +625,7 @@ export function AnalyticsReportsSheet({
                   </Label>
                   <select
                     id={`${fieldId}-report-schedule`}
-                    className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-4 focus-visible:ring-ring/15"
+                    className="control-surface h-9 w-full rounded-md border px-3 text-sm outline-none focus-visible:border-ring/60 focus-visible:ring-4 focus-visible:ring-ring/40"
                     value={schedule}
                     onChange={(event) =>
                       setSchedule(event.target.value as ReportSchedule)

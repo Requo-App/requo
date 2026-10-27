@@ -452,7 +452,7 @@ export function SendQuoteDialog({
                   />
                   {previewData.showWatermark ? (
                     <div className="relative flex justify-end px-4 py-3">
-                      <div className="flex items-center gap-2 rounded-full border border-border/70 bg-background/90 px-3 py-1.5 text-xs font-semibold text-foreground">
+                      <div className="flex items-center gap-2 rounded-full border border-border/70 bg-muted px-3 py-1.5 text-xs font-semibold text-foreground">
                         Made with Requo
                       </div>
                     </div>
@@ -555,7 +555,7 @@ export function SendQuoteDialog({
                 </div>
                 <textarea
                   aria-label="Message"
-                  className="w-full resize-none rounded-lg border border-input bg-muted/30 px-3.5 py-3 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="control-surface w-full resize-none rounded-lg border px-3.5 py-3 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground outline-none focus-visible:border-ring/60 focus-visible:ring-4 focus-visible:ring-ring/40"
                   onChange={(e) => setEditedMessage(e.target.value)}
                   rows={3}
                   value={editedMessage}
@@ -629,7 +629,7 @@ export function SendQuoteDialog({
                       Send a reminder email after{" "}
                       <select
                         aria-label="Auto follow-up delay"
-                        className="inline-block rounded border border-input bg-background px-1.5 py-0.5 text-xs"
+                        className="inline-block rounded border border-border bg-muted px-1.5 py-0.5 text-xs"
                         onChange={(e) => setAutoFollowUpDelay(Number(e.target.value))}
                         value={autoFollowUpDelay}
                       >
@@ -642,7 +642,7 @@ export function SendQuoteDialog({
                       {" "}with no reply, up to{" "}
                       <select
                         aria-label="Auto follow-up maximum attempts"
-                        className="inline-block rounded border border-input bg-background px-1.5 py-0.5 text-xs"
+                        className="inline-block rounded border border-border bg-muted px-1.5 py-0.5 text-xs"
                         onChange={(e) => setAutoFollowUpMax(Number(e.target.value))}
                         value={autoFollowUpMax}
                       >

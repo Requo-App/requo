@@ -541,7 +541,7 @@ function QuotePreviewSkeleton({ className }: { className?: string }) {
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-xl border border-border/75 bg-background/92">
+        <div className="overflow-hidden rounded-xl border border-border/75 bg-[var(--surface-inset-bg)]">
           <div className="grid grid-cols-[minmax(0,1fr)_4rem_7rem_7rem] gap-0 border-b border-border/80 bg-muted/35 px-4 py-3">
             <Skeleton className="h-4 w-16 rounded-md" />
             <Skeleton className="mx-auto h-4 w-8 rounded-md" />

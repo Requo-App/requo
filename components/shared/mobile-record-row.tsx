@@ -48,7 +48,7 @@ export function MobileRecordRow({
     <div
       ref={itemRef}
       className={cn(
-        "motion-list-item relative flex items-stretch rounded-xl border border-border/80 bg-background shadow-xs transition-colors hover:border-border hover:bg-accent/20 active:bg-accent/30",
+        "motion-list-item relative flex items-stretch rounded-xl border border-border/80 bg-card transition-colors hover:border-border hover:bg-accent/20 active:bg-accent/30",
         isSelected && "border-primary/40 bg-primary/5",
         className,
       )}

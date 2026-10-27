@@ -488,7 +488,7 @@ function FollowUpCard({
       tabIndex={0}
       onClick={() => onSelect(followUp)}
       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelect(followUp); } }}
-      className="motion-list-item relative flex w-full cursor-pointer flex-col gap-2 rounded-xl border bg-background p-3.5 text-left shadow-sm transition-shadow hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+      className="motion-list-item surface-card relative flex w-full cursor-pointer flex-col gap-2 rounded-xl p-3.5 text-left transition-colors hover:border-[var(--control-border-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring/40"
       data-motion-state={motionState}
     >
       <div className="flex items-center justify-between gap-2">
@@ -536,7 +536,7 @@ function AutoSequenceCard({
   businessSlug: string;
 }) {
   return (
-    <div className="flex w-full flex-col gap-2 rounded-xl border border-dashed bg-background p-3.5 text-left">
+    <div className="flex w-full flex-col gap-2 rounded-xl border border-dashed border-border/80 bg-card p-3.5 text-left">
       <div className="flex items-center justify-between gap-2">
         <span className="truncate text-sm font-medium leading-tight">
           {item.customerName}

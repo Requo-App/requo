@@ -540,7 +540,7 @@ function PrefixedContactHandleInput({
   return (
     <div
       className={cn(
-        "control-surface flex h-10 w-full min-w-0 overflow-hidden rounded-lg border border-input/95 transition-[border-color,background-color,box-shadow] focus-within:border-ring focus-within:bg-[var(--control-bg-strong)] focus-within:ring-4 focus-within:ring-ring/15",
+        "control-surface flex h-10 w-full min-w-0 overflow-hidden rounded-lg border transition-[border-color,background-color,box-shadow] focus-within:border-ring/60 focus-within:bg-[var(--control-bg-hover)] focus-within:ring-4 focus-within:ring-ring/40",
         ariaInvalid && "border-destructive ring-4 ring-destructive/10",
         disabled && "pointer-events-none bg-muted/70 opacity-50 shadow-none",
       )}

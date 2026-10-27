@@ -451,7 +451,7 @@ export function BusinessAssistantStaticFallback() {
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <div className="flex h-9 items-center justify-between gap-2 rounded-md border border-input/95 px-3 sm:h-8">
+          <div className="control-surface flex h-9 items-center justify-between gap-2 rounded-md border px-3 sm:h-8">
             <Skeleton className="h-3 w-40 rounded-md" />
             <Skeleton className="size-7 shrink-0 rounded-md" />
           </div>
@@ -580,7 +580,7 @@ export function SettingsCollectionBodySkeleton() {
       </div>
       <CardSkeleton>
         <TitleBlock titleWidth="w-32" descriptionWidth="w-44" />
-        <div className="overflow-hidden rounded-xl border border-border/70 bg-background/50 shadow-sm">
+        <div className="overflow-hidden rounded-xl border border-border/70 bg-card">
           {Array.from({ length: 3 }).map((_, index) => (
             <div
               className={cn(index > 0 && "border-t border-border/70")}

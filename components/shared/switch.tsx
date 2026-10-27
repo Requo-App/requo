@@ -88,7 +88,7 @@ export function SwitchTrack({
         s.trackRadius[shape],
         state.isSelected ? `bg-primary ${s.onShadow}` : "bg-muted",
         state.isDisabled ? "opacity-50" : "",
-        state.isFocusVisible ? "ring-2 ring-ring ring-offset-2" : "",
+        state.isFocusVisible ? "ring-2 ring-ring/40" : "",
       ]
         .filter(Boolean)
         .join(" ")}

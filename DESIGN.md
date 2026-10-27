@@ -19,26 +19,28 @@ Use semantic tokens, not raw color classes, for all product UI.
 The palette is true neutral in both themes: every opaque neutral satisfies
 `R = G` and `|B - R| <= 6`, so no surface picks up a green, teal, olive,
 slate-blue, or warm cast. Dark is Apple-style charcoal, not black: large
-surfaces stay inside `#161618`–`#2C2C2E`, and no surface is pure black or
+surfaces stay inside `#161618`–`#343436`, and no surface is pure black or
 white. The same elevation logic applies in both themes — the shell frame and
 sidebar sit back, the main panel is raised, cards sit above the panel, and
-popovers sit on top.
+popovers sit on top. Dark elevation is `sidebar < page < card <
+popover/dialog`; a control always resolves one step above the surface it sits
+on.
 
 | Token | Role | Light | Dark |
 | --- | --- | --- | --- |
 | `background` | App background | `#ffffff` | `#1c1c1e` |
 | `foreground` | Primary text | `#1d1d1f` | `#f5f5f7` |
-| `card` | Raised card surface | `#ffffff` | `#242426` |
-| `popover` | Popover/overlay surface | `#ffffff` | `#2c2c2e` |
+| `card` | Raised card surface | `#ffffff` | `#262628` |
+| `popover` | Popover/overlay surface | `#ffffff` | `#343436` |
 | `primary` | Primary action fill and emphasis | `#008060` | `#008060` |
 | `primary-foreground` | Text on primary fills | `#f4fffb` | `#f4fffb` |
 | `secondary` | Subtle surface/action | `#f5f5f7` | `#2c2c2e` |
 | `muted` | Muted surface | `#f5f5f7` | `#2c2c2e` |
 | `muted-foreground` | Supporting text | `#6e6e73` | `#a1a1a6` |
-| `accent` | Hover/selected accent surface | `rgb(0 0 0 / 0.06)` | `rgb(255 255 255 / 0.08)` |
+| `accent` | Hover/selected accent surface | `rgb(0 0 0 / 0.03)` | `rgb(255 255 255 / 0.05)` |
 | `destructive` | Error and destructive action fill | `#c9372c` | `#c9372c` |
-| `border` | Borders and dividers | `#e5e5ea` | `rgb(255 255 255 / 0.12)` |
-| `input` | Control border base | `#d1d1d6` | `rgb(255 255 255 / 0.16)` |
+| `border` | Borders and dividers | `#e5e5ea` | `rgb(255 255 255 / 0.08)` |
+| `input` | Control border base | `#d1d1d6` | `rgb(255 255 255 / 0.10)` |
 | `ring` | Focus ring | `#1b9b79` | `#1b9b79` |
 | `sidebar` | Sidebar/frame surface | `#f5f5f7` | `#161618` |
 | `sidebar-accent` | Sidebar hover fill | `rgb(0 0 0 / 0.06)` | `rgb(255 255 255 / 0.08)` |
@@ -72,6 +74,50 @@ Extended token groups:
 - `sidebar-*`: sidebar background, text, border, accent, and ring tokens.
 - `radius-*`: all resolve to the single shared `--radius` (8px); use `rounded-lg` / `rounded-xl`, never hard-coded radii.
 - `motion-*`: shared durations, easing, and lift distance for subtle motion.
+
+### Surfaces and Controls
+
+One card is one fill. Header, body, and footer are separated by 1px
+dividers, never by different fills, gradients, or shadows. Card footers are
+transparent over the card fill. Nested surfaces derive from the card they sit
+in — never from `--background` — and carry no gradient. In dark mode the inset
+panel is black at 10% over the card, so it stays lighter than the page; in
+light mode it is flat `#f8f8fa`. Row hover and selected states are black at 3%
+in light and white at 5% in dark.
+
+| Token | Role | Light | Dark |
+| --- | --- | --- | --- |
+| `surface-elevated-bg` | Raised card fill | `#ffffff` | `#262628` |
+| `surface-inset-bg` | Inset panel inside a card | `#f8f8fa` | `#222224` |
+| `surface-stroke` | Card and divider hairline | `#e5e5ea` | `rgb(255 255 255 / 0.08)` |
+| `surface-footer-bg` | Card footer fill | `transparent` | `transparent` |
+| `surface-card-shadow` | Card elevation | `0 1px 2px rgb(0 0 0 / 0.04)` | `none` |
+| `control-bg` | Control fill | `#ffffff` | `rgb(255 255 255 / 0.05)` |
+| `control-bg-hover` | Control hover fill | `#f5f5f7` | `rgb(255 255 255 / 0.09)` |
+| `control-border` | Control border | `#e5e5ea` | `rgb(255 255 255 / 0.10)` |
+| `control-border-hover` | Control hover border | `#e5e5ea` | `rgb(255 255 255 / 0.14)` |
+| `control-disabled-fg` | Disabled label | foreground 45% | foreground 40% |
+| `control-disabled-border` | Disabled border | `#e5e5ea` | `rgb(255 255 255 / 0.06)` |
+| `overlay-surface-bg` | Menu, popover, dialog | `var(--popover)` | `var(--popover)` |
+| `overlay-surface-border` | Overlay edge | `#e5e5ea` | `rgb(255 255 255 / 0.10)` |
+
+Rules:
+
+- Dark separates with fill first and border second; light uses a hairline plus
+  a tight, low shadow. Large soft shadows belong to popovers, dialogs, and the
+  landing hero preview only.
+- Dark neutral borders are capped against the surface they sit on: cards and
+  dividers ≤ 1.3:1, controls ≤ 1.4:1, hover ≤ 1.6:1. The brand-green focus
+  ring and green focus border are a deliberate accent outside that neutral
+  cap (the 40% ring resolves to about 1.8:1 on a card) so focus stays visible.
+  Light borders are unchanged.
+- Controls share one visual language on the page and inside cards. Dark
+  outline/secondary buttons, inputs, selects, and chips use the same
+  `--control-*` fill and border; light controls are white with a hairline.
+- Focus is a brand-green ring at 40% opacity in both themes. Do not add a
+  white offset ring in dark mode.
+- The primary green button keeps its fill; remove lighter dark-only outlines
+  rather than layering a second edge.
 
 State rules:
 

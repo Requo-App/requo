@@ -619,7 +619,7 @@ function QuoteLibraryEntryFormFields({
             return (
               <div
                 className={cn(
-                  "rounded-2xl border border-border/70 bg-background/80 p-4 motion-reduce:animate-none",
+                  "rounded-xl border border-border/70 bg-muted/60 p-4 motion-reduce:animate-none",
                   item.motionState === "entering" &&
                     "motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:duration-200",
                   item.motionState === "exiting" &&

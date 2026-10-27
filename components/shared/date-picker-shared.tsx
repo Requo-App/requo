@@ -273,7 +273,7 @@ export function DateChipInput({
         if (event.key === "Escape") setText(formatted);
       }}
       aria-label={label}
-      className="w-[104px] rounded-md border border-border bg-card px-2 py-2 text-body-medium text-foreground shadow-xs outline-none transition-colors duration-100 ease-out focus-visible:border-ring"
+      className="control-surface w-[104px] rounded-md border px-2 py-2 text-body-medium text-foreground outline-none transition-colors duration-100 ease-out focus-visible:border-ring/60"
     />
   );
 }
@@ -281,16 +281,16 @@ export function DateChipInput({
 /** Shared trigger-button chrome for both pickers (calendar icon +
  *  formatted-value text, white surface, 10px radius). */
 export const triggerButtonClassName = cn(
-  "inline-flex shrink-0 cursor-pointer items-center gap-0.5 rounded-md border border-border bg-card p-2 shadow-xs outline-none",
+  "control-surface inline-flex shrink-0 cursor-pointer items-center gap-0.5 rounded-md border p-2 outline-none",
   "transition-[background-color,border-color,box-shadow] duration-150 ease",
-  "hover:bg-accent hover:border-border",
-  "focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-ring",
-  "disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground disabled:shadow-none",
+  "hover:border-[var(--control-border-hover)] hover:bg-[var(--control-bg-hover)]",
+  "focus-visible:border-ring/50 focus-visible:ring-2 focus-visible:ring-ring/40",
+  "disabled:cursor-not-allowed disabled:border-[var(--control-disabled-border)] disabled:bg-transparent disabled:text-[var(--control-disabled-fg)] disabled:shadow-none disabled:opacity-100",
 );
 
 /** Shared popover chrome (single shared surface radius) for both pickers. */
 export const popoverClassName = cn(
-  "origin-top rounded-xl border border-border bg-card shadow-[var(--overlay-surface-shadow)]",
+  "overlay-surface origin-top rounded-xl border",
   "transition duration-150 ease-out",
   "data-[entering]:opacity-0 data-[entering]:scale-95 data-[entering]:blur-[2px]",
   "data-[exiting]:opacity-0 data-[exiting]:scale-95 data-[exiting]:blur-[2px]",

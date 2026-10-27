@@ -233,7 +233,7 @@
   --secondary-foreground: #1d1d1f;
   --muted: #f5f5f7;
   --muted-foreground: #6e6e73;
-  --accent: rgb(0 0 0 / 0.06);
+  --accent: rgb(0 0 0 / 0.03);
   --accent-foreground: #1d1d1f;
   --destructive: #c9372c;
   --success: #059669;
@@ -355,40 +355,37 @@
      purely through flex layout, so only the width transition needs these. */
   --shell-motion-duration: 200ms;
   --shell-motion-easing: linear;
-  --surface-elevated-bg: linear-gradient(180deg, rgb(255 255 255 / 0.98) 0%, rgb(255 255 255 / 1) 100%);
-  --surface-soft-bg: linear-gradient(180deg, rgb(250 250 250 / 0.92) 0%, rgb(245 245 247 / 0.98) 100%);
-  --surface-muted-bg: linear-gradient(180deg, rgb(248 248 250 / 0.9) 0%, rgb(245 245 247 / 0.98) 100%);
-  --surface-stroke: rgb(229 229 234 / 0.94);
-  --surface-shadow-lg: inset 0 1px 0 rgb(255 255 255 / 0.7),
-    0 1px 2px rgb(0 0 0 / 0.04),
-    0 8px 16px -12px rgb(0 0 0 / 0.08),
-    0 24px 48px -32px rgb(0 0 0 / 0.12);
-  --surface-card-shadow: inset 0 1px 0 rgb(255 255 255 / 0.7),
-    0 1px 2px rgb(0 0 0 / 0.04),
-    0 7px 12px -9px rgb(0 0 0 / 0.06),
-    0 18px 32px -28px rgb(0 0 0 / 0.1);
-  --surface-shadow-md: inset 0 1px 0 rgb(255 255 255 / 0.65),
-    0 1px 2px rgb(0 0 0 / 0.035),
-    0 6px 10px -8px rgb(0 0 0 / 0.05),
-    0 14px 24px -22px rgb(0 0 0 / 0.08);
-  --surface-shadow-sm: inset 0 1px 0 rgb(255 255 255 / 0.6),
-    0 1px 1px rgb(0 0 0 / 0.03),
-    0 4px 8px -7px rgb(0 0 0 / 0.04),
-    0 10px 18px -18px rgb(0 0 0 / 0.07);
-  --surface-footer-bg: linear-gradient(180deg, rgb(250 250 250 / 0.5), rgb(245 245 247 / 0.78));
+  /* One fill per surface. Cards use the elevated fill; nested panels use the
+     flat inset fill and never re-tint from the page background. */
+  --surface-elevated-bg: #ffffff;
+  --surface-inset-bg: #f8f8fa;
+  --surface-soft-bg: var(--surface-inset-bg);
+  --surface-muted-bg: var(--surface-inset-bg);
+  --surface-stroke: #e5e5ea;
+  /* Cards separate with a hairline and one tight shadow, never a stack of
+     distance shadows. Overlays keep their own deeper elevation below. */
+  --surface-shadow-lg: 0 1px 2px rgb(0 0 0 / 0.04);
+  --surface-card-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
+  --surface-shadow-md: 0 1px 2px rgb(0 0 0 / 0.04);
+  --surface-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.04);
+  --surface-footer-bg: transparent;
   /* The 1px top highlight shared by raised surfaces. Light uses a bright
-     inner edge; dark drops it to a faint line so edges come from borders. */
+     inner edge; dark drops it so edges come from borders alone. */
   --surface-highlight: rgb(255 255 255 / 0.6);
-  --control-bg: rgb(255 255 255 / 0.94);
-  --control-bg-strong: rgb(255 255 255 / 0.99);
-  --control-secondary-bg: rgb(245 245 247 / 0.96);
-  --control-secondary-bg-strong: rgb(245 245 247 / 1);
-  --control-accent-bg: rgb(245 245 247 / 0.8);
-  --control-border: rgb(229 229 234 / 0.95);
+  --control-bg: #ffffff;
+  --control-bg-hover: #f5f5f7;
+  --control-bg-strong: #f5f5f7;
+  --control-secondary-bg: #ffffff;
+  --control-secondary-bg-strong: #f5f5f7;
+  --control-accent-bg: #f5f5f7;
+  --control-border: #e5e5ea;
+  --control-border-hover: #e5e5ea;
+  --control-disabled-fg: color-mix(in srgb, var(--foreground) 45%, transparent);
+  --control-disabled-border: #e5e5ea;
   --control-shadow: inset 0 1px 0 rgb(255 255 255 / 0.65),
     0 1px 2px rgb(0 0 0 / 0.04);
   --control-shadow-hover: inset 0 1px 0 rgb(255 255 255 / 0.7),
-    0 6px 14px -12px rgb(0 0 0 / 0.12);
+    0 1px 2px rgb(0 0 0 / 0.04);
   --control-primary-shadow: inset 0 1px 0 rgb(255 255 255 / 0.18),
     inset 0 -1px 0 rgb(0 0 0 / 0.16),
     0 1px 2px rgb(0 0 0 / 0.08),
@@ -407,8 +404,8 @@
     inset 0 -1px 0 rgb(95 24 18 / 0.2),
     0 1px 2px rgb(201 55 44 / 0.14),
     0 14px 24px -16px rgb(201 55 44 / 0.42);
-  --overlay-surface-bg: rgb(255 255 255);
-  --overlay-surface-border: rgb(229 229 234 / 0.8);
+  --overlay-surface-bg: var(--popover);
+  --overlay-surface-border: #e5e5ea;
   --overlay-surface-shadow: 0 24px 48px -12px rgb(0 0 0 / 0.12),
     0 1px 2px rgb(0 0 0 / 0.06);
   --modal-backdrop: rgb(0 0 0 / 0.45);
@@ -416,17 +413,18 @@
   --z-modal-content: 101;
   --z-popover-layer: 110;
   --z-toast: 150;
-  --tooltip-surface-bg: #1d1d1f;
-  --tooltip-surface-fg: #f5f5f7;
-  --tooltip-surface-border: rgb(255 255 255 / 0.16);
+  --tooltip-surface-bg: var(--popover);
+  --tooltip-surface-fg: var(--popover-foreground);
+  --tooltip-surface-border: var(--overlay-surface-border);
   --tooltip-surface-shadow: 0 14px 28px -16px rgb(0 0 0 / 0.3);
-  --table-header-bg: rgb(245 245 247 / 0.55);
-  --table-footer-bg: rgb(245 245 247 / 0.75);
+  /* Table chrome is the card itself: header and footer share its fill, and
+     dividers carry the separation. */
+  --table-header-bg: transparent;
+  --table-footer-bg: transparent;
   --table-row-hover-bg: rgb(0 0 0 / 0.03);
-  --table-row-selected-bg: rgb(0 0 0 / 0.05);
-  --empty-surface-bg: var(--surface-soft-bg);
-  --empty-surface-shadow: inset 0 1px 0 rgb(255 255 255 / 0.5),
-    0 1px 1px rgb(0 0 0 / 0.03);
+  --table-row-selected-bg: rgb(0 0 0 / 0.03);
+  --empty-surface-bg: var(--surface-inset-bg);
+  --empty-surface-shadow: var(--surface-shadow-sm);
   --alert-surface-bg: color-mix(in srgb, var(--accent) 78%, transparent);
   --alert-surface-shadow: 0 1px 2px rgb(0 0 0 / 0.03),
     inset 0 1px 0 rgb(255 255 255 / 0.5);
@@ -461,9 +459,9 @@
   --theme-preview-light-card: #ffffff;
   --theme-preview-light-fg: #1d1d1f;
   --theme-preview-dark-bg: #161618;
-  --theme-preview-dark-card: #242426;
+  --theme-preview-dark-card: #262628;
   --theme-preview-dark-fg: #f5f5f7;
-  --theme-preview-dark-border: rgb(255 255 255 / 0.12);
+  --theme-preview-dark-border: rgb(255 255 255 / 0.08);
   /* Auth visual panel: a neutral charcoal base with the brand green kept to
      two soft radial glows, so the panel never reads as a green-tinted ink. */
   --auth-panel-bg:
@@ -541,7 +539,7 @@ html[data-reload-loading="fade-out"] #app-root-content {
   --secondary-foreground: #1d1d1f;
   --muted: #f5f5f7;
   --muted-foreground: #6e6e73;
-  --accent: rgb(0 0 0 / 0.06);
+  --accent: rgb(0 0 0 / 0.03);
   --accent-foreground: #1d1d1f;
   --destructive: #c9372c;
   --success: #059669;
@@ -569,9 +567,11 @@ html[data-reload-loading="fade-out"] #app-root-content {
   color-scheme: dark;
   --background: #1c1c1e;
   --foreground: #f5f5f7;
-  --card: #242426;
+  --card: #262628;
   --card-foreground: #f5f5f7;
-  --popover: #2c2c2e;
+  /* Popovers sit above card controls: a card control resolves to ~#313133,
+     so the menu surface must clear it. */
+  --popover: #343436;
   --popover-foreground: #f5f5f7;
   --primary: #008060;
   --primary-foreground: #f4fffb;
@@ -579,7 +579,7 @@ html[data-reload-loading="fade-out"] #app-root-content {
   --secondary-foreground: #f5f5f7;
   --muted: #2c2c2e;
   --muted-foreground: #a1a1a6;
-  --accent: rgb(255 255 255 / 0.08);
+  --accent: rgb(255 255 255 / 0.05);
   --accent-foreground: #f5f5f7;
   --destructive: #c9372c;
   --success: #34d399;
@@ -604,8 +604,8 @@ html[data-reload-loading="fade-out"] #app-root-content {
   --status-attention-bg: color-mix(in srgb, #fb923c 16%, transparent);
   --status-attention-border: color-mix(in srgb, #fb923c 30%, transparent);
   --status-attention-fg: #fed7aa;
-  --border: rgb(255 255 255 / 0.12);
-  --input: rgb(255 255 255 / 0.16);
+  --border: rgb(255 255 255 / 0.08);
+  --input: rgb(255 255 255 / 0.10);
   --ring: #1b9b79;
   --marketing-accent: var(--primary-ink);
   /* Marketing surfaces use the app's original neutral dark palette. */
@@ -642,34 +642,34 @@ html[data-reload-loading="fade-out"] #app-root-content {
   --sidebar-accent: rgb(255 255 255 / 0.08);
   --sidebar-accent-foreground: #f5f5f7;
   --sidebar-selected: rgb(255 255 255 / 0.1);
-  --sidebar-border: rgb(255 255 255 / 0.12);
+  --sidebar-border: rgb(255 255 255 / 0.08);
   --sidebar-ring: #1b9b79;
   --shell-frame: #161618;
   --shell-card: #1c1c1e;
-  --surface-elevated-bg: linear-gradient(180deg, rgb(36 36 38 / 0.99) 0%, rgb(36 36 38 / 1) 100%);
-  --surface-soft-bg: linear-gradient(180deg, rgb(28 28 30 / 0.96) 0%, rgb(25 25 27 / 0.99) 100%);
-  --surface-muted-bg: linear-gradient(180deg, rgb(28 28 30 / 0.96) 0%, rgb(25 25 27 / 0.99) 100%);
-  --surface-stroke: rgb(255 255 255 / 0.1);
-  --surface-shadow-lg: inset 0 1px 0 rgb(255 255 255 / 0.05),
-    0 1px 2px rgb(0 0 0 / 0.18);
-  --surface-card-shadow: inset 0 1px 0 rgb(255 255 255 / 0.05),
-    0 1px 2px rgb(0 0 0 / 0.16);
-  --surface-shadow-md: inset 0 1px 0 rgb(255 255 255 / 0.04),
-    0 1px 2px rgb(0 0 0 / 0.14);
-  --surface-shadow-sm: inset 0 1px 0 rgb(255 255 255 / 0.035),
-    0 1px 1px rgb(0 0 0 / 0.12);
-  --surface-footer-bg: linear-gradient(180deg, rgb(28 28 30 / 0.86), rgb(25 25 27 / 0.98));
-  --surface-highlight: rgb(255 255 255 / 0.05);
-  --control-bg: rgb(36 36 38 / 0.97);
-  --control-bg-strong: rgb(44 44 46 / 0.99);
-  --control-secondary-bg: rgb(44 44 46 / 0.96);
-  --control-secondary-bg-strong: rgb(44 44 46 / 1);
-  --control-accent-bg: rgb(44 44 46 / 0.92);
-  --control-border: rgb(255 255 255 / 0.12);
-  --control-shadow: inset 0 1px 0 rgb(255 255 255 / 0.04),
-    0 1px 2px rgb(0 0 0 / 0.16);
-  --control-shadow-hover: inset 0 1px 0 rgb(255 255 255 / 0.05),
-    0 8px 16px -14px rgb(0 0 0 / 0.3);
+  --surface-elevated-bg: #262628;
+  --surface-inset-bg: #222224;
+  --surface-soft-bg: var(--surface-inset-bg);
+  --surface-muted-bg: var(--surface-inset-bg);
+  --surface-stroke: rgb(255 255 255 / 0.08);
+  /* No card elevation in dark: fill and hairline carry the hierarchy. */
+  --surface-shadow-lg: none;
+  --surface-card-shadow: none;
+  --surface-shadow-md: none;
+  --surface-shadow-sm: none;
+  --surface-footer-bg: transparent;
+  --surface-highlight: transparent;
+  --control-bg: rgb(255 255 255 / 0.05);
+  --control-bg-hover: rgb(255 255 255 / 0.09);
+  --control-bg-strong: rgb(255 255 255 / 0.09);
+  --control-secondary-bg: rgb(255 255 255 / 0.05);
+  --control-secondary-bg-strong: rgb(255 255 255 / 0.09);
+  --control-accent-bg: rgb(255 255 255 / 0.05);
+  --control-border: rgb(255 255 255 / 0.10);
+  --control-border-hover: rgb(255 255 255 / 0.14);
+  --control-disabled-fg: color-mix(in srgb, var(--foreground) 40%, transparent);
+  --control-disabled-border: rgb(255 255 255 / 0.06);
+  --control-shadow: inset 0 1px 0 rgb(255 255 255 / 0.04);
+  --control-shadow-hover: inset 0 1px 0 rgb(255 255 255 / 0.06);
   --control-primary-shadow: inset 0 1px 0 rgb(255 255 255 / 0.18),
     inset 0 -1px 0 rgb(0 0 0 / 0.2),
     0 1px 2px rgb(0 0 0 / 0.2),
@@ -688,21 +688,20 @@ html[data-reload-loading="fade-out"] #app-root-content {
     inset 0 -1px 0 rgb(95 24 18 / 0.2),
     0 1px 2px rgb(201 55 44 / 0.14),
     0 14px 24px -16px rgb(201 55 44 / 0.42);
-  --overlay-surface-bg: rgb(44 44 46);
-  --overlay-surface-border: rgb(255 255 255 / 0.12);
+  --overlay-surface-bg: var(--popover);
+  --overlay-surface-border: rgb(255 255 255 / 0.10);
   --overlay-surface-shadow: 0 18px 36px -20px rgb(0 0 0 / 0.45);
   --modal-backdrop: rgb(0 0 0 / 0.58);
-  --tooltip-surface-bg: #2c2c2e;
-  --tooltip-surface-fg: #f5f5f7;
-  --tooltip-surface-border: rgb(255 255 255 / 0.12);
+  --tooltip-surface-bg: var(--popover);
+  --tooltip-surface-fg: var(--popover-foreground);
+  --tooltip-surface-border: var(--overlay-surface-border);
   --tooltip-surface-shadow: 0 14px 28px -18px rgb(0 0 0 / 0.42);
-  --table-header-bg: rgb(255 255 255 / 0.03);
-  --table-footer-bg: rgb(255 255 255 / 0.05);
-  --table-row-hover-bg: rgb(255 255 255 / 0.04);
-  --table-row-selected-bg: rgb(255 255 255 / 0.06);
-  --empty-surface-bg: linear-gradient(180deg, rgb(28 28 30 / 0.9) 0%, rgb(25 25 27 / 0.98) 100%);
-  --empty-surface-shadow: inset 0 1px 0 rgb(255 255 255 / 0.04),
-    0 1px 1px rgb(0 0 0 / 0.12);
+  --table-header-bg: transparent;
+  --table-footer-bg: transparent;
+  --table-row-hover-bg: rgb(255 255 255 / 0.05);
+  --table-row-selected-bg: rgb(255 255 255 / 0.05);
+  --empty-surface-bg: var(--surface-inset-bg);
+  --empty-surface-shadow: none;
   --alert-surface-bg: color-mix(in srgb, var(--primary) 12%, transparent);
   --alert-surface-shadow: 0 1px 2px rgb(0 0 0 / 0.14),
     inset 0 1px 0 rgb(255 255 255 / 0.04);
@@ -728,9 +727,9 @@ html[data-reload-loading="fade-out"] #app-root-content {
   --theme-preview-light-card: #ffffff;
   --theme-preview-light-fg: #1d1d1f;
   --theme-preview-dark-bg: #161618;
-  --theme-preview-dark-card: #242426;
+  --theme-preview-dark-card: #262628;
   --theme-preview-dark-fg: #f5f5f7;
-  --theme-preview-dark-border: rgb(255 255 255 / 0.12);
+  --theme-preview-dark-border: rgb(255 255 255 / 0.08);
   --auth-panel-bg:
     radial-gradient(
       circle at 85% 15%,
@@ -1431,6 +1430,7 @@ html[data-reload-loading="fade-out"] #app-root-content {
     @apply grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3;
   }
 
+  /* Data-list footers share the card fill; the top border is the divider. */
   .data-list-card-footer {
     @apply flex flex-col gap-3 border-t border-border/65 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6;
     background: var(--surface-footer-bg);
@@ -1438,8 +1438,8 @@ html[data-reload-loading="fade-out"] #app-root-content {
 
   .data-list-empty-state {
     @apply rounded-xl border border-dashed border-border/85 px-6 py-12 sm:px-8;
-    background: var(--surface-soft-bg);
-    border-color: color-mix(in srgb, var(--surface-stroke) 88%, transparent);
+    background: var(--surface-inset-bg);
+    border-color: var(--surface-stroke);
     box-shadow: var(--surface-shadow-md);
   }
 
@@ -2922,7 +2922,7 @@ html[data-reload-loading="fade-out"] #app-root-content {
 
   .surface-card-footer {
     background: var(--surface-footer-bg);
-    box-shadow: inset 0 1px 0 var(--surface-highlight);
+    box-shadow: none;
   }
 
   /* ── Flat assistant transcript cards ──
@@ -2939,12 +2939,14 @@ html[data-reload-loading="fade-out"] #app-root-content {
   .control-surface {
     border-color: var(--control-border);
     background: var(--control-bg);
+    background-clip: padding-box;
     box-shadow: var(--control-shadow);
   }
 
   .control-surface-secondary {
-    border-color: color-mix(in srgb, var(--control-border) 82%, transparent);
+    border-color: var(--control-border);
     background: var(--control-secondary-bg);
+    background-clip: padding-box;
     box-shadow: var(--control-shadow);
   }
 

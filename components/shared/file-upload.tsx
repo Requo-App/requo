@@ -225,7 +225,7 @@ export function FileUpload({
         "group relative h-[164px] w-full shrink-0 rounded-2xl outline-none",
         "transition-colors duration-300 ease-out",
         busy ? "bg-card" : "cursor-pointer bg-muted",
-        "focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-ring",
+        "focus-visible:ring-2 focus-visible:ring-ring/40",
         className,
       )}
     >
@@ -248,7 +248,7 @@ export function FileUpload({
           "pointer-events-none absolute inset-0 rounded-2xl border-2 border-dashed",
           dragOver
             ? "border-ring"
-            : "border-input group-hover:border-ring",
+            : "border-[var(--control-border)] group-hover:border-[var(--control-border-hover)]",
           "transition-[opacity,border-color] duration-300 ease-out",
           busy ? "opacity-0" : "opacity-100",
         )}

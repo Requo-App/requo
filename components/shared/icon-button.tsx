@@ -43,7 +43,7 @@ export interface IconLinkButtonProps
 }
 
 const iconButtonVariants = cva(
-  "relative inline-flex shrink-0 items-center justify-center overflow-visible rounded-md bg-card text-foreground border border-border shadow-xs select-none cursor-pointer transition-[background-color,border-color,box-shadow,color] duration-150 ease outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-ring hover:bg-accent hover:border-border active:bg-accent active:border-ring disabled:cursor-not-allowed disabled:bg-muted disabled:border-border disabled:text-muted-foreground disabled:opacity-60 disabled:shadow-none",
+  "relative inline-flex shrink-0 items-center justify-center overflow-visible rounded-md control-surface-secondary border text-foreground select-none cursor-pointer transition-[background-color,border-color,box-shadow,color] duration-150 ease outline-none focus-visible:ring-2 focus-visible:ring-ring/40 hover:border-[var(--control-border-hover)] hover:bg-[var(--control-bg-hover)] active:border-[var(--control-border-hover)] active:bg-[var(--control-bg-hover)] disabled:cursor-not-allowed disabled:border-[var(--control-disabled-border)] disabled:bg-transparent disabled:text-[var(--control-disabled-fg)] disabled:opacity-100 disabled:shadow-none",
   {
     variants: {
       size: {

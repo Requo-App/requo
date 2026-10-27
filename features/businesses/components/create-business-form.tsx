@@ -239,7 +239,7 @@ export function CreateBusinessForm({
         <FieldContent>
           <div
             className={cn(
-              "flex h-9 items-center rounded-md border border-border bg-background px-3 text-sm transition-colors",
+              "control-surface flex h-9 items-center rounded-md border px-3 text-sm transition-colors",
               (Boolean(slugServerError || slugError) || slugTaken) &&
                 "border-destructive",
               isPending && "opacity-60",

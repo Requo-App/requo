@@ -45,7 +45,7 @@ export function EmailTemplateInspector({
 }: EmailTemplateInspectorProps) {
   if (!block) {
     return (
-      <div className="rounded-xl border border-border/60 bg-background p-4 shadow-sm">
+      <div className="rounded-xl border border-border/60 bg-card p-4 shadow-sm">
         <p className="text-sm font-medium text-foreground">Inspector</p>
         <p className="mt-1 text-xs text-muted-foreground">
           Select a block in the canvas to edit its text and style. Drag blocks
@@ -60,7 +60,7 @@ export function EmailTemplateInspector({
 
   return (
     <div
-      className="flex flex-col gap-3 rounded-xl border border-border/60 bg-background p-4 shadow-sm"
+      className="flex flex-col gap-3 rounded-xl border border-border/60 bg-card p-4 shadow-sm"
       aria-label={`${meta.label} inspector`}
     >
       <div>

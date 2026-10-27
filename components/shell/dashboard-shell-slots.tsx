@@ -163,7 +163,7 @@ export function BusinessSwitcher({
           </button>
         ) : (
         <button
-          className="group/business-switcher w-full rounded-xl border border-sidebar-border/90 bg-background/92 p-3.5 text-left shadow-[var(--control-shadow)] transition-[background-color,border-color,box-shadow,transform] [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)] hover:bg-background data-[state=open]:bg-background data-[state=open]:shadow-[var(--control-shadow-hover)] dark:bg-card/90 dark:hover:bg-accent dark:data-[state=open]:bg-accent group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:rounded-lg group-data-[collapsible=icon]:border-none group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:shadow-none hover:group-data-[collapsible=icon]:bg-sidebar-accent"
+          className="group/business-switcher control-surface w-full rounded-xl border p-3.5 text-left transition-[background-color,border-color,box-shadow,transform] [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)] hover:bg-[var(--control-bg-hover)] data-[state=open]:bg-[var(--control-bg-hover)] data-[state=open]:shadow-[var(--control-shadow-hover)] group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:rounded-lg group-data-[collapsible=icon]:border-none group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:shadow-none hover:group-data-[collapsible=icon]:bg-sidebar-accent"
           data-tour="business-switcher"
           type="button"
         >
@@ -189,7 +189,7 @@ export function BusinessSwitcher({
           <div className="mt-3 flex flex-wrap gap-2 group-data-[collapsible=icon]:hidden">
             <PlanBadge plan={business.plan} />
             <Badge
-              className="border-sidebar-border bg-background text-sidebar-foreground"
+              className="text-sidebar-foreground"
               variant="outline"
             >
               {business.defaultCurrency}
@@ -597,7 +597,7 @@ export function MobileBusinessSwitcher({
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
-            className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border/80 bg-background transition-colors hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-95"
+            className="control-surface flex size-8 shrink-0 items-center justify-center rounded-lg border transition-colors hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 active:scale-95"
             aria-label="Switch business"
             type="button"
           >

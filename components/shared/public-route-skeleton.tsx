@@ -78,7 +78,7 @@ function InquiryRouteSkeleton({ previewMode }: { previewMode: boolean }) {
 
               <div className="grid w-full items-stretch gap-3 sm:gap-5">
                 {Array.from({ length: 3 }).map((_, index) => (
-                  <Card key={index} size="sm" className="w-full bg-background/94">
+                  <Card key={index} size="sm" className="w-full">
                     <CardHeader className="px-3.5 py-3 sm:px-5 sm:py-4">
                       <div className="flex items-center gap-3 sm:gap-3.5">
                         <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-accent/85 sm:size-9 sm:rounded-xl">
@@ -183,7 +183,7 @@ function QuoteInteractiveColumnSkeleton() {
   return (
     <div className="flex w-full flex-col gap-5">
       {/* Response actions card */}
-      <div className="rounded-xl border border-border/60 bg-background/95 px-4 py-5 shadow-sm sm:p-6">
+      <div className="surface-card rounded-xl px-4 py-5 sm:p-6">
         <Skeleton className="mb-4 h-5 w-36 rounded-md" />
         <div className="flex flex-col gap-3">
           <Skeleton className="h-11 w-full rounded-xl" />

@@ -67,7 +67,7 @@ const userMenuItemVariants = cva(
 );
 
 const userMenuTriggerVariants = cva(
-  "relative flex min-w-0 cursor-pointer items-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 before:pointer-events-none before:absolute before:-inset-y-[0.3125rem] before:rounded-full before:border-2 before:border-transparent before:transition-colors before:duration-150",
+  "relative flex min-w-0 cursor-pointer items-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring/40 before:pointer-events-none before:absolute before:-inset-y-[0.3125rem] before:rounded-full before:border-2 before:border-transparent before:transition-colors before:duration-150",
   {
     variants: {
       hoverable: {
@@ -89,7 +89,7 @@ const userMenuTriggerVariants = cva(
 );
 
 const userMenuPopoverVariants = cva(
-  "w-[16.5625rem] max-w-[calc(100vw-2rem)] origin-top-left overflow-y-auto rounded-2xl border border-border bg-card p-2.5 shadow-[var(--overlay-surface-shadow)] transition duration-150 ease-out data-[entering]:opacity-0 data-[entering]:scale-95 data-[entering]:blur-[2px] data-[exiting]:opacity-0 data-[exiting]:scale-95 data-[exiting]:blur-[2px]",
+  "w-[16.5625rem] max-w-[calc(100vw-2rem)] origin-top-left overflow-y-auto rounded-2xl border border-[var(--overlay-surface-border)] bg-popover p-2.5 shadow-[var(--overlay-surface-shadow)] transition duration-150 ease-out data-[entering]:opacity-0 data-[entering]:scale-95 data-[entering]:blur-[2px] data-[exiting]:opacity-0 data-[exiting]:scale-95 data-[exiting]:blur-[2px]",
   {
     variants: {},
   },

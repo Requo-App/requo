@@ -117,7 +117,7 @@ export function SidebarChecklist({ items }: SidebarChecklistProps) {
         <PopoverTrigger asChild>
           <Button
             variant="outline"
-            className="h-9 w-full justify-between gap-2 rounded-lg border-border/70 px-3 text-sm font-medium shadow-none"
+            className="h-9 w-full justify-between gap-2 rounded-lg px-3 text-sm font-medium"
           >
             <span>Getting started</span>
             <span className="tabular-nums text-muted-foreground">

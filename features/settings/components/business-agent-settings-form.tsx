@@ -189,7 +189,7 @@ export function BusinessAgentSettingsForm({
 
                 <Field>
                   <FieldContent>
-                    <div className="control-surface flex h-9 items-center justify-between gap-2 rounded-md border border-input/95 px-3 sm:h-8">
+                    <div className="control-surface flex h-9 items-center justify-between gap-2 rounded-md border px-3 sm:h-8">
                       <span className="min-w-0 truncate font-mono text-xs text-muted-foreground select-all">
                         {chatPath}
                       </span>

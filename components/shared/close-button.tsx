@@ -60,7 +60,7 @@ const GLYPH_INSET: Record<CloseButtonSize, number> = {
 };
 
 const closeButtonVariants = cva(
-  "inline-flex shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground select-none cursor-pointer transition-colors duration-150 ease hover:text-foreground outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-ring",
+  "inline-flex shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground select-none cursor-pointer transition-colors duration-150 ease hover:text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
   {
     variants: {
       size: {

@@ -141,7 +141,7 @@ const settingsPanelVariants = cva(
   // by the inner scroller made the browser scroll-reveal it through
   // the panel too — shifting the whole modal content up with no way
   // back. clip forbids scrolling outright.
-  "relative flex h-[614px] max-h-[calc(100dvh-32px)] w-[871px] max-w-[calc(100vw-32px)] overflow-clip rounded-xl bg-background shadow-xs outline-none",
+  "overlay-surface relative flex h-[614px] max-h-[calc(100dvh-32px)] w-[871px] max-w-[calc(100vw-32px)] overflow-clip rounded-xl border text-popover-foreground outline-none",
   {
     variants: {},
   },
@@ -178,7 +178,7 @@ const settingsTitleRowVariants = cva("flex shrink-0 items-center justify-between
 });
 
 const settingsTopFadeVariants = cva(
-  "pointer-events-none absolute inset-x-0 top-0 h-10 bg-linear-to-b from-card to-transparent transition-opacity duration-200 ease-out",
+  "pointer-events-none absolute inset-x-0 top-0 h-10 bg-linear-to-b from-[var(--overlay-surface-bg)] to-transparent transition-opacity duration-200 ease-out",
   {
     variants: {
       scrolled: {

@@ -104,7 +104,7 @@ export function AddBlock({
       <div className="h-px flex-1 bg-border/60 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100" aria-hidden="true" />
       {open && !isDisabled ? (
         <div
-          className="absolute top-full left-1/2 z-20 flex -translate-x-1/2 gap-1.5 rounded-lg border border-border/70 bg-background p-1.5 shadow-lg"
+          className="overlay-surface absolute top-full left-1/2 z-20 flex -translate-x-1/2 gap-1.5 rounded-lg border p-1.5"
           role="group"
           aria-label={`Add block at position ${index + 1}`}
         >

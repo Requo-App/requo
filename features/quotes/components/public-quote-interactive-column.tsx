@@ -144,7 +144,7 @@ export function PublicQuoteInteractiveColumn({
             initial={{ opacity: 1 }}
             exit={{ opacity: 0, y: -8, scale: 0.98 }}
             transition={{ duration: 0.2, ease: [0.25, 1, 0.5, 1] }}
-            className="rounded-xl border border-border/60 bg-background/95 px-4 py-5 shadow-sm sm:p-6"
+            className="surface-card rounded-xl px-4 py-5 sm:p-6"
           >
             <p className="mb-4 text-sm font-medium text-muted-foreground">
               Review the quote above, then accept and sign below.

@@ -61,7 +61,7 @@ export function DashboardListResultsSkeleton({
         {Array.from({ length: 4 }).map((_, index) => (
           <div
             key={index}
-            className="flex items-center justify-between gap-3 rounded-xl border border-border/80 bg-background px-3.5 py-3 shadow-xs"
+            className="flex items-center justify-between gap-3 rounded-xl border border-border/80 bg-card px-3.5 py-3"
           >
             <div className="flex min-w-0 flex-1 flex-col gap-1.5">
               <div className="flex items-center justify-between gap-2">

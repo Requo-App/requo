@@ -113,7 +113,7 @@ const teamMenuItemVariants = cva(
 );
 
 const teamMenuTriggerVariants = cva(
-  "flex cursor-pointer items-center overflow-hidden outline-none border-2 border-transparent hover:border-sidebar-border transition-[width,background-color,border-color,padding] duration-300 ease-in-out focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-2",
+  "flex cursor-pointer items-center overflow-hidden outline-none border-2 border-transparent hover:border-sidebar-border transition-[width,background-color,border-color,padding] duration-300 ease-in-out focus-visible:ring-2 focus-visible:ring-sidebar-ring/40",
   {
     variants: {
       collapsed: {
@@ -128,7 +128,7 @@ const teamMenuTriggerVariants = cva(
 );
 
 const teamMenuPopoverVariants = cva(
-  "w-[16.5625rem] max-w-[calc(100vw-2rem)] origin-bottom-left overflow-y-auto rounded-2xl border border-border bg-card p-2.5 shadow-[var(--overlay-surface-shadow)] transition duration-150 ease-out data-[entering]:opacity-0 data-[entering]:scale-95 data-[entering]:blur-[2px] data-[exiting]:opacity-0 data-[exiting]:scale-95 data-[exiting]:blur-[2px]",
+  "w-[16.5625rem] max-w-[calc(100vw-2rem)] origin-bottom-left overflow-y-auto rounded-2xl border border-[var(--overlay-surface-border)] bg-popover p-2.5 shadow-[var(--overlay-surface-shadow)] transition duration-150 ease-out data-[entering]:opacity-0 data-[entering]:scale-95 data-[entering]:blur-[2px] data-[exiting]:opacity-0 data-[exiting]:scale-95 data-[exiting]:blur-[2px]",
   {
     variants: {},
   },

@@ -125,7 +125,7 @@ const STATUS_ICON: Record<NotificationStatus, NotificationIcon> = {
 };
 
 const notificationCardClassName =
-  "relative flex w-full items-start gap-3 overflow-hidden p-4 pr-11 rounded-2xl border border-border/80 bg-card text-card-foreground shadow-[var(--overlay-surface-shadow)]";
+  "relative flex w-full items-start gap-3 overflow-hidden p-4 pr-11 rounded-2xl border border-[var(--overlay-surface-border)] bg-popover text-popover-foreground shadow-[var(--overlay-surface-shadow)]";
 
 const notificationVisualVariants = cva(
   "relative flex size-10 shrink-0 items-center justify-center rounded-full",

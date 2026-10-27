@@ -131,7 +131,7 @@ export function EmailCanvas({
           <div
             aria-label="Email canvas"
             role="region"
-            className="rounded-xl border border-border/60 bg-background px-4 py-4 shadow-sm sm:px-6 sm:py-5"
+            className="rounded-xl border border-border/60 bg-card px-4 py-4 shadow-sm sm:px-6 sm:py-5"
             onClick={(event) => event.stopPropagation()}
           >
             <p className="meta-label pb-3">Email canvas</p>
@@ -191,7 +191,7 @@ export function EmailCanvas({
         }
       >
         {activeBlock ? (
-          <div className="rounded-lg border border-border/70 bg-background px-4 py-3 shadow-lg">
+          <div className="rounded-lg border border-border/70 bg-card px-4 py-3 shadow-lg">
             <BlockContent block={activeBlock} templateKind={templateKind} />
           </div>
         ) : null}

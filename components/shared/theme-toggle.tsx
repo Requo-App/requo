@@ -235,7 +235,7 @@ const themeSegmentThumbVariants = cva(
 );
 
 const themeSegmentButtonVariants = cva(
-  "relative z-10 grid cursor-pointer place-items-center rounded-full outline-none transition-colors duration-150 ease focus-visible:ring-2 focus-visible:ring-ring",
+  "relative z-10 grid cursor-pointer place-items-center rounded-full outline-none transition-colors duration-150 ease focus-visible:ring-2 focus-visible:ring-ring/40",
   {
     variants: {
       // Segment size lives in the branches so only one reaches the DOM.
@@ -258,7 +258,7 @@ const themeSegmentButtonVariants = cva(
 );
 
 const themeCollapsedButtonVariants = cva(
-  "flex size-9 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors duration-150 ease hover:bg-accent hover:text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring",
+  "flex size-9 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors duration-150 ease hover:bg-accent hover:text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
   {
     variants: {},
   },
@@ -269,7 +269,7 @@ const themeRowSwitchVariants = cva(
   {
     variants: {
       focusVisible: {
-        true: "ring-2 ring-inset ring-ring",
+        true: "ring-2 ring-inset ring-ring/40",
         false: "",
       },
     },

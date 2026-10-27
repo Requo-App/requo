@@ -40,7 +40,7 @@ export function PublicQuotePreviewInteractiveColumn({
   return (
     <div className="flex flex-col gap-5">
       {isActionable ? (
-        <div className="rounded-xl border border-border/60 bg-background/95 px-4 py-5 shadow-sm sm:p-6">
+        <div className="surface-card rounded-xl px-4 py-5 sm:p-6">
           <p className="mb-4 text-sm font-medium text-muted-foreground">
             Ready to respond?
           </p>

@@ -139,7 +139,7 @@ export function FollowUpListContentFallback() {
     <div className="flex min-h-[320px] flex-col gap-2">
       {Array.from({ length: 5 }).map((_, index) => (
         <div
-          className="flex items-center gap-3 rounded-xl border border-border/50 bg-background px-4 py-3 sm:px-5"
+          className="flex items-center gap-3 rounded-xl border border-border/50 bg-card px-4 py-3 sm:px-5"
           key={index}
         >
           <Skeleton className="size-8 shrink-0 rounded-full" />

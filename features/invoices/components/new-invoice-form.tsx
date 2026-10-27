@@ -286,7 +286,7 @@ export function NewInvoiceForm({
           }
         >
           {isQuoteSourced ? (
-            <div className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border/75 bg-background/95">
+            <div className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border/75 bg-card">
               {quotePreviewItems.map((item) => (
                 <div className="flex items-center justify-between gap-3 px-4 py-3" key={item.id}>
                   <div className="min-w-0">
@@ -306,7 +306,7 @@ export function NewInvoiceForm({
           ) : (
             <div className="flex flex-col gap-3">
               {parsedRows.map((row, index) => (
-                <div className="rounded-xl border border-border/75 bg-background/95 p-3" key={row.id}>
+                <div className="rounded-xl border border-border/75 bg-card p-3" key={row.id}>
                   <Input
                     aria-label={`Line item ${index + 1} description`}
                     disabled={isPending}

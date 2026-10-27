@@ -171,7 +171,7 @@ export function MobileGlobalSearch({
           type="button"
           onClick={() => onOpenChange(false)}
           aria-label="Close search"
-          className="flex size-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-border-focus-ring active:scale-95"
+          className="flex size-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40 active:scale-95"
         >
           <RiCloseLine className="size-5" aria-hidden="true" />
         </button>
@@ -207,7 +207,7 @@ export function MobileGlobalSearch({
                   className={cn(
                     "flex min-h-11 items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
                     "text-foreground hover:bg-muted",
-                    "outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring",
+                    "outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
                   )}
                 >
                   <ResultIcon type={result.type} />

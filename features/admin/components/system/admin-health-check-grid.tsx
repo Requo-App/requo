@@ -48,7 +48,7 @@ export function AdminHealthCheckGrid({ results }: AdminHealthCheckGridProps) {
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-2 rounded-full border border-border/70 bg-background/50 px-3 py-1.5">
+              <div className="flex items-center gap-2 rounded-full border border-border/70 bg-muted/60 px-3 py-1.5">
                 <span
                   aria-hidden
                   className={cn(

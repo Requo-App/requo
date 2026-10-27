@@ -283,7 +283,7 @@ export function ArchivedInquiriesSheet({
                   <div
                     key={item.id}
                     ref={getItemRef(item.id)}
-                    className="motion-list-item flex flex-col gap-1.5 rounded-xl border border-border/80 bg-background px-3.5 py-3"
+                    className="motion-list-item flex flex-col gap-1.5 rounded-xl border border-border/80 bg-muted/60 px-3.5 py-3"
                     data-motion-state={getMotionState(item.id)}
                   >
                     <div className="flex items-start gap-2">
