@@ -15,11 +15,12 @@ import { WorkflowSteps } from "@/components/marketing/workflow-steps";
  *
  * The tour advances on its own, so these pin the contract that keeps it safe:
  * it is a tablist with one exposed description at a time, the rail runs only
- * while the tour is in view on a visible tab and pauses on hover or focus, a
- * manual pick or the stop control ends the cycle for good, arrow keys move
- * between tabs, the cycle hands on when the active rail fills — even if it
- * fills exactly as the tour leaves view — wraps at the end, and reduced motion
- * keeps the manual tour with a settled rail and no cycle.
+ * while the tour is in view on a visible tab, hovering or focusing does not
+ * pause it, a manual pick restarts the cycle rather than stopping it, the Pause
+ * tour control freezes and resumes the cycle, arrow keys move between tabs, the
+ * cycle hands on when the active rail fills — even if it fills exactly as the
+ * tour leaves view — wraps at the end, and reduced motion keeps the manual tour
+ * with a settled rail and no cycle.
  */
 
 type ObserverCallback = (
@@ -218,7 +219,7 @@ describe("WorkflowSteps", () => {
     );
   });
 
-  it("pauses while the visitor hovers or focuses inside the tour", async () => {
+  it("keeps the rail running while the visitor hovers or focuses inside the tour", async () => {
     const user = userEvent.setup();
 
     render(<WorkflowSteps />);
@@ -234,7 +235,7 @@ describe("WorkflowSteps", () => {
     await user.hover(root);
     expect(progressBarOf(/Request comes in/)).toHaveAttribute(
       "data-workflow-progress",
-      "paused",
+      "running",
     );
 
     await user.unhover(root);
@@ -246,7 +247,7 @@ describe("WorkflowSteps", () => {
     await user.tab();
     expect(progressBarOf(/Request comes in/)).toHaveAttribute(
       "data-workflow-progress",
-      "paused",
+      "running",
     );
 
     act(() => {
@@ -299,7 +300,7 @@ describe("WorkflowSteps", () => {
     ).toBeInTheDocument();
   });
 
-  it("stops the cycle after the visitor picks a step", async () => {
+  it("restarts the cycle at the step the visitor picks", async () => {
     const user = userEvent.setup();
 
     render(<WorkflowSteps />);
@@ -309,51 +310,43 @@ describe("WorkflowSteps", () => {
 
     const selectedBar = progressBarOf(/Quote sent same day/);
 
-    expect(selectedBar).toHaveAttribute("data-workflow-progress", "static");
-    // A settled rail is full height, not a paused animation stuck at zero.
-    expect(selectedBar).not.toHaveClass("animate-workflow-progress");
+    expect(selectedBar).toHaveAttribute("data-workflow-progress", "running");
+    expect(selectedBar).toHaveClass("animate-workflow-progress");
 
     await finishProgressBar(selectedBar);
 
+    // Picking a step does not stop the tour; the next step takes over.
+    expect(tabOf(/Follow up/)).toHaveAttribute("aria-selected", "true");
     expect(tabOf(/Quote sent same day/)).toHaveAttribute(
       "aria-selected",
-      "true",
+      "false",
     );
-    expect(tabOf(/Follow up/)).toHaveAttribute("aria-selected", "false");
   });
 
-  it("lets the visitor stop the auto-play tour without picking a step", async () => {
+  it("freezes and resumes the cycle with the Pause tour control", async () => {
     const user = userEvent.setup();
 
     render(<WorkflowSteps />);
     await emitIntersection(1);
 
-    expect(progressBarOf(/Request comes in/)).toHaveAttribute(
-      "data-workflow-progress",
-      "running",
-    );
-
-    await user.click(
-      screen.getByRole("button", { name: "Stop auto-play" }),
-    );
-
     const bar = progressBarOf(/Request comes in/);
 
-    // The rail settles full instead of continuing to count, the control is
-    // gone, and the cycle cannot hand on even if the old fill ends late.
-    expect(bar).toHaveAttribute("data-workflow-progress", "static");
-    expect(bar).not.toHaveClass("animate-workflow-progress");
+    expect(bar).toHaveAttribute("data-workflow-progress", "running");
+    expect(bar).toHaveStyle({ animationPlayState: "running" });
+
+    await user.click(screen.getByRole("button", { name: "Pause tour" }));
+
+    // The rail freezes where it is instead of settling or handing on.
+    expect(bar).toHaveAttribute("data-workflow-progress", "paused");
+    expect(bar).toHaveStyle({ animationPlayState: "paused" });
     expect(
-      screen.queryByRole("button", { name: "Stop auto-play" }),
-    ).not.toBeInTheDocument();
-    expect(document.activeElement).toBe(tabOf(/Request comes in/));
+      screen.getByRole("button", { name: "Play tour" }),
+    ).toBeInTheDocument();
 
-    await finishProgressBar(bar);
+    await user.click(screen.getByRole("button", { name: "Play tour" }));
 
-    expect(tabOf(/Request comes in/)).toHaveAttribute(
-      "aria-selected",
-      "true",
-    );
+    expect(bar).toHaveAttribute("data-workflow-progress", "running");
+    expect(bar).toHaveStyle({ animationPlayState: "running" });
   });
 
   it("moves between tabs with the keyboard", async () => {
@@ -388,7 +381,7 @@ describe("WorkflowSteps", () => {
     expect(document.activeElement).toBe(tabOf(/Request comes in/));
     expect(progressBarOf(/Request comes in/)).toHaveAttribute(
       "data-workflow-progress",
-      "static",
+      "paused",
     );
   });
 

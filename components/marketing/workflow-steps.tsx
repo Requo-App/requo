@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, CheckCircle2, Pause } from "lucide-react";
+import { ArrowRight, CheckCircle2, Pause, Play } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -114,12 +114,10 @@ function StepPreview({ step }: { step: (typeof steps)[number] }) {
  * motion is allowed — not only while cycling — so a fill that ends exactly as
  * the gate closes still advances instead of stranding a full rail.
  *
- * - The cycle runs only while the tour is in view on a visible tab, and pauses
- *   while the visitor hovers or focuses inside it.
- * - Selecting a tab or pressing "Stop auto-play" stops the cycle for the rest
- *   of the visit; the active rail settles full instead of continuing to count.
- *   The control gives touch and keyboard visitors a mechanism that does not
- *   depend on hover (WCAG 2.2.2).
+ * - The cycle always runs while the tour is in view on a visible tab; hovering
+ *   or focusing does not pause it, and picking a tab restarts the fill at that
+ *   step. A Pause tour toggle gives touch and keyboard visitors a mechanism
+ *   that does not depend on hover (WCAG 2.2.2).
  * - Reduced motion keeps the manual tour: no cycle, no crossfade, and the
  *   active rail settled full.
  * - The stage renders all four mocks in place and crossfades between them, so
@@ -130,29 +128,22 @@ function StepPreview({ step }: { step: (typeof steps)[number] }) {
 export function WorkflowSteps() {
   const [active, setActive] = useState(0);
   const [inView, setInView] = useState(false);
-  const [hovered, setHovered] = useState(false);
-  const [focused, setFocused] = useState(false);
-  const [hasInteracted, setHasInteracted] = useState(false);
+  const [paused, setPaused] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
-  const hasInteractedRef = useRef(false);
   const baseId = useId();
   const prefersReducedMotion = usePrefersReducedMotion();
   const pageVisible = usePageVisible();
   const motionAllowed = !prefersReducedMotion;
-  const cycling =
-    motionAllowed &&
-    !hasInteracted &&
-    inView &&
-    pageVisible &&
-    !hovered &&
-    !focused;
-  const progressState =
-    !motionAllowed || hasInteracted ? "static" : cycling ? "running" : "paused";
-  /* A settled rail (manual pick or reduced motion) must not keep a paused
-     animation at scaleY(0). `motion-reduce:animate-none` also covers the
-     server render, before the media-query hook has hydrated. */
-  const railAnimated = motionAllowed && !hasInteracted;
+  const cycling = motionAllowed && inView && pageVisible && !paused;
+  const progressState = !motionAllowed
+    ? "static"
+    : cycling
+      ? "running"
+      : "paused";
+  /* `motion-reduce:animate-none` also covers the server render, before the
+     media-query hook has hydrated. */
+  const railAnimated = motionAllowed;
 
   const tabId = useCallback(
     (index: number) => `${baseId}-tab-${index}`,
@@ -185,31 +176,12 @@ export function WorkflowSteps() {
     return () => observer.disconnect();
   }, []);
 
-  const selectStep = useCallback((index: number) => {
-    hasInteractedRef.current = true;
-    setHasInteracted(true);
-    setActive(index);
-  }, []);
-
-  const stopCycle = useCallback(() => {
-    hasInteractedRef.current = true;
-    setHasInteracted(true);
-
-    // The control unmounts once the tour stops, so hand focus to the active
-    // tab instead of dropping the keyboard user back to the document.
-    tabRefs.current[active]?.focus();
-  }, [active]);
-
   const advance = useCallback(() => {
-    if (hasInteractedRef.current) {
-      return;
-    }
-
     setActive((current) => (current + 1) % steps.length);
   }, []);
 
   function moveToStep(index: number) {
-    selectStep(index);
+    setActive(index);
     tabRefs.current[index]?.focus();
   }
 
@@ -244,16 +216,6 @@ export function WorkflowSteps() {
     <div
       className="grid grid-cols-1 gap-8 lg:grid-cols-3 lg:items-start lg:gap-x-5 lg:gap-y-0"
       data-workflow-root
-      onBlur={(event) => {
-        if (
-          !event.currentTarget.contains(event.relatedTarget as Node | null)
-        ) {
-          setFocused(false);
-        }
-      }}
-      onFocus={() => setFocused(true)}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
       ref={rootRef}
     >
       <div className="order-2 flex flex-col items-start gap-4 lg:order-1 lg:col-span-1">
@@ -356,14 +318,18 @@ export function WorkflowSteps() {
           })}
         </div>
 
-        {motionAllowed && !hasInteracted ? (
+        {motionAllowed ? (
           <button
             className="inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-            onClick={stopCycle}
+            onClick={() => setPaused((current) => !current)}
             type="button"
           >
-            <Pause aria-hidden="true" className="size-3" />
-            Stop auto-play
+            {paused ? (
+              <Play aria-hidden="true" className="size-3" />
+            ) : (
+              <Pause aria-hidden="true" className="size-3" />
+            )}
+            {paused ? "Play tour" : "Pause tour"}
           </button>
         ) : null}
       </div>
