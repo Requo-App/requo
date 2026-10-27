@@ -260,6 +260,15 @@
   --marketing-mock-shadow:
     0 1px 2px rgb(15 23 42 / 0.04),
     0 10px 24px -20px rgb(15 23 42 / 0.18);
+  /* Desktop nav overlay: one mint tint shared by the open trigger pill and the
+     gliding row highlight, plus the panel hairline and the tile's deeper green. */
+  --marketing-nav-highlight: color-mix(
+    in srgb,
+    var(--marketing-accent) 9%,
+    transparent
+  );
+  --marketing-nav-border: var(--marketing-hairline);
+  --marketing-nav-tile-hover: color-mix(in srgb, var(--primary) 84%, black);
   /* BoardUI compat — FROZEN (issue #73, ADR-015). Resolves the var() tone
      references the frozen dot-wave indicator sets inline. Do not expand. */
   --color-text-primary: var(--foreground);
@@ -518,6 +527,14 @@ html[data-reload-loading="fade-out"] #app-root-content {
     0 16px 32px -24px rgb(0 0 0 / 0.5);
   /* Border-led in dark: a shadow would read as a glow against the page. */
   --marketing-mock-shadow: none;
+  /* The panel sits one surface step above the page; the stronger hairline is
+     its visible edge, and the mint tint needs a little more presence. */
+  --marketing-nav-highlight: color-mix(
+    in srgb,
+    var(--marketing-accent) 16%,
+    transparent
+  );
+  --marketing-nav-border: var(--marketing-hairline-strong);
   --chart-1: #008060;
   --chart-2: #53a36f;
   --chart-3: #5fa4bc;
@@ -1698,7 +1715,6 @@ html[data-reload-loading="fade-out"] #app-root-content {
   }
 
   .marketing-nav-link {
-    border-radius: 999px;
     transition:
       color var(--motion-duration-fast) var(--motion-ease-standard),
       background-color var(--motion-duration-fast) var(--motion-ease-standard);
@@ -1707,8 +1723,217 @@ html[data-reload-loading="fade-out"] #app-root-content {
   .marketing-nav-link:hover,
   .marketing-nav-link:focus-visible,
   .marketing-nav-link[data-state="open"] {
-    background: color-mix(in srgb, var(--marketing-accent) 9%, transparent);
     color: var(--marketing-accent);
+  }
+
+  /* The open trigger shares the row highlight's mint tint so the panel reads as
+     an extension of the trigger. Hover and focus stay colour-only. */
+  .marketing-nav-link[data-state="open"] {
+    background: var(--marketing-nav-highlight);
+  }
+
+  /*
+   * Desktop nav overlay. The panel reuses the landing card shell one radius
+   * step above its rows: 12px panel, 8px items, hairline border and the
+   * light-only mock shadow. Dark steps the surface one level above the page
+   * and keeps the stronger hairline so the edge survives without a shadow.
+   */
+  .marketing-header .marketing-nav-panel {
+    transform-origin: top center;
+    border: 1px solid var(--marketing-nav-border);
+    border-radius: var(--marketing-mock-radius);
+    background: var(--marketing-surface-raised);
+    box-shadow: var(--marketing-mock-shadow);
+    transition:
+      width var(--motion-duration-fast) var(--marketing-ease),
+      height var(--motion-duration-fast) var(--marketing-ease);
+  }
+
+  .marketing-header .marketing-nav-panel[data-state="open"] {
+    animation: marketing-nav-panel-in 180ms var(--marketing-ease) both;
+  }
+
+  .marketing-header .marketing-nav-panel[data-state="closed"] {
+    animation: marketing-nav-panel-out 120ms var(--motion-ease-standard) both;
+  }
+
+  @keyframes marketing-nav-panel-in {
+    from {
+      opacity: 0;
+      transform: translate3d(0, 6px, 0) scale(0.98);
+    }
+
+    to {
+      opacity: 1;
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+  }
+
+  @keyframes marketing-nav-panel-out {
+    from {
+      opacity: 1;
+    }
+
+    to {
+      opacity: 0;
+    }
+  }
+
+  /*
+   * The viewport card is positioned below the trigger with a 6px gap. This
+   * transparent strip bridges it so pointer movement never crosses dead space,
+   * and the container glides between trigger offsets with the same ease as the
+   * panel's size change.
+   */
+  .marketing-header [data-slot="navigation-menu-viewport-container"] {
+    transition: transform var(--motion-duration-fast) var(--marketing-ease);
+  }
+
+  .marketing-header [data-slot="navigation-menu-viewport-container"]::before {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    top: 0;
+    height: 0.375rem;
+  }
+
+  /* Switching triggers swaps the mounted content; a quiet fade carries it. */
+  .marketing-nav-content {
+    animation: marketing-nav-content-in var(--motion-duration-fast)
+      var(--motion-ease-standard) both;
+  }
+
+  @keyframes marketing-nav-content-in {
+    from {
+      opacity: 0;
+    }
+
+    to {
+      opacity: 1;
+    }
+  }
+
+  .marketing-nav-item {
+    outline: none;
+    transition: background-color var(--motion-duration-fast)
+      var(--motion-ease-standard);
+  }
+
+  .marketing-nav-item:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  .marketing-nav-row-highlight {
+    background: var(--marketing-nav-highlight);
+  }
+
+  .marketing-nav-tile {
+    color: var(--primary-foreground);
+    background: var(--primary);
+    transition:
+      background-color var(--motion-duration-fast) var(--motion-ease-standard),
+      transform var(--motion-duration-fast) var(--motion-ease-standard);
+  }
+
+  .marketing-nav-description {
+    color: var(--muted-foreground);
+    transition: color var(--motion-duration-fast) var(--motion-ease-standard);
+  }
+
+  .marketing-nav-arrow {
+    color: var(--marketing-accent);
+    opacity: 0;
+    transform: translateX(-3px);
+    transition:
+      opacity var(--motion-duration-fast) var(--motion-ease-standard),
+      transform var(--motion-duration-fast) var(--motion-ease-standard);
+  }
+
+  @media (hover: hover) {
+    .marketing-nav-item:hover .marketing-nav-tile {
+      background: var(--marketing-nav-tile-hover);
+      transform: scale(1.05);
+    }
+
+    .marketing-nav-item:hover .marketing-nav-description {
+      color: color-mix(in srgb, var(--muted-foreground) 55%, var(--foreground));
+    }
+
+    .marketing-nav-item:hover .marketing-nav-arrow {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  .marketing-nav-item:focus-visible .marketing-nav-tile {
+    background: var(--marketing-nav-tile-hover);
+    transform: scale(1.05);
+  }
+
+  .marketing-nav-item:focus-visible .marketing-nav-description {
+    color: color-mix(in srgb, var(--muted-foreground) 55%, var(--foreground));
+  }
+
+  .marketing-nav-item:focus-visible .marketing-nav-arrow {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .marketing-header .marketing-nav-panel {
+      transition: none;
+    }
+
+    .marketing-header [data-slot="navigation-menu-viewport-container"] {
+      transition: none;
+    }
+
+    .marketing-header .marketing-nav-panel[data-state="open"] {
+      animation-name: marketing-nav-panel-fade-in;
+    }
+
+    .marketing-header .marketing-nav-panel[data-state="closed"] {
+      animation-name: marketing-nav-panel-fade-out;
+    }
+
+    .marketing-nav-tile,
+    .marketing-nav-description,
+    .marketing-nav-arrow {
+      transition: none;
+    }
+
+    /* The arrow appears in place instead of sliding in from the left. */
+    .marketing-nav-arrow {
+      transform: none;
+    }
+
+    .marketing-nav-item:hover .marketing-nav-tile,
+    .marketing-nav-item:focus-visible .marketing-nav-tile,
+    .marketing-nav-item:hover .marketing-nav-arrow,
+    .marketing-nav-item:focus-visible .marketing-nav-arrow {
+      transform: none;
+    }
+  }
+
+  @keyframes marketing-nav-panel-fade-in {
+    from {
+      opacity: 0;
+    }
+
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes marketing-nav-panel-fade-out {
+    from {
+      opacity: 1;
+    }
+
+    to {
+      opacity: 0;
+    }
   }
 
   .marketing-header .nav-underline {
