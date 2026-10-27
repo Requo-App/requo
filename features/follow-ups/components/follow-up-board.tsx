@@ -488,7 +488,7 @@ function FollowUpCard({
       tabIndex={0}
       onClick={() => onSelect(followUp)}
       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelect(followUp); } }}
-      className="motion-list-item surface-card relative flex w-full cursor-pointer flex-col gap-2 rounded-xl p-3.5 text-left transition-colors hover:border-[var(--control-border-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring/40"
+      className="motion-list-item surface-card relative flex w-full cursor-pointer flex-col gap-2 rounded-xl p-3.5 text-left transition-colors hover:border-[var(--control-border-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
       data-motion-state={motionState}
     >
       <div className="flex items-center justify-between gap-2">

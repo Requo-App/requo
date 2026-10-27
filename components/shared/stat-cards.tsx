@@ -161,7 +161,7 @@ function StatHint({ label, hint }: { label: string; hint: string }) {
           <button
             type="button"
             aria-label={`About ${label}`}
-            className="flex shrink-0 cursor-pointer items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40"
+            className="flex shrink-0 cursor-pointer items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
           >
             <RiInformationFill className="size-4" aria-hidden />
           </button>

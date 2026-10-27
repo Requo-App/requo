@@ -66,7 +66,7 @@ export function CheckboxGlyph({
             ? "border border-[var(--control-border-hover)] bg-[var(--control-bg-hover)] shadow-xs"
             : "border border-[var(--control-border)] bg-[var(--control-bg)] shadow-xs",
         isDisabled ? "opacity-50" : "",
-        isFocusVisible ? "ring-2 ring-ring/40" : "",
+        isFocusVisible ? "ring-2 ring-ring" : "",
       ]
         .filter(Boolean)
         .join(" ")}

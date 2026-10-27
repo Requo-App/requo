@@ -274,7 +274,7 @@ function SortableHeader({
       type="button"
       aria-label={`Sort by ${label}`}
       onClick={() => onSort(sortKey)}
-      className="flex cursor-pointer items-center gap-0.5 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+      className="flex cursor-pointer items-center gap-0.5 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <span className={cn(sortableHeaderLabelVariants({ active }), "text-body-medium")}>
         {label}

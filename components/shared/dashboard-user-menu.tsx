@@ -67,7 +67,7 @@ const userMenuItemVariants = cva(
 );
 
 const userMenuTriggerVariants = cva(
-  "relative flex min-w-0 cursor-pointer items-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring/40 before:pointer-events-none before:absolute before:-inset-y-[0.3125rem] before:rounded-full before:border-2 before:border-transparent before:transition-colors before:duration-150",
+  "relative flex min-w-0 cursor-pointer items-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring before:pointer-events-none before:absolute before:-inset-y-[0.3125rem] before:rounded-full before:border-2 before:border-transparent before:transition-colors before:duration-150",
   {
     variants: {
       hoverable: {

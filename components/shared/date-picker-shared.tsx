@@ -284,7 +284,7 @@ export const triggerButtonClassName = cn(
   "control-surface inline-flex shrink-0 cursor-pointer items-center gap-0.5 rounded-md border p-2 outline-none",
   "transition-[background-color,border-color,box-shadow] duration-150 ease",
   "hover:border-[var(--control-border-hover)] hover:bg-[var(--control-bg-hover)]",
-  "focus-visible:border-ring/50 focus-visible:ring-2 focus-visible:ring-ring/40",
+  "focus-visible:border-ring/50 focus-visible:ring-2 focus-visible:ring-ring",
   "disabled:cursor-not-allowed disabled:border-[var(--control-disabled-border)] disabled:bg-transparent disabled:text-[var(--control-disabled-fg)] disabled:shadow-none disabled:opacity-100",
 );
 

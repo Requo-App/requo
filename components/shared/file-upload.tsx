@@ -225,7 +225,7 @@ export function FileUpload({
         "group relative h-[164px] w-full shrink-0 rounded-2xl outline-none",
         "transition-colors duration-300 ease-out",
         busy ? "bg-card" : "cursor-pointer bg-muted",
-        "focus-visible:ring-2 focus-visible:ring-ring/40",
+        "focus-visible:ring-2 focus-visible:ring-ring",
         className,
       )}
     >

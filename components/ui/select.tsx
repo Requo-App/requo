@@ -13,7 +13,7 @@ const SelectGroup = SelectPrimitive.Group;
 const SelectValue = SelectPrimitive.Value;
 
 const selectTriggerVariants = cva(
-  "flex w-fit items-center justify-between gap-2 whitespace-nowrap rounded-md text-sm outline-none transition-colors focus-visible:border-ring/50 focus-visible:ring-2 focus-visible:ring-ring/40 disabled:cursor-not-allowed disabled:border-[var(--control-disabled-border)] disabled:bg-transparent disabled:text-[var(--control-disabled-fg)] disabled:opacity-100 data-[placeholder]:text-muted-foreground [&>span]:line-clamp-1 [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+  "flex w-fit items-center justify-between gap-2 whitespace-nowrap rounded-md text-sm outline-none transition-colors focus-visible:border-ring/50 focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:border-[var(--control-disabled-border)] disabled:bg-transparent disabled:text-[var(--control-disabled-fg)] disabled:opacity-100 data-[placeholder]:text-muted-foreground [&>span]:line-clamp-1 [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
   {
     variants: {
       variant: {
@@ -201,7 +201,7 @@ function Select({ options, placeholder, className, ...props }: SelectProps) {
         className={cn(
           "control-surface flex items-center gap-1.5 rounded-md border py-1 ps-3 pe-2 text-sm outline-none transition-colors",
           "text-muted-foreground hover:border-[var(--control-border-hover)] hover:bg-[var(--control-bg-hover)] hover:text-foreground",
-          "focus-visible:border-ring/50 focus-visible:ring-2 focus-visible:ring-ring/40",
+          "focus-visible:border-ring/50 focus-visible:ring-2 focus-visible:ring-ring",
           "disabled:cursor-not-allowed disabled:border-[var(--control-disabled-border)] disabled:bg-transparent disabled:text-[var(--control-disabled-fg)] disabled:opacity-100",
           !selectedOption && placeholder && "italic opacity-70",
           className,

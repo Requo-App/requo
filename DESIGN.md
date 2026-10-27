@@ -109,13 +109,16 @@ Rules:
 - Dark neutral borders are capped against the surface they sit on: cards and
   dividers ≤ 1.3:1, controls ≤ 1.4:1, hover ≤ 1.6:1. The brand-green focus
   ring and green focus border are a deliberate accent outside that neutral
-  cap (the 40% ring resolves to about 1.8:1 on a card) so focus stays visible.
+  cap and must maintain at least 3:1 contrast against the adjacent surface.
   Light borders are unchanged.
 - Controls share one visual language on the page and inside cards. Dark
   outline/secondary buttons, inputs, selects, and chips use the same
   `--control-*` fill and border; light controls are white with a hairline.
-- Focus is a brand-green ring at 40% opacity in both themes. Do not add a
-  white offset ring in dark mode.
+- Focus uses the solid brand-green `ring` token in both themes
+  (`focus-visible:ring-ring` / `focus-visible:outline-ring`), without opacity
+  reduction. It clears 3:1 contrast on the card fill in both themes. Preserve
+  each control's focus width and offset; do not add a white offset ring in
+  dark mode.
 - The primary green button keeps its fill; remove lighter dark-only outlines
   rather than layering a second edge.
 
@@ -501,7 +504,7 @@ Implementation: `components/shell/*`, `components/shared/dashboard-layout.tsx`, 
 
 Accessibility is default behavior, not an enhancement pass:
 
-- Focus: `focus-visible:ring-2 focus-visible:ring-border-focus-ring` / `ring` token; never remove visible focus states.
+- Focus: use the solid `ring` token (for example, `focus-visible:ring-2 focus-visible:ring-ring`) with at least 3:1 contrast against the adjacent surface; never remove visible focus states.
 - Forms: `Field` carries `data-invalid`, controls carry `aria-invalid`; every input has a `FieldLabel` (or `sr-only` label for icon-only actions).
 - Overlays: `DialogTitle` / `SheetTitle` required even when visually hidden; preserve close controls and focus trapping.
 - Buttons: loading state is `disabled` + `Spinner` with the text label kept; icon-only buttons include `sr-only` text.

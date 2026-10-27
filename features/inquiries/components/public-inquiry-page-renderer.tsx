@@ -623,7 +623,7 @@ function BusinessContactLink({
 
   return (
     <a
-      className="rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      className="rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       href={href}
       rel={external ? "noreferrer" : undefined}
       target={external ? "_blank" : undefined}

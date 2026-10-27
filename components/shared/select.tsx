@@ -52,7 +52,7 @@ const selectTriggerVariants = cva(
     "text-foreground",
     "transition-[background-color,border-color,box-shadow,padding,font-size] duration-200 ease",
     "hover:bg-[var(--control-bg-hover)] hover:border-[var(--control-border-hover)]",
-    "outline-none focus-visible:border-ring/50 focus-visible:ring-2 focus-visible:ring-ring/40",
+    "outline-none focus-visible:border-ring/50 focus-visible:ring-2 focus-visible:ring-ring",
     "disabled:cursor-not-allowed disabled:bg-transparent disabled:border-[var(--control-disabled-border)] disabled:text-[var(--control-disabled-fg)] disabled:shadow-none disabled:opacity-100",
   ),
   {
