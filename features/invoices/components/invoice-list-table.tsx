@@ -111,7 +111,7 @@ export function InvoiceListTable({
                 </TableCell>
                 <TableCell className="w-[8rem]">
                   <Link
-                    className="block text-sm text-muted-foreground transition-colors hover:text-primary group-hover/row:text-primary"
+                    className="block text-sm text-muted-foreground transition-colors hover:text-primary-ink group-hover/row:text-primary-ink"
                     href={invoiceHref}
                     prefetch={true}
                   >
@@ -120,7 +120,7 @@ export function InvoiceListTable({
                 </TableCell>
                 <TableCell className="w-[8rem]">
                   <Link
-                    className="block text-sm text-muted-foreground tabular-nums transition-colors hover:text-primary group-hover/row:text-primary"
+                    className="block text-sm text-muted-foreground tabular-nums transition-colors hover:text-primary-ink group-hover/row:text-primary-ink"
                     href={invoiceHref}
                     prefetch={true}
                   >
@@ -129,7 +129,7 @@ export function InvoiceListTable({
                 </TableCell>
                 <TableCell className="w-[8rem]">
                   <Link
-                    className="block text-sm font-semibold text-foreground tabular-nums transition-colors hover:text-primary group-hover/row:text-primary"
+                    className="block text-sm font-semibold text-foreground tabular-nums transition-colors hover:text-primary-ink group-hover/row:text-primary-ink"
                     href={invoiceHref}
                     prefetch={true}
                   >

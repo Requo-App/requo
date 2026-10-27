@@ -350,7 +350,7 @@ function AIDraftPreviewMock({ compact }: { compact: boolean }) {
       <div className="flex shrink-0 items-center gap-2 border-b border-border/60 bg-accent/50 px-4 py-3">
         <Sparkles
           aria-hidden="true"
-          className="size-3.5 shrink-0 text-primary"
+          className="size-3.5 shrink-0 text-primary-ink"
         />
         <p className="min-w-0 truncate text-xs leading-4 text-muted-foreground">
           <span className="font-semibold text-foreground">

@@ -558,7 +558,7 @@ export function ChatInterface({
         }
       />
       {attachError ? (
-        <p className="px-4 pt-1.5 text-xs text-destructive" role="alert">
+        <p className="px-4 pt-1.5 text-xs text-destructive-ink" role="alert">
           {attachError}
         </p>
       ) : null}
@@ -762,7 +762,7 @@ export function ChatInterface({
                 values={cardValues}
               />
             ) : proposalError && !stagedProposal ? (
-              <p className="text-sm text-destructive" role="alert">
+              <p className="text-sm text-destructive-ink" role="alert">
                 {proposalError}
               </p>
             ) : null}

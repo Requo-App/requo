@@ -170,7 +170,7 @@ function PricingPlans({
             type="button"
           >
             Yearly
-            <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 dark:bg-emerald-400/15 dark:text-emerald-400">
+            <span className="rounded-full bg-success/10 px-2 py-0.5 text-[10px] font-semibold text-success-ink">
               -{savingsPercent}%
             </span>
           </button>
@@ -208,11 +208,11 @@ function PricingPlans({
         </div>
 
         {/* Pro */}
-        <div className="relative flex h-full flex-col rounded-xl border border-primary/25 bg-card p-6 shadow-[0_2px_20px_-4px_hsl(var(--primary)/0.08)] ring-1 ring-primary/[0.06] sm:p-7">
+        <div className="relative flex h-full flex-col rounded-xl border border-primary/25 bg-card p-6 shadow-[var(--marketing-shadow-raised)] ring-1 ring-primary/[0.06] sm:p-7">
           <Badge className="absolute top-5 right-6 sm:right-7">
             Popular
           </Badge>
-          <p className="text-xs font-semibold uppercase tracking-widest text-primary">
+          <p className="text-xs font-semibold uppercase tracking-widest text-primary-ink">
             Pro
           </p>
           <div className="mt-4 flex items-baseline gap-1">
@@ -325,7 +325,7 @@ function PricingPlans({
 function Feature({ children }: { children: React.ReactNode }) {
   return (
     <li className="flex items-start gap-2 text-[0.82rem] leading-relaxed text-foreground">
-      <Check aria-hidden="true" className="mt-[3px] size-3.5 shrink-0 text-primary/80" />
+      <Check aria-hidden="true" className="mt-[3px] size-3.5 shrink-0 text-primary-ink/80" />
       <span>{children}</span>
     </li>
   );

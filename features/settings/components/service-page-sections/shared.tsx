@@ -145,7 +145,7 @@ export function OptionTile({
             <span className="sr-only">{selectedLabel}</span>
             <span
               aria-hidden="true"
-              className="inline-flex size-5 shrink-0 items-center justify-center rounded-full border border-primary/25 bg-background/90 text-primary"
+              className="inline-flex size-5 shrink-0 items-center justify-center rounded-full border border-primary/25 bg-background/90 text-primary-ink"
             >
               <Check className="size-3" />
             </span>

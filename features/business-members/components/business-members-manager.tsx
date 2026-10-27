@@ -840,7 +840,7 @@ function MemberActionsMenu({
                 </Button>
               ) : null}
               <Button
-                className="w-full justify-start text-destructive"
+                className="w-full justify-start text-destructive-ink"
                 disabled={disabled}
                 type="button"
                 variant="ghost"

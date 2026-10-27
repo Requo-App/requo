@@ -161,7 +161,7 @@ const inputElementClassName = [
   "focus:placeholder:text-muted-foreground",
   "disabled:text-muted-foreground disabled:placeholder:text-muted-foreground/70",
   "disabled:cursor-not-allowed",
-  "aria-invalid:placeholder:text-destructive",
+  "aria-invalid:placeholder:text-destructive-ink",
 ].join(" ");
 
 const inputIconClassName = "size-5 shrink-0";
@@ -206,7 +206,7 @@ export function InputBase({
           isDisabled &&
             "bg-muted text-muted-foreground",
           // Invalid
-          isInvalid && "bg-destructive/10 text-destructive",
+          isInvalid && "bg-destructive/10 text-destructive-ink",
           ctx.fieldClassName,
           fieldClassName,
         )

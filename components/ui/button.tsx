@@ -18,8 +18,8 @@ const buttonVariants = cva(
         ghost:
           "control-ghost-surface text-muted-foreground enabled:hover:border-border/60 enabled:hover:bg-[var(--control-accent-bg)] enabled:hover:text-foreground enabled:hover:shadow-[var(--control-shadow)] aria-expanded:border-border/60 aria-expanded:bg-[var(--control-accent-bg)] aria-expanded:text-foreground aria-expanded:shadow-[var(--control-shadow)]",
         destructive:
-          "button-destructive-fixed enabled:hover:-translate-y-px focus-visible:border-destructive focus-visible:ring-destructive/20 dark:text-white",
-        link: "text-primary underline-offset-4 hover:underline",
+          "button-destructive-fixed enabled:hover:-translate-y-px focus-visible:border-destructive focus-visible:ring-destructive/20",
+        link: "text-primary-ink underline-offset-4 hover:underline",
       },
       size: {
         default:

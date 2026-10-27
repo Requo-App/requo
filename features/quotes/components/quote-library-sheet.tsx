@@ -379,13 +379,13 @@ function LibraryEntryCard({
       ) : null}
 
       {wouldExceedLimit && !isTemplate ? (
-        <p className="text-sm text-destructive">
+        <p className="text-sm text-destructive-ink">
           This insert would create {nextItemCount} quote line items. Quotes can include up to 50.
         </p>
       ) : null}
 
       {hasCurrencyMismatch ? (
-        <p className="text-sm text-destructive">
+        <p className="text-sm text-destructive-ink">
           This entry is saved in {entry.currency}. Requo does not
           auto-convert saved pricing before inserting it into a {currency}{" "}
           quote.

@@ -75,7 +75,7 @@ export function SolutionCardShell({
         </div>
         <div className="flex flex-col gap-2 border-t border-border/60 pt-3.5 text-xs text-muted-foreground">
           <p className="inline-flex items-center gap-2">
-            <StatusIcon aria-hidden="true" className="size-3.5 shrink-0 text-primary" />
+            <StatusIcon aria-hidden="true" className="size-3.5 shrink-0 text-primary-ink" />
             <span className="truncate">
               <span className="font-medium text-foreground">
                 {card.statusValue}
@@ -109,7 +109,7 @@ export function SolutionFeatures({
           key={item.title}
         >
           <div className="flex items-center justify-between gap-3">
-            <span className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <span className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary-ink">
               <item.icon aria-hidden="true" className="size-4" />
             </span>
             <span aria-hidden="true" className="meta-label">
@@ -161,7 +161,7 @@ export function CustomerViewSection({
       <div className="flex flex-col gap-3 sm:gap-4">
         {customerViewPoints.map((point) => (
           <div className="soft-panel flex gap-3.5" key={point.title}>
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary-ink">
               <point.icon aria-hidden="true" className="size-4" />
             </span>
             <div className="min-w-0">
@@ -293,7 +293,7 @@ export function RelatedSolutions({ detail }: { detail: SolutionDetail }) {
               className="soft-panel group flex h-full flex-col gap-2.5 transition-shadow duration-200 hover:shadow-md"
               href={solutionHref(link.slug)}
             >
-              <span className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <span className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary-ink">
                 <Icon aria-hidden="true" className="size-4" />
               </span>
               <span className="font-heading text-base font-semibold tracking-tight">
@@ -302,7 +302,7 @@ export function RelatedSolutions({ detail }: { detail: SolutionDetail }) {
               <span className="text-sm leading-5 text-muted-foreground">
                 {blurb}
               </span>
-              <span className="mt-auto inline-flex items-center gap-1.5 pt-1 text-sm font-medium text-primary">
+              <span className="mt-auto inline-flex items-center gap-1.5 pt-1 text-sm font-medium text-primary-ink">
                 Explore solution
                 <ArrowRight
                   aria-hidden="true"

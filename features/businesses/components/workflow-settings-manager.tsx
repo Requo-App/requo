@@ -32,7 +32,7 @@ const initialState: PackActionState = {};
 
 function StateMessage({ state }: { state: PackActionState }) {
   if (state.error) {
-    return <p className="text-sm text-destructive">{state.error}</p>;
+    return <p className="text-sm text-destructive-ink">{state.error}</p>;
   }
 
   if (state.success) {

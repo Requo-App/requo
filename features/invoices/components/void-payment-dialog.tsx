@@ -58,7 +58,7 @@ export function VoidPaymentDialog({ paymentNumber, action, onOptimisticVoid, onO
               <Label htmlFor={`void-detail-${paymentNumber}`}>Details <span className="text-muted-foreground">(optional)</span></Label>
               <Textarea id={`void-detail-${paymentNumber}`} name="reasonDetail" rows={2} />
             </div>
-            {state.error ? <p role="alert" className="text-sm text-destructive">{state.error}</p> : null}
+            {state.error ? <p role="alert" className="text-sm text-destructive-ink">{state.error}</p> : null}
           </ResponsiveOverlayBody>
           <ResponsiveOverlayFooter>
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>

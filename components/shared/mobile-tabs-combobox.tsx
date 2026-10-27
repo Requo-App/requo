@@ -112,7 +112,7 @@ export function MobileTabsCombobox({
                           onValueChange(item.value);
                           setOpen(false);
                         }}
-                        className={cn(isActive && "font-medium text-primary data-[selected=true]:text-primary")}
+                        className={cn(isActive && "font-medium text-primary-ink data-[selected=true]:text-primary-ink")}
                         value={item.label}
                       >
                         {Icon && (
@@ -120,7 +120,7 @@ export function MobileTabsCombobox({
                             className={cn(
                               "size-4 shrink-0",
                               isActive
-                                ? "text-primary"
+                                ? "text-primary-ink"
                                 : "text-muted-foreground",
                             )}
                           />

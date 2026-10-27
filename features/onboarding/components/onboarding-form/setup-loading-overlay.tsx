@@ -50,11 +50,11 @@ export function SetupLoadingOverlay() {
               key={step}
             >
               {index < activeStep ? (
-                <CheckCircle2 className="size-5 shrink-0 text-primary" />
+                <CheckCircle2 className="size-5 shrink-0 text-primary-ink" />
               ) : index === activeStep && !isComplete ? (
                 <Spinner className="size-5 shrink-0" />
               ) : index === activeStep && isComplete ? (
-                <PartyPopper className="size-5 shrink-0 text-primary" />
+                <PartyPopper className="size-5 shrink-0 text-primary-ink" />
               ) : (
                 <div className="size-5 shrink-0" />
               )}
@@ -64,7 +64,7 @@ export function SetupLoadingOverlay() {
                   index <= activeStep
                     ? "text-foreground"
                     : "text-muted-foreground",
-                  index === activeStep && isComplete && "text-primary",
+                  index === activeStep && isComplete && "text-primary-ink",
                 )}
               >
                 {step}

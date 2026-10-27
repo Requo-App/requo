@@ -22,7 +22,7 @@ export function AiPricingReviewPanel({
       <div className="flex items-start gap-3">
         <AlertTriangle
           aria-hidden="true"
-          className="mt-0.5 size-4 shrink-0 text-warning"
+          className="mt-0.5 size-4 shrink-0 text-warning-ink"
         />
         <div className="min-w-0">
           <p className="text-sm font-medium text-foreground">

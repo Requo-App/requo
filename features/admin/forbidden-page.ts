@@ -46,21 +46,21 @@ export function renderAdminForbiddenPageHtml(): string {
 <style>
   :root {
     color-scheme: light dark;
-    --bg: #f7f9f7;
-    --fg: #172b24;
-    --muted-fg: #5f756c;
+    --bg: #ffffff;
+    --fg: #1d1d1f;
+    --muted-fg: #6e6e73;
     /* Same ghost numeral as the 404: text-foreground/[0.06]. */
-    --numeral: rgb(23 43 36 / 0.06);
+    --numeral: rgb(29 29 31 / 0.06);
     --primary: #008060;
     --primary-fg: #f4fffb;
     --ring: #1b9b79;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #121212;
-      --fg: #ededed;
-      --muted-fg: #8b9092;
-      --numeral: rgb(237 237 237 / 0.06);
+      --bg: #1c1c1e;
+      --fg: #f5f5f7;
+      --muted-fg: #a1a1a6;
+      --numeral: rgb(245 245 247 / 0.06);
     }
   }
   * { box-sizing: border-box; }

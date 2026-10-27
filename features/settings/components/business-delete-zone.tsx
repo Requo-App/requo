@@ -150,7 +150,7 @@ export function BusinessDeleteZone({
             </p>
             <div className="mt-2">
               <Button
-                className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                className="border-destructive/40 text-destructive-ink hover:bg-destructive/10 hover:text-destructive-ink"
                 type="button"
                 variant="outline"
                 onClick={() => setOpen(true)}

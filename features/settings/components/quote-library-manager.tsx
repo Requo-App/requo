@@ -618,7 +618,7 @@ function QuoteLibraryTableRow({
             <button
               type="button"
               onClick={onEdit}
-              className="table-emphasis cursor-pointer text-left transition-colors hover:text-primary"
+              className="table-emphasis cursor-pointer text-left transition-colors hover:text-primary-ink"
             >
               {entry.name}
             </button>

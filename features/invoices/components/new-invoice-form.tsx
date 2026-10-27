@@ -356,7 +356,7 @@ export function NewInvoiceForm({
             </div>
           )}
           {itemsError ? (
-            <p className="text-sm text-destructive" role="alert">
+            <p className="text-sm text-destructive-ink" role="alert">
               {itemsError}
             </p>
           ) : null}
@@ -496,7 +496,7 @@ export function NewInvoiceForm({
           </FieldGroup>
 
           {state.error ? (
-            <p className="text-sm text-destructive" role="alert">
+            <p className="text-sm text-destructive-ink" role="alert">
               {state.error}
             </p>
           ) : null}

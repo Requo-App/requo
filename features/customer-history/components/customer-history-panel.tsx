@@ -123,7 +123,7 @@ export function CustomerHistoryPanel({
                   meta={`Submitted ${formatInquiryDate(inquiry.submittedAt)}`}
                   title={
                     <Link
-                      className="inline-flex items-center gap-2 underline-offset-4 hover:text-primary hover:underline"
+                      className="inline-flex items-center gap-2 underline-offset-4 hover:text-primary-ink hover:underline"
                       href={getBusinessInquiryPath(businessSlug, inquiry.id)}
                     >
                       <FileText className="size-4 text-muted-foreground" />
@@ -155,7 +155,7 @@ export function CustomerHistoryPanel({
                   meta={`${formatQuoteMoney(quote.totalInCents, quote.currency)} · Created ${formatInquiryDate(quote.createdAt)}`}
                   title={
                     <Link
-                      className="inline-flex items-center gap-2 underline-offset-4 hover:text-primary hover:underline"
+                      className="inline-flex items-center gap-2 underline-offset-4 hover:text-primary-ink hover:underline"
                       href={getBusinessQuotePath(businessSlug, quote.id)}
                     >
                       <ReceiptText className="size-4 text-muted-foreground" />
@@ -195,7 +195,7 @@ function TimelineItem({
         meta={`Inquiry · Submitted ${formatInquiryDate(item.date)}`}
         title={
           <Link
-            className="inline-flex items-center gap-2 underline-offset-4 hover:text-primary hover:underline"
+            className="inline-flex items-center gap-2 underline-offset-4 hover:text-primary-ink hover:underline"
             href={getBusinessInquiryPath(businessSlug, item.id)}
           >
             <FileText className="size-4 text-muted-foreground" />
@@ -214,7 +214,7 @@ function TimelineItem({
       meta={`${formatQuoteMoney(item.amount, item.currency)} · Quote · Created ${formatInquiryDate(item.date)}`}
       title={
         <Link
-          className="inline-flex items-center gap-2 underline-offset-4 hover:text-primary hover:underline"
+          className="inline-flex items-center gap-2 underline-offset-4 hover:text-primary-ink hover:underline"
           href={getBusinessQuotePath(businessSlug, item.id)}
         >
           <ReceiptText className="size-4 text-muted-foreground" />

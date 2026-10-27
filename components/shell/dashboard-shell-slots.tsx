@@ -163,7 +163,7 @@ export function BusinessSwitcher({
           </button>
         ) : (
         <button
-          className="group/business-switcher w-full rounded-xl border border-sidebar-border/90 bg-background/92 p-3.5 text-left shadow-[0_1px_2px_rgba(15,23,42,0.05),inset_0_1px_0_rgba(255,255,255,0.42)] transition-[background-color,border-color,box-shadow,transform] [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)] hover:bg-background data-[state=open]:bg-background data-[state=open]:shadow-[var(--control-shadow-hover)] dark:border-white/8 dark:bg-card/90 dark:shadow-[0_1px_2px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.04)] dark:hover:bg-accent dark:data-[state=open]:bg-accent group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:rounded-lg group-data-[collapsible=icon]:border-none group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:shadow-none hover:group-data-[collapsible=icon]:bg-sidebar-accent"
+          className="group/business-switcher w-full rounded-xl border border-sidebar-border/90 bg-background/92 p-3.5 text-left shadow-[var(--control-shadow)] transition-[background-color,border-color,box-shadow,transform] [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)] hover:bg-background data-[state=open]:bg-background data-[state=open]:shadow-[var(--control-shadow-hover)] dark:bg-card/90 dark:hover:bg-accent dark:data-[state=open]:bg-accent group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:rounded-lg group-data-[collapsible=icon]:border-none group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:shadow-none hover:group-data-[collapsible=icon]:bg-sidebar-accent"
           data-tour="business-switcher"
           type="button"
         >
@@ -171,7 +171,7 @@ export function BusinessSwitcher({
             <BusinessAvatar
               name={business.name}
               logoUrl={getSwitcherLogoUrl("/api/business/logo", business)}
-              className="size-14 rounded-xl border-sidebar-border shadow-[inset_0_1px_0_rgba(255,255,255,0.22)] dark:border-white/8 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_1px_1px_rgba(0,0,0,0.18)] [&_[data-slot=avatar-image]]:rounded-xl [&_[data-slot=avatar-fallback]]:rounded-xl [&_[data-slot=avatar-fallback]]:text-sm [&_[data-slot=avatar-fallback]]:text-sidebar-foreground group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:rounded-lg [&_[data-slot=avatar-image]]:group-data-[collapsible=icon]:rounded-lg [&_[data-slot=avatar-fallback]]:group-data-[collapsible=icon]:rounded-lg [&_[data-slot=avatar-fallback]]:group-data-[collapsible=icon]:text-xs"
+              className="size-14 rounded-xl border-sidebar-border shadow-[inset_0_1px_0_var(--surface-highlight)] [&_[data-slot=avatar-image]]:rounded-xl [&_[data-slot=avatar-fallback]]:rounded-xl [&_[data-slot=avatar-fallback]]:text-sm [&_[data-slot=avatar-fallback]]:text-sidebar-foreground group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:rounded-lg [&_[data-slot=avatar-image]]:group-data-[collapsible=icon]:rounded-lg [&_[data-slot=avatar-fallback]]:group-data-[collapsible=icon]:rounded-lg [&_[data-slot=avatar-fallback]]:group-data-[collapsible=icon]:text-xs"
             />
             <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
               <div className="flex items-center justify-between gap-3">
@@ -242,7 +242,7 @@ export function BusinessSwitcher({
                       Locked
                     </Badge>
                   ) : null}
-                  {isCurrent ? <Check className="size-4 text-primary" /> : null}
+                  {isCurrent ? <Check className="size-4 text-primary-ink" /> : null}
                 </Link>
               </DropdownMenuItem>
             );
@@ -652,7 +652,7 @@ export function MobileBusinessSwitcher({
                         Locked
                       </Badge>
                     ) : null}
-                    {isCurrent ? <Check className="size-4 text-primary" /> : null}
+                    {isCurrent ? <Check className="size-4 text-primary-ink" /> : null}
                   </Link>
                 </DropdownMenuItem>
               );

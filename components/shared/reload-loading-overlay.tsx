@@ -20,7 +20,7 @@ export function ReloadLoadingOverlay() {
           />
           <BrandWordmark size="hero" />
         </div>
-        <Spinner className="size-5 text-primary" />
+        <Spinner className="size-5 text-primary-ink" />
       </div>
     </div>
   );

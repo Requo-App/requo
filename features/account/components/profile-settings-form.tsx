@@ -1117,7 +1117,7 @@ function DevicesSection({
                 </p>
               </div>
               {session.isCurrent ? (
-                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
+                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary-ink">
                   <span aria-hidden="true" className="size-1 rounded-full bg-current" />
                   This device
                 </span>
@@ -1139,7 +1139,7 @@ function DevicesSection({
       </div>
 
       {revokeSessionState.error ? (
-        <p className="text-sm text-destructive">{revokeSessionState.error}</p>
+        <p className="text-sm text-destructive-ink">{revokeSessionState.error}</p>
       ) : null}
 
       {hasOtherSessions ? (
@@ -1226,7 +1226,7 @@ function DeleteAccountSection({
     >
       <div className="flex justify-start">
         <Button
-          className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+          className="border-destructive/40 text-destructive-ink hover:bg-destructive/10 hover:text-destructive-ink"
           onClick={() => setConfirmOpen(true)}
           type="button"
           variant="outline"
@@ -1257,7 +1257,7 @@ function DeleteAccountSection({
                     <p className="font-medium text-foreground">
                       <ShieldAlert
                         aria-hidden="true"
-                        className="mr-1.5 inline size-4 text-destructive"
+                        className="mr-1.5 inline size-4 text-destructive-ink"
                       />
                       {blocker.businessName ?? "Blocking relationship"}
                     </p>
@@ -1302,7 +1302,7 @@ function DeleteAccountSection({
                 </FieldGroup>
 
                 {deleteState.error ? (
-                  <p className="text-sm text-destructive">{deleteState.error}</p>
+                  <p className="text-sm text-destructive-ink">{deleteState.error}</p>
                 ) : null}
 
                 <div className="flex justify-end gap-2">

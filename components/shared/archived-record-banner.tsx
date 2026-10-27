@@ -42,7 +42,7 @@ export function ArchivedRecordBanner({
 
   return (
     <>
-      <div className="flex w-full items-center justify-between gap-2 rounded-lg border border-amber-300/60 bg-amber-50 px-4 py-2.5 text-amber-900 dark:border-amber-700/40 dark:bg-amber-950/80 dark:text-amber-200">
+      <div className="flex w-full items-center justify-between gap-2 rounded-lg border border-warning/30 bg-warning/10 px-4 py-2.5 text-warning-ink">
         <div className="flex items-center gap-2">
           <Archive className="size-3.5 shrink-0" />
           <p className="text-xs font-medium sm:text-sm">

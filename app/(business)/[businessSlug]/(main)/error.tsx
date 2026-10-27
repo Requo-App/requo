@@ -42,7 +42,7 @@ export default function DashboardError({
       }
       eyebrow="Dashboard error"
       media={
-        <div className="flex size-12 items-center justify-center rounded-full border bg-destructive/10 text-destructive">
+        <div className="flex size-12 items-center justify-center rounded-full border bg-destructive/10 text-destructive-ink">
           <AlertTriangle />
         </div>
       }

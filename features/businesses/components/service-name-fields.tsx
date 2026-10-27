@@ -118,7 +118,7 @@ export function ServiceNameFields({
       </div>
 
       {fieldError ? (
-        <p className="text-xs text-destructive" role="alert">
+        <p className="text-xs text-destructive-ink" role="alert">
           {fieldError}
         </p>
       ) : null}

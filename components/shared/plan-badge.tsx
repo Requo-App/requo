@@ -4,9 +4,9 @@ import { cn } from "@/lib/utils";
 
 const planBadgeStyles: Record<PlanTier, string> = {
   free: "border-border/80 bg-muted/60 text-muted-foreground shadow-[var(--control-shadow)] dark:bg-muted/40",
-  pro: "border-primary/30 bg-primary/10 text-primary shadow-[var(--control-shadow)] dark:border-primary/25 dark:bg-primary/15",
+  pro: "border-primary/30 bg-primary/10 text-primary-ink shadow-[var(--control-shadow)] dark:border-primary/25 dark:bg-primary/15",
   business:
-    "border-violet-300/50 bg-violet-500/10 text-violet-700 shadow-[var(--control-shadow)] dark:border-violet-500/25 dark:bg-violet-500/15 dark:text-violet-400",
+    "border-[color:var(--status-highlight-border)] bg-[var(--status-highlight-bg)] text-[color:var(--status-highlight-fg)] shadow-[var(--control-shadow)]",
 };
 
 export function PlanBadge({

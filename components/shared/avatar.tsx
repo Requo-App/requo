@@ -42,9 +42,9 @@ const avatarVariants = cva(
       },
       color: {
         neutral: "bg-muted text-muted-foreground",
-        blue: "bg-primary/10 text-primary",
-        lime: "bg-success/15 text-success",
-        pink: "bg-destructive/10 text-destructive",
+        blue: "bg-primary/10 text-primary-ink",
+        lime: "bg-success/15 text-success-ink",
+        pink: "bg-destructive/10 text-destructive-ink",
       },
     },
     defaultVariants: {

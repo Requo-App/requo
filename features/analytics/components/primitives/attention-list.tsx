@@ -55,7 +55,7 @@ export function AttentionList({
   if (items.length === 0) {
     return (
       <div className="flex items-center gap-3 py-1">
-        <CircleCheck className="size-4 shrink-0 text-success" aria-hidden />
+        <CircleCheck className="size-4 shrink-0 text-success-ink" aria-hidden />
         <div className="min-w-0">
           <p className="text-sm font-medium text-foreground">
             Nothing needs attention

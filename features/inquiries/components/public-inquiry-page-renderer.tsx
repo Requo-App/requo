@@ -272,7 +272,7 @@ function BusinessBrandBadge({
   return (
     <div
       className={cn(
-        "flex shrink-0 items-center justify-center overflow-hidden border border-border/70 bg-background/92 shadow-[inset_0_1px_0_rgba(255,255,255,0.54)]",
+        "flex shrink-0 items-center justify-center overflow-hidden border border-border/70 bg-background/92 shadow-[inset_0_1px_0_var(--surface-highlight)]",
         sizeClassName,
       )}
     >
@@ -379,7 +379,7 @@ function InquirySupportCards({
           >
             <CardHeader className="px-3.5 py-3 sm:px-5 sm:py-4">
               <div className="flex items-center gap-3 sm:gap-3.5">
-                <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-accent/85 text-accent-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] sm:size-9 sm:rounded-xl">
+                <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-accent/85 text-accent-foreground shadow-[inset_0_1px_0_var(--surface-highlight)] sm:size-9 sm:rounded-xl">
                   <Icon className="size-3.5 sm:size-4" />
                 </div>
                 <div className="flex min-w-0 flex-1 flex-col justify-center">

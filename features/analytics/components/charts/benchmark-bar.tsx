@@ -21,8 +21,8 @@ function MirrorBadge({ row }: { row: AnalyticsBenchmarkRow }) {
         equal
           ? "bg-muted text-muted-foreground"
           : better
-            ? "bg-success/10 text-success"
-            : "bg-destructive/10 text-destructive",
+            ? "bg-success/10 text-success-ink"
+            : "bg-destructive/10 text-destructive-ink",
       )}
     >
       {equal ? "At median" : better ? "Above median" : "Below median"}

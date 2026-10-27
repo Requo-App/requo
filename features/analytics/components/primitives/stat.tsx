@@ -295,13 +295,13 @@ export function StatLink({
     <Link
       href={href}
       className={cn(
-        "group/stat-link inline-flex min-w-0 items-center gap-1 rounded-sm text-sm font-medium text-foreground outline-none transition-colors hover:text-primary focus-visible:ring-2 focus-visible:ring-ring",
+        "group/stat-link inline-flex min-w-0 items-center gap-1 rounded-sm text-sm font-medium text-foreground outline-none transition-colors hover:text-primary-ink focus-visible:ring-2 focus-visible:ring-ring",
         className,
       )}
     >
       <span className="truncate">{children}</span>
       <ArrowUpRight
-        className="size-3.5 shrink-0 text-muted-foreground/70 transition-colors group-hover/stat-link:text-primary"
+        className="size-3.5 shrink-0 text-muted-foreground/70 transition-colors group-hover/stat-link:text-primary-ink"
         aria-hidden
       />
     </Link>

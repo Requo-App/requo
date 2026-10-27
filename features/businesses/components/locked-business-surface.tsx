@@ -16,7 +16,7 @@ export function LockedBusinessSurface({
   businessContext,
 }: LockedBusinessSurfaceProps) {
   return (
-    <Alert className="mb-6 border-amber-300/60 bg-amber-50/60 text-amber-900 dark:border-amber-700/40 dark:bg-amber-950/20 dark:text-amber-200">
+    <Alert className="mb-6 border-warning/30 bg-warning/10 text-warning-ink">
       <LockKeyhole className="size-4" />
       <div className="flex flex-col gap-3">
         <div className="space-y-1">

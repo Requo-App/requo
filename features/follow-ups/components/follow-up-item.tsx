@@ -362,7 +362,7 @@ export function FollowUpItem({
                 className="size-1 rounded-full bg-muted-foreground/40"
               />
               <Link
-                className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
+                className="inline-flex items-center gap-1 font-medium text-primary-ink hover:underline"
                 href={relatedHref}
                 prefetch={true}
               >

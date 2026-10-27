@@ -188,10 +188,10 @@ const iconMap: Record<NeedsAttentionIconName, LucideIcon> = {
 };
 
 const iconStyles: Record<NeedsAttentionIconName, string> = {
-  "inbox": "bg-sky-500/10 text-sky-600 dark:text-sky-400", // blue for inquiries
-  "file-text": "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400", // emerald for quotes
-  "bell-ring": "bg-amber-500/10 text-amber-600 dark:text-amber-400", // amber for follow-ups
-  "check-circle": "bg-green-500/10 text-green-600 dark:text-green-400", // green for accepted/success
+  "inbox": "bg-info/10 text-info-ink", // blue for inquiries
+  "file-text": "bg-success/10 text-success-ink", // emerald for quotes
+  "bell-ring": "bg-warning/10 text-warning-ink", // amber for follow-ups
+  "check-circle": "bg-primary/10 text-primary-ink", // green for accepted/success
 };
 
 function NeedsAttentionMinimalRow({ item }: { item: NeedsAttentionItemData }) {
@@ -231,7 +231,7 @@ function NeedsAttentionMinimalRow({ item }: { item: NeedsAttentionItemData }) {
             <span className="mx-1.5 text-muted-foreground/40">·</span>
             <span
               className={cn(
-                isUrgent ? "text-destructive font-medium" : "text-muted-foreground/80"
+                isUrgent ? "text-destructive-ink font-medium" : "text-muted-foreground/80"
               )}
             >
               {item.meta}
@@ -242,10 +242,10 @@ function NeedsAttentionMinimalRow({ item }: { item: NeedsAttentionItemData }) {
 
       {/* Action link on the right side */}
       <div className="flex shrink-0 items-center gap-1.5">
-        <span className="hidden text-xs font-semibold text-primary/95 transition-colors group-hover:text-primary group-hover:underline sm:inline-flex">
+        <span className="hidden text-xs font-semibold text-primary-ink/95 transition-colors group-hover:text-primary-ink group-hover:underline sm:inline-flex">
           {item.actionLabel}
         </span>
-        <ArrowRight className="size-3.5 shrink-0 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
+        <ArrowRight className="size-3.5 shrink-0 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5 group-hover:text-primary-ink" />
       </div>
     </Link>
   );

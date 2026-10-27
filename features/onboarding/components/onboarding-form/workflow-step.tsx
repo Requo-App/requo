@@ -103,7 +103,7 @@ export function WorkflowStep({
                             className={cn(
                               "rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide",
                               isSelected
-                                ? "bg-primary/15 text-primary"
+                                ? "bg-primary/15 text-primary-ink"
                                 : "bg-muted text-muted-foreground",
                             )}
                           >

@@ -101,7 +101,7 @@ function QuoteMock({ tab }: { tab: SolutionDemoTab }) {
         </p>
       </div>
       <p className="inline-flex items-center gap-2 text-xs text-muted-foreground">
-        <Eye aria-hidden="true" className="size-3.5 shrink-0 text-primary" />
+        <Eye aria-hidden="true" className="size-3.5 shrink-0 text-primary-ink" />
         <span className="truncate">
           <span className="font-medium text-foreground">
             {tab.statusValue}
@@ -253,7 +253,7 @@ export function SolutionDemo({ tabs }: { tabs: readonly SolutionDemoTab[] }) {
 
   return (
     <Tabs
-      className="gap-0 overflow-hidden rounded-xl border border-border bg-background shadow-[0_18px_50px_rgba(0,0,0,0.08)]"
+      className="gap-0 overflow-hidden rounded-xl border border-border bg-background shadow-[var(--marketing-shadow-raised)]"
       onValueChange={(value) => {
         const index = tabs.findIndex((tab) => tab.id === value);
         if (index >= 0) {
@@ -289,7 +289,7 @@ export function SolutionDemo({ tabs }: { tabs: readonly SolutionDemoTab[] }) {
                     "flex size-5 items-center justify-center rounded-full text-[0.6875rem] font-semibold tabular-nums",
                     completed && "bg-primary text-primary-foreground",
                     index === active &&
-                      "bg-primary/10 text-primary ring-1 ring-primary/30",
+                      "bg-primary/10 text-primary-ink ring-1 ring-primary/30",
                     index > active && "bg-muted text-muted-foreground",
                   )}
                 >

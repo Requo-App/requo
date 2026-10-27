@@ -98,7 +98,7 @@ export function PricingPage({
                   <tr className="border-t border-border">
                     <td
                       colSpan={4}
-                      className="px-8 pb-2 pt-6 text-xs font-semibold uppercase tracking-wider text-primary"
+                      className="px-8 pb-2 pt-6 text-xs font-semibold uppercase tracking-wider text-primary-ink"
                     >
                       {category.category}
                     </td>
@@ -126,7 +126,7 @@ export function PricingPage({
         <div className="flex flex-col gap-0 md:hidden">
           {pricingComparison.map((category) => (
             <div key={category.category} className="border-t border-border">
-              <p className="px-5 pb-2 pt-5 text-xs font-semibold uppercase tracking-wider text-primary">
+              <p className="px-5 pb-2 pt-5 text-xs font-semibold uppercase tracking-wider text-primary-ink">
                 {category.category}
               </p>
               <div className="flex flex-col">
@@ -268,7 +268,7 @@ function PricingCell({
     >
       {typeof value === "boolean" ? (
         value ? (
-          <Check className="mx-auto size-4 text-primary" />
+          <Check className="mx-auto size-4 text-primary-ink" />
         ) : (
           <Minus className="mx-auto size-3.5 text-muted-foreground" />
         )
@@ -284,7 +284,7 @@ function PricingCell({
 function MobileCell({ value }: { value: string | boolean | number }) {
   if (typeof value === "boolean") {
     return value ? (
-      <Check className="mx-auto size-3.5 text-primary" />
+      <Check className="mx-auto size-3.5 text-primary-ink" />
     ) : (
       <Minus className="mx-auto size-3 text-muted-foreground" />
     );

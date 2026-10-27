@@ -217,7 +217,7 @@ export function ProposedInquiryCard({
               />
             </FieldContent>
             {showErrors && fieldError(validation.errors, "customerName") ? (
-              <p className="text-sm text-destructive">{fieldError(validation.errors, "customerName")}</p>
+              <p className="text-sm text-destructive-ink">{fieldError(validation.errors, "customerName")}</p>
             ) : null}
           </Field>
 
@@ -237,7 +237,7 @@ export function ProposedInquiryCard({
               />
             </FieldContent>
             {showErrors && fieldError(validation.errors, "customerEmail") ? (
-              <p className="text-sm text-destructive">{fieldError(validation.errors, "customerEmail")}</p>
+              <p className="text-sm text-destructive-ink">{fieldError(validation.errors, "customerEmail")}</p>
             ) : null}
           </Field>
 
@@ -263,7 +263,7 @@ export function ProposedInquiryCard({
                 </SelectRoot>
               </FieldContent>
               {showErrors && fieldError(validation.errors, "customerContactMethod") ? (
-                <p className="text-sm text-destructive">{fieldError(validation.errors, "customerContactMethod")}</p>
+                <p className="text-sm text-destructive-ink">{fieldError(validation.errors, "customerContactMethod")}</p>
               ) : null}
             </Field>
 
@@ -281,7 +281,7 @@ export function ProposedInquiryCard({
                 />
               </FieldContent>
               {showErrors && fieldError(validation.errors, "customerContactHandle") ? (
-                <p className="text-sm text-destructive">{fieldError(validation.errors, "customerContactHandle")}</p>
+                <p className="text-sm text-destructive-ink">{fieldError(validation.errors, "customerContactHandle")}</p>
               ) : null}
             </Field>
           </div>
@@ -298,7 +298,7 @@ export function ProposedInquiryCard({
               />
             </FieldContent>
             {showErrors && fieldError(validation.errors, "serviceSlug") ? (
-              <p className="text-sm text-destructive">{fieldError(validation.errors, "serviceSlug")}</p>
+              <p className="text-sm text-destructive-ink">{fieldError(validation.errors, "serviceSlug")}</p>
             ) : null}
           </Field>
 
@@ -315,7 +315,7 @@ export function ProposedInquiryCard({
               />
             </FieldContent>
             {showErrors && fieldError(validation.errors, "details") ? (
-              <p className="text-sm text-destructive">{fieldError(validation.errors, "details")}</p>
+              <p className="text-sm text-destructive-ink">{fieldError(validation.errors, "details")}</p>
             ) : null}
           </Field>
 
@@ -334,7 +334,7 @@ export function ProposedInquiryCard({
                 />
               </FieldContent>
               {showErrors && fieldError(validation.errors, "budgetText") ? (
-                <p className="text-sm text-destructive">{fieldError(validation.errors, "budgetText")}</p>
+                <p className="text-sm text-destructive-ink">{fieldError(validation.errors, "budgetText")}</p>
               ) : null}
             </Field>
 
@@ -354,13 +354,13 @@ export function ProposedInquiryCard({
                 />
               </FieldContent>
               {showErrors && fieldError(validation.errors, "requestedDeadline") ? (
-                <p className="text-sm text-destructive">{fieldError(validation.errors, "requestedDeadline")}</p>
+                <p className="text-sm text-destructive-ink">{fieldError(validation.errors, "requestedDeadline")}</p>
               ) : null}
             </Field>
           </div>
 
           {serverError ? (
-            <p className="text-sm text-destructive" role="alert">
+            <p className="text-sm text-destructive-ink" role="alert">
               {serverError}
             </p>
           ) : null}

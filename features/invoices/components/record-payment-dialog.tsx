@@ -105,7 +105,7 @@ export function RecordPaymentDialog({ balanceInCents, currency, invoiceNumber, c
               <div className="grid gap-2"><Label htmlFor="payment-reference">Reference <span className="text-muted-foreground">(optional)</span></Label><Input id="payment-reference" name="reference" placeholder={method === "cash" ? "Optional" : "E.g. BDO-829183"} /></div>
             </div>
             <div className="grid gap-2"><Label htmlFor="payment-notes">Notes {notesRequired ? null : <span className="text-muted-foreground">(optional)</span>}</Label><Textarea id="payment-notes" name="notes" rows={2} required={notesRequired} placeholder={notesRequired ? "Describe how this payment was received." : undefined} aria-invalid={Boolean(state.fieldErrors?.notes)} /></div>
-            {state.error ? <p role="alert" className="text-sm text-destructive">{state.error}</p> : null}
+            {state.error ? <p role="alert" className="text-sm text-destructive-ink">{state.error}</p> : null}
           </ResponsiveOverlayBody>
           <ResponsiveOverlayFooter><Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button><Button type="submit" disabled={pending}>{pending ? (<><Spinner data-icon="inline-start" aria-hidden="true" />Recording...</>) : "Record payment"}</Button></ResponsiveOverlayFooter>
         </form>

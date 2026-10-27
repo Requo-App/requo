@@ -306,7 +306,7 @@ export function FileUpload({
       >
         <span className="t-stagger-line t-stagger-line--1 flex size-10 items-center justify-center rounded-full bg-primary/10 p-2.5">
           <RiUploadCloud2Line
-            className="size-6 shrink-0 text-primary transition-colors duration-150 ease"
+            className="size-6 shrink-0 text-primary-ink transition-colors duration-150 ease"
             aria-hidden
           />
         </span>
@@ -314,12 +314,12 @@ export function FileUpload({
           <p
             className={cn(
               "t-stagger-line t-stagger-line--2 text-body-medium",
-              rejection ? "text-destructive" : "text-muted-foreground",
+              rejection ? "text-destructive-ink" : "text-muted-foreground",
             )}
           >
             {rejection ?? (
               <>
-                Drag and drop to upload or <span className="text-primary">select</span>
+                Drag and drop to upload or <span className="text-primary-ink">select</span>
               </>
             )}
           </p>

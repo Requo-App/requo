@@ -334,7 +334,7 @@ function HistoryList({
             ))}
           </div>
         ) : error ? (
-          <p className="p-2 text-sm text-destructive">{error}</p>
+          <p className="p-2 text-sm text-destructive-ink">{error}</p>
         ) : items.length === 0 ? (
           <Empty className="min-h-48 border-none bg-transparent p-6 shadow-none">
             <EmptyHeader>

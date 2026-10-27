@@ -154,7 +154,7 @@ export function Combobox<TOption extends ComboboxOption>({
                     </div>
                     <CheckIcon
                       className={cn(
-                        "shrink-0 text-primary transition-opacity",
+                        "shrink-0 text-primary-ink transition-opacity",
                         value === option.value ? "opacity-100" : "opacity-0",
                       )}
                     />

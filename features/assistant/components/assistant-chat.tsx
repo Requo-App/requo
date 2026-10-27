@@ -435,7 +435,7 @@ export function AssistantChat({
         }
       />
       {attachError ? (
-        <p className="px-4 pt-1.5 text-xs text-destructive" role="alert">
+        <p className="px-4 pt-1.5 text-xs text-destructive-ink" role="alert">
           {attachError}
         </p>
       ) : null}
@@ -626,7 +626,7 @@ export function AssistantChat({
             ) : null}
 
             {error && !limitMessage ? (
-              <div className="flex items-center gap-2 text-sm text-destructive" role="alert">
+              <div className="flex items-center gap-2 text-sm text-destructive-ink" role="alert">
                 <p>{friendlyAssistantError(error.message || "")}</p>
                 <Button
                   aria-label="Retry response"

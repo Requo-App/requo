@@ -103,7 +103,7 @@ function TeamMemberMobileRow({
         {formatNumber(member.followUpsCompleted)} follow-ups ·{" "}
         {formatDuration(member.averageResponseHours)} avg response
         {member.slaBreaches > 0 ? (
-          <span className="text-destructive">
+          <span className="text-destructive-ink">
             {" "}
             · {formatNumber(member.slaBreaches)} SLA{" "}
             {member.slaBreaches === 1 ? "breach" : "breaches"}
@@ -176,7 +176,7 @@ export async function TeamMembersCard(props: TeamSectionProps) {
               sla: (
                 <span
                   className={cn(
-                    member.slaBreaches > 0 ? "text-destructive" : undefined,
+                    member.slaBreaches > 0 ? "text-destructive-ink" : undefined,
                   )}
                 >
                   {formatNumber(member.slaBreaches)}
@@ -233,7 +233,7 @@ export async function TeamWorkloadRow(props: TeamSectionProps) {
               value={formatNumber(workload.unviewedInquiries)}
               caption="Nobody has opened these yet"
               valueClassName={
-                workload.unviewedInquiries > 0 ? "text-warning" : undefined
+                workload.unviewedInquiries > 0 ? "text-warning-ink" : undefined
               }
             />
             <Stat
@@ -242,7 +242,7 @@ export async function TeamWorkloadRow(props: TeamSectionProps) {
               caption="Age of the longest-waiting inquiry"
               valueClassName={
                 workload.oldestUnviewedHours && workload.oldestUnviewedHours > 24
-                  ? "text-warning"
+                  ? "text-warning-ink"
                   : undefined
               }
             />
@@ -268,14 +268,14 @@ export async function TeamWorkloadRow(props: TeamSectionProps) {
               value={formatNumber(sla.breachedInquiries)}
               caption={`More than ${sla.targetHours}h to a first look`}
               valueClassName={
-                sla.breachedInquiries > 0 ? "text-warning" : "text-success"
+                sla.breachedInquiries > 0 ? "text-warning-ink" : "text-success-ink"
               }
             />
             <Stat
               label="Breach rate"
               value={formatPercent(sla.breachRate)}
               caption="Breaches ÷ inquiries submitted"
-              valueClassName={sla.breachRate > 0.2 ? "text-destructive" : undefined}
+              valueClassName={sla.breachRate > 0.2 ? "text-destructive-ink" : undefined}
             />
           </StatGrid>
           <div className="flex min-w-0 flex-col gap-2">

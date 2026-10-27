@@ -25,6 +25,7 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-selected: var(--sidebar-selected);
   --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-foreground: var(--sidebar-foreground);
@@ -41,9 +42,14 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-destructive-ink: var(--destructive-ink);
   --color-success: var(--success);
+  --color-success-ink: var(--success-ink);
   --color-warning: var(--warning);
+  --color-warning-ink: var(--warning-ink);
   --color-info: var(--info);
+  --color-info-ink: var(--info-ink);
+  --color-switch-thumb: var(--switch-thumb);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -52,6 +58,7 @@
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
+  --color-primary-ink: var(--primary-ink);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
@@ -213,26 +220,49 @@
 }
 
 :root {
-  --background: #f7f9f7;
-  --foreground: #172b24;
+  color-scheme: light;
+  --background: #ffffff;
+  --foreground: #1d1d1f;
   --card: #ffffff;
-  --card-foreground: #172b24;
+  --card-foreground: #1d1d1f;
   --popover: #ffffff;
-  --popover-foreground: #172b24;
+  --popover-foreground: #1d1d1f;
   --primary: #008060;
   --primary-foreground: #f4fffb;
-  --secondary: #f0f3f1;
-  --secondary-foreground: #234036;
-  --muted: #eef2ef;
-  --muted-foreground: #5f756c;
-  --accent: #f0f3f1;
-  --accent-foreground: #234036;
+  --secondary: #f5f5f7;
+  --secondary-foreground: #1d1d1f;
+  --muted: #f5f5f7;
+  --muted-foreground: #6e6e73;
+  --accent: rgb(0 0 0 / 0.06);
+  --accent-foreground: #1d1d1f;
   --destructive: #c9372c;
   --success: #059669;
   --warning: #b45309;
   --info: #0369a1;
-  --border: #d6ddd8;
-  --input: #d6ddd8;
+  /* Text/icon inks. Fills use the solid tone above; on-surface text uses these
+     so dark mode can step lighter without changing a button fill. */
+  --primary-ink: #008060;
+  --destructive-ink: #c9372c;
+  --success-ink: #047857;
+  --warning-ink: #b45309;
+  --info-ink: #0369a1;
+  /* Decorative status hues. These are the only non-semantic colour families
+     in the status vocabulary; both themes carry the same hue, with a lighter
+     ink and a low-alpha tint in dark. */
+  --status-progress-bg: color-mix(in srgb, #4f46e5 12%, transparent);
+  --status-progress-border: color-mix(in srgb, #4f46e5 28%, transparent);
+  --status-progress-fg: #4338ca;
+  --status-active-bg: color-mix(in srgb, #0891b2 12%, transparent);
+  --status-active-border: color-mix(in srgb, #0891b2 28%, transparent);
+  --status-active-fg: #0e7490;
+  --status-highlight-bg: color-mix(in srgb, #7c3aed 12%, transparent);
+  --status-highlight-border: color-mix(in srgb, #7c3aed 28%, transparent);
+  --status-highlight-fg: #6d28d9;
+  --status-attention-bg: color-mix(in srgb, #ea580c 12%, transparent);
+  --status-attention-border: color-mix(in srgb, #ea580c 28%, transparent);
+  --status-attention-fg: #c2410c;
+  --border: #e5e5ea;
+  --input: #d1d1d6;
   --ring: #1b9b79;
   /* Marketing accent text and rails: the brand green on light, the lighter
      focus green on dark so labels and the 2px rails keep their contrast. */
@@ -240,10 +270,10 @@
   /* Landing surfaces and hairlines. The hero keeps one soft radial behind the
      product window; the illustrations stay flat. */
   --marketing-surface-raised: #ffffff;
-  --marketing-surface-muted: #f0f4f1;
-  --marketing-hairline: rgb(23 43 36 / 0.1);
-  --marketing-hairline-strong: rgb(23 43 36 / 0.16);
-  --marketing-muted: #5a6f66;
+  --marketing-surface-muted: #f5f5f7;
+  --marketing-hairline: rgb(29 29 31 / 0.1);
+  --marketing-hairline-strong: rgb(29 29 31 / 0.16);
+  --marketing-muted: #6e6e73;
   --marketing-glow-opacity: 0.12;
   --marketing-radius-lg: 1rem;
   /* One step above the 8px control radius, so illustration cards sit between
@@ -254,12 +284,10 @@
   --marketing-reveal-distance: 12px;
   --marketing-parallax-distance: 12px;
   --marketing-parallax-progress: 0.5;
-  --marketing-shadow-raised:
-    0 1px 2px rgb(15 23 42 / 0.04),
-    0 16px 32px -24px rgb(0 0 0 / 0.18);
-  --marketing-mock-shadow:
-    0 1px 2px rgb(15 23 42 / 0.04),
-    0 10px 24px -20px rgb(15 23 42 / 0.18);
+  --marketing-shadow-raised: 0 1px 2px rgb(0 0 0 / 0.04),
+    0 18px 36px -28px rgb(0 0 0 / 0.16);
+  --marketing-mock-shadow: 0 1px 2px rgb(0 0 0 / 0.04),
+    0 10px 24px -20px rgb(0 0 0 / 0.12);
   /* Desktop nav overlay: one mint tint shared by the open trigger pill and the
      gliding row highlight, plus the panel hairline and the tile's deeper green. */
   --marketing-nav-highlight: color-mix(
@@ -283,7 +311,7 @@
      hairline, `--chart-track` the unfilled bar/meter track, and
      `--chart-tooltip-surface` / `--chart-tooltip-border` the shared chart
      tooltip shell. */
-  --chart-grid: rgb(23 43 36 / 0.08);
+  --chart-grid: rgb(29 29 31 / 0.08);
   --chart-track: color-mix(in srgb, var(--foreground) 14%, transparent);
   --chart-tooltip-surface: var(--popover);
   --chart-tooltip-border: var(--border);
@@ -307,78 +335,67 @@
   --motion-ease-standard: cubic-bezier(0.25, 1, 0.5, 1);
   --motion-ease-emphasized: cubic-bezier(0.22, 1, 0.36, 1);
   --motion-lift-distance: 2px;
-  --sidebar: #f6f8f6;
-  --sidebar-foreground: #172b24;
+  --sidebar: #f5f5f7;
+  --sidebar-foreground: #1d1d1f;
   --sidebar-primary: #008060;
   --sidebar-primary-foreground: #f4fffb;
-  --sidebar-accent: #eef2ef;
-  --sidebar-accent-foreground: #173128;
-  --sidebar-border: #d7ded9;
+  --sidebar-accent: rgb(0 0 0 / 0.06);
+  --sidebar-accent-foreground: #1d1d1f;
+  /* Selected rows stay stronger than the hover fill; without it the new
+     accent and selected states would collapse into one. */
+  --sidebar-selected: rgb(0 0 0 / 0.08);
+  --sidebar-border: #e5e5ea;
   --sidebar-ring: #1b9b79;
   /* App shell frame and inset card. The card is a touch lighter than the
      faintly tinted frame so the shell reads as one raised panel in both
      themes; sidebar row states keep their own tokens. */
-  --shell-frame: #f1f4f1;
+  --shell-frame: #f5f5f7;
   --shell-card: #ffffff;
   /* One place to tune the sidebar/card resize. The card follows the rail
      purely through flex layout, so only the width transition needs these. */
   --shell-motion-duration: 200ms;
   --shell-motion-easing: linear;
-  --surface-elevated-bg:
-    linear-gradient(180deg, rgb(255 255 255 / 0.96) 0%, rgb(255 255 255 / 0.99) 100%);
-  --surface-soft-bg:
-    linear-gradient(180deg, rgb(252 253 252 / 0.84) 0%, rgb(247 249 247 / 0.96) 100%);
-  --surface-muted-bg:
-    linear-gradient(180deg, rgb(248 250 248 / 0.8) 0%, rgb(242 246 243 / 0.95) 100%);
-  --surface-stroke: rgb(214 221 216 / 0.94);
-  --surface-shadow-lg:
-    inset 0 1px 0 rgb(255 255 255 / 0.56),
-    inset 0 -1px 0 rgb(23 43 36 / 0.05),
-    0 1px 2px rgb(15 23 42 / 0.04),
-    0 8px 14px -10px rgb(15 23 42 / 0.08),
-    0 22px 40px -30px rgb(23 43 36 / 0.2);
-  --surface-card-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.58),
-    inset 0 -1px 0 rgb(23 43 36 / 0.05),
-    0 1px 2px rgb(15 23 42 / 0.04),
-    0 7px 12px -9px rgb(15 23 42 / 0.07),
-    0 18px 32px -28px rgb(23 43 36 / 0.18);
-  --surface-shadow-md:
-    inset 0 1px 0 rgb(255 255 255 / 0.54),
-    inset 0 -1px 0 rgb(23 43 36 / 0.04),
-    0 1px 2px rgb(15 23 42 / 0.035),
-    0 6px 10px -8px rgb(15 23 42 / 0.06),
-    0 14px 24px -22px rgb(23 43 36 / 0.14);
-  --surface-shadow-sm:
-    inset 0 1px 0 rgb(255 255 255 / 0.5),
-    inset 0 -1px 0 rgb(23 43 36 / 0.035),
-    0 1px 1px rgb(15 23 42 / 0.03),
-    0 4px 8px -7px rgb(15 23 42 / 0.05),
-    0 10px 18px -18px rgb(23 43 36 / 0.12);
-  --surface-footer-bg:
-    linear-gradient(180deg, rgb(247 249 247 / 0.42), rgb(240 244 241 / 0.72));
-  --control-bg: rgb(255 255 255 / 0.92);
-  --control-bg-strong: rgb(255 255 255 / 0.98);
-  --control-secondary-bg: rgb(240 243 241 / 0.95);
-  --control-secondary-bg-strong: rgb(240 243 241 / 1);
-  --control-accent-bg: rgb(240 243 241 / 0.74);
-  --control-border: rgb(214 221 216 / 0.95);
-  --control-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.5),
-    inset 0 -1px 0 rgb(23 43 36 / 0.04),
-    0 1px 2px rgb(15 23 42 / 0.04);
-  --control-shadow-hover:
-    inset 0 1px 0 rgb(255 255 255 / 0.55),
-    0 6px 14px -12px rgb(15 23 42 / 0.16);
-  --control-primary-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.18),
-    inset 0 -1px 0 rgb(6 36 28 / 0.16),
-    0 1px 2px rgb(15 23 42 / 0.08),
+  --surface-elevated-bg: linear-gradient(180deg, rgb(255 255 255 / 0.98) 0%, rgb(255 255 255 / 1) 100%);
+  --surface-soft-bg: linear-gradient(180deg, rgb(250 250 250 / 0.92) 0%, rgb(245 245 247 / 0.98) 100%);
+  --surface-muted-bg: linear-gradient(180deg, rgb(248 248 250 / 0.9) 0%, rgb(245 245 247 / 0.98) 100%);
+  --surface-stroke: rgb(229 229 234 / 0.94);
+  --surface-shadow-lg: inset 0 1px 0 rgb(255 255 255 / 0.7),
+    0 1px 2px rgb(0 0 0 / 0.04),
+    0 8px 16px -12px rgb(0 0 0 / 0.08),
+    0 24px 48px -32px rgb(0 0 0 / 0.12);
+  --surface-card-shadow: inset 0 1px 0 rgb(255 255 255 / 0.7),
+    0 1px 2px rgb(0 0 0 / 0.04),
+    0 7px 12px -9px rgb(0 0 0 / 0.06),
+    0 18px 32px -28px rgb(0 0 0 / 0.1);
+  --surface-shadow-md: inset 0 1px 0 rgb(255 255 255 / 0.65),
+    0 1px 2px rgb(0 0 0 / 0.035),
+    0 6px 10px -8px rgb(0 0 0 / 0.05),
+    0 14px 24px -22px rgb(0 0 0 / 0.08);
+  --surface-shadow-sm: inset 0 1px 0 rgb(255 255 255 / 0.6),
+    0 1px 1px rgb(0 0 0 / 0.03),
+    0 4px 8px -7px rgb(0 0 0 / 0.04),
+    0 10px 18px -18px rgb(0 0 0 / 0.07);
+  --surface-footer-bg: linear-gradient(180deg, rgb(250 250 250 / 0.5), rgb(245 245 247 / 0.78));
+  /* The 1px top highlight shared by raised surfaces. Light uses a bright
+     inner edge; dark drops it to a faint line so edges come from borders. */
+  --surface-highlight: rgb(255 255 255 / 0.6);
+  --control-bg: rgb(255 255 255 / 0.94);
+  --control-bg-strong: rgb(255 255 255 / 0.99);
+  --control-secondary-bg: rgb(245 245 247 / 0.96);
+  --control-secondary-bg-strong: rgb(245 245 247 / 1);
+  --control-accent-bg: rgb(245 245 247 / 0.8);
+  --control-border: rgb(229 229 234 / 0.95);
+  --control-shadow: inset 0 1px 0 rgb(255 255 255 / 0.65),
+    0 1px 2px rgb(0 0 0 / 0.04);
+  --control-shadow-hover: inset 0 1px 0 rgb(255 255 255 / 0.7),
+    0 6px 14px -12px rgb(0 0 0 / 0.12);
+  --control-primary-shadow: inset 0 1px 0 rgb(255 255 255 / 0.18),
+    inset 0 -1px 0 rgb(0 0 0 / 0.16),
+    0 1px 2px rgb(0 0 0 / 0.08),
     0 10px 18px -14px rgb(0 128 96 / 0.38);
-  --control-primary-shadow-hover:
-    inset 0 1px 0 rgb(255 255 255 / 0.2),
-    inset 0 -1px 0 rgb(6 36 28 / 0.2),
-    0 1px 2px rgb(15 23 42 / 0.08),
+  --control-primary-shadow-hover: inset 0 1px 0 rgb(255 255 255 / 0.2),
+    inset 0 -1px 0 rgb(0 0 0 / 0.2),
+    0 1px 2px rgb(0 0 0 / 0.08),
     0 14px 24px -16px rgb(0 128 96 / 0.42);
   --control-destructive-shadow:
     inset 0 1px 0 rgb(255 255 255 / 0.14),
@@ -391,35 +408,77 @@
     0 1px 2px rgb(201 55 44 / 0.14),
     0 14px 24px -16px rgb(201 55 44 / 0.42);
   --overlay-surface-bg: rgb(255 255 255);
-  --overlay-surface-border: rgb(214 221 216 / 0.8);
-  --overlay-surface-shadow:
-    0 24px 48px -12px rgb(0 0 0 / 0.12),
+  --overlay-surface-border: rgb(229 229 234 / 0.8);
+  --overlay-surface-shadow: 0 24px 48px -12px rgb(0 0 0 / 0.12),
     0 1px 2px rgb(0 0 0 / 0.06);
-  --modal-backdrop: rgb(0 0 0 / 0.5);
+  --modal-backdrop: rgb(0 0 0 / 0.45);
   --z-modal-overlay: 100;
   --z-modal-content: 101;
   --z-popover-layer: 110;
   --z-toast: 150;
-  --tooltip-surface-bg: #172b24;
-  --tooltip-surface-fg: #f7f9f7;
-  --tooltip-surface-border: rgb(23 43 36 / 0.28);
-  --tooltip-surface-shadow: 0 14px 28px -16px rgb(15 23 42 / 0.34);
-  --table-header-bg: rgb(238 242 239 / 0.4);
-  --table-footer-bg: rgb(238 242 239 / 0.65);
-  --table-row-hover-bg: rgb(240 243 241 / 0.6);
-  --table-row-selected-bg: rgb(240 243 241 / 0.85);
+  --tooltip-surface-bg: #1d1d1f;
+  --tooltip-surface-fg: #f5f5f7;
+  --tooltip-surface-border: rgb(255 255 255 / 0.16);
+  --tooltip-surface-shadow: 0 14px 28px -16px rgb(0 0 0 / 0.3);
+  --table-header-bg: rgb(245 245 247 / 0.55);
+  --table-footer-bg: rgb(245 245 247 / 0.75);
+  --table-row-hover-bg: rgb(0 0 0 / 0.03);
+  --table-row-selected-bg: rgb(0 0 0 / 0.05);
   --empty-surface-bg: var(--surface-soft-bg);
-  --empty-surface-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.4),
-    0 1px 1px rgb(15 23 42 / 0.04);
+  --empty-surface-shadow: inset 0 1px 0 rgb(255 255 255 / 0.5),
+    0 1px 1px rgb(0 0 0 / 0.03);
   --alert-surface-bg: color-mix(in srgb, var(--accent) 78%, transparent);
-  --alert-surface-shadow:
-    0 1px 2px rgb(15 23 42 / 0.03),
-    inset 0 1px 0 rgb(255 255 255 / 0.42);
+  --alert-surface-shadow: 0 1px 2px rgb(0 0 0 / 0.03),
+    inset 0 1px 0 rgb(255 255 255 / 0.5);
   --alert-destructive-surface-bg: rgb(201 55 44 / 0.08);
-  --alert-destructive-surface-shadow:
-    0 1px 2px rgb(201 55 44 / 0.08),
+  --alert-destructive-surface-shadow: 0 1px 2px rgb(201 55 44 / 0.08),
     inset 0 1px 0 rgb(255 255 255 / 0.3);
+  /* Native page backdrop. Kept neutral so the app and landing share one
+     undertone; the frame and panel tokens layer on top of it. */
+  --page-gradient: linear-gradient(180deg, #ffffff 0%, #fafafa 42%, #f5f5f7 100%);
+  /* Switch thumb is theme-stable by design: a light thumb must stay legible
+     on the muted off-track. Dark uses the soft neutral, never pure white. */
+  --switch-thumb: #ffffff;
+  --switch-thumb-shadow:
+    0 3px 3px 0 rgb(0 0 0 / 0.03),
+    0 0.75px 0 0 rgb(0 0 0 / 0.05);
+  /* Inverse panels: the landing closing CTA and auth story. The light theme
+     uses the same charcoal ink family as dark surfaces so the block never
+     turns into a second, green-tinted palette. */
+  --inverse-surface: #1d1d1f;
+  --inverse-foreground: #f5f5f7;
+  --inverse-muted: rgb(245 245 247 / 0.68);
+  --inverse-subtle: rgb(245 245 247 / 0.76);
+  --inverse-skeleton: rgb(245 245 247 / 0.2);
+  --inverse-button-bg: #ffffff;
+  --inverse-button-bg-hover: #e5e5ea;
+  --inverse-button-fg: #1d1d1f;
+  --inverse-button-fg-hover: #1d1d1f;
+  --inverse-ring: #f5f5f7;
+  /* Static previews in Appearance. They must depict the theme they name, not
+     inherit the theme that is currently active. */
+  --theme-preview-light-bg: #f5f5f7;
+  --theme-preview-light-card: #ffffff;
+  --theme-preview-light-fg: #1d1d1f;
+  --theme-preview-dark-bg: #161618;
+  --theme-preview-dark-card: #242426;
+  --theme-preview-dark-fg: #f5f5f7;
+  --theme-preview-dark-border: rgb(255 255 255 / 0.12);
+  /* Auth visual panel: a neutral charcoal base with the brand green kept to
+     two soft radial glows, so the panel never reads as a green-tinted ink. */
+  --auth-panel-bg:
+    radial-gradient(
+      circle at 80% 20%,
+      color-mix(in srgb, var(--primary) 22%, transparent),
+      transparent 45%
+    ),
+    radial-gradient(
+      circle at 20% 80%,
+      color-mix(in srgb, #004d3a 30%, transparent),
+      transparent 50%
+    ),
+    linear-gradient(170deg, #242426 0%, #1c1c1e 40%, #161618 100%);
+  --auth-panel-border: rgb(255 255 255 / 0.1);
 }
 
 [data-reload-loading-overlay] {
@@ -469,52 +528,86 @@ html[data-reload-loading="fade-out"] #app-root-content {
 
 /* Force light mode inside checkout regardless of .dark on html */
 .dark .checkout-light-force {
-  --background: #f7f9f7;
-  --foreground: #172b24;
+  color-scheme: light;
+  --background: #ffffff;
+  --foreground: #1d1d1f;
   --card: #ffffff;
-  --card-foreground: #172b24;
+  --card-foreground: #1d1d1f;
   --popover: #ffffff;
-  --popover-foreground: #172b24;
+  --popover-foreground: #1d1d1f;
   --primary: #008060;
   --primary-foreground: #f4fffb;
-  --secondary: #f0f3f1;
-  --secondary-foreground: #234036;
-  --muted: #eef2ef;
-  --muted-foreground: #5f756c;
-  --accent: #f0f3f1;
-  --accent-foreground: #234036;
+  --secondary: #f5f5f7;
+  --secondary-foreground: #1d1d1f;
+  --muted: #f5f5f7;
+  --muted-foreground: #6e6e73;
+  --accent: rgb(0 0 0 / 0.06);
+  --accent-foreground: #1d1d1f;
   --destructive: #c9372c;
   --success: #059669;
   --warning: #b45309;
   --info: #0369a1;
-  --border: #d6ddd8;
-  --input: #d6ddd8;
+  --primary-ink: #008060;
+  --destructive-ink: #c9372c;
+  --success-ink: #047857;
+  --warning-ink: #b45309;
+  --info-ink: #0369a1;
+  --border: #e5e5ea;
+  --input: #d1d1d6;
   --ring: #1b9b79;
+  --sidebar: #f5f5f7;
+  --sidebar-foreground: #1d1d1f;
+  --sidebar-accent: rgb(0 0 0 / 0.06);
+  --sidebar-accent-foreground: #1d1d1f;
+  --sidebar-selected: rgb(0 0 0 / 0.08);
+  --sidebar-border: #e5e5ea;
+  --shell-frame: #f5f5f7;
+  --shell-card: #ffffff;
 }
 
 .dark {
-  --background: #121212;
-  --foreground: #ededed;
-  --card: #1c1c1c;
-  --card-foreground: #ededed;
-  --popover: #1c1c1c;
-  --popover-foreground: #ededed;
+  color-scheme: dark;
+  --background: #1c1c1e;
+  --foreground: #f5f5f7;
+  --card: #242426;
+  --card-foreground: #f5f5f7;
+  --popover: #2c2c2e;
+  --popover-foreground: #f5f5f7;
   --primary: #008060;
   --primary-foreground: #f4fffb;
-  --secondary: #1f1f1f;
-  --secondary-foreground: #e7e7e7;
-  --muted: #171717;
-  --muted-foreground: #8b9092;
-  --accent: #242424;
-  --accent-foreground: #ededed;
+  --secondary: #2c2c2e;
+  --secondary-foreground: #f5f5f7;
+  --muted: #2c2c2e;
+  --muted-foreground: #a1a1a6;
+  --accent: rgb(255 255 255 / 0.08);
+  --accent-foreground: #f5f5f7;
   --destructive: #c9372c;
   --success: #34d399;
   --warning: #fbbf24;
   --info: #38bdf8;
-  --border: rgb(255 255 255 / 0.07);
-  --input: rgb(255 255 255 / 0.08);
+  /* Fills keep the hue; text/icon inks step lighter to stay above 4.5:1 on
+     every dark surface. Never use an ink for a button fill. */
+  --primary-ink: #23be92;
+  --destructive-ink: #fca5a5;
+  --success-ink: #34d399;
+  --warning-ink: #fbbf24;
+  --info-ink: #38bdf8;
+  --status-progress-bg: color-mix(in srgb, #818cf8 16%, transparent);
+  --status-progress-border: color-mix(in srgb, #818cf8 30%, transparent);
+  --status-progress-fg: #c7d2fe;
+  --status-active-bg: color-mix(in srgb, #22d3ee 16%, transparent);
+  --status-active-border: color-mix(in srgb, #22d3ee 30%, transparent);
+  --status-active-fg: #a5f3fc;
+  --status-highlight-bg: color-mix(in srgb, #a78bfa 16%, transparent);
+  --status-highlight-border: color-mix(in srgb, #a78bfa 30%, transparent);
+  --status-highlight-fg: #ddd6fe;
+  --status-attention-bg: color-mix(in srgb, #fb923c 16%, transparent);
+  --status-attention-border: color-mix(in srgb, #fb923c 30%, transparent);
+  --status-attention-fg: #fed7aa;
+  --border: rgb(255 255 255 / 0.12);
+  --input: rgb(255 255 255 / 0.16);
   --ring: #1b9b79;
-  --marketing-accent: var(--ring);
+  --marketing-accent: var(--primary-ink);
   /* Marketing surfaces use the app's original neutral dark palette. */
   --marketing-surface-raised: var(--card);
   --marketing-surface-muted: var(--muted);
@@ -522,9 +615,7 @@ html[data-reload-loading="fade-out"] #app-root-content {
   --marketing-hairline-strong: rgb(255 255 255 / 0.16);
   --marketing-muted: var(--muted-foreground);
   --marketing-glow-opacity: 0.18;
-  --marketing-shadow-raised:
-    0 1px 2px rgb(0 0 0 / 0.3),
-    0 16px 32px -24px rgb(0 0 0 / 0.5);
+  --marketing-shadow-raised: none;
   /* Border-led in dark: a shadow would read as a glow against the page. */
   --marketing-mock-shadow: none;
   /* The panel sits one surface step above the page; the stronger hairline is
@@ -544,72 +635,49 @@ html[data-reload-loading="fade-out"] #app-root-content {
   --chart-track: rgb(255 255 255 / 0.16);
   --chart-tooltip-surface: var(--popover);
   --chart-tooltip-border: var(--border);
-  --sidebar: #161616;
-  --sidebar-foreground: #ededed;
+  --sidebar: #161618;
+  --sidebar-foreground: #f5f5f7;
   --sidebar-primary: #008060;
   --sidebar-primary-foreground: #f4fffb;
-  --sidebar-accent: #202020;
-  --sidebar-accent-foreground: #ededed;
-  --sidebar-border: rgb(255 255 255 / 0.06);
+  --sidebar-accent: rgb(255 255 255 / 0.08);
+  --sidebar-accent-foreground: #f5f5f7;
+  --sidebar-selected: rgb(255 255 255 / 0.1);
+  --sidebar-border: rgb(255 255 255 / 0.12);
   --sidebar-ring: #1b9b79;
-  --shell-frame: #0e0e0e;
-  --shell-card: #181818;
-  --surface-elevated-bg:
-    linear-gradient(180deg, rgb(28 28 28 / 0.98) 0%, rgb(24 24 24 / 1) 100%);
-  --surface-soft-bg:
-    linear-gradient(180deg, rgb(25 25 25 / 0.94) 0%, rgb(21 21 21 / 0.98) 100%);
-  --surface-muted-bg:
-    linear-gradient(180deg, rgb(23 23 23 / 0.92) 0%, rgb(19 19 19 / 0.98) 100%);
-  --surface-stroke: rgb(255 255 255 / 0.065);
-  --surface-shadow-lg:
-    inset 0 1px 0 rgb(255 255 255 / 0.06),
-    inset 0 -1px 0 rgb(0 0 0 / 0.28),
-    0 1px 2px rgb(0 0 0 / 0.3),
-    0 10px 18px -14px rgb(0 0 0 / 0.24),
-    0 24px 42px -30px rgb(0 0 0 / 0.38);
-  --surface-card-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.065),
-    inset 0 -1px 0 rgb(0 0 0 / 0.3),
-    0 1px 2px rgb(0 0 0 / 0.32),
-    0 8px 14px -12px rgb(0 0 0 / 0.24),
-    0 18px 32px -26px rgb(0 0 0 / 0.34);
-  --surface-shadow-md:
-    inset 0 1px 0 rgb(255 255 255 / 0.055),
-    inset 0 -1px 0 rgb(0 0 0 / 0.26),
-    0 1px 2px rgb(0 0 0 / 0.28),
-    0 7px 12px -10px rgb(0 0 0 / 0.22),
-    0 14px 24px -20px rgb(0 0 0 / 0.28);
-  --surface-shadow-sm:
-    inset 0 1px 0 rgb(255 255 255 / 0.05),
+  --shell-frame: #161618;
+  --shell-card: #1c1c1e;
+  --surface-elevated-bg: linear-gradient(180deg, rgb(36 36 38 / 0.99) 0%, rgb(36 36 38 / 1) 100%);
+  --surface-soft-bg: linear-gradient(180deg, rgb(28 28 30 / 0.96) 0%, rgb(25 25 27 / 0.99) 100%);
+  --surface-muted-bg: linear-gradient(180deg, rgb(28 28 30 / 0.96) 0%, rgb(25 25 27 / 0.99) 100%);
+  --surface-stroke: rgb(255 255 255 / 0.1);
+  --surface-shadow-lg: inset 0 1px 0 rgb(255 255 255 / 0.05),
+    0 1px 2px rgb(0 0 0 / 0.18);
+  --surface-card-shadow: inset 0 1px 0 rgb(255 255 255 / 0.05),
+    0 1px 2px rgb(0 0 0 / 0.16);
+  --surface-shadow-md: inset 0 1px 0 rgb(255 255 255 / 0.04),
+    0 1px 2px rgb(0 0 0 / 0.14);
+  --surface-shadow-sm: inset 0 1px 0 rgb(255 255 255 / 0.035),
+    0 1px 1px rgb(0 0 0 / 0.12);
+  --surface-footer-bg: linear-gradient(180deg, rgb(28 28 30 / 0.86), rgb(25 25 27 / 0.98));
+  --surface-highlight: rgb(255 255 255 / 0.05);
+  --control-bg: rgb(36 36 38 / 0.97);
+  --control-bg-strong: rgb(44 44 46 / 0.99);
+  --control-secondary-bg: rgb(44 44 46 / 0.96);
+  --control-secondary-bg-strong: rgb(44 44 46 / 1);
+  --control-accent-bg: rgb(44 44 46 / 0.92);
+  --control-border: rgb(255 255 255 / 0.12);
+  --control-shadow: inset 0 1px 0 rgb(255 255 255 / 0.04),
+    0 1px 2px rgb(0 0 0 / 0.16);
+  --control-shadow-hover: inset 0 1px 0 rgb(255 255 255 / 0.05),
+    0 8px 16px -14px rgb(0 0 0 / 0.3);
+  --control-primary-shadow: inset 0 1px 0 rgb(255 255 255 / 0.18),
+    inset 0 -1px 0 rgb(0 0 0 / 0.2),
+    0 1px 2px rgb(0 0 0 / 0.2),
+    0 8px 16px -14px rgb(0 128 96 / 0.22);
+  --control-primary-shadow-hover: inset 0 1px 0 rgb(255 255 255 / 0.2),
     inset 0 -1px 0 rgb(0 0 0 / 0.24),
-    0 1px 1px rgb(0 0 0 / 0.24),
-    0 5px 10px -9px rgb(0 0 0 / 0.2),
-    0 10px 18px -16px rgb(0 0 0 / 0.24);
-  --surface-footer-bg:
-    linear-gradient(180deg, rgb(24 24 24 / 0.82), rgb(19 19 19 / 0.96));
-  --control-bg: rgb(28 28 28 / 0.96);
-  --control-bg-strong: rgb(32 32 32 / 0.98);
-  --control-secondary-bg: rgb(31 31 31 / 0.95);
-  --control-secondary-bg-strong: rgb(36 36 36 / 0.98);
-  --control-accent-bg: rgb(36 36 36 / 0.9);
-  --control-border: rgb(255 255 255 / 0.075);
-  --control-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.05),
-    inset 0 -1px 0 rgb(0 0 0 / 0.24),
-    0 1px 2px rgb(0 0 0 / 0.3);
-  --control-shadow-hover:
-    inset 0 1px 0 rgb(255 255 255 / 0.06),
-    0 10px 18px -16px rgb(0 0 0 / 0.42);
-  --control-primary-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.18),
-    inset 0 -1px 0 rgb(6 36 28 / 0.16),
-    0 1px 2px rgb(15 23 42 / 0.08),
-    0 10px 18px -14px rgb(0 128 96 / 0.38);
-  --control-primary-shadow-hover:
-    inset 0 1px 0 rgb(255 255 255 / 0.2),
-    inset 0 -1px 0 rgb(6 36 28 / 0.2),
-    0 1px 2px rgb(15 23 42 / 0.08),
-    0 14px 24px -16px rgb(0 128 96 / 0.42);
+    0 1px 2px rgb(0 0 0 / 0.2),
+    0 12px 22px -16px rgb(0 128 96 / 0.26);
   --control-destructive-shadow:
     inset 0 1px 0 rgb(255 255 255 / 0.14),
     inset 0 -1px 0 rgb(95 24 18 / 0.18),
@@ -620,34 +688,62 @@ html[data-reload-loading="fade-out"] #app-root-content {
     inset 0 -1px 0 rgb(95 24 18 / 0.2),
     0 1px 2px rgb(201 55 44 / 0.14),
     0 14px 24px -16px rgb(201 55 44 / 0.42);
-  --overlay-surface-bg: rgb(22 22 22);
-  --overlay-surface-border: rgb(255 255 255 / 0.1);
-  --overlay-surface-shadow:
-    0 24px 48px -12px rgb(0 0 0 / 0.56),
-    inset 0 1px 0 rgb(255 255 255 / 0.04);
-  --modal-backdrop: rgb(0 0 0 / 0.6);
-  --tooltip-surface-bg: #202020;
-  --tooltip-surface-fg: #ededed;
-  --tooltip-surface-border: rgb(255 255 255 / 0.06);
-  --tooltip-surface-shadow: 0 18px 32px -18px rgb(0 0 0 / 0.52);
+  --overlay-surface-bg: rgb(44 44 46);
+  --overlay-surface-border: rgb(255 255 255 / 0.12);
+  --overlay-surface-shadow: 0 18px 36px -20px rgb(0 0 0 / 0.45);
+  --modal-backdrop: rgb(0 0 0 / 0.58);
+  --tooltip-surface-bg: #2c2c2e;
+  --tooltip-surface-fg: #f5f5f7;
+  --tooltip-surface-border: rgb(255 255 255 / 0.12);
+  --tooltip-surface-shadow: 0 14px 28px -18px rgb(0 0 0 / 0.42);
   --table-header-bg: rgb(255 255 255 / 0.03);
   --table-footer-bg: rgb(255 255 255 / 0.05);
   --table-row-hover-bg: rgb(255 255 255 / 0.04);
   --table-row-selected-bg: rgb(255 255 255 / 0.06);
-  --empty-surface-bg:
-    linear-gradient(180deg, rgb(24 24 24 / 0.9) 0%, rgb(20 20 20 / 0.98) 100%);
-  --empty-surface-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.04),
-    0 1px 1px rgb(0 0 0 / 0.2);
-  --alert-surface-bg: rgb(0 128 96 / 0.1);
-  --alert-surface-shadow:
-    0 1px 2px rgb(0 0 0 / 0.18),
+  --empty-surface-bg: linear-gradient(180deg, rgb(28 28 30 / 0.9) 0%, rgb(25 25 27 / 0.98) 100%);
+  --empty-surface-shadow: inset 0 1px 0 rgb(255 255 255 / 0.04),
+    0 1px 1px rgb(0 0 0 / 0.12);
+  --alert-surface-bg: color-mix(in srgb, var(--primary) 12%, transparent);
+  --alert-surface-shadow: 0 1px 2px rgb(0 0 0 / 0.14),
     inset 0 1px 0 rgb(255 255 255 / 0.04);
   --alert-destructive-surface-bg: rgb(201 55 44 / 0.12);
-  --alert-destructive-surface-shadow:
-    0 1px 2px rgb(0 0 0 / 0.18),
+  --alert-destructive-surface-shadow: 0 1px 2px rgb(0 0 0 / 0.14),
     inset 0 1px 0 rgb(255 255 255 / 0.04);
-  --modal-backdrop: rgb(0 0 0 / 0.56);
+  --page-gradient: linear-gradient(180deg, #1c1c1e 0%, #1a1a1c 42%, #18181a 100%);
+  --switch-thumb: #f5f5f7;
+  --switch-thumb-shadow:
+    0 3px 3px 0 rgb(0 0 0 / 0.18),
+    0 0.75px 0 0 rgb(0 0 0 / 0.24);
+  --inverse-surface: #242426;
+  --inverse-foreground: #f5f5f7;
+  --inverse-muted: rgb(245 245 247 / 0.68);
+  --inverse-subtle: rgb(245 245 247 / 0.76);
+  --inverse-skeleton: rgb(245 245 247 / 0.2);
+  --inverse-button-bg: #f5f5f7;
+  --inverse-button-bg-hover: #e5e5ea;
+  --inverse-button-fg: #1d1d1f;
+  --inverse-button-fg-hover: #1d1d1f;
+  --inverse-ring: #f5f5f7;
+  --theme-preview-light-bg: #f5f5f7;
+  --theme-preview-light-card: #ffffff;
+  --theme-preview-light-fg: #1d1d1f;
+  --theme-preview-dark-bg: #161618;
+  --theme-preview-dark-card: #242426;
+  --theme-preview-dark-fg: #f5f5f7;
+  --theme-preview-dark-border: rgb(255 255 255 / 0.12);
+  --auth-panel-bg:
+    radial-gradient(
+      circle at 85% 15%,
+      color-mix(in srgb, var(--primary) 16%, transparent),
+      transparent 45%
+    ),
+    radial-gradient(
+      circle at 15% 85%,
+      color-mix(in srgb, #004d3a 22%, transparent),
+      transparent 50%
+    ),
+    linear-gradient(170deg, #1c1c1e 0%, #18181a 45%, #161618 100%);
+  --auth-panel-border: rgb(255 255 255 / 0.08);
   --z-modal-overlay: 100;
   --z-modal-content: 101;
   --z-popover-layer: 110;
@@ -658,13 +754,13 @@ html[data-reload-loading="fade-out"] #app-root-content {
   0%,
   100% {
     box-shadow:
-      0 0 0 2px hsl(var(--primary)),
-      0 0 15px hsl(var(--primary) / 0.25);
+      0 0 0 2px var(--primary),
+      0 0 15px color-mix(in srgb, var(--primary) 25%, transparent);
   }
   50% {
     box-shadow:
-      0 0 0 3px hsl(var(--primary)),
-      0 0 24px hsl(var(--primary) / 0.4);
+      0 0 0 3px var(--primary),
+      0 0 24px color-mix(in srgb, var(--primary) 40%, transparent);
   }
 }
 
@@ -882,8 +978,7 @@ html[data-reload-loading="fade-out"] #app-root-content {
 
   body {
     @apply min-h-screen bg-background text-foreground;
-    background-image:
-      linear-gradient(180deg, #ffffff 0%, #f8faf8 42%, #f3f6f4 100%);
+    background-image: var(--page-gradient);
   }
 
   /*
@@ -899,8 +994,7 @@ html[data-reload-loading="fade-out"] #app-root-content {
   }
 
   .dark body {
-    background-image:
-      linear-gradient(180deg, #161616 0%, #121212 42%, #0d0d0d 100%);
+    background-image: var(--page-gradient);
   }
 
   .dark body:has(.font-scope-geist) {
@@ -909,7 +1003,8 @@ html[data-reload-loading="fade-out"] #app-root-content {
   }
 
   ::selection {
-    background-color: color-mix(in srgb, var(--color-primary) 22%, white);
+    background-color: color-mix(in srgb, var(--color-primary) 22%, var(--background));
+    color: var(--foreground);
   }
 
   a {
@@ -1353,7 +1448,7 @@ html[data-reload-loading="fade-out"] #app-root-content {
   }
 
   .table-link {
-    @apply block truncate text-sm leading-5 font-semibold text-foreground underline-offset-4 transition-colors hover:text-primary hover:underline group-hover/row:text-primary;
+    @apply block truncate text-sm leading-5 font-semibold text-foreground underline-offset-4 transition-colors hover:text-primary-ink hover:underline group-hover/row:text-primary-ink;
   }
 
   .table-supporting-text {
@@ -2023,6 +2118,13 @@ html[data-reload-loading="fade-out"] #app-root-content {
     box-shadow: var(--marketing-shadow-raised);
   }
 
+  /* Dark raises the window one surface above the page; the border and the
+     lighter fill carry the edge, with no shadow. */
+  .dark .marketing-hero-frame {
+    background: var(--card);
+    box-shadow: none;
+  }
+
   /*
    * The product window dissolves into the page instead of ending on a card
    * edge. The overlay sits above the window so its opaque end covers the
@@ -2516,32 +2618,28 @@ html[data-reload-loading="fade-out"] #app-root-content {
   .marketing-cta-panel {
     padding: 4rem 1.5rem;
     border-radius: var(--marketing-radius-lg);
-    background: var(--foreground);
+    background: var(--inverse-surface);
     text-align: center;
   }
 
-  .dark .marketing-cta-panel {
-    background: var(--marketing-surface-raised);
-  }
-
   .marketing-cta-panel h2 {
-    color: #ffffff;
+    color: var(--inverse-foreground);
   }
 
   .marketing-cta-lead {
-    color: rgb(255 255 255 / 0.65);
+    color: var(--inverse-muted);
   }
 
   .marketing-cta-emphasis {
-    color: #ffffff;
+    color: var(--inverse-foreground);
   }
 
   .marketing-cta-panel p {
-    color: rgb(255 255 255 / 0.8);
+    color: var(--inverse-subtle);
   }
 
   .marketing-cta-panel .marketing-cta-note {
-    color: rgb(255 255 255 / 0.7);
+    color: var(--inverse-muted);
   }
 
   @media (min-width: 640px) {
@@ -2593,25 +2691,22 @@ html[data-reload-loading="fade-out"] #app-root-content {
   }
 
   .auth-visual-panel {
-    @apply relative hidden w-full overflow-hidden border-l border-white/[0.08] lg:flex lg:w-[48%] lg:min-h-dvh xl:w-[50%];
-    background: radial-gradient(circle at 80% 20%, rgba(0, 128, 96, 0.22), transparent 45%),
-      radial-gradient(circle at 20% 80%, rgba(0, 77, 58, 0.35), transparent 50%),
-      linear-gradient(170deg, #091310 0%, #0d1a16 40%, #07100d 100%);
+    @apply relative hidden w-full overflow-hidden border-l lg:flex lg:w-[48%] lg:min-h-dvh xl:w-[50%];
+    border-color: var(--auth-panel-border);
+    background: var(--auth-panel-bg);
   }
 
   .auth-visual-panel .auth-visual-brand a {
-    color: white;
+    color: var(--inverse-foreground);
   }
 
   .auth-visual-panel .auth-visual-brand span {
-    color: rgb(255 255 255 / 0.7);
+    color: var(--inverse-muted);
   }
 
   :is(.dark) .auth-visual-panel {
-    border-color: rgba(255, 255, 255, 0.06);
-    background: radial-gradient(circle at 85% 15%, rgba(0, 128, 96, 0.18), transparent 45%),
-      radial-gradient(circle at 15% 85%, rgba(0, 77, 58, 0.25), transparent 50%),
-      linear-gradient(170deg, #050a08 0%, #09120f 45%, #040806 100%);
+    border-color: var(--auth-panel-border);
+    background: var(--auth-panel-bg);
   }
 
   .auth-shell-grid {
@@ -2699,12 +2794,14 @@ html[data-reload-loading="fade-out"] #app-root-content {
 
   .hover-scrollbar:hover,
   .hover-scrollbar:focus-within {
-    scrollbar-color: rgb(214 221 216 / 0.5) transparent;
+    scrollbar-color: color-mix(in srgb, var(--foreground) 22%, transparent)
+      transparent;
   }
 
   .dark .hover-scrollbar:hover,
   .dark .hover-scrollbar:focus-within {
-    scrollbar-color: rgb(255 255 255 / 0.1) transparent;
+    scrollbar-color: color-mix(in srgb, var(--foreground) 12%, transparent)
+      transparent;
   }
 
   .hover-scrollbar::-webkit-scrollbar {
@@ -2723,12 +2820,12 @@ html[data-reload-loading="fade-out"] #app-root-content {
 
   .hover-scrollbar:hover::-webkit-scrollbar-thumb,
   .hover-scrollbar:focus-within::-webkit-scrollbar-thumb {
-    background-color: rgb(214 221 216 / 0.5);
+    background-color: color-mix(in srgb, var(--foreground) 22%, transparent);
   }
 
   .dark .hover-scrollbar:hover::-webkit-scrollbar-thumb,
   .dark .hover-scrollbar:focus-within::-webkit-scrollbar-thumb {
-    background-color: rgb(255 255 255 / 0.1);
+    background-color: color-mix(in srgb, var(--foreground) 12%, transparent);
   }
 
   .surface-grid {
@@ -2825,7 +2922,7 @@ html[data-reload-loading="fade-out"] #app-root-content {
 
   .surface-card-footer {
     background: var(--surface-footer-bg);
-    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.2);
+    box-shadow: inset 0 1px 0 var(--surface-highlight);
   }
 
   /* ── Flat assistant transcript cards ──
@@ -2833,7 +2930,7 @@ html[data-reload-loading="fade-out"] #app-root-content {
      shadow. Only the chat input carries a surface, so the transcript reads
      as plain conversation. State-tinted cards (success / error /
      confirmation) keep their soft tints — the tint is feedback, not chrome. */
-  .tool-result-card:not(.bg-green-50\/40):not(.bg-destructive\/5):not(.bg-amber-50\/40) {
+  .tool-result-card:not(.bg-success\/10):not(.bg-destructive\/5):not(.bg-warning\/10) {
     background: transparent;
     border-color: transparent;
     box-shadow: none;
@@ -2858,42 +2955,42 @@ html[data-reload-loading="fade-out"] #app-root-content {
   }
 
   .button-primary-fixed {
-    border-color: color-mix(in srgb, #008060 85%, white);
-    background: #008060;
-    color: #f4fffb;
+    border-color: color-mix(in srgb, var(--primary) 85%, white);
+    background: var(--primary);
+    color: var(--primary-foreground);
     box-shadow:
       inset 0 1px 0 rgb(255 255 255 / 0.18),
-      inset 0 -1px 0 rgb(6 36 28 / 0.16),
-      0 1px 2px rgb(15 23 42 / 0.08),
-      0 10px 18px -14px rgb(0 128 96 / 0.38);
+      inset 0 -1px 0 rgb(0 0 0 / 0.16),
+      0 1px 2px rgb(0 0 0 / 0.08),
+      0 10px 18px -14px color-mix(in srgb, var(--primary) 38%, transparent);
   }
 
   .button-primary-fixed:hover {
-    background: color-mix(in srgb, #008060 95%, white);
+    background: color-mix(in srgb, var(--primary) 95%, white);
     box-shadow:
       inset 0 1px 0 rgb(255 255 255 / 0.2),
-      inset 0 -1px 0 rgb(6 36 28 / 0.2),
-      0 1px 2px rgb(15 23 42 / 0.08),
-      0 14px 24px -16px rgb(0 128 96 / 0.42);
+      inset 0 -1px 0 rgb(0 0 0 / 0.2),
+      0 1px 2px rgb(0 0 0 / 0.08),
+      0 14px 24px -16px color-mix(in srgb, var(--primary) 42%, transparent);
   }
 
   .dark .button-primary-fixed {
-    border-color: color-mix(in srgb, #008060 76%, black);
+    border-color: color-mix(in srgb, var(--primary) 76%, black);
     box-shadow:
       inset 0 1px 0 rgb(255 255 255 / 0.07),
-      inset 0 -1px 0 rgb(6 36 28 / 0.34),
+      inset 0 -1px 0 rgb(0 0 0 / 0.34),
       0 1px 2px rgb(0 0 0 / 0.32),
-      0 10px 18px -14px rgb(0 128 96 / 0.18);
+      0 10px 18px -14px color-mix(in srgb, var(--primary) 18%, transparent);
   }
 
   .dark .button-primary-fixed:hover {
-    background: color-mix(in srgb, #008060 94%, black);
-    border-color: color-mix(in srgb, #008060 80%, black);
+    background: color-mix(in srgb, var(--primary) 94%, black);
+    border-color: color-mix(in srgb, var(--primary) 80%, black);
     box-shadow:
       inset 0 1px 0 rgb(255 255 255 / 0.09),
-      inset 0 -1px 0 rgb(6 36 28 / 0.38),
+      inset 0 -1px 0 rgb(0 0 0 / 0.38),
       0 1px 2px rgb(0 0 0 / 0.34),
-      0 14px 24px -16px rgb(0 128 96 / 0.22);
+      0 14px 24px -16px color-mix(in srgb, var(--primary) 22%, transparent);
   }
 
   /*
@@ -2983,18 +3080,18 @@ html[data-reload-loading="fade-out"] #app-root-content {
 
   /* Closing CTA: solid white primary, quiet underlined secondary. */
   .marketing-cta-panel .marketing-cta-button-primary {
-    border: 1px solid #ffffff;
+    border: 1px solid var(--inverse-button-bg);
     border-radius: 10px;
-    background: #ffffff;
-    color: #172b24;
+    background: var(--inverse-button-bg);
+    color: var(--inverse-button-fg);
     box-shadow: none;
     translate: 0 0;
   }
 
   .marketing-cta-panel .marketing-cta-button-primary:hover {
-    border-color: #e8eeea;
-    background: #e8eeea;
-    color: #0b1d17;
+    border-color: var(--inverse-button-bg-hover);
+    background: var(--inverse-button-bg-hover);
+    color: var(--inverse-button-fg-hover);
     box-shadow: none;
   }
 
@@ -3003,7 +3100,7 @@ html[data-reload-loading="fade-out"] #app-root-content {
   }
 
   .marketing-cta-panel .marketing-cta-button-primary:focus-visible {
-    outline: 2px solid #ffffff;
+    outline: 2px solid var(--inverse-ring);
     outline-offset: 2px;
     box-shadow: none;
   }
@@ -3022,7 +3119,7 @@ html[data-reload-loading="fade-out"] #app-root-content {
     border-color: transparent;
     border-radius: 10px;
     background: transparent;
-    color: rgb(255 255 255 / 0.8);
+    color: var(--inverse-subtle);
     box-shadow: none;
     translate: 0 0;
   }
@@ -3030,7 +3127,7 @@ html[data-reload-loading="fade-out"] #app-root-content {
   .marketing-cta-panel .marketing-cta-button-secondary:hover {
     border-color: transparent;
     background: transparent;
-    color: #ffffff;
+    color: var(--inverse-foreground);
     box-shadow: none;
     text-decoration: underline;
     text-underline-offset: 4px;
@@ -3041,48 +3138,48 @@ html[data-reload-loading="fade-out"] #app-root-content {
   }
 
   .marketing-cta-panel .marketing-cta-button-secondary:focus-visible {
-    outline: 2px solid rgb(255 255 255 / 0.8);
+    outline: 2px solid var(--inverse-ring);
     outline-offset: 2px;
     box-shadow: none;
   }
 
   .button-destructive-fixed {
-    border-color: color-mix(in srgb, #c9372c 85%, white);
-    background: #c9372c;
-    color: white;
+    border-color: color-mix(in srgb, var(--destructive) 85%, white);
+    background: var(--destructive);
+    color: var(--primary-foreground);
     box-shadow:
       inset 0 1px 0 rgb(255 255 255 / 0.14),
-      inset 0 -1px 0 rgb(95 24 18 / 0.18),
-      0 1px 2px rgb(201 55 44 / 0.14),
-      0 10px 18px -14px rgb(201 55 44 / 0.38);
+      inset 0 -1px 0 color-mix(in srgb, var(--destructive) 45%, black),
+      0 1px 2px color-mix(in srgb, var(--destructive) 14%, transparent),
+      0 10px 18px -14px color-mix(in srgb, var(--destructive) 38%, transparent);
   }
 
   .button-destructive-fixed:hover {
-    background: color-mix(in srgb, #c9372c 95%, white);
+    background: color-mix(in srgb, var(--destructive) 95%, white);
     box-shadow:
       inset 0 1px 0 rgb(255 255 255 / 0.16),
-      inset 0 -1px 0 rgb(95 24 18 / 0.2),
-      0 1px 2px rgb(201 55 44 / 0.14),
-      0 14px 24px -16px rgb(201 55 44 / 0.42);
+      inset 0 -1px 0 color-mix(in srgb, var(--destructive) 40%, black),
+      0 1px 2px color-mix(in srgb, var(--destructive) 14%, transparent),
+      0 14px 24px -16px color-mix(in srgb, var(--destructive) 42%, transparent);
   }
 
   .dark .button-destructive-fixed {
-    border-color: color-mix(in srgb, #c9372c 78%, black);
+    border-color: color-mix(in srgb, var(--destructive) 78%, black);
     box-shadow:
       inset 0 1px 0 rgb(255 255 255 / 0.06),
-      inset 0 -1px 0 rgb(95 24 18 / 0.3),
+      inset 0 -1px 0 color-mix(in srgb, var(--destructive) 55%, black),
       0 1px 2px rgb(0 0 0 / 0.32),
-      0 10px 18px -14px rgb(201 55 44 / 0.18);
+      0 10px 18px -14px color-mix(in srgb, var(--destructive) 18%, transparent);
   }
 
   .dark .button-destructive-fixed:hover {
-    background: color-mix(in srgb, #c9372c 94%, black);
-    border-color: color-mix(in srgb, #c9372c 82%, black);
+    background: color-mix(in srgb, var(--destructive) 94%, black);
+    border-color: color-mix(in srgb, var(--destructive) 82%, black);
     box-shadow:
       inset 0 1px 0 rgb(255 255 255 / 0.08),
-      inset 0 -1px 0 rgb(95 24 18 / 0.34),
+      inset 0 -1px 0 color-mix(in srgb, var(--destructive) 50%, black),
       0 1px 2px rgb(0 0 0 / 0.34),
-      0 14px 24px -16px rgb(201 55 44 / 0.22);
+      0 14px 24px -16px color-mix(in srgb, var(--destructive) 22%, transparent);
   }
 
   .overlay-surface {
@@ -3340,7 +3437,7 @@ html[data-reload-loading="fade-out"] #app-root-content {
   }
 
   .ai-prose a {
-    @apply text-primary underline underline-offset-3 transition-colors hover:text-primary/80;
+    @apply text-primary-ink underline underline-offset-3 transition-colors hover:text-primary-ink/80;
   }
 
   .ai-prose blockquote {

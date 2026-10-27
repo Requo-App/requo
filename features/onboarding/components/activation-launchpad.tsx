@@ -113,7 +113,7 @@ export async function ActivationLaunchpad({
                     "bg-primary text-primary-foreground",
                   !item.complete &&
                     isCurrent &&
-                    "border border-primary text-primary",
+                    "border border-primary text-primary-ink",
                   !item.complete &&
                     !isCurrent &&
                     "border border-border text-muted-foreground",

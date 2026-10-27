@@ -35,7 +35,7 @@ export function ConfirmationIcon({
       className={cn(
         "flex size-8 shrink-0 items-center justify-center rounded-full border",
         tone === "destructive"
-          ? "border-destructive/20 bg-destructive/10 text-destructive"
+          ? "border-destructive/20 bg-destructive/10 text-destructive-ink"
           : "border-border/70 bg-muted text-muted-foreground",
         className,
       )}

@@ -88,7 +88,7 @@ const pillHoverVariants = cva(
 const pillSelectedIconVariants = cva("", {
   variants: {
     variant: {
-      blue: "text-primary",
+      blue: "text-primary-ink",
       gray: "text-foreground",
     },
   },
@@ -100,7 +100,7 @@ const pillSelectedIconVariants = cva("", {
 const pillSelectedLabelVariants = cva("", {
   variants: {
     variant: {
-      blue: "text-primary",
+      blue: "text-primary-ink",
       gray: "text-foreground",
     },
   },

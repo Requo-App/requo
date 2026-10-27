@@ -241,7 +241,7 @@ export async function PerformanceServicesRow(props: PerformanceSectionProps) {
               service: (
                 <Link
                   href={getInquiriesListHref(props.businessSlug, { form: row.serviceSlug })}
-                  className="inline-flex items-center gap-1 rounded-sm outline-none transition-colors hover:text-primary focus-visible:ring-2 focus-visible:ring-ring"
+                  className="inline-flex items-center gap-1 rounded-sm outline-none transition-colors hover:text-primary-ink focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   {row.name}
                 </Link>
@@ -404,7 +404,7 @@ export async function PerformanceCollectionsRow(props: PerformanceSectionProps) 
             caption="Only for payments past the due date"
             valueClassName={
               collections.averageDaysLate && collections.averageDaysLate > 0
-                ? "text-warning"
+                ? "text-warning-ink"
                 : undefined
             }
           />
@@ -412,14 +412,14 @@ export async function PerformanceCollectionsRow(props: PerformanceSectionProps) 
             label="On time"
             value={formatNumber(collections.onTimeCount)}
             caption="Payments on or before the due date"
-            valueClassName="text-success"
+            valueClassName="text-success-ink"
           />
           <Stat
             label="Late"
             value={formatNumber(collections.lateCount)}
             caption="Payments after the due date"
             valueClassName={
-              collections.lateCount > 0 ? "text-warning" : undefined
+              collections.lateCount > 0 ? "text-warning-ink" : undefined
             }
           />
         </StatGrid>
@@ -734,7 +734,7 @@ export async function PerformanceAudienceRow(props: PerformanceSectionProps) {
         action={
           <Link
             href={getQuotesListHref(props.businessSlug, { status: "accepted" })}
-            className="text-sm font-medium text-primary outline-none transition-colors hover:text-primary/80 focus-visible:ring-2 focus-visible:ring-ring"
+            className="text-sm font-medium text-primary-ink outline-none transition-colors hover:text-primary-ink/80 focus-visible:ring-2 focus-visible:ring-ring"
           >
             Won quotes
           </Link>
@@ -777,7 +777,7 @@ export async function PerformanceLiveRow(props: PerformanceSectionProps) {
         action={
           <Link
             href={getQuotesListHref(props.businessSlug, { status: "sent" })}
-            className="text-sm font-medium text-primary outline-none transition-colors hover:text-primary/80 focus-visible:ring-2 focus-visible:ring-ring"
+            className="text-sm font-medium text-primary-ink outline-none transition-colors hover:text-primary-ink/80 focus-visible:ring-2 focus-visible:ring-ring"
           >
             Sent quotes
           </Link>
@@ -823,7 +823,7 @@ export async function PerformanceLiveRow(props: PerformanceSectionProps) {
             value={formatNumber(data.expiring.count)}
             caption={formatMoney(data.expiring.valueInCents, currency)}
             valueClassName={
-              data.expiring.count > 0 ? "text-warning" : undefined
+              data.expiring.count > 0 ? "text-warning-ink" : undefined
             }
           />
         </div>

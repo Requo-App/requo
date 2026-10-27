@@ -91,7 +91,7 @@ export function FollowUpAiMessageButton({
         )}
         {loading ? "Generating..." : "Generate AI message"}
       </Button>
-      {error ? <p className="text-xs text-destructive">{error}</p> : null}
+      {error ? <p className="text-xs text-destructive-ink">{error}</p> : null}
     </div>
   );
 }

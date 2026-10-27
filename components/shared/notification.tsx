@@ -133,9 +133,9 @@ const notificationVisualVariants = cva(
     variants: {
       status: {
         neutral: "bg-muted text-muted-foreground",
-        information: "bg-primary/10 text-primary",
-        success: "bg-primary/10 text-primary",
-        error: "bg-destructive/10 text-destructive",
+        information: "bg-primary/10 text-primary-ink",
+        success: "bg-primary/10 text-primary-ink",
+        error: "bg-destructive/10 text-destructive-ink",
       },
     },
     defaultVariants: {

@@ -197,7 +197,7 @@ function ConfirmPasswordDialogBody({
                   id={errorId}
                   role="alert"
                   aria-live="polite"
-                  className="text-sm text-destructive"
+                  className="text-sm text-destructive-ink"
                 >
                   {error}
                 </p>

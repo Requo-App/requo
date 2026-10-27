@@ -176,19 +176,19 @@ const fileStatusConfig = {
   processing: {
     label: "Processing",
     icon: Spinner,
-    className: "text-blue-500",
+    className: "text-info-ink",
     badgeVariant: "secondary" as const,
   },
   ready: {
     label: "Ready",
     icon: CheckCircle,
-    className: "text-emerald-500",
+    className: "text-success-ink",
     badgeVariant: "secondary" as const,
   },
   failed: {
     label: "Failed",
     icon: AlertTriangle,
-    className: "text-destructive",
+    className: "text-destructive-ink",
     badgeVariant: "destructive" as const,
   },
 } as const;
@@ -296,7 +296,7 @@ export function KnowledgeManager({
     <div className="mx-auto flex w-full max-w-xl min-w-0 flex-col gap-10">
       {loadError ? (
         <div
-          className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive"
+          className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive-ink"
           role="alert"
         >
           {loadError}
@@ -791,7 +791,7 @@ function AddKnowledgeEntryDialog({
             </Field>
 
             {state.error ? (
-              <p className="text-sm text-destructive">{state.error}</p>
+              <p className="text-sm text-destructive-ink">{state.error}</p>
             ) : null}
           </div>
 
@@ -930,7 +930,7 @@ function EditKnowledgeEntryDialog({
             </Field>
 
             {state.error ? (
-              <p className="text-sm text-destructive">{state.error}</p>
+              <p className="text-sm text-destructive-ink">{state.error}</p>
             ) : null}
           </div>
 

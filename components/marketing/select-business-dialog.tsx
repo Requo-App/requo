@@ -135,7 +135,7 @@ export function SelectBusinessDialog({
         <div className="max-h-[60vh] overflow-y-auto p-6 pt-4">
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-10 gap-3">
-              <Spinner className="size-6 text-primary" />
+              <Spinner className="size-6 text-primary-ink" />
               <p className="text-sm text-muted-foreground">
                 Loading your businesses…
               </p>
@@ -193,7 +193,7 @@ export function SelectBusinessDialog({
                       <div className="shrink-0">
                         {isCurrentPlan ? (
                           <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground px-2.5 py-1 rounded-md bg-muted border border-border">
-                            <Check className="size-3 text-emerald-500" />
+                            <Check className="size-3 text-success-ink" />
                             Current plan
                           </span>
                         ) : (
@@ -227,7 +227,7 @@ export function SelectBusinessDialog({
                       />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <p className="truncate text-sm font-medium text-foreground group-hover:text-primary transition-colors">
+                          <p className="truncate text-sm font-medium text-foreground group-hover:text-primary-ink transition-colors">
                             {business.name}
                           </p>
                           <PlanBadge plan={business.plan as PlanTier} />
@@ -266,7 +266,7 @@ export function SelectBusinessDialog({
             asChild
             variant="ghost"
             size="sm"
-            className="h-7 text-xs font-medium gap-1 text-primary hover:text-primary"
+            className="h-7 text-xs font-medium gap-1 text-primary-ink hover:text-primary-ink"
             onClick={() => onOpenChange(false)}
           >
             <Link href="/new">

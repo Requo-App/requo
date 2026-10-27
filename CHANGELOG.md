@@ -6,6 +6,7 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ### Added
 
+- Added `npm run audit:color-system` (part of `npm run check`) to enforce the neutral `R = G`, `B <= R + 6` rule, the dark charcoal band, `color-scheme`, required ink/status/preview tokens, WCAG contrast on every primary surface, and the raw palette/literal boundary.
 - Added a one-time 14-day Pro trial with no card required. New business owners start it automatically on their first active business, and eligible existing Free businesses can start it from Billing. When it ends, the business returns to Free with its data retained.
 - The full-local Docker stack now includes Redis behind an Upstash-compatible REST proxy. The app keeps using `@upstash/redis`, so cache, quota, cooldown, and rate-limit behavior can be exercised locally without a hosted Redis database.
 - Added `npm run audit:feature-boundaries` (part of `npm run check`) to enforce layer direction and feature public entry points: `lib/` cannot import product features at runtime, generic UI cannot import product features, cross-feature imports must target a feature's root modules or `components/` tree, and inner layers cannot import `app/`. Reviewed exceptions are listed in the audit.
@@ -15,6 +16,9 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ### Changed
 
+- Retuned the light and dark colour systems to one true-neutral palette. Dark mode now uses soft Apple-style charcoal (`#161618`–`#2C2C2E`) rather than near-black, light mode shares the same neutral undertone, and both themes use the same elevation order: frame/sidebar recessed, main panel raised, cards above the panel, popovers on top. Solid fills keep the brand hue; a new `*-ink` text tone lets dark-mode links and icons step lighter without changing button fills.
+- Replaced hardcoded palette colours across status badges, the Pro trial banner, archived/locked surfaces, marketing illustrations, theme previews, switches, and admin/error states with semantic, status, and preview tokens. Static-only surfaces (email HTML, PDF, canvas previews, brand marks, Open Graph, standalone error pages, and the plan illustration) are documented exceptions.
+- The marketing hero frame now uses the shared card surface in dark mode, so its border and the preview's internal surface steps carry the elevation instead of a shadow.
 - The marketing footer now uses the shared `BrandMark` lockup, so its mark and Apfel Grotezk Fett wordmark match the header, auth, and loading surfaces instead of a one-off text treatment.
 - Dashboard and settings content now renders inside an inset, bordered card on a shell-coloured frame with its own scroll container, so the document no longer scrolls on those routes. The sidebar is a seamless rail; scroll-to-top, the mobile dock, sticky form offsets, and the business loading skeleton follow the card scroller instead of the window.
 - Toned down the landing page without changing its section order or what each product preview shows; the hero subhead is tightened to one sentence. Section labels are now sentence-case 14/20 sans with no ring, rule, or icon motif; the Start free hero and header CTAs use the shared primary button treatment, while the secondary demo action stays a flat hairline surface with a one-step hover, 2px focus ring, and 2px arrow nudge. The hero keeps one contained radial behind the product window instead of a dot field, top wash, or fade mask; workflow stages, business mocks, and Why Requo panes use flat hairline frames.

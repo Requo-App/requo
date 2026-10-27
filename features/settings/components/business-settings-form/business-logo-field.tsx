@@ -302,7 +302,7 @@ export function BusinessLogoField({
             Square JPG, PNG, or WEBP logos up to 2MB.
           </p>
           {localError || fieldError ? (
-            <p className="text-xs leading-5 text-destructive">
+            <p className="text-xs leading-5 text-destructive-ink">
               {localError || fieldError}
             </p>
           ) : null}

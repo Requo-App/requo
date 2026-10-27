@@ -152,7 +152,7 @@ export function QuoteTemplatePicker({
               </div>
 
               {hasCurrencyMismatch ? (
-                <p className="text-xs text-destructive">
+                <p className="text-xs text-destructive-ink">
                   Saved in {template.currency} — doesn&apos;t match {currency}.
                 </p>
               ) : null}

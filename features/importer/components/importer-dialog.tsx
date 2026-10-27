@@ -361,7 +361,7 @@ function UploadStep({
           ref={inputRef}
           type="file"
         />
-        <div className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+        <div className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary-ink">
           <FileUp className="size-6" />
         </div>
         {file ? (

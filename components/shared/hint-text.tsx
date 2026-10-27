@@ -27,7 +27,7 @@ export interface HintTextProps extends AriaTextProps {
 const hintTextVariants = cva("pt-px text-caption-1-medium", {
   variants: {
     invalid: {
-      true: "text-destructive",
+      true: "text-destructive-ink",
       false: "text-muted-foreground",
     },
   },

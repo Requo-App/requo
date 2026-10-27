@@ -25,7 +25,7 @@ export function RevisionRequestFeedback({
 
   return (
     <div className="rounded-lg border border-warning/30 bg-warning/10 px-4 py-3">
-      <p className="text-xs font-medium uppercase tracking-[0.1em] text-warning">
+      <p className="text-xs font-medium uppercase tracking-[0.1em] text-warning-ink">
         Customer message
       </p>
       <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-foreground">

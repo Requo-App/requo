@@ -97,7 +97,7 @@ export async function AdminNeedsAttention({
     >
       {items.length === 0 ? (
         <div className="flex items-center gap-3 py-2">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary-ink">
             <CheckCircle2 aria-hidden="true" className="size-4" />
           </span>
           <div className="min-w-0">

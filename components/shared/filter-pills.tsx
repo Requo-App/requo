@@ -38,7 +38,7 @@ export function FilterPills<T extends string>({
               className={cn(
                 "inline-flex min-h-7 items-center rounded-full border px-3 py-1 text-xs font-medium transition-[transform,background-color,border-color,color] duration-150 ease-[var(--motion-ease-standard)] active:scale-[0.97] disabled:pointer-events-none",
                 active
-                  ? "border-primary/30 bg-primary/10 text-primary"
+                  ? "border-primary/30 bg-primary/10 text-primary-ink"
                   : "border-border text-muted-foreground hover:border-border hover:bg-accent hover:text-foreground",
               )}
               onClick={() => onChange(option.value)}
