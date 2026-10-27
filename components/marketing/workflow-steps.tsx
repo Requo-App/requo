@@ -110,9 +110,9 @@ function StepPreview({ step }: { step: (typeof steps)[number] }) {
  * The active rail fills in the marketing accent over the token duration in
  * `app/globals.css` (`--animate-workflow-progress`) and the browser's own
  * `animationend` hands the cycle to the next tab, so React state can never
- * disagree with what the rail shows. The listener stays attached whenever
- * motion is allowed — not only while cycling — so a fill that ends exactly as
- * the gate closes still advances instead of stranding a full rail.
+ * disagree with what the rail shows. Unless explicitly paused, the listener
+ * stays attached whenever motion is allowed so a fill that ends exactly as
+ * the tour leaves view or the page hides still advances.
  *
  * - The cycle always runs while the tour is in view on a visible tab; hovering
  *   or focusing does not pause it, and picking a tab restarts the fill at that
@@ -127,6 +127,7 @@ function StepPreview({ step }: { step: (typeof steps)[number] }) {
  */
 export function WorkflowSteps() {
   const [active, setActive] = useState(0);
+  const [railVersion, setRailVersion] = useState(0);
   const [inView, setInView] = useState(false);
   const [paused, setPaused] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -182,6 +183,7 @@ export function WorkflowSteps() {
 
   function moveToStep(index: number) {
     setActive(index);
+    setRailVersion((current) => current + 1);
     tabRefs.current[index]?.focus();
   }
 
@@ -265,7 +267,8 @@ export function WorkflowSteps() {
                         railAnimated && "animate-workflow-progress",
                       )}
                       data-workflow-progress={progressState}
-                      onAnimationEnd={railAnimated ? advance : undefined}
+                      key={railVersion}
+                      onAnimationEnd={railAnimated && !paused ? advance : undefined}
                       style={
                         railAnimated
                           ? {

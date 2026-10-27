@@ -323,6 +323,42 @@ describe("WorkflowSteps", () => {
     );
   });
 
+  it.each(["click", "Home", "End"])(
+    "restarts the rail when %s reselects the active step",
+    async (selection) => {
+      const user = userEvent.setup();
+      const stepName =
+        selection === "End" ? /Ready for what's next/ : /Request comes in/;
+
+      render(<WorkflowSteps />);
+      await emitIntersection(1);
+      await user.click(tabOf(stepName));
+
+      const previousBar = progressBarOf(stepName);
+
+      if (selection === "click") {
+        await user.click(tabOf(stepName));
+      } else {
+        await user.keyboard(`{${selection}}`);
+      }
+
+      const restartedBar = progressBarOf(stepName);
+
+      // A fresh animated element starts a new fill even if the tab is unchanged.
+      expect(previousBar).not.toBeInTheDocument();
+      expect(restartedBar).toHaveClass("animate-workflow-progress");
+      expect(restartedBar).toHaveStyle({ animationPlayState: "running" });
+      expect(tabOf(stepName)).toHaveAttribute("aria-selected", "true");
+      expect(tabOf(stepName)).toHaveFocus();
+
+      await finishProgressBar(restartedBar);
+
+      expect(
+        tabOf(selection === "End" ? /Request comes in/ : /Quote sent same day/),
+      ).toHaveAttribute("aria-selected", "true");
+    },
+  );
+
   it("freezes and resumes the cycle with the Pause tour control", async () => {
     const user = userEvent.setup();
 
@@ -347,6 +383,30 @@ describe("WorkflowSteps", () => {
 
     expect(bar).toHaveAttribute("data-workflow-progress", "running");
     expect(bar).toHaveStyle({ animationPlayState: "running" });
+  });
+
+  it("ignores a queued animation end after pausing the tour", async () => {
+    const user = userEvent.setup();
+
+    render(<WorkflowSteps />);
+    await emitIntersection(1);
+
+    const bar = progressBarOf(/Request comes in/);
+
+    await user.click(screen.getByRole("button", { name: "Pause tour" }));
+    await finishProgressBar(bar);
+
+    expect(tabOf(/Request comes in/)).toHaveAttribute("aria-selected", "true");
+    expect(activePreview().getByText("Sarah Jenkins")).toBeInTheDocument();
+    expect(bar).toHaveStyle({ animationPlayState: "paused" });
+
+    await user.click(screen.getByRole("button", { name: "Play tour" }));
+    await finishProgressBar(bar);
+
+    expect(tabOf(/Quote sent same day/)).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
   });
 
   it("moves between tabs with the keyboard", async () => {
