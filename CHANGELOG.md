@@ -15,6 +15,7 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ### Changed
 
+- The marketing footer now uses the shared `BrandMark` lockup, so its mark and Apfel Grotezk Fett wordmark match the header, auth, and loading surfaces instead of a one-off text treatment.
 - Dashboard and settings content now renders inside an inset, bordered card on a shell-coloured frame with its own scroll container, so the document no longer scrolls on those routes. The sidebar is a seamless rail; scroll-to-top, the mobile dock, sticky form offsets, and the business loading skeleton follow the card scroller instead of the window.
 - Toned down the landing page without changing its section order or what each product preview shows; the hero subhead is tightened to one sentence. Section labels are now sentence-case 14/20 sans with no ring, rule, or icon motif; the Start free hero and header CTAs use the shared primary button treatment, while the secondary demo action stays a flat hairline surface with a one-step hover, 2px focus ring, and 2px arrow nudge. The hero keeps one contained radial behind the product window instead of a dot field, top wash, or fade mask; workflow stages, business mocks, and Why Requo panes use flat hairline frames.
 - The hero no longer carries the “Built for” industry strip; those solution links remain in the footer. The product window's bottom edge fades into the page with a layered background-colour overlay instead of ending on a hard crop; the mockup stays sharp.

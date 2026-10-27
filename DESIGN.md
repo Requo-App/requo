@@ -127,6 +127,24 @@ scale adjusts the whole app, not just fonts; 1px hairlines stay fixed.
 Arbitrary `text-[Npx]` values do not scale — use rem values from the ramp
 above. Print/PDF output always renders at 100%.
 
+### Brand Lockup
+
+- The logo mark is fixed. `public/logo.svg`, `app/icon.svg`, and the paths in
+  `BrandLogoIcon` are the canonical mark: do not redraw, recolour, or replace
+  them. The mark always renders in `text-primary`.
+- The wordmark is live Apfel Grotezk Fett “Requo” in
+  `components/shared/brand-wordmark.tsx`, loaded by `--font-brand` in
+  `app/layout.tsx` and mapped in `app/globals.css`. Do not re-typeset the name;
+  changing the font means updating both files.
+- Use `BrandMark` for the horizontal lockup: the mark renders at 30/38/56px for
+  `default`/`lg`/`xl` with an 8px gap, an optional subtitle (default
+  “Service workflow”), and `collapseLabel` for icon-only sidebars. The wordmark
+  stays in `text-primary`; surrounding copy uses the foreground and muted
+  tokens.
+- `BrandWordmark` sizes the wordmark for the lockup (`default`) and the reload
+  overlay (`hero`). Do not add gradients, outlines, shadows, or a second colour
+  to the lockup.
+
 ### Spacing and Radius
 
 Use a compact spacing scale consistently: `1.5`, `2`, `2.5`, `3`, `4`, `5`, `6`, `8`, `10`, `12`, `16`.
