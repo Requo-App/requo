@@ -241,7 +241,6 @@ export function MarketingMainNav({
    * instead, with the same 150ms delay.
    */
   const pointerInsideRef = useRef(false);
-  const allowInternalCloseRef = useRef(false);
   const closeTimerRef = useRef<number | null>(null);
 
   const clearCloseTimer = useCallback(() => {
@@ -254,25 +253,20 @@ export function MarketingMainNav({
   useEffect(() => clearCloseTimer, [clearCloseTimer]);
 
   const handleValueChange = useCallback((next: string) => {
-    if (
-      next === "" &&
-      pointerInsideRef.current &&
-      !allowInternalCloseRef.current
-    ) {
+    if (next === "" && pointerInsideRef.current) {
       return;
     }
 
-    allowInternalCloseRef.current = false;
     setValue(next);
   }, []);
 
-  /** Let the next internal close through: trigger click. */
-  const requestInternalClose = useCallback(() => {
-    allowInternalCloseRef.current = true;
-    window.setTimeout(() => {
-      allowInternalCloseRef.current = false;
-    }, 0);
-  }, []);
+  /**
+   * Trigger clicks close directly: Radix's own toggle would arrive at
+   * `handleValueChange` as an internal dismiss, which the pointer-inside guard
+   * above swallows, and waiting on it also made the close depend on the event
+   * order. Closing here keeps the click path deterministic.
+   */
+  const closeMenu = useCallback(() => setValue(""), []);
 
   const handlePointerEnter = useCallback(
     (event: ReactPointerEvent) => {
@@ -301,8 +295,6 @@ export function MarketingMainNav({
     },
     [clearCloseTimer],
   );
-
-  const closeMenu = useCallback(() => setValue(""), []);
 
   return (
     <NavigationMenu
@@ -343,7 +335,7 @@ export function MarketingMainNav({
         <NavigationMenuItem value="product">
           <NavTrigger
             onArrowDown={() => openFromKeyboard("product")}
-            onRequestClose={requestInternalClose}
+            onRequestClose={closeMenu}
             open={value === "product"}
             triggerClassName={triggerClassName}
           >
@@ -363,7 +355,7 @@ export function MarketingMainNav({
         <NavigationMenuItem value="solutions">
           <NavTrigger
             onArrowDown={() => openFromKeyboard("solutions")}
-            onRequestClose={requestInternalClose}
+            onRequestClose={closeMenu}
             open={value === "solutions"}
             triggerClassName={triggerClassName}
           >
@@ -386,7 +378,7 @@ export function MarketingMainNav({
         <NavigationMenuItem value="resources">
           <NavTrigger
             onArrowDown={() => openFromKeyboard("resources")}
-            onRequestClose={requestInternalClose}
+            onRequestClose={closeMenu}
             open={value === "resources"}
             triggerClassName={triggerClassName}
           >
