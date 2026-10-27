@@ -302,7 +302,7 @@ export function BillingStatusCard({
                 <CircleAlert className="size-4" />
                 <div>
                   <p className="text-sm font-medium">Subscription canceling</p>
-                  <p className="mt-0.5 text-xs opacity-90">
+                  <p className="mt-0.5 text-xs">
                     You&apos;ll keep full access until the end of the billing
                     period.
                   </p>

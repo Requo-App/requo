@@ -7,24 +7,28 @@
  * time, so this audit protects four invariants:
  *
  * 1. Neutral tokens are actually neutral. Every opaque neutral must satisfy
- *    `R = G` and `B <= R + 6`; a green, teal, olive, slate-blue, or warm cast
+ *    `R = G` and `|B - R| <= 6`; a green, teal, olive, slate-blue, or warm cast
  *    fails. Dark large surfaces must sit between #161618 and #2C2C2E and may
  *    never be pure black or white.
  *
  * 2. Text keeps its contrast. `--foreground` is checked at >= 7:1 and
  *    `--muted-foreground` at >= 4.5:1 on every primary surface in both themes.
  *    Semantic inks (`--primary-ink`, `--destructive-ink`, …) are checked at
- *    >= 4.5:1 so a lighter dark-mode link never falls below AA. Solid fills
- *    stay on `--primary` / `--destructive`; the inks are only for text.
+ *    >= 4.5:1 so a lighter dark-mode link never falls below AA. Warning copy
+ *    is also checked on its own 10% and 15% tints, because sentence-length
+ *    warning text sits on those tinted banners. Solid fills stay on
+ *    `--primary` / `--destructive`; the inks are only for text.
  *
  * 3. Theme plumbing is present. Both blocks set `color-scheme`, the ink tokens
  *    are mapped into Tailwind's `@theme inline`, and selected sidebar rows use
  *    their own token rather than a raw black/white wash.
  *
- * 4. Product UI does not bypass the tokens. Raw palette utilities and colour
- *    literals are rejected outside an explicit, documented exemption list
- *    (brand marks, email/PDF surfaces, standalone error pages, and the
- *    decorative plan illustration). Add an exemption only when a colour
+ * 4. Product UI does not bypass the tokens. Raw palette utilities, raw
+ *    black/white utilities, ink tokens used as fills, and colour literals are
+ *    rejected outside an explicit, documented exemption list (brand marks,
+ *    email/PDF surfaces, standalone error pages, and the decorative plan
+ *    illustration). Files that mix static artwork with live UI allow only the
+ *    exact static literals listed below; add an exemption only when a colour
  *    genuinely cannot follow the theme, and say why.
  *
  * Usage: npx tsx scripts/audit-color-system.ts
@@ -39,6 +43,7 @@ import {
   type Offender,
 } from "./audit-lib";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 const GLOBALS = "app/globals.css";
 
@@ -117,6 +122,17 @@ const CONTRAST_TEXT = {
   "info-ink": 4.5,
 } as const;
 
+/**
+ * Sentence-length status text rendered on its own low-alpha tint. Warning is
+ * the only tone used for that treatment (archived/locked banners, the billing
+ * cancel alert, and the in-app-browser notice); the paired ink must clear AA
+ * on both the 10% and 15% tint over the card surface.
+ */
+const TINTED_TEXT_CONTRAST = [
+  { tone: "warning", tint: 10, minimum: 4.5 },
+  { tone: "warning", tint: 15, minimum: 4.5 },
+] as const;
+
 /** Tokens the rest of the system expects to find in both blocks. */
 const REQUIRED_TOKENS = [
   "primary-ink",
@@ -160,7 +176,8 @@ const REQUIRED_THEME_MAPPINGS = [
 /**
  * Files whose colours deliberately cannot follow the theme. Keep every entry
  * narrow and explain the constraint; a broad directory exemption hides the
- * next raw `bg-rose-500`.
+ * next raw `bg-rose-500`. Files that mix static artwork with live UI must use
+ * `EXEMPT_LITERALS` instead, so the live remainder is still scanned.
  */
 const EXEMPT_FILES: Readonly<Record<string, string>> = {
   "app/global-error.tsx":
@@ -171,38 +188,93 @@ const EXEMPT_FILES: Readonly<Record<string, string>> = {
     "static Open Graph raster; fixed light palette for social cards",
   "components/shared/plan-art-flame.tsx":
     "decorative plan illustration; brand-blob canvas colours are intentionally fixed",
-  "components/shared/settings-tools.tsx":
-    "third-party server tiles use the vendor's brand colour",
   "components/shared/switch.tsx":
     "micro inset highlight; a raw inset shadow is not a themeable surface",
-  "components/shared/theme-toggle.tsx":
-    "glass control over a fixed transparent surface; black/white glass labels are intentional",
   "components/shared/tooltip.tsx":
     "caret drop-shadow; no colour token can express a filter shadow",
   "components/ui/chart.tsx":
     "Recharts internal SVG selector strings, not rendered UI",
   "features/admin/forbidden-page.ts":
     "standalone forbidden page; renders outside the app stylesheet",
-  "features/auth/components/social-auth-buttons.tsx":
-    "Google brand mark; brand colours must not follow the theme",
   "features/billing/components/payment-method-icon.tsx":
     "Visa/Mastercard/Amex/PayPal marks; brand colours must not follow the theme",
   "features/admin/components/operations/emails/email-html-preview.tsx":
     "preview of the actual email HTML, which is always light",
-  "features/follow-ups/jobs/reminders.ts":
-    "HTML email body; mail clients do not resolve CSS custom properties",
-  "features/marketing/actions/request-demo.ts":
-    "HTML email body; mail clients do not resolve CSS custom properties",
-  "features/settings/components/email-template-builder/block-content.tsx":
-    "email builder defaults; the stored template carries literal hex colours",
-  "features/settings/components/email-template-builder/block-controls.tsx":
-    "email builder placeholders and defaults; the stored template carries literal hex colours",
-  "features/settings/components/services-list.tsx":
-    "canvas-drawn service thumbnail; a static light preview, not live UI",
   "features/settings/schemas.ts":
     "hex validation examples in user-facing schema messages",
   "lib/pdf/report.ts":
     "PDF palette; PDFs are print surfaces and do not resolve app tokens",
+};
+
+/**
+ * Exact raw colours allowed inside an otherwise-scanned file. These are static
+ * brand, canvas, or email literals embedded next to live UI; every other raw
+ * colour in the same file still fails. Matched case-insensitively.
+ */
+const EXEMPT_LITERALS: Readonly<Record<string, readonly string[]>> = {
+  "components/shared/settings-tools.tsx": [
+    // Third-party server tiles use each vendor's brand colour.
+    "bg-pink-200",
+    "text-pink-700",
+    "bg-blue-200",
+    "text-blue-700",
+    "bg-amber-200",
+    "text-amber-700",
+    "bg-neutral-950",
+    "text-white",
+  ],
+  "components/shared/theme-toggle.tsx": [
+    // Glass control over a fixed transparent surface; these labels stay black
+    // or white rather than following the theme.
+    "text-black",
+    "text-black/45",
+    "text-black/70",
+    "text-white",
+    "text-white/45",
+    "text-white/70",
+  ],
+  "features/follow-ups/jobs/reminders.ts": [
+    // HTML email body; mail clients do not resolve CSS custom properties.
+    "#374151",
+    "#6b7280",
+    "#111827",
+    "#fff",
+    "#9ca3af",
+  ],
+  "features/marketing/actions/request-demo.ts": [
+    // HTML email body; mail clients do not resolve CSS custom properties.
+    "#6b7280",
+    "#2563eb",
+    "#e5e7eb",
+    "#9ca3af",
+  ],
+  "features/settings/components/email-template-builder/block-content.tsx": [
+    // Email builder defaults; the stored template carries literal hex colours.
+    "#008060",
+    "#f4fffb",
+  ],
+  "features/settings/components/email-template-builder/block-controls.tsx": [
+    // Email builder placeholders and defaults; the stored template carries
+    // literal hex colours.
+    "#008060",
+    "#f4fffb",
+  ],
+  "features/auth/components/social-auth-buttons.tsx": [
+    // Google brand mark; brand colours must not follow the theme.
+    "#4285f4",
+    "#34a853",
+    "#fbbc04",
+    "#ea4335",
+  ],
+  "features/settings/components/services-list.tsx": [
+    // Canvas-drawn service thumbnail; a static light preview, not live UI.
+    "rgba(0, 0, 0, 0.08)",
+    "#ffffff",
+    "#f3f4f6",
+    "#111827",
+    "#6b7280",
+    "rgba(0, 0, 0, 0.06)",
+  ],
 };
 
 const SCAN_ROOTS = ["app", "components", "features", "lib"];
@@ -210,19 +282,32 @@ const SCAN_ROOTS = ["app", "components", "features", "lib"];
 const PALETTE =
   "slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose";
 
+const UTILITY_PREFIXES =
+  "bg|text|border(?:-[trblxyse])?|ring(?:-offset)?|from|to|via|fill|stroke|divide(?:-[xy])?|outline|shadow|decoration|accent|caret|placeholder";
+
 const RAW_PALETTE = new RegExp(
-  `\\b(?:bg|text|border|ring|from|to|via|fill|stroke|divide|outline|shadow|decoration|accent|caret)-(?:${PALETTE})-\\d{2,3}(?:/\\d+)?\\b`,
+  `\\b(?:${UTILITY_PREFIXES})-(?:${PALETTE})-\\d{2,3}(?:/\\d+)?\\b`,
+  "g",
 );
 
-/** Pure black/white backgrounds are surfaces; text-white is handled by the palette rule. */
-const RAW_BLACK_WHITE_SURFACE = /\bbg-(?:black|white)(?:\/\S+)?\b/;
+/** Raw black/white text, borders, rings, fills, and surfaces all bypass dark mode. */
+const RAW_BLACK_WHITE = new RegExp(
+  `\\b(?:${UTILITY_PREFIXES})-(?:black|white)(?:/(?:\\d+|\\[[^\\]]+\\]))?\\b`,
+  "g",
+);
+
+/** Ink tokens are text/icon tones; using one as a fill flips the contrast contract. */
+const RAW_INK_FILL = new RegExp(
+  `\\b(?:bg|from|via|to)-(?:primary|destructive|success|warning|info)-ink(?:/(?:\\d+|\\[[^\\]]+\\]))?\\b`,
+  "g",
+);
 
 const COLOR_LITERAL =
   /#[0-9a-fA-F]{3,8}\b|rgba?\([^)]*\)|hsla?\([^)]*\)/g;
 
 const STRING_LITERAL = /"([^"\n]*)"|'([^'\n]*)'|`([^`\n]*)`/g;
 
-type Rgb = {
+export type Rgb = {
   readonly r: number;
   readonly g: number;
   readonly b: number;
@@ -270,9 +355,21 @@ function parseRgb(raw: string): Rgb | null {
   };
 }
 
-function parseColor(raw: string): Rgb | null {
+export function parseColor(raw: string): Rgb | null {
   const value = raw.trim();
   return parseHex(value) ?? parseRgb(value);
+}
+
+/** Alpha-composite `foreground` over an opaque `background`. */
+export function mixColor(foreground: Rgb, background: Rgb, alpha: number): Rgb {
+  const channel = (front: number, back: number) =>
+    Math.round(front * alpha + back * (1 - alpha));
+  return {
+    r: channel(foreground.r, background.r),
+    g: channel(foreground.g, background.g),
+    b: channel(foreground.b, background.b),
+    a: 1,
+  };
 }
 
 function relativeLuminance({ r, g, b }: Rgb): number {
@@ -287,7 +384,7 @@ function relativeLuminance({ r, g, b }: Rgb): number {
   );
 }
 
-function contrastRatio(foreground: Rgb, background: Rgb): number {
+export function contrastRatio(foreground: Rgb, background: Rgb): number {
   const foregroundLuminance = relativeLuminance(foreground);
   const backgroundLuminance = relativeLuminance(background);
   const lighter = Math.max(foregroundLuminance, backgroundLuminance);
@@ -295,13 +392,16 @@ function contrastRatio(foreground: Rgb, background: Rgb): number {
   return (lighter + 0.05) / (darker + 0.05);
 }
 
-function formatRgb({ r, g, b }: Rgb): string {
+export function formatRgb({ r, g, b }: Rgb): string {
   return `#${[r, g, b]
     .map((channel) => channel.toString(16).padStart(2, "0"))
     .join("")}`;
 }
 
-function parseTokenBlock(source: string, selector: string): Map<string, string> {
+export function parseTokenBlock(
+  source: string,
+  selector: string,
+): Map<string, string> {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const match = new RegExp(`^${escaped}\\s*\\{([\\s\\S]*?)^\\}`, "m").exec(source);
   const tokens = new Map<string, string>();
@@ -332,16 +432,85 @@ function stringLiterals(line: string): string[] {
   return literals;
 }
 
-function neutralProblems(name: string, rgb: Rgb): string[] {
+function firstDisallowed(
+  value: string,
+  pattern: RegExp,
+  allowed: ReadonlySet<string>,
+): string | null {
+  for (const match of value.matchAll(pattern)) {
+    if (!allowed.has(match[0].toLowerCase())) return match[0];
+  }
+  return null;
+}
+
+/** Scan one source file against the raw-colour boundary. */
+export function auditSource(rel: string, source: string): Offender[] {
+  if (EXEMPT_FILES[rel]) return [];
+  const allowed = new Set(
+    (EXEMPT_LITERALS[rel] ?? []).map((literal) => literal.toLowerCase()),
+  );
+  const offenders: Offender[] = [];
+
+  source.split(/\r?\n/).forEach((line, index) => {
+    const lineNumber = index + 1;
+
+    const paletteMatch = firstDisallowed(line, RAW_PALETTE, allowed);
+    if (paletteMatch) {
+      offenders.push({
+        file: rel,
+        line: lineNumber,
+        message: `raw palette utility "${paletteMatch}" — use a semantic token or shared tone`,
+      });
+    }
+
+    const blackWhiteMatch = firstDisallowed(line, RAW_BLACK_WHITE, allowed);
+    if (blackWhiteMatch) {
+      offenders.push({
+        file: rel,
+        line: lineNumber,
+        message: `raw black/white utility "${blackWhiteMatch}" — use a semantic surface or text token so dark mode stays token-backed`,
+      });
+    }
+
+    const inkFillMatch = firstDisallowed(line, RAW_INK_FILL, allowed);
+    if (inkFillMatch) {
+      offenders.push({
+        file: rel,
+        line: lineNumber,
+        message: `ink token used as a fill "${inkFillMatch}" — inks are text/icon-only; use a solid semantic or status tone`,
+      });
+    }
+
+    for (const literal of stringLiterals(line)) {
+      const colourMatch = firstDisallowed(literal, COLOR_LITERAL, allowed);
+      if (!colourMatch) continue;
+      offenders.push({
+        file: rel,
+        line: lineNumber,
+        message: `raw colour literal "${colourMatch}" — use a token; exempt genuinely static surfaces explicitly in scripts/audit-color-system.ts`,
+      });
+      break;
+    }
+  });
+
+  return offenders;
+}
+
+export function neutralProblems(name: string, rgb: Rgb): string[] {
   const problems: string[] = [];
   if (rgb.r !== rgb.g) {
     problems.push(
-      `R ${rgb.r} must equal G ${rgb.g} (neutral, no green/olive/warm cast)`,
+      `R ${rgb.r} must equal G ${rgb.g} (neutral, no green/olive cast)`,
     );
   }
   if (rgb.b > rgb.r + 6) {
     problems.push(
       `B ${rgb.b} exceeds R + 6 (no slate-blue cast; ${rgb.r} + 6 = ${rgb.r + 6})`,
+    );
+  }
+  if (rgb.b < rgb.r - 6) {
+    problems.push(
+      `B ${rgb.b} is below R - 6 (no warm cast; ${rgb.r} - 6 = ${rgb.r - 6})`,
     );
   }
   return problems.map((problem) => `${name}: ${problem}`);
@@ -494,6 +663,45 @@ async function run(): Promise<void> {
   console.log(contrastRows.join("\n"));
   console.log("");
 
+  const tintedRows: string[] = [];
+  for (const { name, tokens } of themes) {
+    const cardValue = tokens.get("card");
+    const cardRgb = cardValue ? parseColor(cardValue) : null;
+    if (!cardRgb) continue;
+
+    for (const { tone, tint, minimum } of TINTED_TEXT_CONTRAST) {
+      const inkToken = `${tone}-ink`;
+      const fillRgb = parseColor(tokens.get(tone) ?? "");
+      const inkRgb = parseColor(tokens.get(inkToken) ?? "");
+      if (!fillRgb || !inkRgb) {
+        offenders.push({
+          file: GLOBALS,
+          line: 1,
+          message: `${name}: could not resolve --${tone} / --${inkToken} for the tinted-text table`,
+        });
+        continue;
+      }
+
+      const background = mixColor(fillRgb, cardRgb, tint / 100);
+      const ratio = contrastRatio(inkRgb, background);
+      if (ratio < minimum) {
+        offenders.push({
+          file: GLOBALS,
+          line: 1,
+          message: `${name}: --${inkToken} on ${tone}/${tint} over --card is ${ratio.toFixed(2)}:1 (needs ${minimum}:1)`,
+        });
+      }
+      const label = `${name.padEnd(6)} ${`${tone}/${tint}`.padEnd(12)}`;
+      tintedRows.push(
+        `${label} ${ratio.toFixed(2)}:1 (needs ${minimum}:1)`,
+      );
+    }
+  }
+
+  console.log("Color-system tinted text");
+  console.log(tintedRows.join("\n"));
+  console.log("");
+
   const files = await walk(path.join(ROOT, "."), (abs, rel) => {
     if (!/\.(tsx?|mts|cts|css)$/.test(abs)) return false;
     return isScanned(rel);
@@ -501,43 +709,9 @@ async function run(): Promise<void> {
 
   for (const abs of files) {
     const rel = normalize(relPath(abs));
-    if (EXEMPT_FILES[rel]) continue;
-
     const fileSource = await readText(abs);
     if (!fileSource) continue;
-
-    fileSource.split(/\r?\n/).forEach((line, index) => {
-      const lineNumber = index + 1;
-
-      const paletteMatch = line.match(RAW_PALETTE);
-      if (paletteMatch) {
-        offenders.push({
-          file: rel,
-          line: lineNumber,
-          message: `raw palette utility "${paletteMatch[0]}" — use a semantic token or shared tone`,
-        });
-      }
-
-      const blackWhiteMatch = line.match(RAW_BLACK_WHITE_SURFACE);
-      if (blackWhiteMatch) {
-        offenders.push({
-          file: rel,
-          line: lineNumber,
-          message: `raw surface "${blackWhiteMatch[0]}" — use bg-background/card/popover/... so dark mode stays token-backed`,
-        });
-      }
-
-      for (const literal of stringLiterals(line)) {
-        const colourMatch = literal.match(COLOR_LITERAL);
-        if (!colourMatch) continue;
-        offenders.push({
-          file: rel,
-          line: lineNumber,
-          message: `raw colour literal "${colourMatch[0]}" — use a token; exempt genuinely static surfaces explicitly in scripts/audit-color-system.ts`,
-        });
-        break;
-      }
-    });
+    offenders.push(...auditSource(rel, fileSource));
   }
 
   offenders.sort((a, b) =>
@@ -556,4 +730,10 @@ function parseMappingBlock(source: string): Set<string> {
   return mappings;
 }
 
-main();
+const invokedDirectly =
+  process.argv[1] !== undefined &&
+  import.meta.url === pathToFileURL(process.argv[1]).href;
+
+if (invokedDirectly) {
+  main();
+}

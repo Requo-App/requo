@@ -96,7 +96,7 @@ function InAppBrowserWarning({ appName }: { appName: string | null }) {
           <p className="font-medium text-warning-ink">
             Google sign-in won&apos;t work here
           </p>
-          <p className="text-warning-ink/80">
+          <p className="text-warning-ink">
             {appName ? `You're in ${appName}'s browser. ` : "You're in an in-app browser. "}
             Open this page in Safari or Chrome to sign in with Google, or use email below.
           </p>

@@ -244,7 +244,7 @@
   --primary-ink: #008060;
   --destructive-ink: #c9372c;
   --success-ink: #047857;
-  --warning-ink: #b45309;
+  --warning-ink: #92400e;
   --info-ink: #0369a1;
   /* Decorative status hues. These are the only non-semantic colour families
      in the status vocabulary; both themes carry the same hue, with a lighter
@@ -550,7 +550,7 @@ html[data-reload-loading="fade-out"] #app-root-content {
   --primary-ink: #008060;
   --destructive-ink: #c9372c;
   --success-ink: #047857;
-  --warning-ink: #b45309;
+  --warning-ink: #92400e;
   --info-ink: #0369a1;
   --border: #e5e5ea;
   --input: #d1d1d6;

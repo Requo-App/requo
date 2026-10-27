@@ -17,7 +17,7 @@ This document defines the canonical UI system for Requo. Use `shadcn/ui` primiti
 Use semantic tokens, not raw color classes, for all product UI.
 
 The palette is true neutral in both themes: every opaque neutral satisfies
-`R = G` and `B <= R + 6`, so no surface picks up a green, teal, olive,
+`R = G` and `|B - R| <= 6`, so no surface picks up a green, teal, olive,
 slate-blue, or warm cast. Dark is Apple-style charcoal, not black: large
 surfaces stay inside `#161618`–`#2C2C2E`, and no surface is pure black or
 white. The same elevation logic applies in both themes — the shell frame and
@@ -49,13 +49,19 @@ without changing a solid fill. Use `text-primary-ink`,
 `text-destructive-ink`, `text-success-ink`, `text-warning-ink`, and
 `text-info-ink` for text or links; keep `bg-primary` and `bg-destructive`
 (and the solid `--success` / `--warning` / `--info` tones) for fills. Never
-use an ink token as a button background.
+use an ink token as a button background, and keep warning copy at full ink
+contrast on its tinted banners — `--warning-ink` must clear 4.5:1 on both the
+10% and 15% warning tints in each theme.
 
 `scripts/audit-color-system.ts` enforces the neutral rule, the charcoal band,
 `color-scheme` in both themes, the required ink/status/preview mappings, the
 contrast table (`--foreground` ≥ 7:1 and `--muted-foreground` ≥ 4.5:1 on
-background/card/popover/sidebar/muted; semantic inks ≥ 4.5:1), and the raw
-palette/literal boundary.
+background/card/popover/sidebar/muted; semantic inks ≥ 4.5:1; warning ink on
+warning/10 and warning/15 ≥ 4.5:1), and the raw-colour boundary. That boundary
+rejects raw palette and black/white utilities, ink tokens used as fills, and
+colour literals. Files that mix static artwork with live UI allow only the
+exact static literals listed in the audit; everything else in those files is
+still scanned.
 
 Extended token groups:
 
