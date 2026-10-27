@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -49,22 +49,28 @@ describe("MarketingMainNav", () => {
   });
 
   it("closes when the open trigger is clicked again", async () => {
-    const user = userEvent.setup();
-
     render(<MarketingMainNav />);
 
     const trigger = productTrigger();
 
-    await user.click(trigger);
+    /*
+     * Pointer-enter keeps the pointer-inside close guard active, but drive the
+     * clicks raw: userEvent's synthetic hover also schedules Radix's delayed
+     * hover-open, which can fire after the close on a slow CI box and reopen
+     * the panel. The toggle itself is a click path, not a hover path.
+     */
+    fireEvent.pointerOver(trigger, { pointerType: "mouse" });
+    fireEvent.click(trigger);
+
     await screen.findByRole("link", { name: /Inquiry/ });
 
-    await user.click(trigger);
+    fireEvent.click(trigger);
 
     await waitFor(() =>
-      expect(
-        screen.queryByRole("link", { name: /Inquiry/ }),
-      ).not.toBeInTheDocument(),
+      expect(trigger).toHaveAttribute("aria-expanded", "false"),
     );
-    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    expect(
+      screen.queryByRole("link", { name: /Inquiry/ }),
+    ).not.toBeInTheDocument();
   });
 });
