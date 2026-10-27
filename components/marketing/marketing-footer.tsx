@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { BrandLogoIcon } from "@/components/shared/brand-mark";
+import { BrandMark } from "@/components/shared/brand-mark";
 
 function XIcon({ className }: { className?: string }) {
   return (
@@ -136,18 +136,11 @@ export function MarketingFooter() {
         {/* Left column: Brand & Desktop Copyright */}
         <div className="flex flex-col justify-between self-stretch">
           <div>
-            <Link
-              aria-label="Requo home"
-              className="inline-flex items-center gap-2.5 transition-opacity hover:opacity-90"
+            <BrandMark
+              className="transition-opacity hover:opacity-90"
               href="/"
-            >
-              <span className="flex size-7 shrink-0 items-center justify-center text-primary">
-                <BrandLogoIcon className="size-full" />
-              </span>
-              <span className="font-brand text-xl font-bold tracking-tight text-foreground">
-                Requo
-              </span>
-            </Link>
+              subtitle={null}
+            />
           </div>
 
           <p className="mt-14 hidden text-xs leading-5 text-muted-foreground lg:block">
