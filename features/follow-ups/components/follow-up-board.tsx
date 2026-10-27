@@ -105,13 +105,13 @@ type BoardAction =
 const columns = [  {
     key: "overdue" as const,
     label: "Needs attention now",
-    icon: <AlertTriangle className="size-4 text-destructive" />,
+    icon: <AlertTriangle className="size-4 text-destructive-ink" />,
     collapsedLimit: 8,
   },
   {
     key: "dueToday" as const,
     label: "Due today",
-    icon: <Sunrise className="size-4 text-primary" />,
+    icon: <Sunrise className="size-4 text-primary-ink" />,
     collapsedLimit: 8,
   },
   {

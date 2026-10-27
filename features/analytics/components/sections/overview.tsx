@@ -568,7 +568,7 @@ export async function OverviewLiveCards(props: OverviewSectionProps) {
             caption="Past the due date"
             href={getInvoicesListHref(props.businessSlug, { status: "overdue" })}
             valueClassName={
-              receivables.overdueInCents > 0 ? "text-destructive" : undefined
+              receivables.overdueInCents > 0 ? "text-destructive-ink" : undefined
             }
           />
         </StatGrid>

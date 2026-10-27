@@ -212,7 +212,7 @@ export function MockFooterStrip({
   }>;
 }) {
   return (
-    <div className="mt-auto flex shrink-0 items-center gap-2 border-t border-warning/25 bg-warning/10 px-4 py-2.5 text-xs leading-4 font-medium text-warning">
+    <div className="mt-auto flex shrink-0 items-center gap-2 border-t border-warning/25 bg-warning/10 px-4 py-2.5 text-xs leading-4 font-medium text-warning-ink">
       <Icon aria-hidden="true" className="size-3.5 shrink-0" />
       <span className="truncate">{children}</span>
     </div>

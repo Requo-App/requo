@@ -117,7 +117,7 @@ export function SendInvoiceDialog({
               </label>
             </div>
             {state.error ? (
-              <p role="alert" className="text-sm text-destructive">
+              <p role="alert" className="text-sm text-destructive-ink">
                 {state.error}
               </p>
             ) : null}

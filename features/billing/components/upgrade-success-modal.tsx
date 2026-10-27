@@ -66,8 +66,8 @@ export function UpgradeSuccessModal() {
     <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-full bg-emerald-500/10">
-            <Sparkles className="size-6 text-emerald-600" />
+          <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-full bg-success/10">
+            <Sparkles className="size-6 text-success-ink" />
           </div>
           <DialogTitle className="text-center">
             Welcome to {label}
@@ -80,7 +80,7 @@ export function UpgradeSuccessModal() {
           <ul className="grid gap-2">
             {features.map((feature) => (
               <li key={feature} className="flex items-start gap-3">
-                <Check className="mt-0.5 size-4 shrink-0 text-emerald-600" />
+                <Check className="mt-0.5 size-4 shrink-0 text-success-ink" />
                 <div className="min-w-0">
                   <p className="text-sm font-medium leading-tight">
                     {feature}

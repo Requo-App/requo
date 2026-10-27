@@ -256,7 +256,7 @@ export function FollowUpEditDialog({
               ) : null}
 
               {sendMode === "automatic" && channel !== "email" && (
-                <p className="text-sm text-destructive" role="alert">
+                <p className="text-sm text-destructive-ink" role="alert">
                   Automatic sending is only available for the email channel.
                 </p>
               )}
@@ -334,7 +334,7 @@ export function FollowUpEditDialog({
               )}
 
               {recurrence !== "none" && terminationCondition === "terminal_status" && !hasLinkedItem && (
-                <p className="text-sm text-destructive" role="alert">
+                <p className="text-sm text-destructive-ink" role="alert">
                   A linked inquiry or quote is required for this end condition.
                 </p>
               )}

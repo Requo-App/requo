@@ -20,8 +20,8 @@ export type DeltaPillDirection = "up" | "down" | "flat";
 export type DeltaPillSentiment = "positive" | "negative" | "neutral";
 
 const TONE_CLASSES: Record<DeltaPillSentiment, string> = {
-  positive: "bg-success/10 text-success",
-  negative: "bg-destructive/10 text-destructive",
+  positive: "bg-success/10 text-success-ink",
+  negative: "bg-destructive/10 text-destructive-ink",
   neutral: "bg-muted text-muted-foreground",
 };
 

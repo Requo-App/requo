@@ -84,7 +84,7 @@ export function PaymentListTable({
                 </TableCell>
                 <TableCell className="w-[8rem]">
                   <Link
-                    className="block text-sm text-muted-foreground tabular-nums transition-colors hover:text-primary group-hover/row:text-primary"
+                    className="block text-sm text-muted-foreground tabular-nums transition-colors hover:text-primary-ink group-hover/row:text-primary-ink"
                     href={paymentHref}
                     prefetch={true}
                   >
@@ -93,7 +93,7 @@ export function PaymentListTable({
                 </TableCell>
                 <TableCell className="w-[8rem]">
                   <Link
-                    className="block text-sm font-semibold text-foreground tabular-nums transition-colors hover:text-primary group-hover/row:text-primary"
+                    className="block text-sm font-semibold text-foreground tabular-nums transition-colors hover:text-primary-ink group-hover/row:text-primary-ink"
                     href={paymentHref}
                     prefetch={true}
                   >
@@ -102,7 +102,7 @@ export function PaymentListTable({
                 </TableCell>
                 <TableCell className="w-[9rem]">
                   <Link
-                    className="block text-sm text-muted-foreground transition-colors hover:text-primary group-hover/row:text-primary"
+                    className="block text-sm text-muted-foreground transition-colors hover:text-primary-ink group-hover/row:text-primary-ink"
                     href={paymentHref}
                     prefetch={true}
                   >

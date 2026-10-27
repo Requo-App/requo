@@ -79,7 +79,7 @@ describe("DeltaBadge", () => {
   it("tints by sentiment rather than by the sign of the change", () => {
     render(<DeltaBadge delta="+12%" direction="up" sentiment="positive" />);
     expect(screen.getByText("+12%").parentElement?.className).toContain(
-      "text-success",
+      "text-success-ink",
     );
   });
 
@@ -88,7 +88,7 @@ describe("DeltaBadge", () => {
       <DeltaBadge delta="33% faster" direction="down" sentiment="positive" />,
     );
     expect(screen.getByText("33% faster").parentElement?.className).toContain(
-      "text-success",
+      "text-success-ink",
     );
   });
 

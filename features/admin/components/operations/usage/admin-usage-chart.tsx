@@ -26,7 +26,7 @@ const usageChartConfig = {
   inquiries: { label: "Inquiries", color: "var(--chart-3)" },
   quotesSent: { label: "Quotes sent", color: "var(--chart-4)" },
   emailsSent: { label: "Emails sent", color: "var(--chart-5)" },
-  aiCalls: { label: "AI calls", color: "hsl(var(--primary))" },
+  aiCalls: { label: "AI calls", color: "var(--primary)" },
 } satisfies ChartConfig;
 
 const usageSeriesKeys = [

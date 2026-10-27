@@ -34,7 +34,7 @@ export function RegionErrorState({
       <div className="flex min-w-0 items-start gap-2.5">
         <AlertTriangle
           aria-hidden="true"
-          className="mt-0.5 size-4 shrink-0 text-destructive"
+          className="mt-0.5 size-4 shrink-0 text-destructive-ink"
         />
         <p className="text-sm leading-5 text-foreground">{message}</p>
       </div>

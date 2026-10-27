@@ -324,7 +324,7 @@ export function QuoteContactSection({
           value={
             getContactHandleUrl(quote.customerContactMethod, quote.customerContactHandle) ? (
               <a
-                className="text-primary underline-offset-4 hover:underline break-all"
+                className="text-primary-ink underline-offset-4 hover:underline break-all"
                 href={getContactHandleUrl(quote.customerContactMethod, quote.customerContactHandle)!}
                 rel="noopener noreferrer"
                 target="_blank"

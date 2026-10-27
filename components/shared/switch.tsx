@@ -97,8 +97,8 @@ export function SwitchTrack({
       <span
         className={[
           "absolute",
-          "bg-white",
-          "shadow-[0_3px_3px_0_rgb(0_0_0/0.03),0_0.75px_0_0_rgb(0_0_0/0.05)]",
+          "bg-switch-thumb",
+          "shadow-[var(--switch-thumb-shadow)]",
           "transition-transform duration-200 ease",
           s.thumb,
           s.thumbRadius[shape],

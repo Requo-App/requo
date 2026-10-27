@@ -125,7 +125,7 @@ export default async function InquiryToAcceptedQuoteGuide() {
                 <li className="soft-panel flex gap-4">
                   <span
                     aria-hidden="true"
-                    className="font-mono text-sm font-semibold text-primary"
+                    className="font-mono text-sm font-semibold text-primary-ink"
                   >
                     {String(index + 1).padStart(2, "0")}
                   </span>

@@ -69,7 +69,7 @@ export function InquiryListCards({
                 {inquiry.hasDuplicateFlag ? (
                   <Copy
                     aria-label="Potential duplicate"
-                    className="size-3.5 shrink-0 text-warning"
+                    className="size-3.5 shrink-0 text-warning-ink"
                     role="img"
                   />
                 ) : null}

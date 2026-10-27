@@ -149,7 +149,7 @@ const queueItems: readonly QueuePreviewItem[] = [
     key: "overdue-follow-up",
     category: "Follow-up",
     icon: BellRing,
-    iconStyle: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+    iconStyle: "bg-warning/10 text-warning-ink",
     title: "Follow up on Kitchen Renovation Quote",
     description: "Sarah Jenkins · Sent quote 3 days ago",
     meta: "Due Oct 16, 2026",
@@ -160,7 +160,7 @@ const queueItems: readonly QueuePreviewItem[] = [
     key: "new-inquiry",
     category: "Inquiry",
     icon: Inbox,
-    iconStyle: "bg-sky-500/10 text-sky-600 dark:text-sky-400",
+    iconStyle: "bg-info/10 text-info-ink",
     title: "Marcus Vance",
     description: "Commercial HVAC Assessment",
     meta: "Submitted Oct 18, 2026",
@@ -170,7 +170,7 @@ const queueItems: readonly QueuePreviewItem[] = [
     key: "draft-quote",
     category: "Quote",
     icon: FileText,
-    iconStyle: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+    iconStyle: "bg-success/10 text-success-ink",
     title: "Electrical Panel Upgrade & Rewiring",
     description: "David Chen",
     meta: "Updated Oct 17, 2026",
@@ -180,7 +180,7 @@ const queueItems: readonly QueuePreviewItem[] = [
     key: "accepted-quote",
     category: "Quote",
     icon: CheckCircle2,
-    iconStyle: "bg-green-500/10 text-green-600 dark:text-green-400",
+    iconStyle: "bg-primary/10 text-primary-ink",
     title: "Full Roof Replacement & Gutters",
     description: "Oakridge Property Management",
     meta: "Accepted Oct 18, 2026",
@@ -210,7 +210,7 @@ function SidebarNavRow({
       className={cn(
         "flex w-full items-center justify-between gap-2 overflow-hidden rounded-md px-2 py-1.5 text-muted-foreground transition-[width,background-color] duration-300 ease-in-out hover:bg-sidebar-accent hover:text-sidebar-foreground",
         selected &&
-          "bg-black/[0.08] font-medium text-sidebar-foreground dark:bg-white/10",
+          "bg-sidebar-selected font-medium text-sidebar-foreground",
       )}
     >
       <span className="flex min-w-0 items-center gap-2">
@@ -282,8 +282,8 @@ function KpiDeltaPill({
     <span
       className={cn(
         "flex shrink-0 items-center gap-1 rounded-full py-0.5 pr-2 pl-1",
-        delta.tone === "lime" && "bg-success/10 text-success",
-        delta.tone === "rose" && "bg-destructive/10 text-destructive",
+        delta.tone === "lime" && "bg-success/10 text-success-ink",
+        delta.tone === "rose" && "bg-destructive/10 text-destructive-ink",
         delta.tone === "neutral" && "bg-muted text-muted-foreground",
       )}
     >
@@ -363,7 +363,7 @@ function QueueRow({ item }: { item: QueuePreviewItem }) {
             <span
               className={cn(
                 item.urgent
-                  ? "font-medium text-destructive"
+                  ? "font-medium text-destructive-ink"
                   : "text-muted-foreground/80",
               )}
             >
@@ -374,12 +374,12 @@ function QueueRow({ item }: { item: QueuePreviewItem }) {
       </div>
 
       <div className="flex shrink-0 items-center gap-1.5">
-        <span className="inline-flex text-xs font-semibold text-primary/95 transition-colors group-hover:text-primary group-hover:underline">
+        <span className="inline-flex text-xs font-semibold text-primary-ink/95 transition-colors group-hover:text-primary-ink group-hover:underline">
           {item.actionLabel}
         </span>
         <ArrowRight
           aria-hidden
-          className="size-3.5 shrink-0 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5 group-hover:text-primary"
+          className="size-3.5 shrink-0 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5 group-hover:text-primary-ink"
         />
       </div>
     </div>

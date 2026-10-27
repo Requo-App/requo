@@ -148,7 +148,7 @@ function TimelineStep({
         <span
           className={cn(
             "truncate text-xs leading-4 font-medium",
-            warning ? "text-warning" : "text-foreground",
+            warning ? "text-warning-ink" : "text-foreground",
           )}
         >
           {label}
@@ -158,7 +158,7 @@ function TimelineStep({
             className={cn(
               "shrink-0",
               warning
-                ? "text-xs leading-4 font-medium text-warning"
+                ? "text-xs leading-4 font-medium text-warning-ink"
                 : mockMonoClassName,
             )}
           >

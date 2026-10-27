@@ -208,7 +208,7 @@ export function ImporterQuoteLibraryReview({
                     <span
                       className={cn(
                         "text-xs font-medium uppercase tracking-wide",
-                        isOver ? "text-destructive" : "text-muted-foreground",
+                        isOver ? "text-destructive-ink" : "text-muted-foreground",
                       )}
                     >
                       Entry {index + 1}

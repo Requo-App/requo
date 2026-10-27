@@ -55,7 +55,7 @@ function InviteAcceptCard({
     >
       <div className="flex flex-col gap-4">
         {inviteError ? (
-          <div className="rounded-xl border border-destructive/25 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          <div className="rounded-xl border border-destructive/25 bg-destructive/5 px-4 py-3 text-sm text-destructive-ink">
             That invite could not be accepted. Please ask for a new link.
           </div>
         ) : null}

@@ -63,7 +63,7 @@ export function FirstVisitTip({
       )}
     >
       <div className="flex items-start gap-3">
-        <Lightbulb className="mt-0.5 size-4 shrink-0 text-primary" />
+        <Lightbulb className="mt-0.5 size-4 shrink-0 text-primary-ink" />
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium text-foreground">{title}</p>
           <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>

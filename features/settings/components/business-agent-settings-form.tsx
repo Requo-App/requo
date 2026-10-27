@@ -204,7 +204,7 @@ export function BusinessAgentSettingsForm({
                           title="Copy chat link"
                         >
                           {copied ? (
-                            <Check className="size-3.5 text-primary" />
+                            <Check className="size-3.5 text-primary-ink" />
                           ) : (
                             <Copy className="size-3.5" />
                           )}

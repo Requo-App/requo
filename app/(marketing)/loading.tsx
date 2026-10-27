@@ -209,13 +209,13 @@ export default function MarketingHomeLoading() {
       {/* Final CTA section */}
       <section className="mx-auto mt-24 w-full max-w-6xl px-4 sm:mt-32 sm:px-6 lg:mt-40 lg:px-8 xl:px-0">
         <div className="marketing-cta-panel flex flex-col items-center gap-5 sm:gap-6">
-          <Skeleton className="h-12 w-full max-w-xl rounded-lg bg-white/20 sm:h-16" />
-          <Skeleton className="h-5 w-80 max-w-full rounded-md bg-white/20" />
+          <Skeleton className="h-12 w-full max-w-xl rounded-lg bg-[var(--inverse-skeleton)] sm:h-16" />
+          <Skeleton className="h-5 w-80 max-w-full rounded-md bg-[var(--inverse-skeleton)]" />
           <div className="flex w-full flex-col justify-center gap-3 sm:w-auto sm:flex-row">
-            <Skeleton className="h-11 w-full rounded-lg bg-white/20 sm:h-12 sm:w-32" />
-            <Skeleton className="h-11 w-full rounded-lg bg-white/20 sm:h-12 sm:w-32" />
+            <Skeleton className="h-11 w-full rounded-lg bg-[var(--inverse-skeleton)] sm:h-12 sm:w-32" />
+            <Skeleton className="h-11 w-full rounded-lg bg-[var(--inverse-skeleton)] sm:h-12 sm:w-32" />
           </div>
-          <Skeleton className="h-4 w-44 rounded-md bg-white/20" />
+          <Skeleton className="h-4 w-44 rounded-md bg-[var(--inverse-skeleton)]" />
         </div>
       </section>
 
@@ -241,4 +241,4 @@ export default function MarketingHomeLoading() {
       </footer>
     </div>
   );
-}
+}

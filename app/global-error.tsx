@@ -31,8 +31,8 @@ export default function GlobalError({
           margin: 0,
           fontFamily:
             "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-          background: "#fafafa",
-          color: "#111827",
+          background: "#ffffff",
+          color: "#1d1d1f",
           minHeight: "100svh",
           display: "flex",
           alignItems: "center",
@@ -58,14 +58,14 @@ export default function GlobalError({
           >
             Something went wrong
           </h1>
-          <p style={{ color: "#6b7280", margin: 0, lineHeight: 1.6 }}>
+          <p style={{ color: "#6e6e73", margin: 0, lineHeight: 1.6 }}>
             We hit an unexpected error. You can try again, and if it keeps
             happening, please reload the page.
           </p>
           {error.digest ? (
             <p
               style={{
-                color: "#9ca3af",
+                color: "#a1a1a6",
                 fontSize: "0.75rem",
                 margin: 0,
                 fontFamily:
@@ -89,7 +89,7 @@ export default function GlobalError({
               style={{
                 padding: "0.5rem 1rem",
                 borderRadius: "0.5rem",
-                border: "1px solid #e5e7eb",
+                border: "1px solid #e5e5ea",
                 background: "#fff",
                 fontSize: "0.875rem",
                 cursor: "pointer",
@@ -103,8 +103,8 @@ export default function GlobalError({
                 padding: "0.5rem 1rem",
                 borderRadius: "0.5rem",
                 border: "1px solid transparent",
-                background: "#111827",
-                color: "#fff",
+                background: "#1d1d1f",
+                color: "#f5f5f7",
                 fontSize: "0.875rem",
                 textDecoration: "none",
               }}

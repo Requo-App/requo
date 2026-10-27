@@ -124,7 +124,7 @@ export function MobileFloatingDock({
             "flex size-11 items-center justify-center rounded-full transition-colors active:scale-95",
             "outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring",
             navOpen
-              ? "bg-primary/10 text-primary"
+              ? "bg-primary/10 text-primary-ink"
               : "text-muted-foreground hover:bg-muted hover:text-foreground active:text-foreground",
           )}
         >
@@ -139,7 +139,7 @@ export function MobileFloatingDock({
             "flex size-11 items-center justify-center rounded-full transition-colors active:scale-95",
             "outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring",
             searchOpen
-              ? "bg-primary/10 text-primary"
+              ? "bg-primary/10 text-primary-ink"
               : "text-muted-foreground hover:bg-muted hover:text-foreground active:text-foreground",
           )}
         >
@@ -154,7 +154,7 @@ export function MobileFloatingDock({
             "flex size-11 items-center justify-center rounded-full transition-colors active:scale-95",
             "outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring",
             settingsOpen
-              ? "bg-primary/10 text-primary"
+              ? "bg-primary/10 text-primary-ink"
               : "text-muted-foreground hover:bg-muted hover:text-foreground active:text-foreground",
           )}
         >

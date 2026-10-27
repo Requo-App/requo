@@ -297,12 +297,12 @@ export function BillingStatusCard({
               subscription.status === "canceled") ? (
               <Alert
                 variant="default"
-                className="border-amber-200/60 bg-amber-50/50 py-3 text-amber-700 dark:border-amber-800/40 dark:bg-amber-950/20 dark:text-amber-400 [&>svg]:text-amber-600 dark:[&>svg]:text-amber-400"
+                className="border-warning/30 bg-warning/10 py-3 text-warning-ink [&>svg]:text-warning-ink"
               >
                 <CircleAlert className="size-4" />
                 <div>
                   <p className="text-sm font-medium">Subscription canceling</p>
-                  <p className="mt-0.5 text-xs opacity-90">
+                  <p className="mt-0.5 text-xs">
                     You&apos;ll keep full access until the end of the billing
                     period.
                   </p>
@@ -502,7 +502,7 @@ export function BillingStatusCard({
             <Button
               variant="outline"
               size="sm"
-              className="text-destructive hover:text-destructive"
+              className="text-destructive-ink hover:text-destructive-ink"
               asChild
             >
               <a href={portalHref} target="_blank" rel="noopener noreferrer">

@@ -262,14 +262,14 @@ export function CreateBusinessForm({
             />
           </div>
           {slugTaken ? (
-            <p className="mt-1.5 text-sm text-destructive">
+            <p className="mt-1.5 text-sm text-destructive-ink">
               This URL is already taken. Try a different one.
             </p>
           ) : slugAvailability === "available" && slug.length >= 2 ? (
-            <p className="mt-1.5 text-sm text-primary">Available</p>
+            <p className="mt-1.5 text-sm text-primary-ink">Available</p>
           ) : null}
           {!slugTaken && (slugServerError || slugError) ? (
-            <p className="mt-1.5 text-sm text-destructive">
+            <p className="mt-1.5 text-sm text-destructive-ink">
               {(slugServerError ?? slugError) as string}
             </p>
           ) : null}

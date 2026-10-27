@@ -153,7 +153,7 @@ const tabVariants = cva(
 const tabLabelVariants = cva("inline-flex items-center gap-1.5", {
   variants: {
     isSelected: {
-      true: "text-body-medium text-primary",
+      true: "text-body-medium text-primary-ink",
       false: "text-body-regular text-foreground",
     },
   },
@@ -167,7 +167,7 @@ const tabCountVariants = cva(
   {
     variants: {
       isSelected: {
-        true: "bg-primary/10 text-primary",
+        true: "bg-primary/10 text-primary-ink",
         false: "bg-muted text-foreground opacity-50",
       },
     },

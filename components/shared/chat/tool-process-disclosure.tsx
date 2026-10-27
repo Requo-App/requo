@@ -83,10 +83,10 @@ export function ToolProcessDisclosure({
                   {step.failed ? (
                     <CircleAlert
                       aria-hidden="true"
-                      className="size-3.5 text-destructive"
+                      className="size-3.5 text-destructive-ink"
                     />
                   ) : (
-                    <Check aria-hidden="true" className="size-3.5 text-primary" />
+                    <Check aria-hidden="true" className="size-3.5 text-primary-ink" />
                   )}
                   {step.label}
                 </span>

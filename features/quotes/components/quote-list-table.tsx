@@ -133,7 +133,7 @@ export function QuoteListTable({
                 </TableCell>
                 <TableCell className="w-[8rem]">
                   <Link
-                    className="block text-sm text-muted-foreground transition-colors hover:text-primary group-hover/row:text-primary"
+                    className="block text-sm text-muted-foreground transition-colors hover:text-primary-ink group-hover/row:text-primary-ink"
                     href={quoteHref}
                     prefetch={true}
                   >
@@ -142,7 +142,7 @@ export function QuoteListTable({
                 </TableCell>
                 <TableCell className="w-[8rem]">
                   <Link
-                    className="block text-sm font-semibold text-foreground transition-colors hover:text-primary group-hover/row:text-primary"
+                    className="block text-sm font-semibold text-foreground transition-colors hover:text-primary-ink group-hover/row:text-primary-ink"
                     href={quoteHref}
                     prefetch={true}
                   >

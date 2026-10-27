@@ -71,7 +71,7 @@ export default async function SolutionsHubPage() {
                     className="soft-panel group flex h-full flex-col gap-2.5 transition-shadow duration-200 hover:shadow-md"
                     href={solutionHref(solution.slug)}
                   >
-                    <span className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <span className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary-ink">
                       <Icon aria-hidden="true" className="size-4" />
                     </span>
                     <span className="font-heading text-base font-semibold tracking-tight">
@@ -80,7 +80,7 @@ export default async function SolutionsHubPage() {
                     <span className="text-sm leading-6 text-muted-foreground">
                       {solution.description}
                     </span>
-                    <span className="mt-auto inline-flex items-center gap-1.5 pt-1 text-sm font-medium text-primary">
+                    <span className="mt-auto inline-flex items-center gap-1.5 pt-1 text-sm font-medium text-primary-ink">
                       Explore solution
                     </span>
                   </Link>

@@ -178,7 +178,7 @@ export function InquiryListCard({ result, businessSlug }: InquiryListCardProps) 
                     <InquiryStatusBadge status={inquiry.status} />
                     {inquiry.aiAssisted && (
                       <Sparkles
-                        className="size-3 text-primary shrink-0"
+                        className="size-3 text-primary-ink shrink-0"
                         aria-label="AI assisted"
                       />
                     )}
@@ -206,7 +206,7 @@ export function InquiryListCard({ result, businessSlug }: InquiryListCardProps) 
           <div className="pt-3 border-t border-border/60 mt-1">
             <Link
               href={`/${businessSlug}/inquiries`}
-              className="flex items-center gap-1.5 text-sm text-primary hover:underline underline-offset-4"
+              className="flex items-center gap-1.5 text-sm text-primary-ink hover:underline underline-offset-4"
             >
               View all {total} inquiries
               <ArrowRight className="size-3.5" />
@@ -331,7 +331,7 @@ export function QuoteListCard({ result, businessSlug }: QuoteListCardProps) {
           <div className="pt-3 border-t border-border/60 mt-1">
             <Link
               href={`/${businessSlug}/quotes`}
-              className="flex items-center gap-1.5 text-sm text-primary hover:underline underline-offset-4"
+              className="flex items-center gap-1.5 text-sm text-primary-ink hover:underline underline-offset-4"
             >
               View all {total} quotes
               <ArrowRight className="size-3.5" />
@@ -408,8 +408,8 @@ export function StatsSummaryCard({ result }: StatsSummaryCardProps) {
                       className={cn(
                         "text-xs font-medium",
                         stat.delta >= 0
-                          ? "text-green-600 dark:text-green-400"
-                          : "text-destructive",
+                          ? "text-success-ink"
+                          : "text-destructive-ink",
                       )}
                     >
                       {stat.delta >= 0 ? "+" : ""}
@@ -709,7 +709,7 @@ export function CustomerListCard({ result, businessSlug }: CustomerListCardProps
           <div className="pt-3 border-t border-border/60 mt-1">
             <Link
               href={`/${businessSlug}/inquiries`}
-              className="flex items-center gap-1.5 text-sm text-primary hover:underline underline-offset-4"
+              className="flex items-center gap-1.5 text-sm text-primary-ink hover:underline underline-offset-4"
             >
               View all customers
               <ArrowRight className="size-3.5" />
@@ -765,25 +765,25 @@ export function ActionSuccessCard({ result, businessSlug }: ActionSuccessCardPro
           : null;
 
   return (
-    <Card size="sm" className="tool-result-card border-green-200 bg-green-50/40 dark:border-green-900/40 dark:bg-green-950/20">
+    <Card size="sm" className="tool-result-card border-success/25 bg-success/10">
       <CardContent className="py-3">
         <div className="flex items-start gap-3">
-          <div className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
-            <Icon className="size-3.5 text-green-700 dark:text-green-400" />
+          <div className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-success/15">
+            <Icon className="size-3.5 text-success-ink" />
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium text-foreground">{result.summary}</p>
             {linkHref && (
               <Link
                 href={linkHref}
-                className="mt-1 flex items-center gap-1 text-xs text-primary hover:underline underline-offset-4"
+                className="mt-1 flex items-center gap-1 text-xs text-primary-ink hover:underline underline-offset-4"
               >
                 View record
                 <ArrowRight className="size-3" />
               </Link>
             )}
           </div>
-          <CheckCircle2 className="size-4 shrink-0 text-green-600 dark:text-green-400 mt-0.5" />
+          <CheckCircle2 className="size-4 shrink-0 text-success-ink mt-0.5" />
         </div>
       </CardContent>
     </Card>
@@ -804,7 +804,7 @@ export function ErrorCard({ result }: ErrorCardProps) {
       <CardContent className="py-3">
         <div className="flex items-start gap-3">
           <div className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-destructive/10">
-            <XCircle className="size-3.5 text-destructive" />
+            <XCircle className="size-3.5 text-destructive-ink" />
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium text-foreground">{result.summary}</p>
@@ -812,7 +812,7 @@ export function ErrorCard({ result }: ErrorCardProps) {
             {result.upgradeUrl && (
               <Link
                 href={result.upgradeUrl}
-                className="mt-1 flex items-center gap-1 text-xs text-primary hover:underline underline-offset-4"
+                className="mt-1 flex items-center gap-1 text-xs text-primary-ink hover:underline underline-offset-4"
               >
                 Upgrade your plan
                 <ArrowRight className="size-3" />
@@ -843,12 +843,12 @@ export function ConfirmationRequiredCard({
   return (
     <Card
       size="sm"
-      className="tool-result-card border-amber-200/70 bg-amber-50/40 dark:border-amber-800/40 dark:bg-amber-950/20"
+      className="tool-result-card border-warning/25 bg-warning/10"
     >
       <CardContent className="py-3">
         <div className="flex items-start gap-3">
-          <div className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30">
-            <AlertTriangle className="size-3.5 text-amber-700 dark:text-amber-400" />
+          <div className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-warning/15">
+            <AlertTriangle className="size-3.5 text-warning-ink" />
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium text-foreground">{result.summary}</p>

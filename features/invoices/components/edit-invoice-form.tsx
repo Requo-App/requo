@@ -235,7 +235,7 @@ export function EditInvoiceForm({ action, businessSlug, currency, invoice }: Edi
           </div>
         )}
         {itemsError ? (
-          <p className="text-sm text-destructive" role="alert">
+          <p className="text-sm text-destructive-ink" role="alert">
             {itemsError}
           </p>
         ) : null}
@@ -275,7 +275,7 @@ export function EditInvoiceForm({ action, businessSlug, currency, invoice }: Edi
             <input type="hidden" name="discount" value={centsToInput(invoice.discountInCents)} />
             <input type="hidden" name="tax" value={centsToInput(invoice.taxInCents)} />
             {discountError || taxError ? (
-              <p className="text-sm text-destructive" role="alert">
+              <p className="text-sm text-destructive-ink" role="alert">
                 {discountError ?? taxError}
               </p>
             ) : null}
@@ -296,7 +296,7 @@ export function EditInvoiceForm({ action, businessSlug, currency, invoice }: Edi
       </DashboardSection>
 
       {state.error ? (
-        <p className="text-sm text-destructive" role="alert">
+        <p className="text-sm text-destructive-ink" role="alert">
           {state.error}
         </p>
       ) : null}

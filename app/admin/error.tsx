@@ -44,7 +44,7 @@ export default function AdminConsoleError({
       description="An unexpected error stopped this view from rendering. Nothing was changed."
       eyebrow="Console error"
       media={
-        <div className="flex size-12 items-center justify-center rounded-full border bg-destructive/10 text-destructive">
+        <div className="flex size-12 items-center justify-center rounded-full border bg-destructive/10 text-destructive-ink">
           <AlertTriangle />
         </div>
       }

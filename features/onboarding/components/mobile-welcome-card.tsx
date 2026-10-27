@@ -123,7 +123,7 @@ export function MobileWelcomeCard({
               key={feature.title}
               className="flex items-center gap-2.5 rounded-lg border border-border/50 bg-muted/30 px-3 py-2.5"
             >
-              <feature.icon className="size-4 shrink-0 text-primary" />
+              <feature.icon className="size-4 shrink-0 text-primary-ink" />
               <div className="min-w-0">
                 <p className="text-xs font-medium text-foreground">
                   {feature.title}

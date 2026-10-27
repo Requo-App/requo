@@ -82,7 +82,7 @@ export function AppearanceSettingsForm({ userId }: AppearanceSettingsFormProps) 
                   {isActive && (
                     <span
                       aria-hidden="true"
-                      className="absolute right-2 bottom-2 flex size-5 items-center justify-center rounded-full bg-blue-600 text-white shadow-sm"
+                      className="absolute right-2 bottom-2 flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm"
                     >
                       <Check className="size-3" strokeWidth={3} />
                     </span>
@@ -141,8 +141,8 @@ export function AppearanceSettingsForm({ userId }: AppearanceSettingsFormProps) 
 function ThemePreviewCard({ preference }: { preference: ThemePreference }) {
   if (preference === "light") {
     return (
-      <span aria-hidden="true" className="block bg-zinc-200 p-3">
-        <span className="block rounded-lg bg-white px-3 py-4 text-lg font-medium text-zinc-900">
+      <span aria-hidden="true" className="block bg-[var(--theme-preview-light-bg)] p-3">
+        <span className="block rounded-lg bg-[var(--theme-preview-light-card)] px-3 py-4 text-lg font-medium text-[var(--theme-preview-light-fg)]">
           Aa
         </span>
       </span>
@@ -151,8 +151,8 @@ function ThemePreviewCard({ preference }: { preference: ThemePreference }) {
 
   if (preference === "dark") {
     return (
-      <span aria-hidden="true" className="block bg-zinc-950 p-3">
-        <span className="block rounded-lg bg-zinc-900 px-3 py-4 text-lg font-medium text-white ring-1 ring-white/10">
+      <span aria-hidden="true" className="block bg-[var(--theme-preview-dark-bg)] p-3">
+        <span className="block rounded-lg bg-[var(--theme-preview-dark-card)] px-3 py-4 text-lg font-medium text-[var(--theme-preview-dark-fg)] ring-1 ring-[color:var(--theme-preview-dark-border)]">
           Aa
         </span>
       </span>
@@ -160,14 +160,14 @@ function ThemePreviewCard({ preference }: { preference: ThemePreference }) {
   }
 
   return (
-    <span aria-hidden="true" className="flex bg-zinc-950">
-      <span className="flex-1 bg-zinc-200 p-3 pr-1.5">
-        <span className="block rounded-lg bg-white px-3 py-4 text-lg font-medium text-zinc-900">
+    <span aria-hidden="true" className="flex bg-[var(--theme-preview-dark-bg)]">
+      <span className="flex-1 bg-[var(--theme-preview-light-bg)] p-3 pr-1.5">
+        <span className="block rounded-lg bg-[var(--theme-preview-light-card)] px-3 py-4 text-lg font-medium text-[var(--theme-preview-light-fg)]">
           Aa
         </span>
       </span>
-      <span className="flex-1 bg-zinc-950 p-3 pl-1.5">
-        <span className="block rounded-lg bg-zinc-900 px-3 py-4 text-lg font-medium text-white ring-1 ring-white/10">
+      <span className="flex-1 bg-[var(--theme-preview-dark-bg)] p-3 pl-1.5">
+        <span className="block rounded-lg bg-[var(--theme-preview-dark-card)] px-3 py-4 text-lg font-medium text-[var(--theme-preview-dark-fg)] ring-1 ring-[color:var(--theme-preview-dark-border)]">
           Aa
         </span>
       </span>

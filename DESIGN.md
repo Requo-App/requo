@@ -16,20 +16,52 @@ This document defines the canonical UI system for Requo. Use `shadcn/ui` primiti
 
 Use semantic tokens, not raw color classes, for all product UI.
 
+The palette is true neutral in both themes: every opaque neutral satisfies
+`R = G` and `|B - R| <= 6`, so no surface picks up a green, teal, olive,
+slate-blue, or warm cast. Dark is Apple-style charcoal, not black: large
+surfaces stay inside `#161618`–`#2C2C2E`, and no surface is pure black or
+white. The same elevation logic applies in both themes — the shell frame and
+sidebar sit back, the main panel is raised, cards sit above the panel, and
+popovers sit on top.
+
 | Token | Role | Light | Dark |
 | --- | --- | --- | --- |
-| `background` | App background | `#f7f9f7` | `#121212` |
-| `foreground` | Primary text | `#172b24` | `#ededed` |
-| `primary` | Primary actions and emphasis | `#008060` | `#008060` |
-| `primary-foreground` | Text on primary surfaces | `#f4fffb` | `#f4fffb` |
-| `secondary` | Subtle surface/action | `#f0f3f1` | `#1f1f1f` |
-| `muted` | Muted surface | `#eef2ef` | `#171717` |
-| `muted-foreground` | Supporting text | `#5f756c` | `#8b9092` |
-| `accent` | Hover/selected accent surface | `#f0f3f1` | `#242424` |
-| `destructive` | Error and destructive actions | `#c9372c` | `#c9372c` |
-| `border` | Borders and dividers | `#d6ddd8` | `rgb(255 255 255 / 0.07)` |
-| `input` | Control border base | `#d6ddd8` | `rgb(255 255 255 / 0.08)` |
+| `background` | App background | `#ffffff` | `#1c1c1e` |
+| `foreground` | Primary text | `#1d1d1f` | `#f5f5f7` |
+| `card` | Raised card surface | `#ffffff` | `#242426` |
+| `popover` | Popover/overlay surface | `#ffffff` | `#2c2c2e` |
+| `primary` | Primary action fill and emphasis | `#008060` | `#008060` |
+| `primary-foreground` | Text on primary fills | `#f4fffb` | `#f4fffb` |
+| `secondary` | Subtle surface/action | `#f5f5f7` | `#2c2c2e` |
+| `muted` | Muted surface | `#f5f5f7` | `#2c2c2e` |
+| `muted-foreground` | Supporting text | `#6e6e73` | `#a1a1a6` |
+| `accent` | Hover/selected accent surface | `rgb(0 0 0 / 0.06)` | `rgb(255 255 255 / 0.08)` |
+| `destructive` | Error and destructive action fill | `#c9372c` | `#c9372c` |
+| `border` | Borders and dividers | `#e5e5ea` | `rgb(255 255 255 / 0.12)` |
+| `input` | Control border base | `#d1d1d6` | `rgb(255 255 255 / 0.16)` |
 | `ring` | Focus ring | `#1b9b79` | `#1b9b79` |
+| `sidebar` | Sidebar/frame surface | `#f5f5f7` | `#161618` |
+| `sidebar-accent` | Sidebar hover fill | `rgb(0 0 0 / 0.06)` | `rgb(255 255 255 / 0.08)` |
+| `sidebar-selected` | Selected sidebar row | `rgb(0 0 0 / 0.08)` | `rgb(255 255 255 / 0.10)` |
+
+Text and icon tones have a separate ink token so dark mode can step lighter
+without changing a solid fill. Use `text-primary-ink`,
+`text-destructive-ink`, `text-success-ink`, `text-warning-ink`, and
+`text-info-ink` for text or links; keep `bg-primary` and `bg-destructive`
+(and the solid `--success` / `--warning` / `--info` tones) for fills. Never
+use an ink token as a button background, and keep warning copy at full ink
+contrast on its tinted banners — `--warning-ink` must clear 4.5:1 on both the
+10% and 15% warning tints in each theme.
+
+`scripts/audit-color-system.ts` enforces the neutral rule, the charcoal band,
+`color-scheme` in both themes, the required ink/status/preview mappings, the
+contrast table (`--foreground` ≥ 7:1 and `--muted-foreground` ≥ 4.5:1 on
+background/card/popover/sidebar/muted; semantic inks ≥ 4.5:1; warning ink on
+warning/10 and warning/15 ≥ 4.5:1), and the raw-colour boundary. That boundary
+rejects raw palette and black/white utilities, ink tokens used as fills, and
+colour literals. Files that mix static artwork with live UI allow only the
+exact static literals listed in the audit; everything else in those files is
+still scanned.
 
 Extended token groups:
 
@@ -63,7 +95,7 @@ tokens below are the palette they configure.
 | `--chart-series-2` | Second series — neutral | `var(--muted-foreground)` | `var(--muted-foreground)` |
 | `--chart-series-3` | Third series — lighter neutral | 60% muted-foreground | 60% muted-foreground |
 | `--chart-neutral-1…5` | Neutral ramp for stacked series | muted-foreground steps | muted-foreground steps |
-| `--chart-grid` | Horizontal gridline hairline | `rgb(23 43 36 / 0.08)` | `rgb(255 255 255 / 0.06)` |
+| `--chart-grid` | Horizontal gridline hairline | `rgb(29 29 31 / 0.08)` | `rgb(255 255 255 / 0.06)` |
 | `--chart-track` | Unfilled bar and meter track | `color-mix(in srgb, var(--foreground) 14%, transparent)` | `rgb(255 255 255 / 0.16)` |
 | `--chart-tooltip-surface` | Chart tooltip background | `var(--popover)` | `var(--popover)` |
 | `--chart-tooltip-border` | Chart tooltip border | `var(--border)` | `var(--border)` |
@@ -436,14 +468,14 @@ Established patterns above win for new work. These contradictions exist in the c
 
 - **BoardUI migration (done).** The former `components/base/*` + `components/application/` + `components/foundations/` system was recreated 1:1 as shadcn-style components (`cva` + `cn`, same classes/DOM/props) under `components/shared/*` and deleted. One component system remains: `components/ui/*` (primitives) + `components/shared/*` (composed). See [`docs/technical-debt.md`](docs/technical-debt.md). `app/globals.css` still carries the shared token layer (tone aliases, composite type ramp) — `components/ui/*` uses it, so it stays.
 - **Legacy styling debt.** Remaining `space-y-*`/`space-x-*` stacks (use `flex`/`grid` + `gap-*`). Flagged by `audit:density`.
-- **Raw palette on non-pill surfaces.** Status *pills* are tokenized — `components/shared/status-badge.tsx` owns them and `audit:status-tokens` enforces it — but raw palette still colours some semantic surfaces: the archived-record banner, the upgrade accent, the quote-editor amber alerts, and the public quote option cards. Move them to `--warning`/`--success`/`--destructive` opportunistically. See `docs/technical-debt.md` §4.
+- **Static colour exceptions.** Product UI uses tokens, but a few surfaces cannot follow the theme: email HTML and the email builder's stored template colours, the canvas service thumbnail, PDF output, social/payment brand marks, the fixed Open Graph image, the standalone error/forbidden pages, and the decorative plan illustration. These are listed with reasons in `scripts/audit-color-system.ts`; do not add a new exception without a genuine constraint.
 - **`!important` outside status.** `!bg-sidebar-accent` (`dashboard-sidebar.tsx`) is the same cascade-order problem the status migration removed: a custom class in `@layer utilities` setting a colour a utility then cannot override. Fix by giving the custom class a variant that sets no colour, not by keeping the `!`.
 - **Quote editor grid class.** The quote editor `<form>` carries the raw `dashboard-detail-layout` grid class because the shared layout wrapper cannot wrap forms yet — migrate when the wrapper supports form elements.
 
 ## Cleanup Targets
 
 - Replace remaining `space-y-*` and `space-x-*` stacks with `flex`/`grid` plus `gap-*`.
-- Replace raw palette colours on non-pill semantic surfaces with `--warning`/`--success`/`--destructive`. Status pills are already done and enforced by `audit:status-tokens`.
+- Keep the static colour exception list in `scripts/audit-color-system.ts` narrow, and move a listed surface to tokens when its constraint disappears (for example, a canvas preview that becomes live DOM).
 - Remove the remaining `!important` colour override by giving the flat variant in `dashboard-sidebar` a colourless equivalent.
 - Reduce repeated arbitrary shadows and hard-coded visual values by promoting reusable classes or tokens when a pattern repeats (radii are done: single shared `--radius`, enforced by `audit:radius`).
 - The quote editor `<form>` carries the raw `dashboard-detail-layout` grid

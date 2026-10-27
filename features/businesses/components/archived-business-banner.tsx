@@ -38,7 +38,7 @@ export function ArchivedBusinessBanner({
 
   return (
     <>
-      <div className="sticky top-[3.5rem] z-30 flex w-full items-center justify-between gap-2 border-b border-amber-300/60 bg-amber-50 px-4 py-2 text-amber-900 sm:px-6 dark:border-amber-700/40 dark:bg-amber-950/80 dark:text-amber-200">
+      <div className="sticky top-[3.5rem] z-30 flex w-full items-center justify-between gap-2 border-b border-warning/30 bg-warning/10 px-4 py-2 text-warning-ink sm:px-6">
         <div className="flex items-center gap-2">
           <Archive className="size-3.5 shrink-0" />
           <p className="text-xs font-medium sm:text-sm">

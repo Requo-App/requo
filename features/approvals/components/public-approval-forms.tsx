@@ -21,7 +21,7 @@ const initialChangeOrderState: ChangeOrderActionState = {};
 
 function StateMessage({ error, success }: { error?: string; success?: string }) {
   if (error) {
-    return <p className="text-sm text-destructive">{error}</p>;
+    return <p className="text-sm text-destructive-ink">{error}</p>;
   }
 
   if (success) {

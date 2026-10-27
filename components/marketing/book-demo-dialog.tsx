@@ -116,7 +116,7 @@ export function BookDemoDialog({
 
         {state.success ? (
           <DialogBody className="flex flex-col items-center gap-3 py-8 text-center">
-            <CheckCircle2 className="size-10 text-primary" />
+            <CheckCircle2 className="size-10 text-primary-ink" />
             <p className="text-sm font-medium text-foreground">
               We&rsquo;ve received your request!
             </p>
@@ -163,7 +163,7 @@ function BookDemoForm({
       <DialogBody className="flex flex-col gap-4">
         <div className="flex flex-col gap-1.5">
           <Label htmlFor={nameId}>
-            Name <span className="text-destructive">*</span>
+            Name <span className="text-destructive-ink">*</span>
           </Label>
           <Input
             id={nameId}
@@ -174,7 +174,7 @@ function BookDemoForm({
             aria-invalid={!!state.fieldErrors?.name}
           />
           {state.fieldErrors?.name?.[0] && (
-            <p className="text-xs text-destructive">
+            <p className="text-xs text-destructive-ink">
               {state.fieldErrors.name[0]}
             </p>
           )}
@@ -182,7 +182,7 @@ function BookDemoForm({
 
         <div className="flex flex-col gap-1.5">
           <Label htmlFor={emailId}>
-            Email <span className="text-destructive">*</span>
+            Email <span className="text-destructive-ink">*</span>
           </Label>
           <Input
             id={emailId}
@@ -193,7 +193,7 @@ function BookDemoForm({
             aria-invalid={!!state.fieldErrors?.email}
           />
           {state.fieldErrors?.email?.[0] && (
-            <p className="text-xs text-destructive">
+            <p className="text-xs text-destructive-ink">
               {state.fieldErrors.email[0]}
             </p>
           )}
@@ -211,7 +211,7 @@ function BookDemoForm({
             aria-invalid={!!state.fieldErrors?.message}
           />
           {state.fieldErrors?.message?.[0] && (
-            <p className="text-xs text-destructive">
+            <p className="text-xs text-destructive-ink">
               {state.fieldErrors.message[0]}
             </p>
           )}

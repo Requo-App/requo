@@ -181,13 +181,13 @@ function StepsBar({
                   className={cn(
                     "flex size-7 items-center justify-center rounded-full sm:size-8",
                     step.state === "completed" &&
-                      "bg-primary/10 text-primary",
+                      "bg-primary/10 text-primary-ink",
                     step.state === "current" &&
-                      "bg-primary/10 text-primary ring-2 ring-primary/20",
+                      "bg-primary/10 text-primary-ink ring-2 ring-primary/20",
                     step.state === "upcoming" &&
                       "bg-muted text-muted-foreground/50",
                     step.state === "failed" &&
-                      "bg-destructive/10 text-destructive",
+                      "bg-destructive/10 text-destructive-ink",
                   )}
                 >
                   {step.state === "completed" ? (
@@ -201,10 +201,10 @@ function StepsBar({
                 <span
                   className={cn(
                     "text-center text-xs leading-tight sm:text-xs",
-                    step.state === "current" && "font-medium text-primary",
+                    step.state === "current" && "font-medium text-primary-ink",
                     step.state === "completed" && "font-medium text-foreground/80",
                     step.state === "upcoming" && "text-muted-foreground/60",
-                    step.state === "failed" && "font-medium text-destructive",
+                    step.state === "failed" && "font-medium text-destructive-ink",
                   )}
                 >
                   {step.label}

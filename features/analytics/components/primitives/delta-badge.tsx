@@ -5,8 +5,8 @@ import { cn } from "@/lib/utils";
 export type DeltaBadgeSentiment = "positive" | "negative" | "neutral";
 
 const SENTIMENT_CLASSES: Record<DeltaBadgeSentiment, string> = {
-  positive: "text-success",
-  negative: "text-destructive",
+  positive: "text-success-ink",
+  negative: "text-destructive-ink",
   neutral: "text-muted-foreground",
 };
 

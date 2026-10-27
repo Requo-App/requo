@@ -45,7 +45,7 @@ export function OnboardingStepper({
                     <span className="flex size-8 items-center justify-center rounded-full bg-primary text-primary-foreground transition-all duration-500 ease-out group-hover:scale-110 group-hover:bg-primary/80">
                       <Check className="size-4" />
                     </span>
-                    <span className="text-xs font-medium text-primary transition-colors duration-300 group-hover:text-primary/80">
+                    <span className="text-xs font-medium text-primary-ink transition-colors duration-300 group-hover:text-primary-ink/80">
                       {item.label}
                     </span>
                   </button>
@@ -58,7 +58,7 @@ export function OnboardingStepper({
                       className={cn(
                         "flex size-8 items-center justify-center rounded-full border-2 text-xs font-semibold transition-all duration-500 ease-out",
                         isCurrent &&
-                          "scale-110 border-primary bg-primary/10 text-primary shadow-[0_0_0_4px_var(--color-primary)/0.1]",
+                          "scale-110 border-primary bg-primary/10 text-primary-ink shadow-[0_0_0_4px_var(--color-primary)/0.1]",
                         !isCurrent &&
                           !isCompleted &&
                           "border-border text-muted-foreground",

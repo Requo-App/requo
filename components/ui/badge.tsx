@@ -14,17 +14,17 @@ const badgeVariants = cva(
         secondary:
           "control-surface-secondary border-border/80 text-secondary-foreground",
         // Colourless shell for semantic status pills: carries no background or
-        // border colour so a tone class (bg-success/15 text-success …) wins
+        // border colour so a tone class (bg-success/15 text-success-ink …) wins
         // through tailwind-merge without needing `!`. StatusBadge composes it.
         status:
           "border bg-transparent text-foreground",
         destructive:
-          "border-destructive/22 bg-destructive/10 text-destructive shadow-[var(--control-shadow)] focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:focus-visible:ring-destructive/40",
+          "border-destructive/22 bg-destructive/10 text-destructive-ink shadow-[var(--control-shadow)] focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:focus-visible:ring-destructive/40",
         outline:
           "control-surface border-border/85 text-foreground",
         ghost:
           "control-ghost-surface text-muted-foreground hover:border-border/55 hover:bg-[var(--control-accent-bg)] hover:text-foreground hover:shadow-[var(--control-shadow)]",
-        link: "text-primary underline-offset-4 hover:underline",
+        link: "text-primary-ink underline-offset-4 hover:underline",
       },
     },
     defaultVariants: {

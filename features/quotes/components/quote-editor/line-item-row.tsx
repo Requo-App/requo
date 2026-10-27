@@ -222,7 +222,7 @@ export function LineItemCard({
             size="icon-xs"
             onClick={() => onRemove(item.id)}
             disabled={isPending || !canRemove}
-            className="text-muted-foreground hover:text-destructive"
+            className="text-muted-foreground hover:text-destructive-ink"
           >
             <Trash2 className="size-3.5" />
             <span className="sr-only">Remove item {index + 1}</span>

@@ -86,7 +86,7 @@ export function PublicQuoteResponseForm({
           className="text-sm"
         />
         {signerError ? (
-          <p className="text-xs text-destructive" id="public-quote-signer-error">
+          <p className="text-xs text-destructive-ink" id="public-quote-signer-error">
             {signerError}
           </p>
         ) : null}
@@ -105,7 +105,7 @@ export function PublicQuoteResponseForm({
         <span>{QUOTE_ACCEPTANCE_TEXT}</span>
       </label>
       {confirmedError ? (
-        <p className="-mt-2 text-xs text-destructive" id="public-quote-confirmed-error">
+        <p className="-mt-2 text-xs text-destructive-ink" id="public-quote-confirmed-error">
           {confirmedError}
         </p>
       ) : null}
@@ -166,7 +166,7 @@ export function PublicQuoteResponseForm({
           className="text-sm"
         />
         {messageError ? (
-          <p className="text-xs text-destructive">{messageError}</p>
+          <p className="text-xs text-destructive-ink">{messageError}</p>
         ) : null}
       </div>
     </form>

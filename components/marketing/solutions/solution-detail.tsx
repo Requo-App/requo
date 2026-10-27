@@ -157,42 +157,42 @@ export function SolutionDetailPage({ detail }: { detail: SolutionDetail }) {
             <p className="text-sm leading-5 text-muted-foreground sm:text-base sm:leading-6">
               Every solution runs on the same six features —{" "}
               <Link
-                className="font-medium text-primary hover:underline"
+                className="font-medium text-primary-ink hover:underline"
                 href="/features/inquiries"
               >
                 inquiries
               </Link>
               {", "}
               <Link
-                className="font-medium text-primary hover:underline"
+                className="font-medium text-primary-ink hover:underline"
                 href="/features/quotes"
               >
                 quotes
               </Link>
               {", "}
               <Link
-                className="font-medium text-primary hover:underline"
+                className="font-medium text-primary-ink hover:underline"
                 href="/features/follow-ups"
               >
                 follow-ups
               </Link>
               {", "}
               <Link
-                className="font-medium text-primary hover:underline"
+                className="font-medium text-primary-ink hover:underline"
                 href="/features/ai"
               >
                 AI drafting
               </Link>
               {", "}
               <Link
-                className="font-medium text-primary hover:underline"
+                className="font-medium text-primary-ink hover:underline"
                 href="/features/invoices"
               >
                 invoices
               </Link>
               {", and "}
               <Link
-                className="font-medium text-primary hover:underline"
+                className="font-medium text-primary-ink hover:underline"
                 href="/features/analytics"
               >
                 analytics

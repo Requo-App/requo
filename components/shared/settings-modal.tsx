@@ -106,7 +106,7 @@ const PAGE_TITLES: Record<SettingsPage, string> = {
 };
 
 const settingsBackdropVariants = cva(
-  "absolute inset-0 cursor-default bg-black/70 transition-opacity duration-150 ease-out",
+  "absolute inset-0 cursor-default bg-[var(--modal-backdrop)] transition-opacity duration-150 ease-out",
   {
     variants: {
       visible: {
@@ -434,7 +434,7 @@ export function SettingsModal({
         aria-live="polite"
         className={settingsSavedToastVariants({ phase: savedPhase })}
       >
-        <RiCheckboxCircleFill className="size-4 shrink-0 text-success" aria-hidden />
+        <RiCheckboxCircleFill className="size-4 shrink-0 text-success-ink" aria-hidden />
         <span className="text-body-2-medium whitespace-nowrap text-foreground">Saved</span>
       </div>
       </div>

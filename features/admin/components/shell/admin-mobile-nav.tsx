@@ -61,7 +61,7 @@ export function AdminMobileNav({ userSlot }: { userSlot: ReactNode }) {
                 className={cn(
                   "flex h-full flex-col items-center justify-center gap-1 py-1 text-xs transition-colors",
                   isActive
-                    ? "font-semibold text-primary"
+                    ? "font-semibold text-primary-ink"
                     : "font-medium text-muted-foreground hover:text-foreground active:text-foreground",
                 )}
               >
@@ -86,7 +86,7 @@ export function AdminMobileNav({ userSlot }: { userSlot: ReactNode }) {
             className={cn(
               "flex h-full cursor-pointer flex-col items-center justify-center gap-1 py-1 text-xs transition-colors",
               isMoreActive
-                ? "font-semibold text-primary"
+                ? "font-semibold text-primary-ink"
                 : "font-medium text-muted-foreground hover:text-foreground active:text-foreground",
             )}
           >

@@ -65,7 +65,7 @@ async function CheckEmailContent({
     >
       <div className="flex flex-col items-center justify-center gap-5 pt-2 text-center">
         <div className="rounded-full bg-primary/10 p-4">
-          <MailCheck className="size-7 text-primary" />
+          <MailCheck className="size-7 text-primary-ink" />
         </div>
         <div className="flex flex-col gap-2">
           <p className="text-sm leading-6 text-muted-foreground">

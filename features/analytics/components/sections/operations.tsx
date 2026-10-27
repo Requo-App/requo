@@ -91,7 +91,7 @@ export async function OperationsFollowUpRow(props: OperationsSectionProps) {
               label="Overdue"
               value={formatNumber(followUp.overdue)}
               caption="Past their scheduled date"
-              valueClassName={followUp.overdue > 0 ? "text-warning" : undefined}
+              valueClassName={followUp.overdue > 0 ? "text-warning-ink" : undefined}
               href={getFollowUpsListHref(props.businessSlug, {
                 status: "pending",
                 due: "overdue",
@@ -101,7 +101,7 @@ export async function OperationsFollowUpRow(props: OperationsSectionProps) {
               label="Completed"
               value={formatNumber(followUp.completed)}
               caption="Sent in this period"
-              valueClassName="text-success"
+              valueClassName="text-success-ink"
               href={getFollowUpsListHref(props.businessSlug, { status: "completed" })}
             />
             <Stat
@@ -123,7 +123,7 @@ export async function OperationsFollowUpRow(props: OperationsSectionProps) {
               value={formatPercent(followUp.onTimeRate)}
               caption="Completed by the scheduled date"
               valueClassName={
-                followUp.onTimeRate >= 0.9 ? "text-success" : undefined
+                followUp.onTimeRate >= 0.9 ? "text-success-ink" : undefined
               }
             />
             <Stat
@@ -343,7 +343,7 @@ export async function OperationsAutomationRow(props: OperationsSectionProps) {
               value={formatNumber(ai.missingInfoDetected)}
               caption={`${formatNumber(ai.acknowledged)} acknowledged by your team`}
               valueClassName={
-                ai.missingInfoDetected > 0 ? "text-warning" : undefined
+                ai.missingInfoDetected > 0 ? "text-warning-ink" : undefined
               }
             />
           </StatGrid>
@@ -415,7 +415,7 @@ export async function OperationsAssistantRow(props: OperationsSectionProps) {
           action={
             <Link
               href={getBusinessAssistantPath(props.businessSlug)}
-              className="text-sm font-medium text-primary outline-none transition-colors hover:text-primary/80 focus-visible:ring-2 focus-visible:ring-ring"
+              className="text-sm font-medium text-primary-ink outline-none transition-colors hover:text-primary-ink/80 focus-visible:ring-2 focus-visible:ring-ring"
             >
               Open assistant
             </Link>
@@ -458,7 +458,7 @@ export async function OperationsAssistantRow(props: OperationsSectionProps) {
           action={
             <Link
               href={getBusinessAiSettingsPath(props.businessSlug)}
-              className="text-sm font-medium text-primary outline-none transition-colors hover:text-primary/80 focus-visible:ring-2 focus-visible:ring-ring"
+              className="text-sm font-medium text-primary-ink outline-none transition-colors hover:text-primary-ink/80 focus-visible:ring-2 focus-visible:ring-ring"
             >
               Manage knowledge
             </Link>
@@ -471,7 +471,7 @@ export async function OperationsAssistantRow(props: OperationsSectionProps) {
               value={formatNumber(knowledge.missingInfoDetected)}
               caption="Drafts flagged with gaps"
               valueClassName={
-                knowledge.missingInfoDetected > 0 ? "text-warning" : undefined
+                knowledge.missingInfoDetected > 0 ? "text-warning-ink" : undefined
               }
             />
             <Stat
@@ -479,14 +479,14 @@ export async function OperationsAssistantRow(props: OperationsSectionProps) {
               value={formatNumber(knowledge.readinessBlocked)}
               caption="Awaiting confirmation before sending"
               valueClassName={
-                knowledge.readinessBlocked > 0 ? "text-warning" : undefined
+                knowledge.readinessBlocked > 0 ? "text-warning-ink" : undefined
               }
             />
             <Stat
               label="Confirmed"
               value={formatNumber(knowledge.readinessCompleted)}
               caption="Acknowledgements in this period"
-              valueClassName="text-success"
+              valueClassName="text-success-ink"
             />
           </StatGrid>
         </AnalyticsCard>
@@ -521,13 +521,13 @@ export async function OperationsDeliveryRow(props: OperationsSectionProps) {
               label="Sent"
               value={formatNumber(email.sent)}
               caption="Accepted by the mail provider"
-              valueClassName="text-success"
+              valueClassName="text-success-ink"
             />
             <Stat
               label="Failed"
               value={formatNumber(email.failed)}
               caption="Needs a resend"
-              valueClassName={email.failed > 0 ? "text-destructive" : undefined}
+              valueClassName={email.failed > 0 ? "text-destructive-ink" : undefined}
             />
             <Stat
               label="Pending"
@@ -701,9 +701,9 @@ function VerticalBlock({
             <dd
               className={
                 row.tone === "warning"
-                  ? "font-medium tabular-nums text-warning"
+                  ? "font-medium tabular-nums text-warning-ink"
                   : row.tone === "positive"
-                    ? "font-medium tabular-nums text-success"
+                    ? "font-medium tabular-nums text-success-ink"
                     : "font-medium tabular-nums text-foreground"
               }
             >

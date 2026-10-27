@@ -88,15 +88,15 @@ function InAppBrowserWarning({ appName }: { appName: string | null }) {
   return (
     <div
       role="alert"
-      className="rounded-xl border border-amber-500/20 bg-amber-50/80 px-4 py-3.5 text-sm dark:bg-amber-950/20"
+      className="rounded-xl border border-warning/25 bg-warning/10 px-4 py-3.5 text-sm"
     >
       <div className="flex items-start gap-3">
-        <TriangleAlert className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+        <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warning-ink" />
         <div className="grid gap-1.5">
-          <p className="font-medium text-amber-900 dark:text-amber-200">
+          <p className="font-medium text-warning-ink">
             Google sign-in won&apos;t work here
           </p>
-          <p className="text-amber-800/80 dark:text-amber-300/70">
+          <p className="text-warning-ink">
             {appName ? `You're in ${appName}'s browser. ` : "You're in an in-app browser. "}
             Open this page in Safari or Chrome to sign in with Google, or use email below.
           </p>

@@ -217,11 +217,11 @@ function PreviewNavItem({
       className={cn(
         "flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[11px]",
         active
-          ? "border border-primary/12 bg-primary/10 font-medium text-primary"
+          ? "border border-primary/12 bg-primary/10 font-medium text-primary-ink"
           : "text-muted-foreground",
       )}
     >
-      <Icon className={cn("size-3.5", active && "text-primary")} />
+      <Icon className={cn("size-3.5", active && "text-primary-ink")} />
       <span>{label}</span>
     </div>
   );
@@ -243,7 +243,7 @@ function PreviewSidebar({ highlight }: { highlight?: string }) {
   return (
     <div className="flex w-[7.5rem] shrink-0 flex-col gap-0.5 rounded-lg border border-border/50 bg-background p-1.5">
       <div className="mb-1.5 flex items-center gap-2 rounded-md border border-border/40 px-2 py-1.5">
-        <div className="flex size-5 items-center justify-center rounded bg-primary/10 text-[8px] font-bold text-primary">
+        <div className="flex size-5 items-center justify-center rounded bg-primary/10 text-[8px] font-bold text-primary-ink">
           AB
         </div>
         <div className="min-w-0">
@@ -278,9 +278,9 @@ function PreviewAttentionRow({
       <div
         className={cn(
           "flex size-7 shrink-0 items-center justify-center rounded-full",
-          tone === "urgent" && "bg-destructive/10 text-destructive",
-          tone === "normal" && "bg-primary/10 text-primary",
-          tone === "positive" && "bg-green-500/10 text-green-600 dark:text-green-400",
+          tone === "urgent" && "bg-destructive/10 text-destructive-ink",
+          tone === "normal" && "bg-primary/10 text-primary-ink",
+          tone === "positive" && "bg-success/10 text-success-ink",
         )}
       >
         <Icon className="size-3" />
@@ -307,7 +307,7 @@ export function HomeOverviewPreview() {
           <p className="text-[11px] font-semibold text-foreground">Welcome back, Alex</p>
           <p className="text-[10px] text-muted-foreground">3 items need attention today.</p>
           <div className="mt-2 flex items-center gap-2 rounded-lg border border-border/60 bg-muted/30 px-2.5 py-2">
-            <Sparkles className="size-3.5 shrink-0 text-primary" />
+            <Sparkles className="size-3.5 shrink-0 text-primary-ink" />
             <span className="text-[10px] text-muted-foreground">
               Ask Requo to draft a follow-up or summarize an inquiry…
             </span>
@@ -344,22 +344,22 @@ export function InquiriesPreview() {
         <div className="rounded-lg border border-border/50 bg-background p-3">
           <div className="flex items-center justify-between">
             <p className="text-[11px] font-medium text-foreground">Inquiries</p>
-            <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-medium text-primary">3 new</span>
+            <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-medium text-primary-ink">3 new</span>
           </div>
           <div className="mt-2 flex flex-col divide-y divide-border/50">
             <div className="flex items-center gap-2.5 py-2">
-              <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-amber-500/10">
-                <Inbox className="size-3 text-amber-500" />
+              <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-warning/10">
+                <Inbox className="size-3 text-warning-ink" />
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[11px] font-semibold text-foreground">Sarah Jenkins</p>
                 <p className="truncate text-[10px] text-muted-foreground">Kitchen remodel · 10:24 AM</p>
               </div>
-              <span className="rounded-full border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-[8px] font-semibold uppercase text-primary">New</span>
+              <span className="rounded-full border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-[8px] font-semibold uppercase text-primary-ink">New</span>
             </div>
             <div className="flex items-center gap-2.5 py-2">
-              <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-green-500/10">
-                <Inbox className="size-3 text-green-500" />
+              <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-success/10">
+                <Inbox className="size-3 text-success-ink" />
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[11px] font-semibold text-foreground">Leo Park</p>
@@ -368,8 +368,8 @@ export function InquiriesPreview() {
               <span className="rounded-full border border-border/60 bg-muted/50 px-1.5 py-0.5 text-[8px] font-medium text-muted-foreground">Qualified</span>
             </div>
             <div className="flex items-center gap-2.5 py-2">
-              <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-blue-500/10">
-                <Inbox className="size-3 text-blue-500" />
+              <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-info/10">
+                <Inbox className="size-3 text-info-ink" />
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[11px] font-semibold text-foreground">Maya Fields</p>
@@ -395,34 +395,34 @@ export function QuotesPreview() {
           </div>
           <div className="mt-2 flex flex-col divide-y divide-border/50">
             <div className="flex items-center gap-2.5 py-2">
-              <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-amber-500/10">
-                <FileText className="size-3 text-amber-500" />
+              <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-warning/10">
+                <FileText className="size-3 text-warning-ink" />
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[11px] font-semibold text-foreground">Kitchen remodel</p>
                 <p className="truncate text-[10px] text-muted-foreground">Sarah Jenkins · $4,850</p>
               </div>
-              <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[8px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">Draft</span>
+              <span className="rounded-full bg-warning/15 px-1.5 py-0.5 text-[8px] font-medium text-warning-ink">Draft</span>
             </div>
             <div className="flex items-center gap-2.5 py-2">
-              <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-blue-500/10">
-                <FileText className="size-3 text-blue-500" />
+              <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-info/10">
+                <FileText className="size-3 text-info-ink" />
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[11px] font-semibold text-foreground">Studio fit-out</p>
                 <p className="truncate text-[10px] text-muted-foreground">Maya Fields · $12,200</p>
               </div>
-              <span className="rounded-full bg-blue-100 px-1.5 py-0.5 text-[8px] font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">Sent</span>
+              <span className="rounded-full bg-info/15 px-1.5 py-0.5 text-[8px] font-medium text-info-ink">Sent</span>
             </div>
             <div className="flex items-center gap-2.5 py-2">
-              <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-green-500/10">
-                <FileText className="size-3 text-green-500" />
+              <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-success/10">
+                <FileText className="size-3 text-success-ink" />
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[11px] font-semibold text-foreground">Tile repair</p>
                 <p className="truncate text-[10px] text-muted-foreground">Leo Park · $1,350</p>
               </div>
-              <span className="rounded-full bg-green-100 px-1.5 py-0.5 text-[8px] font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400">Accepted</span>
+              <span className="rounded-full bg-success/15 px-1.5 py-0.5 text-[8px] font-medium text-success-ink">Accepted</span>
             </div>
           </div>
         </div>
@@ -439,12 +439,12 @@ export function FollowUpsPreview() {
         <div className="rounded-lg border border-border/50 bg-background p-3">
           <div className="flex items-center justify-between">
             <p className="text-[11px] font-medium text-foreground">Follow-ups</p>
-            <span className="rounded-full bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-medium text-amber-600 dark:text-amber-400">2 due</span>
+            <span className="rounded-full bg-warning/10 px-1.5 py-0.5 text-[9px] font-medium text-warning-ink">2 due</span>
           </div>
           <div className="mt-2 flex flex-col divide-y divide-border/50">
             <div className="flex items-center gap-2.5 py-2">
-              <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-amber-500/10">
-                <BellRing className="size-3 text-amber-500" />
+              <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-warning/10">
+                <BellRing className="size-3 text-warning-ink" />
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[11px] font-semibold text-foreground">Follow up on Q-1042</p>
@@ -454,7 +454,7 @@ export function FollowUpsPreview() {
             </div>
             <div className="flex items-center gap-2.5 py-2">
               <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10">
-                <BellRing className="size-3 text-primary" />
+                <BellRing className="size-3 text-primary-ink" />
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[11px] font-semibold text-foreground">Check in with Maya</p>
@@ -490,7 +490,7 @@ export function AiDraftingPreview() {
             Turn an inquiry into a polished quote in seconds.
           </p>
           <div className="mt-2 flex items-center gap-2.5 rounded-md border border-primary/15 bg-primary/[0.04] px-2.5 py-2">
-            <Sparkles className="size-4 shrink-0 text-primary" />
+            <Sparkles className="size-4 shrink-0 text-primary-ink" />
             <div className="min-w-0">
               <p className="truncate text-[10px] font-medium text-foreground">
                 Build a quote from this inquiry
@@ -534,7 +534,7 @@ export function AssistantPreview() {
             </div>
             <div className="rounded-md border border-primary/15 bg-primary/[0.04] px-2.5 py-2">
               <div className="flex items-start gap-2">
-                <Sparkles className="mt-0.5 size-3 shrink-0 text-primary" />
+                <Sparkles className="mt-0.5 size-3 shrink-0 text-primary-ink" />
                 <p className="text-[10px] text-muted-foreground">
                   3 sent quotes haven&apos;t been viewed yet — want me to draft
                   follow-ups?
@@ -566,21 +566,21 @@ export function QuoteLibraryPreview() {
           <div className="mt-2 space-y-1.5">
             <div className="flex items-center justify-between rounded-md border border-border/50 px-2.5 py-2">
               <span className="flex min-w-0 items-center gap-2">
-                <Package className="size-3.5 shrink-0 text-primary" />
+                <Package className="size-3.5 shrink-0 text-primary-ink" />
                 <span className="truncate text-[10px] font-medium text-foreground">Design consultation</span>
               </span>
               <span className="text-[9px] text-muted-foreground">$150</span>
             </div>
             <div className="flex items-center justify-between rounded-md border border-border/50 px-2.5 py-2">
               <span className="flex min-w-0 items-center gap-2">
-                <Package className="size-3.5 shrink-0 text-primary" />
+                <Package className="size-3.5 shrink-0 text-primary-ink" />
                 <span className="truncate text-[10px] font-medium text-foreground">Standard install</span>
               </span>
               <span className="text-[9px] text-muted-foreground">$850</span>
             </div>
             <div className="flex items-center justify-between rounded-md border border-border/50 px-2.5 py-2">
               <span className="flex min-w-0 items-center gap-2">
-                <Package className="size-3.5 shrink-0 text-primary" />
+                <Package className="size-3.5 shrink-0 text-primary-ink" />
                 <span className="truncate text-[10px] font-medium text-foreground">Monthly retainer</span>
               </span>
               <span className="text-[9px] text-muted-foreground">$2,400</span>
@@ -600,21 +600,21 @@ export function MembersPreview() {
         <div className="rounded-lg border border-border/50 bg-background p-3">
           <div className="flex items-center justify-between">
             <p className="text-[11px] font-medium text-foreground">Members</p>
-            <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-medium text-primary">Invite</span>
+            <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-medium text-primary-ink">Invite</span>
           </div>
           <div className="mt-2 flex flex-col divide-y divide-border/50">
             <div className="flex items-center gap-2.5 py-2">
-              <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[9px] font-bold text-primary">
+              <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[9px] font-bold text-primary-ink">
                 AJ
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[11px] font-semibold text-foreground">Alex Johnson</p>
                 <p className="truncate text-[10px] text-muted-foreground">alex@acme.co</p>
               </div>
-              <span className="rounded-full border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-[8px] font-semibold uppercase text-primary">Owner</span>
+              <span className="rounded-full border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-[8px] font-semibold uppercase text-primary-ink">Owner</span>
             </div>
             <div className="flex items-center gap-2.5 py-2">
-              <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-blue-500/10 text-[9px] font-bold text-blue-500">
+              <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-info/10 text-[9px] font-bold text-info-ink">
                 SM
               </div>
               <div className="min-w-0 flex-1">
@@ -686,7 +686,7 @@ export function ServicesPreview() {
           <div className="mt-2 space-y-1.5">
             <div className="flex items-center justify-between rounded-md border border-border/50 px-2.5 py-2">
               <span className="text-[10px] font-medium text-foreground">Deep cleaning</span>
-              <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[8px] font-medium text-primary">Live</span>
+              <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[8px] font-medium text-primary-ink">Live</span>
             </div>
             <div className="flex items-center justify-between rounded-md border border-border/50 px-2.5 py-2">
               <span className="text-[10px] font-medium text-foreground">Window washing</span>

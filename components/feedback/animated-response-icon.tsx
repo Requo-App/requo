@@ -32,11 +32,11 @@ const iconMap = {
 } as const;
 
 const colorMap = {
-  accepted: "text-success",
-  rejected: "text-destructive",
-  revision_requested: "text-warning",
+  accepted: "text-success-ink",
+  rejected: "text-destructive-ink",
+  revision_requested: "text-warning-ink",
   voided: "text-muted-foreground",
-  expired: "text-warning",
+  expired: "text-warning-ink",
   sent: "text-muted-foreground",
   draft: "text-muted-foreground",
 } as const;

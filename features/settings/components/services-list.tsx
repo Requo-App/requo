@@ -842,7 +842,7 @@ function ServiceShareDialog({
           </ResponsiveOverlayDescription>
         </ResponsiveOverlayHeader>
         <ResponsiveOverlayBody className="items-center gap-6">
-          <div className="relative mx-auto flex items-center justify-center rounded-xl border border-border/70 bg-white p-4">
+          <div className="relative mx-auto flex items-center justify-center rounded-xl border border-border/70 bg-card p-4">
             <QRCodeSVG
               id={`qr-svg-${serviceSlug}`}
               value={url}

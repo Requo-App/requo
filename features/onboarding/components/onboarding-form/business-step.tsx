@@ -334,11 +334,11 @@ export function BusinessStep({
               />
             </div>
             {slugAvailability === "taken" ? (
-              <p className="mt-1.5 text-sm text-destructive">
+              <p className="mt-1.5 text-sm text-destructive-ink">
                 This URL is already taken. Try a different one.
               </p>
             ) : slugAvailability === "available" && draft.businessSlug.length >= 2 ? (
-              <p className="mt-1.5 text-sm text-primary">
+              <p className="mt-1.5 text-sm text-primary-ink">
                 Available
               </p>
             ) : null}

@@ -771,7 +771,7 @@ export function SendQuoteDialog({
             <ResponsiveOverlayBody className="flex flex-col gap-5">
               <div className="flex items-start gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3.5">
                 <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/15">
-                  <Check className="size-4 text-primary" />
+                  <Check className="size-4 text-primary-ink" />
                 </div>
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-foreground">
@@ -847,7 +847,7 @@ function QuoteFollowUpPrompt({
   if (state.success) {
     return (
       <div className="flex items-start gap-3 rounded-lg border border-border/60 px-4 py-3.5">
-        <BellRing className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
+        <BellRing className="mt-0.5 size-4 shrink-0 text-primary-ink" aria-hidden="true" />
         <div>
           <p className="text-sm font-medium text-foreground">
             Follow-up reminder set

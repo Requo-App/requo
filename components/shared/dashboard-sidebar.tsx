@@ -136,7 +136,7 @@ function NavItem({
     // turns sidebar-foreground on hover/select, with a quiet black/8
     // (white/10 in dark mode) pill behind the active row.
     "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground",
-    isSelected && "bg-black/[0.08] font-medium text-sidebar-foreground dark:bg-white/10",
+    isSelected && "bg-sidebar-selected font-medium text-sidebar-foreground",
   );
 
   if (onClick) {

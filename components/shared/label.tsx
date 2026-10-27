@@ -51,7 +51,7 @@ export function Label({
       {isRequired && (
         <span
           aria-hidden="true"
-          className="text-body-medium text-destructive"
+          className="text-body-medium text-destructive-ink"
         >
           *
         </span>

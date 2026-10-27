@@ -435,7 +435,7 @@ export function BusinessEmailTemplateForm({
               </div>
             </div>
             {blocksError ? (
-              <p className="text-sm text-destructive" role="alert">
+              <p className="text-sm text-destructive-ink" role="alert">
                 {blocksError}
               </p>
             ) : null}

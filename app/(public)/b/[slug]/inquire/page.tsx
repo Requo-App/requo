@@ -88,7 +88,7 @@ function ChatCard({ href, wide = false }: { href: string; wide?: boolean }) {
           : "group flex flex-col items-center gap-4 rounded-xl border border-border/70 bg-card p-6 text-center transition-colors hover:border-primary/40 hover:bg-primary/5"
       }
     >
-      <div className="flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
+      <div className="flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary-ink">
         <Bot className="size-6" />
       </div>
       <div className="flex flex-col gap-1">

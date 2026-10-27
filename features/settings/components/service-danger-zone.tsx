@@ -89,7 +89,7 @@ export function ServiceDangerZone({
 
         <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-destructive">Delete service</p>
+            <p className="text-sm font-medium text-destructive-ink">Delete service</p>
             <p className="mt-1 text-xs leading-relaxed text-muted-foreground sm:text-sm">
               Permanently remove this service. Only available when no inquiries
               or page-view analytics are linked.

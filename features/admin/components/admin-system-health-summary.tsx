@@ -49,7 +49,7 @@ const statusConfig: Record<
     label: "All systems operational",
     badgeVariant: "default",
     icon: CheckCircle2,
-    iconTileClass: "bg-primary/10 text-primary",
+    iconTileClass: "bg-primary/10 text-primary-ink",
   },
   attention: {
     label: "Needs attention",
@@ -61,7 +61,7 @@ const statusConfig: Record<
     label: "Critical issues detected",
     badgeVariant: "destructive",
     icon: XCircle,
-    iconTileClass: "bg-destructive/10 text-destructive",
+    iconTileClass: "bg-destructive/10 text-destructive-ink",
   },
 };
 

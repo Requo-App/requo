@@ -14,7 +14,7 @@ export default function CheckoutLayout({
 }>) {
   return (
     <div
-      className="checkout-light-force min-h-dvh bg-[#f7f9f7] text-[#172b24]"
+      className="checkout-light-force min-h-dvh bg-background text-foreground"
       style={{ colorScheme: "light" }}
     >
       {children}

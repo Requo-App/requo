@@ -57,7 +57,7 @@ export function PublicQuoteRevisionForm({
       </div>
 
       {state.error ? (
-        <p className="text-sm text-destructive">{state.error}</p>
+        <p className="text-sm text-destructive-ink">{state.error}</p>
       ) : null}
 
       <Button type="submit" disabled={isPending || !message.trim()} size="lg">

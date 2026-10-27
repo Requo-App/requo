@@ -89,7 +89,7 @@ export function SidebarChecklist({ items }: SidebarChecklistProps) {
     return (
       <div className="px-4 pb-3 group-data-[collapsible=icon]:hidden">
         <div className="flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5">
-          <PartyPopper className="size-4 shrink-0 text-primary" />
+          <PartyPopper className="size-4 shrink-0 text-primary-ink" />
           <div className="min-w-0 flex-1">
             <p className="text-xs font-medium text-foreground">All set!</p>
             <p className="text-[10px] text-muted-foreground">You&apos;ve completed all getting started steps.</p>
@@ -174,7 +174,7 @@ export function SidebarChecklist({ items }: SidebarChecklistProps) {
                       item.complete && "bg-primary text-primary-foreground",
                       !item.complete &&
                         isCurrent &&
-                        "border border-primary text-primary",
+                        "border border-primary text-primary-ink",
                       !item.complete &&
                         !isCurrent &&
                         "border border-border text-muted-foreground",

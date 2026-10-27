@@ -16,8 +16,8 @@ function FormBuilderPreview() {
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 p-2.5">
-        <FormInput className="size-4 text-primary" />
-        <span className="text-xs font-medium text-primary">Fields</span>
+        <FormInput className="size-4 text-primary-ink" />
+        <span className="text-xs font-medium text-primary-ink">Fields</span>
       </div>
       <div className="flex flex-col gap-1.5 rounded-lg border border-border/50 bg-background p-2.5">
         <div className="flex items-center gap-2 rounded border border-border/40 px-2 py-1.5">
@@ -40,8 +40,8 @@ function PublicPagePreview() {
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 p-2.5">
-        <Eye className="size-4 text-primary" />
-        <span className="text-xs font-medium text-primary">Public page</span>
+        <Eye className="size-4 text-primary-ink" />
+        <span className="text-xs font-medium text-primary-ink">Public page</span>
       </div>
       <div className="rounded-lg border border-border/50 bg-background p-3">
         <div className="mb-2 h-3 w-24 rounded bg-muted" />
@@ -59,17 +59,17 @@ function FormSettingsPreview() {
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 p-2.5">
-        <Settings2 className="size-4 text-primary" />
-        <span className="text-xs font-medium text-primary">Settings</span>
+        <Settings2 className="size-4 text-primary-ink" />
+        <span className="text-xs font-medium text-primary-ink">Settings</span>
       </div>
       <div className="flex flex-col gap-1.5 rounded-lg border border-border/50 bg-background p-2.5">
         <div className="flex items-center justify-between rounded px-2 py-1.5">
           <span className="text-[10px] text-muted-foreground">Status</span>
-          <div className="h-4 w-8 rounded-full bg-green-200 dark:bg-green-900/40" />
+          <div className="h-4 w-8 rounded-full bg-success/25" />
         </div>
         <div className="flex items-center justify-between rounded px-2 py-1.5">
           <span className="text-[10px] text-muted-foreground">Default service</span>
-          <div className="h-4 w-8 rounded-full bg-green-200 dark:bg-green-900/40" />
+          <div className="h-4 w-8 rounded-full bg-success/25" />
         </div>
         <div className="flex items-center justify-between rounded px-2 py-1.5">
           <span className="text-[10px] text-muted-foreground">Template</span>

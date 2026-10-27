@@ -211,7 +211,7 @@ export function PlanSelectionSheet({
                   className={cn(
                     "flex flex-col rounded-xl border border-border/70 bg-card/80 p-4",
                     isPreferredPlan &&
-                      "border-primary/30 bg-accent/20 shadow-[0_0_0_1px_hsl(var(--primary)/0.08)]",
+                      "border-primary/30 bg-accent/20 shadow-[0_0_0_1px_color-mix(in_srgb,var(--primary)_8%,transparent)]",
                   )}
                   key={card.id}
                 >
@@ -306,7 +306,7 @@ export function PlanSelectionSheet({
                   <ul className="mt-2 grid gap-1.5">
                     {card.highlights.map((highlight) => (
                       <li className="flex items-start gap-2" key={highlight}>
-                        <Check className="mt-0.5 size-3.5 shrink-0 text-primary" />
+                        <Check className="mt-0.5 size-3.5 shrink-0 text-primary-ink" />
                         <span className="text-sm text-muted-foreground">
                           {highlight}
                         </span>

@@ -114,7 +114,7 @@ export function InquiryListTable({
                       {inquiry.hasDuplicateFlag ? (
                         <Copy
                           aria-label="Potential duplicate"
-                          className="size-3.5 shrink-0 text-warning"
+                          className="size-3.5 shrink-0 text-warning-ink"
                           role="img"
                         />
                       ) : null}
@@ -133,7 +133,7 @@ export function InquiryListTable({
                     const Icon = channel.icon;
                     return (
                       <Link
-                        className="inline-flex items-center gap-1.5 text-sm text-foreground transition-colors hover:text-primary group-hover/row:text-primary"
+                        className="inline-flex items-center gap-1.5 text-sm text-foreground transition-colors hover:text-primary-ink group-hover/row:text-primary-ink"
                         href={inquiryHref}
                         prefetch={true}
                       >
@@ -165,7 +165,7 @@ export function InquiryListTable({
                 </TableCell>
                 <TableCell className="w-[8rem]">
                   <Link
-                    className="block text-sm text-muted-foreground transition-colors hover:text-primary group-hover/row:text-primary"
+                    className="block text-sm text-muted-foreground transition-colors hover:text-primary-ink group-hover/row:text-primary-ink"
                     href={inquiryHref}
                     prefetch={true}
                   >
