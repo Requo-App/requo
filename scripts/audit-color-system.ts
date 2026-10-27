@@ -398,15 +398,19 @@ export function formatRgb({ r, g, b }: Rgb): string {
     .join("")}`;
 }
 
+export function extractThemeBlock(source: string, selector: string): string {
+  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = new RegExp(`^${escaped}\\s*\\{([\\s\\S]*?)^\\}`, "m").exec(source);
+  return match?.[1] ?? "";
+}
+
 export function parseTokenBlock(
   source: string,
   selector: string,
 ): Map<string, string> {
-  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const match = new RegExp(`^${escaped}\\s*\\{([\\s\\S]*?)^\\}`, "m").exec(source);
   const tokens = new Map<string, string>();
-  if (!match) return tokens;
-  for (const token of match[1].matchAll(/--([a-z0-9-]+):\s*([^;]+);/g)) {
+  const block = extractThemeBlock(source, selector);
+  for (const token of block.matchAll(/--([a-z0-9-]+):\s*([^;]+);/g)) {
     tokens.set(token[1], token[2].replace(/\s+/g, " ").trim());
   }
   return tokens;
@@ -536,11 +540,11 @@ async function run(): Promise<void> {
   const light = parseTokenBlock(source, ":root");
   const dark = parseTokenBlock(source, ".dark");
   const themes = [
-    { name: "light", tokens: light },
-    { name: "dark", tokens: dark },
+    { name: "light", selector: ":root", tokens: light },
+    { name: "dark", selector: ".dark", tokens: dark },
   ] as const;
 
-  for (const { name, tokens } of themes) {
+  for (const { name, selector, tokens } of themes) {
     if (tokens.size === 0) {
       offenders.push({
         file: GLOBALS,
@@ -549,7 +553,8 @@ async function run(): Promise<void> {
       });
       continue;
     }
-    if (!new RegExp(`color-scheme:\\s*${name}`).test(source)) {
+    const block = extractThemeBlock(source, selector);
+    if (!new RegExp(`color-scheme:\\s*${name}`).test(block)) {
       offenders.push({
         file: GLOBALS,
         line: 1,

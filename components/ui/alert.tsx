@@ -11,7 +11,7 @@ const alertVariants = cva(
         default:
           "alert-surface border-primary/12 text-foreground *:[svg]:text-primary-ink *:data-[slot=alert-description]:text-foreground/75",
         destructive:
-          "alert-destructive-surface border-destructive/18 text-destructive-ink *:data-[slot=alert-description]:text-destructive-ink/88 *:[svg]:text-current",
+          "alert-destructive-surface border-destructive/18 text-destructive-ink *:data-[slot=alert-description]:text-destructive-ink *:[svg]:text-current",
       },
     },
     defaultVariants: {

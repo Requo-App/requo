@@ -242,7 +242,7 @@
   /* Text/icon inks. Fills use the solid tone above; on-surface text uses these
      so dark mode can step lighter without changing a button fill. */
   --primary-ink: #008060;
-  --destructive-ink: #c9372c;
+  --destructive-ink: #b82e24;
   --success-ink: #047857;
   --warning-ink: #92400e;
   --info-ink: #0369a1;
@@ -548,7 +548,7 @@ html[data-reload-loading="fade-out"] #app-root-content {
   --warning: #b45309;
   --info: #0369a1;
   --primary-ink: #008060;
-  --destructive-ink: #c9372c;
+  --destructive-ink: #b82e24;
   --success-ink: #047857;
   --warning-ink: #92400e;
   --info-ink: #0369a1;
