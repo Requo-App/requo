@@ -189,16 +189,18 @@ export function WorkflowSteps() {
 
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     const lastIndex = steps.length - 1;
+    const targetIndex = tabRefs.current.findIndex((tab) => tab === event.target);
+    const currentIndex = targetIndex === -1 ? active : targetIndex;
     let nextIndex: number;
 
     switch (event.key) {
       case "ArrowDown":
       case "ArrowRight":
-        nextIndex = active === lastIndex ? 0 : active + 1;
+        nextIndex = currentIndex === lastIndex ? 0 : currentIndex + 1;
         break;
       case "ArrowUp":
       case "ArrowLeft":
-        nextIndex = active === 0 ? lastIndex : active - 1;
+        nextIndex = currentIndex === 0 ? lastIndex : currentIndex - 1;
         break;
       case "Home":
         nextIndex = 0;

@@ -445,6 +445,34 @@ describe("WorkflowSteps", () => {
     );
   });
 
+  it.each([
+    ["ArrowRight", /Quote sent same day/],
+    ["ArrowDown", /Quote sent same day/],
+    ["ArrowLeft", /Ready for what's next/],
+    ["ArrowUp", /Ready for what's next/],
+  ])(
+    "moves from the focused tab with %s after auto-advance",
+    async (key, nextStep) => {
+      const user = userEvent.setup();
+
+      render(<WorkflowSteps />);
+      await emitIntersection(1);
+
+      const firstTab = tabOf(/Request comes in/);
+
+      firstTab.focus();
+      await finishProgressBar(progressBarOf(/Request comes in/));
+
+      expect(tabOf(/Quote sent same day/)).toHaveAttribute("aria-selected", "true");
+      expect(firstTab).toHaveFocus();
+
+      await user.keyboard(`{${key}}`);
+
+      expect(tabOf(nextStep)).toHaveAttribute("aria-selected", "true");
+      expect(tabOf(nextStep)).toHaveFocus();
+    },
+  );
+
   it("wraps to the first step when the last step's rail fills", async () => {
     render(<WorkflowSteps />);
     await emitIntersection(1);
