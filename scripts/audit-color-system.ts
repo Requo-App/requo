@@ -400,8 +400,21 @@ export function formatRgb({ r, g, b }: Rgb): string {
 
 export function extractThemeBlock(source: string, selector: string): string {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const match = new RegExp(`^${escaped}\\s*\\{([\\s\\S]*?)^\\}`, "m").exec(source);
+  const match = new RegExp(
+    `^${escaped}[\\t\\n\\f\\r ]*\\{([\\s\\S]*?)^\\}`,
+    "m",
+  ).exec(source);
   return match?.[1] ?? "";
+}
+
+export function hasColorScheme(block: string, scheme: "light" | "dark"): boolean {
+  const declarations = block.replace(/\/\*[\s\S]*?\*\//g, "");
+  const whitespace = "[\\t\\n\\f\\r ]*";
+  return new RegExp(
+    `(?:^|;)${whitespace}color-scheme${whitespace}:${whitespace}${scheme}` +
+      `${whitespace}(?:!${whitespace}important${whitespace})?(?:;|$)`,
+    "i",
+  ).test(declarations);
 }
 
 export function parseTokenBlock(
@@ -554,7 +567,7 @@ async function run(): Promise<void> {
       continue;
     }
     const block = extractThemeBlock(source, selector);
-    if (!new RegExp(`color-scheme:\\s*${name}`).test(block)) {
+    if (!hasColorScheme(block, name)) {
       offenders.push({
         file: GLOBALS,
         line: 1,

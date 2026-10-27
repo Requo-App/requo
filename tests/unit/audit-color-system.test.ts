@@ -7,6 +7,7 @@ import {
   auditSource,
   contrastRatio,
   extractThemeBlock,
+  hasColorScheme,
   mixColor,
   neutralProblems,
   parseColor,
@@ -19,7 +20,7 @@ describe("colour-system audit", () => {
   it.each([
     [":root", "light", ".dark"],
     [".dark", "dark", ":root"],
-  ])("scopes %s color-scheme checks to its own block", (selector, scheme, other) => {
+  ] as const)("scopes %s color-scheme checks to its own block", (selector, scheme, other) => {
     const source = `${selector} {
   --background: #ffffff;
 }
@@ -30,12 +31,47 @@ ${other} {
   color-scheme: light;
 }
 `;
-    const declaration = new RegExp(`color-scheme:\\s*${scheme}`);
-    expect(declaration.test(extractThemeBlock(source, selector))).toBe(false);
-    expect(declaration.test(extractThemeBlock(
+    expect(hasColorScheme(extractThemeBlock(source, selector), scheme)).toBe(false);
+    expect(hasColorScheme(extractThemeBlock(
       source.replace("--background:", `color-scheme: ${scheme}; --background:`),
       selector,
-    ))).toBe(true);
+    ), scheme)).toBe(true);
+  });
+
+  it.each([":root", ".dark"])("matches only CSS whitespace after %s", (selector) => {
+    const block = "\n  color-scheme: light;\n";
+    for (const whitespace of ["", " ", "\t", "\n", "\r", "\f", " \t\n\r\f"]) {
+      expect(extractThemeBlock(`${selector}${whitespace}{${block}}`, selector)).toBe(block);
+    }
+    for (const nonCssWhitespace of ["\u00a0", "\v", "\u2028", "\ufeff"]) {
+      expect(extractThemeBlock(`${selector}${nonCssWhitespace}{${block}}`, selector)).toBe("");
+    }
+  });
+
+  it.each(["light", "dark"] as const)("ignores commented-out %s color-scheme declarations", (scheme) => {
+    const block = `--background: #ffffff;\n/*\n  color-scheme: ${scheme};\n*/`;
+    expect(hasColorScheme(block, scheme)).toBe(false);
+    expect(hasColorScheme(`${block}\ncolor-scheme: ${scheme};`, scheme)).toBe(true);
+  });
+
+  it.each([
+    "--color-scheme: light;",
+    "preferred-color-scheme: light;",
+    "color-scheme: lightness;",
+    "color-scheme: light dark;",
+    "color-scheme: light --background: #ffffff;",
+  ])("rejects an incomplete or different declaration: %s", (block) => {
+    expect(hasColorScheme(block, "light")).toBe(false);
+  });
+
+  it.each([
+    "color-scheme: light;",
+    "--background: #ffffff; color-scheme: light",
+    "\tcolor-scheme \n:\f light\r;",
+    "color-scheme: /* native controls */ light;",
+    "color-scheme: light !important;",
+  ])("accepts a complete declaration: %s", (block) => {
+    expect(hasColorScheme(block, "light")).toBe(true);
   });
 
   it("keeps destructive ink above AA on the alert surface over page gradients", () => {
