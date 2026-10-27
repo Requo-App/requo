@@ -10,9 +10,12 @@ function NavigationMenu({
   className,
   children,
   viewport = true,
+  viewportClassName,
   ...props
 }: React.ComponentProps<typeof NavigationMenuPrimitive.Root> & {
   viewport?: boolean
+  /** Optional styling for the shared viewport card (the marketing panel). */
+  viewportClassName?: string
 }) {
   return (
     <NavigationMenuPrimitive.Root
@@ -25,7 +28,7 @@ function NavigationMenu({
       {...props}
     >
       {children}
-      {viewport && <NavigationMenuViewport />}
+      {viewport && <NavigationMenuViewport className={viewportClassName} />}
     </NavigationMenuPrimitive.Root>
   )
 }
@@ -145,6 +148,7 @@ function NavigationMenuViewport({
 
   return (
     <div
+      data-slot="navigation-menu-viewport-container"
       ref={containerRef}
       className={cn(
         "absolute top-full left-0 isolate z-50 flex justify-center transition-transform duration-100 motion-reduce:transition-none"

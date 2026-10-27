@@ -1,6 +1,13 @@
 "use client";
 
-import type { ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+} from "react";
 import {
   BarChart3,
   BellRing,
@@ -14,7 +21,10 @@ import {
 import { NavigationMenu as NavigationMenuPrimitive } from "radix-ui";
 
 import { resourceLinks } from "@/components/marketing/marketing-data";
-import { MarketingMenuLink } from "@/components/marketing/marketing-menu-link";
+import {
+  MarketingMenuList,
+  type MarketingMenuItem,
+} from "@/components/marketing/marketing-menu-link";
 import {
   solutionHref,
   solutionLinks,
@@ -91,6 +101,34 @@ export const resourceDetails: Record<string, { description: string; icon: typeof
   },
 };
 
+const productItems: MarketingMenuItem[] = productLinks.map((link) => ({
+  href: link.href,
+  icon: link.icon,
+  title: link.label,
+  description: link.description,
+}));
+
+const solutionItems: MarketingMenuItem[] = solutionLinks.map((solution) => ({
+  href: solutionHref(solution.slug),
+  icon: solution.icon,
+  title: solution.title,
+  description: solution.description,
+}));
+
+const resourceItems: MarketingMenuItem[] = resourceLinks.map((link) => {
+  const details = resourceDetails[link.href] ?? {
+    description: "",
+    icon: FileText,
+  };
+
+  return {
+    href: link.href,
+    icon: details.icon,
+    title: link.label,
+    description: details.description,
+  };
+});
+
 /**
  * Primitive trigger (not the shadcn wrapper): the wrapper always appends
  * its own chevron, which breaks `asChild` composition (`Children.only`).
@@ -99,14 +137,43 @@ export const resourceDetails: Record<string, { description: string; icon: typeof
 function NavTrigger({
   triggerClassName,
   children,
+  open,
+  onArrowDown,
+  onRequestClose,
 }: {
   triggerClassName?: string;
   children: ReactNode;
+  open: boolean;
+  /** Returns true when it opened the menu and handled the key itself. */
+  onArrowDown?: () => boolean;
+  onRequestClose?: () => void;
 }) {
   return (
     <NavigationMenuPrimitive.Trigger asChild>
       <button
         className={cn(defaultTriggerClass, "gap-1", triggerClassName, "group")}
+        onClick={() => {
+          if (open) {
+            onRequestClose?.();
+          }
+        }}
+        onKeyDown={(event) => {
+          if (
+            event.key !== "ArrowDown" ||
+            event.altKey ||
+            event.ctrlKey ||
+            event.metaKey ||
+            event.shiftKey
+          ) {
+            return;
+          }
+
+          // Leave the key to Radix when this trigger is already open so its
+          // own focus-first-item handling runs.
+          if (onArrowDown?.()) {
+            event.preventDefault();
+          }
+        }}
         type="button"
       >
         {children}
@@ -120,6 +187,8 @@ function NavTrigger({
   );
 }
 
+type MenuValue = "product" | "solutions" | "resources";
+
 /**
  * Single navigation root for Product / Solutions / Resources so the shared
  * viewport card persists and morphs when moving between triggers instead of
@@ -130,72 +199,202 @@ export function MarketingMainNav({
 }: {
   triggerClassName?: string;
 }) {
+  const [value, setValue] = useState("");
+  const panelRefs = useRef<Partial<Record<MenuValue, HTMLDivElement | null>>>(
+    {},
+  );
+
+  const focusFirstItem = useCallback((menu: MenuValue) => {
+    window.requestAnimationFrame(() => {
+      panelRefs.current[menu]?.querySelector<HTMLAnchorElement>("a")?.focus();
+    });
+  }, []);
+
+  /**
+   * Radix opens on ArrowDown only once a trigger is already open. Opening from
+   * a closed root is ours: set the controlled value, then move focus into the
+   * freshly mounted panel on the next frame.
+   */
+  const openFromKeyboard = useCallback(
+    (menu: MenuValue) => {
+      if (value === menu) {
+        return false;
+      }
+
+      setValue(menu);
+      focusFirstItem(menu);
+      return true;
+    },
+    [focusFirstItem, value],
+  );
+
+  const setPanelRef =
+    (menu: MenuValue) => (node: HTMLDivElement | null) => {
+      panelRefs.current[menu] = node;
+    };
+
+  /*
+   * Radix's internal 150ms hover-close fires even while the pointer is still
+   * crossing the 6px gap between a trigger and the panel, which closed the
+   * menu mid-traverse. Keep the menu open while the pointer is anywhere inside
+   * the nav (trigger, gap, or panel) and close from the root's pointer-leave
+   * instead, with the same 150ms delay.
+   */
+  const pointerInsideRef = useRef(false);
+  const closeTimerRef = useRef<number | null>(null);
+
+  const clearCloseTimer = useCallback(() => {
+    if (closeTimerRef.current !== null) {
+      window.clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => clearCloseTimer, [clearCloseTimer]);
+
+  const handleValueChange = useCallback((next: string) => {
+    if (next === "" && pointerInsideRef.current) {
+      return;
+    }
+
+    setValue(next);
+  }, []);
+
+  /**
+   * Trigger clicks close directly: Radix's own toggle would arrive at
+   * `handleValueChange` as an internal dismiss, which the pointer-inside guard
+   * above swallows, and waiting on it also made the close depend on the event
+   * order. Closing here keeps the click path deterministic.
+   */
+  const closeMenu = useCallback(() => setValue(""), []);
+
+  const handlePointerEnter = useCallback(
+    (event: ReactPointerEvent) => {
+      if (event.pointerType !== "mouse") {
+        return;
+      }
+
+      pointerInsideRef.current = true;
+      clearCloseTimer();
+    },
+    [clearCloseTimer],
+  );
+
+  const handlePointerLeave = useCallback(
+    (event: ReactPointerEvent) => {
+      if (event.pointerType !== "mouse") {
+        return;
+      }
+
+      pointerInsideRef.current = false;
+      clearCloseTimer();
+      closeTimerRef.current = window.setTimeout(() => {
+        closeTimerRef.current = null;
+        setValue("");
+      }, 150);
+    },
+    [clearCloseTimer],
+  );
+
   return (
-    <NavigationMenu>
+    <NavigationMenu
+      delayDuration={100}
+      onBlur={(event) => {
+        if (value === "") {
+          return;
+        }
+
+        const next = event.relatedTarget;
+        if (next instanceof Node && event.currentTarget.contains(next)) {
+          return;
+        }
+
+        // Radix dismisses on focus-out, but the hover-close guard above would
+        // swallow that dismiss while the pointer happens to rest inside the
+        // nav. Close here so tabbing out never leaves the panel open.
+        setValue("");
+      }}
+      onKeyDown={(event) => {
+        if (event.key !== "Escape" || value === "") {
+          return;
+        }
+
+        // Radix's DismissableLayer listens in the document capture phase, so it
+        // has already returned focus to the trigger and asked to close by the
+        // time this runs. Close directly: the hover-close guard would ignore
+        // that internal dismiss while the pointer is still inside the nav.
+        setValue("");
+      }}
+      onPointerEnter={handlePointerEnter}
+      onPointerLeave={handlePointerLeave}
+      onValueChange={handleValueChange}
+      value={value}
+      viewportClassName="marketing-nav-panel"
+    >
       <NavigationMenuList>
-        <NavigationMenuItem>
-          <NavTrigger triggerClassName={triggerClassName}>
+        <NavigationMenuItem value="product">
+          <NavTrigger
+            onArrowDown={() => openFromKeyboard("product")}
+            onRequestClose={closeMenu}
+            open={value === "product"}
+            triggerClassName={triggerClassName}
+          >
             Product
           </NavTrigger>
           <NavigationMenuContent className="w-[42rem] max-w-[calc(100vw-2rem)] p-2 md:w-[42rem]">
-            <ul className="grid grid-cols-2 gap-0.5">
-              {productLinks.map((link) => (
-                <li key={link.label}>
-                  <MarketingMenuLink
-                    href={link.href}
-                    icon={link.icon}
-                    title={link.label}
-                    description={link.description}
-                  />
-                </li>
-              ))}
-            </ul>
+            <div className="marketing-nav-content" ref={setPanelRef("product")}>
+              <MarketingMenuList
+                className="grid grid-cols-2 gap-0.5"
+                items={productItems}
+                onNavigate={closeMenu}
+              />
+            </div>
           </NavigationMenuContent>
         </NavigationMenuItem>
 
-        <NavigationMenuItem>
-          <NavTrigger triggerClassName={triggerClassName}>
+        <NavigationMenuItem value="solutions">
+          <NavTrigger
+            onArrowDown={() => openFromKeyboard("solutions")}
+            onRequestClose={closeMenu}
+            open={value === "solutions"}
+            triggerClassName={triggerClassName}
+          >
             Solutions
           </NavTrigger>
           <NavigationMenuContent className="w-[42rem] max-w-[calc(100vw-2rem)] p-2 md:w-[42rem]">
-            <ul className="grid grid-cols-2 gap-0.5">
-              {solutionLinks.map((solution) => (
-                <li key={solution.slug}>
-                  <MarketingMenuLink
-                    href={solutionHref(solution.slug)}
-                    icon={solution.icon}
-                    title={solution.title}
-                    description={solution.description}
-                  />
-                </li>
-              ))}
-            </ul>
+            <div
+              className="marketing-nav-content"
+              ref={setPanelRef("solutions")}
+            >
+              <MarketingMenuList
+                className="grid grid-cols-2 gap-0.5"
+                items={solutionItems}
+                onNavigate={closeMenu}
+              />
+            </div>
           </NavigationMenuContent>
         </NavigationMenuItem>
 
-        <NavigationMenuItem>
-          <NavTrigger triggerClassName={triggerClassName}>
+        <NavigationMenuItem value="resources">
+          <NavTrigger
+            onArrowDown={() => openFromKeyboard("resources")}
+            onRequestClose={closeMenu}
+            open={value === "resources"}
+            triggerClassName={triggerClassName}
+          >
             Resources
           </NavTrigger>
           <NavigationMenuContent className="w-[21rem] max-w-[calc(100vw-2rem)] p-2 md:w-[21rem]">
-            <ul className="flex flex-col gap-0.5">
-              {resourceLinks.map((link) => {
-                const details = resourceDetails[link.href] ?? {
-                  description: "",
-                  icon: FileText,
-                };
-                return (
-                  <li key={link.href}>
-                    <MarketingMenuLink
-                      href={link.href}
-                      icon={details.icon}
-                      title={link.label}
-                      description={details.description}
-                    />
-                  </li>
-                );
-              })}
-            </ul>
+            <div
+              className="marketing-nav-content"
+              ref={setPanelRef("resources")}
+            >
+              <MarketingMenuList
+                className="flex flex-col gap-0.5"
+                items={resourceItems}
+                onNavigate={closeMenu}
+              />
+            </div>
           </NavigationMenuContent>
         </NavigationMenuItem>
       </NavigationMenuList>
