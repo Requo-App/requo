@@ -64,7 +64,7 @@
     "test:e2e:smoke": "node scripts/test/check-db.mjs --if-local && playwright test --grep \"@smoke\"",
     "test:e2e:full": "playwright test",
     "screenshots": "node scripts/marketing/capture-readme-screenshots.mjs",
-    "screenshots:fallback": "playwright test --config playwright.screenshots.config.ts",
+    "screenshots:fallback": "playwright test --config tests/screenshots/playwright.config.ts",
     "screenshots:analytics": "node scripts/analytics-screenshots.mjs",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx --conditions=react-server scripts/migrate.ts",

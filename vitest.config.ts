@@ -3,7 +3,7 @@ import { config } from 'dotenv';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vitest/config';
 
-import { COVERAGE_EXCLUDES } from './vitest.shared';
+import { COVERAGE_EXCLUDES } from './tests/vitest.shared';
 
 config({ path: '.env.local' });
 config();

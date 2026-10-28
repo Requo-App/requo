@@ -1,3 +1,5 @@
+import path from "node:path";
+
 import { defineConfig, devices } from "@playwright/test";
 
 /**
@@ -28,7 +30,7 @@ const webServerCommand =
   `npm run dev:app -- --hostname 127.0.0.1 --port ${port}`;
 
 export default defineConfig({
-  testDir: "./tests/screenshots",
+  testDir: ".",
   forbidOnly: Boolean(process.env.CI),
   fullyParallel: false,
   retries: 0,
@@ -44,6 +46,7 @@ export default defineConfig({
     ? undefined
     : {
         command: webServerCommand,
+        cwd: path.resolve(__dirname, "../.."),
         env: {
           ...process.env,
           APP_TOKEN_HASH_SECRET:

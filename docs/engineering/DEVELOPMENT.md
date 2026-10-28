@@ -77,6 +77,16 @@ module, and use `lib/` for shared infrastructure. Reuse existing UI and
 authorization/data-access patterns. Update authoritative docs when a material
 behavior or architectural fact changes.
 
+### Root files
+
+Keep tool entry points at the repository root — their CLIs and editor
+integrations discover them there by default: `next.config.ts`, `proxy.ts`,
+`tsconfig.json`, `eslint.config.mjs`, `postcss.config.mjs`,
+`playwright.config.ts`, `vitest.config.ts`, `drizzle.config.ts`,
+`docker-compose.yml`, and `skills-lock.json`. Keep secondary configuration
+next to what it serves instead: test-only config lives under `tests/`, and
+development Dockerfiles live under `docker/`.
+
 ## Canonical patterns
 
 These patterns are verified against the current tree. Follow them for new
