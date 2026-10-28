@@ -2,12 +2,15 @@ import path from 'path';
 import { config } from 'dotenv';
 import { defineConfig } from 'vitest/config';
 
-import { COVERAGE_EXCLUDES } from './tests/vitest.shared';
+import { COVERAGE_EXCLUDES } from './vitest.shared';
 
-config({ path: '.env.local' });
-config();
+const rootDir = path.resolve(__dirname, '..');
+
+config({ path: path.join(rootDir, '.env.local') });
+config({ path: path.join(rootDir, '.env') });
 
 export default defineConfig({
+  root: rootDir,
   test: {
     environment: 'node',
     globals: true,
@@ -22,14 +25,14 @@ export default defineConfig({
     // Sequential files make the check deterministic.
     fileParallelism: false,
     alias: [
-      { find: '@', replacement: path.resolve(__dirname, './') },
+      { find: '@', replacement: rootDir },
       {
         find: 'server-only',
-        replacement: path.resolve(__dirname, 'node_modules/server-only/empty.js'),
+        replacement: path.join(rootDir, 'node_modules/server-only/empty.js'),
       },
       {
         find: /^next\/server$/,
-        replacement: path.resolve(__dirname, 'node_modules/next/server.js'),
+        replacement: path.join(rootDir, 'node_modules/next/server.js'),
       },
     ],
     server: {

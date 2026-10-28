@@ -3,10 +3,12 @@ import { config } from 'dotenv';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vitest/config';
 
-import { COVERAGE_EXCLUDES } from './tests/vitest.shared';
+import { COVERAGE_EXCLUDES } from './vitest.shared';
 
-config({ path: '.env.local' });
-config();
+const rootDir = path.resolve(__dirname, '..');
+
+config({ path: path.join(rootDir, '.env.local') });
+config({ path: path.join(rootDir, '.env') });
 
 /**
  * Vitest config for the unit and component tiers.
@@ -20,6 +22,7 @@ config();
  * fixed or explicitly justified at the test declaration when needed.
  */
 export default defineConfig({
+  root: rootDir,
   plugins: [react()],
   test: {
     environment: 'jsdom',
@@ -33,8 +36,8 @@ export default defineConfig({
       exclude: ['node_modules/**', '.next/**', ...COVERAGE_EXCLUDES],
     },
     alias: {
-      '@': path.resolve(__dirname, './'),
-      'server-only': path.resolve(__dirname, 'node_modules/server-only/empty.js'),
+      '@': rootDir,
+      'server-only': path.join(rootDir, 'node_modules/server-only/empty.js'),
     },
   },
 });

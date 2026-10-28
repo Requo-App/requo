@@ -2,27 +2,10 @@ import path from "node:path";
 
 import { defineConfig, devices } from "@playwright/test";
 
-/**
- * Fallback screenshots config for README and marketing assets.
- *
- * The committed README images come from the native Windows capture
- * (`npm run screenshots`, scripts/marketing/capture-readme-screenshots.mjs),
- * which renders them in the browser a reader actually uses, at 2x. This
- * config is the portable path for machines without Windows Chrome: it
- * captures the same four screens with Playwright's bundled Chromium at 1x,
- * so the glyph rendering and the resolution differ from the committed set.
- *
- * Self-contained like the e2e config: unless PLAYWRIGHT_BASE_URL is set, it
- * migrates + reseeds the local database and starts the dev server itself, so
- * `npm run screenshots:fallback` works from a clean checkout (needs Docker
- * for the local database — see docs/setup/local.md).
- *
- * Screenshots land in public/screenshots/ via explicit paths in
- * tests/screenshots/*.spec.ts.
- */
+const rootDir = path.resolve(__dirname, "..");
 const explicitBaseURL = process.env.PLAYWRIGHT_BASE_URL?.trim();
 const runningAgainstPreview = Boolean(explicitBaseURL);
-const port = Number(process.env.PORT ?? "3101");
+const port = Number(process.env.PORT ?? "3000");
 const localBaseURL = `http://127.0.0.1:${port}`;
 const baseURL = explicitBaseURL ?? localBaseURL;
 const webServerCommand =
@@ -30,23 +13,31 @@ const webServerCommand =
   `npm run dev:app -- --hostname 127.0.0.1 --port ${port}`;
 
 export default defineConfig({
-  testDir: ".",
+  testDir: "../tests/e2e",
+  outputDir: path.join(rootDir, "test-results"),
   forbidOnly: Boolean(process.env.CI),
   fullyParallel: false,
-  retries: 0,
+  retries: process.env.CI ? 1 : 0,
   workers: 1,
-  reporter: [["list"]],
+  reporter: [
+    ["list"],
+    [
+      "html",
+      { open: "never", outputFolder: path.join(rootDir, "playwright-report") },
+    ],
+    ["json", { outputFile: path.join(rootDir, "reports/playwright.json") }],
+  ],
   use: {
     baseURL,
-    trace: "off",
-    screenshot: "off",
-    video: "off",
+    trace: "retain-on-failure",
+    screenshot: "only-on-failure",
+    video: "retain-on-failure",
   },
   webServer: runningAgainstPreview
     ? undefined
     : {
         command: webServerCommand,
-        cwd: path.resolve(__dirname, "../.."),
+        cwd: rootDir,
         env: {
           ...process.env,
           APP_TOKEN_HASH_SECRET:
@@ -57,12 +48,20 @@ export default defineConfig({
           NEXT_PUBLIC_BETTER_AUTH_URL: `${localBaseURL}/api/auth`,
           GROQ_API_KEY: "",
           GEMINI_API_KEY: "",
+          OPENROUTER_API_KEY: "",
+          CLOUDFLARE_ACCOUNT_ID: "",
+          CLOUDFLARE_API_TOKEN: "",
+          NVIDIA_NIM_API_KEY: "",
           RESEND_API_KEY: "",
           RESEND_FROM_EMAIL: "",
           RESEND_REPLY_TO_EMAIL: "",
+          MAILTRAP_API_TOKEN: "",
+          BREVO_API_KEY: "",
+          UPSTASH_REDIS_REST_URL: "",
+          UPSTASH_REDIS_REST_TOKEN: "",
         },
         reuseExistingServer: false,
-        timeout: 180_000,
+        timeout: 120_000,
         url: localBaseURL,
       },
   projects: [

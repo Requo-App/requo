@@ -77,15 +77,34 @@ module, and use `lib/` for shared infrastructure. Reuse existing UI and
 authorization/data-access patterns. Update authoritative docs when a material
 behavior or architectural fact changes.
 
-### Root files
+### Config and tooling files
 
-Keep tool entry points at the repository root — their CLIs and editor
-integrations discover them there by default: `next.config.ts`, `proxy.ts`,
-`tsconfig.json`, `eslint.config.mjs`, `postcss.config.mjs`,
-`playwright.config.ts`, `vitest.config.ts`, `drizzle.config.ts`,
-`docker-compose.yml`, and `skills-lock.json`. Keep secondary configuration
-next to what it serves instead: test-only config lives under `tests/`, and
-development Dockerfiles live under `docker/`.
+Keep only files whose tools require a fixed root location at the repository
+root: `next.config.ts`, `proxy.ts`, `tsconfig.json`, `postcss.config.mjs`,
+`vercel.json`, `components.json`, `docker-compose.yml`, and
+`skills-lock.json` (the skills CLI hardcodes its lock file there). Other
+tool configuration lives in `config/` and `package.json` passes the explicit
+path: `eslint --config`, `vitest --config`, `playwright --config`, and
+`drizzle-kit --config`. Test-only helpers live with their tests; development
+Dockerfiles live under `docker/`.
+
+Editor integrations do not use the `package.json` lint script, and ESLint does
+not automatically discover `config/eslint.config.mjs` for application files.
+In VS Code, open the repository root as the workspace and merge this override
+into `.vscode/settings.json` for the ESLint extension:
+
+```json
+{
+  "eslint.options": {
+    "overrideConfigFile": "config/eslint.config.mjs"
+  }
+}
+```
+
+Other editor integrations need the equivalent explicit config path, resolved
+from the repository root. The npm scripts keep their explicit config options.
+`npm run lint` checks the current directory by default; pass files with
+`npm run lint -- path/to/file.ts` to lint only those files.
 
 ## Canonical patterns
 

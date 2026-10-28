@@ -48,10 +48,11 @@ the behavior a test is meant to prove.
 ## Browser conventions
 
 - Playwright owns the server. `npm run test:e2e` migrates and seeds the demo
-  database, then starts the dev server from `playwright.config.ts`. Use
+  database, then starts the dev server from `config/playwright.config.ts`. Use
   `PORT=3100 npm run test:e2e` when the default port is taken. If
   `PLAYWRIGHT_BASE_URL` points at an already-running app, migrate and seed that
-  database yourself before running `npx playwright test`.
+  database yourself before running
+  `npx playwright test --config config/playwright.config.ts`.
 - The Playwright web server blanks live email, AI, and Redis configuration.
   Browser tests must not depend on a provider call; mock chat endpoints with
   `page.route`, as the Agent and Assistant specs do.

@@ -15,7 +15,7 @@
 /playwright-report
 /test-results
 /screenshots/
-# tests/screenshots/ and its config are tracked: `npm run screenshots`
+# tests/screenshots/ is tracked: `npm run screenshots`
 # (native Windows capture) regenerates the README assets in
 # public/screenshots/ from seed data; `npm run screenshots:fallback` is the
 # portable Playwright path.

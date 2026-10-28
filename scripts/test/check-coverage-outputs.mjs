@@ -34,7 +34,7 @@ const REQUIRED_REPORTS = [
     file: path.join(COVERAGE_DIR, "index.html"),
     hint:
       "Expected Vitest's v8 `html` reporter to emit coverage/index.html. " +
-      "Check `reporter` under `coverage` in vitest.config.ts.",
+      "Check `reporter` under `coverage` in config/vitest.config.ts.",
   },
   {
     format: "text",
@@ -42,7 +42,7 @@ const REQUIRED_REPORTS = [
     hint:
       "Expected Vitest's v8 coverage run to emit coverage/coverage-final.json " +
       "alongside the stdout text summary. Check `reporter` under `coverage` in " +
-      "vitest.config.ts and confirm the v8 provider ran to completion.",
+      "config/vitest.config.ts and confirm the v8 provider ran to completion.",
   },
 ];
 
