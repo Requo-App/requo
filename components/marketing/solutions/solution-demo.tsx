@@ -357,7 +357,7 @@ export function SolutionDemo({ tabs }: { tabs: readonly SolutionDemoTab[] }) {
                 key={tab.id}
                 value={tab.id}
               >
-                <div className="overflow-hidden rounded-xl border border-border/60 bg-background shadow-sm motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-[var(--motion-duration-base)] motion-safe:ease-[var(--motion-ease-standard)]">
+                <div className="motion-enter overflow-hidden rounded-xl border border-border/60 bg-background shadow-sm">
                   <StageMock tab={tab} total={total} />
                 </div>
               </TabsContent>

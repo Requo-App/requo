@@ -143,7 +143,7 @@ export function RevenueChart({
             radius={[4, 4, 0, 0]}
             maxBarSize={28}
             isAnimationActive={!reduceMotion}
-            animationDuration={280}
+            animationDuration={240}
           />
           <Line
             type="linear"
@@ -155,7 +155,7 @@ export function RevenueChart({
             activeDot={{ r: 3, strokeWidth: 2, stroke: "var(--card)" }}
             connectNulls
             isAnimationActive={!reduceMotion}
-            animationDuration={280}
+            animationDuration={240}
           />
         </ComposedChart>
       </ChartContainer>

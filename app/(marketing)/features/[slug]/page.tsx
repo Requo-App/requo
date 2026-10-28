@@ -135,7 +135,7 @@ export default async function FeatureSlugPage({
               {related.map((entry) => (
                 <li key={entry.slug}>
                   <Link
-                    className="soft-panel group flex h-full flex-col gap-2 transition-shadow duration-200 hover:shadow-md"
+                    className="soft-panel motion-lift group flex h-full flex-col gap-2 hover:shadow-md"
                     href={featureHref(entry.slug)}
                   >
                     <span className="font-heading text-base font-semibold tracking-tight">

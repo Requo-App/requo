@@ -48,7 +48,7 @@ export function AnimatedSuccessIcon({
           fill="var(--color-accent)"
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 0.35, delay }}
+          transition={{ duration: 0.36, delay, ease: [0.16, 1, 0.3, 1] }}
         />
         {/* Checkmark */}
         <motion.path
@@ -61,9 +61,9 @@ export function AnimatedSuccessIcon({
           initial={{ pathLength: 0 }}
           animate={{ pathLength: 1 }}
           transition={{
-            duration: 0.4,
-            delay: delay + 0.2,
-            ease: "easeOut",
+            duration: 0.36,
+            delay: delay + 0.15,
+            ease: [0.16, 1, 0.3, 1],
           }}
         />
       </svg>

@@ -504,7 +504,7 @@ export function ChartDataCard({ result }: ChartDataCardProps) {
                 title={`${point.label}: ${formatVal(point.value)}`}
               >
                 <div
-                  className="w-full rounded-sm bg-primary/80 transition-all group-hover:bg-primary"
+                  className="motion-transition w-full rounded-sm bg-primary/80 group-hover:bg-primary"
                   style={{ height: `${height}px` }}
                 />
                 <span className="text-xs text-muted-foreground truncate w-full text-center">

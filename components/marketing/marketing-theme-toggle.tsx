@@ -39,9 +39,9 @@ export function MarketingThemeToggle({ className }: { className?: string }) {
       variant="ghost"
     >
       {mounted && resolvedTheme === "dark" ? (
-        <Sun className="size-4 transition-transform duration-200" />
+        <Sun className="motion-icon-swap size-4" />
       ) : (
-        <Moon className="size-4 transition-transform duration-200" />
+        <Moon className="motion-icon-swap size-4" />
       )}
       <span className="sr-only">Toggle theme</span>
     </Button>

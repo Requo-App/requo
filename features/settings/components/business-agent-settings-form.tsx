@@ -170,7 +170,7 @@ export function BusinessAgentSettingsForm({
                             onClick={() => setTone(opt.value)}
                             role="radio"
                             className={cn(
-                              "flex flex-1 items-center justify-center rounded-md px-2.5 text-xs font-medium transition-all",
+                              "motion-press flex flex-1 items-center justify-center rounded-md px-2.5 text-xs font-medium",
                               isSelected
                                 ? "bg-card text-foreground shadow-xs border border-border/50"
                                 : "text-muted-foreground hover:text-foreground",

@@ -287,7 +287,7 @@ export function FollowUpItem({
             <ChevronDown
               aria-hidden="true"
               className={cn(
-                "size-4 text-muted-foreground transition-transform duration-200",
+                "motion-icon-swap size-4 text-muted-foreground",
                 expanded && "rotate-180",
               )}
             />

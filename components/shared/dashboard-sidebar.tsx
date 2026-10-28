@@ -475,9 +475,7 @@ export function DashboardSidebar({
               // Depth comes from the sidebar surface + border + elevation shadow
               // (all flip in dark mode via CSS vars), matching the reference rail.
               "rounded-l-none rounded-r-3xl border border-l-0 border-sidebar-border bg-sidebar shadow-[var(--surface-shadow-md)]",
-        railInset
-          ? "transition-[width] shell-sidebar-motion"
-          : "transition-[width] duration-300 ease-in-out",
+        "transition-[width] shell-sidebar-motion",
         collapsed
           ? railInset
             ? // 8px frame padding + the 36px icon column. Collapsed rows are
@@ -521,7 +519,7 @@ export function DashboardSidebar({
               widths below are 16px larger than the footprint they produce. */}
           <div
             className={cn(
-              "min-w-0 transition-[max-width,opacity,transform] shell-sidebar-motion",
+              "min-w-0 transition-[max-width,opacity,transform,scale] shell-sidebar-motion",
               // Collapsed: the slot stays mounted in a centered 36px column.
               // Expanded-only rows hide themselves via
               // `group-data-[collapsed=true]/sidebar` (the aside carries
@@ -559,7 +557,7 @@ export function DashboardSidebar({
             <div
               ref={searchFieldRef}
               className={cn(
-                "flex h-9 items-center overflow-hidden rounded-full bg-sidebar-accent transition-[width,box-shadow] duration-300 ease-in-out",
+                "flex h-9 items-center overflow-hidden rounded-full bg-sidebar-accent transition-[width,box-shadow] shell-sidebar-motion",
                 searchActive
                   ? "w-full gap-2 pr-2.5 pl-2 ring-2 ring-inset ring-sidebar-ring"
                   : "w-9 gap-0 px-2",
@@ -590,7 +588,7 @@ export function DashboardSidebar({
                 tabIndex={searchActive ? 0 : -1}
                 className={cn(
                   "min-w-0 bg-transparent text-body-medium tracking-[-0.015em] text-foreground outline-none placeholder:text-muted-foreground",
-                  "transition-[width,opacity] duration-200 ease-in-out",
+                  "transition-[width,opacity] [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)]",
                   searchActive
                     ? "w-full flex-1 opacity-100 delay-100"
                     : "pointer-events-none w-0 flex-none opacity-0 delay-0",
@@ -601,7 +599,7 @@ export function DashboardSidebar({
                 aria-label="Clear navigation search"
                 onClick={() => deactivateSearch(true)}
                 className={cn(
-                  "shrink-0 bg-sidebar-accent transition-opacity duration-150",
+                  "motion-transition shrink-0 bg-sidebar-accent",
                   searchActive ? "opacity-100 delay-150" : "pointer-events-none opacity-0 delay-0",
                 )}
               />
@@ -627,12 +625,12 @@ export function DashboardSidebar({
                 setSuppressUserHover(isExpanding);
               }}
               className={cn(
-                "cursor-pointer text-muted-foreground transition-transform duration-300 ease-in-out",
+                "cursor-pointer text-muted-foreground",
                 collapsed && "flex w-9 items-center justify-center",
               )}
             >
               <RiSideBarFill
-                className={cn("size-5 transition-transform duration-300 ease-in-out", !collapsed && "-scale-x-100")}
+                className={cn("motion-icon-swap size-5", !collapsed && "-scale-x-100")}
                 aria-hidden
               />
             </button>
@@ -644,7 +642,7 @@ export function DashboardSidebar({
           {!flat && (searchActive && !collapsed ? (
             <div
               ref={searchFieldRef}
-              className="flex w-full items-center gap-2 rounded-full bg-sidebar-accent py-2 pr-2.5 pl-2 ring-2 ring-inset ring-sidebar-ring transition-[background-color,box-shadow] duration-[var(--input-transition-ms)] ease"
+              className="motion-transition flex w-full items-center gap-2 rounded-full bg-sidebar-accent py-2 pr-2.5 pl-2 ring-2 ring-inset ring-sidebar-ring"
             >
               <RiSearchLine className="size-5 shrink-0 text-muted-foreground" aria-hidden />
               <input

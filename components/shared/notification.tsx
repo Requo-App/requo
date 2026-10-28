@@ -281,16 +281,19 @@ export function Notification({
                   opacity: 0,
                   y: 8,
                   scale: 0.96,
-                  transition: { duration: 0.15, ease: "easeOut" },
+                  transition: {
+                    duration: 0.18,
+                    ease: [0.4, 0, 1, 1],
+                  },
                 }
               : {
                   opacity: 1,
                   y: 0,
                   scale: 1,
                   transition: {
-                    duration: 0.2,
+                    duration: 0.24,
                     delay: introDelay,
-                    ease: "easeOut",
+                    ease: [0.16, 1, 0.3, 1],
                   },
                 }
           }

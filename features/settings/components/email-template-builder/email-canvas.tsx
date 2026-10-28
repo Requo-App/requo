@@ -187,7 +187,7 @@ export function EmailCanvas({
         dropAnimation={
           prefersReducedMotion
             ? null
-            : { duration: 160, easing: "cubic-bezier(0.25, 1, 0.5, 1)" }
+            : { duration: 150, easing: "cubic-bezier(0.32, 0.72, 0, 1)" }
         }
       >
         {activeBlock ? (

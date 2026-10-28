@@ -19,8 +19,8 @@ import {
 } from "./builder-types";
 
 export const EMAIL_CANVAS_SORTABLE_TRANSITION = {
-  duration: 160,
-  easing: "cubic-bezier(0.25, 1, 0.5, 1)",
+  duration: 150,
+  easing: "cubic-bezier(0.32, 0.72, 0, 1)",
 } as const;
 
 const EDITABLE_TYPES: ReadonlySet<EmailTemplateBlock["type"]> = new Set([

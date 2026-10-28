@@ -284,7 +284,7 @@ export function WorkflowSteps() {
 
                 <span
                   className={cn(
-                    "text-marketing-label transition-colors duration-200",
+                    "motion-transition text-marketing-label",
                     isActive
                       ? "marketing-accent-text"
                       : "text-muted-foreground group-hover:text-foreground",
@@ -303,7 +303,7 @@ export function WorkflowSteps() {
 
                 <span
                   className={cn(
-                    "grid w-full transition-[grid-template-rows] duration-[250ms] ease-out motion-reduce:transition-none",
+                    "grid w-full transition-[grid-template-rows] [transition-duration:var(--motion-duration-base)] [transition-timing-function:var(--motion-ease-standard)] motion-reduce:transition-none",
                     isActive ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
                   )}
                 >
@@ -354,7 +354,7 @@ export function WorkflowSteps() {
               <div
                 aria-hidden="true"
                 className={cn(
-                  "pointer-events-none absolute inset-0 flex items-center transition-[opacity,translate] duration-200 ease-out motion-reduce:transition-none",
+                  "pointer-events-none absolute inset-0 flex items-center transition-[opacity,translate] [transition-duration:var(--motion-duration-base)] [transition-timing-function:var(--motion-ease-standard)] motion-reduce:transition-none",
                   isActive
                     ? "z-10 translate-y-0 opacity-100"
                     : "z-0 translate-y-1.5 opacity-0",

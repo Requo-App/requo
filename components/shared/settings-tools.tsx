@@ -125,7 +125,7 @@ const serverStatusDotVariants = cva("absolute -bottom-0.5 -left-0.5 size-2.5 rou
 });
 
 const serverMenuTriggerVariants = cva(
-  "flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground outline-none transition-colors duration-150 ease hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring",
+  "motion-press flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring",
   {
     variants: {
       open: {
@@ -139,7 +139,7 @@ const serverMenuTriggerVariants = cva(
   },
 );
 
-const serverToolsExpandVariants = cva("grid transition-[grid-template-rows,opacity] duration-300 ease-out", {
+const serverToolsExpandVariants = cva("grid transition-[grid-template-rows,opacity] [transition-duration:var(--motion-duration-base)] [transition-timing-function:var(--motion-ease-emphasized)]", {
   variants: {
     expanded: {
       true: "grid-rows-[1fr] opacity-100",
@@ -152,7 +152,7 @@ const serverToolsExpandVariants = cva("grid transition-[grid-template-rows,opaci
 });
 
 const newServerTileVariants = cva(
-  "flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted transition-colors duration-150 ease group-hover:bg-accent",
+  "motion-transition flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted group-hover:bg-accent",
   {
     variants: {},
   },
@@ -209,7 +209,7 @@ function InlineAction({ children, onClick }: { children: ReactNode; onClick?: ()
       onClick={onClick}
       className={cn(
         "cursor-pointer rounded-sm whitespace-nowrap text-muted-foreground",
-        "outline-none transition-colors duration-150 ease",
+        "motion-transition outline-none",
         "hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring",
         "text-body-2-regular",
       )}
@@ -241,7 +241,7 @@ function ServerRow({ server }: { server: McpServer }) {
                   onClick={() => setExpanded((v) => !v)}
                   className={cn(
                     "flex size-4 shrink-0 cursor-pointer items-center justify-center rounded-xs",
-                    "text-muted-foreground outline-none transition-colors duration-150 ease",
+                    "motion-transition text-muted-foreground outline-none",
                     "hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring",
                   )}
                 >

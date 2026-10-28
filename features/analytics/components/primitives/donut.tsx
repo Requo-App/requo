@@ -77,7 +77,7 @@ export function Donut({
               startAngle={90}
               endAngle={-270}
               isAnimationActive={!reduceMotion}
-              animationDuration={280}
+              animationDuration={240}
             >              {slices.map((slice) => (
                 <Cell key={slice.key} fill={slice.color} />
               ))}

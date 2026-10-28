@@ -31,10 +31,13 @@ type AnimatedListAction<T extends { id: string }> =
   | { type: "replace"; tempId: string; item: T }
   | { type: "move"; id: string; toIndex: number };
 
-const EXIT_DURATION_MS = 280;
-const UPDATE_DURATION_MS = 220;
-const FLIP_DURATION_MS = 220;
-const FLIP_EASING = "cubic-bezier(0.22, 1, 0.36, 1)";
+// Keep these in lockstep with the motion tokens in app/globals.css:
+// base (enter / reorder flip), fast (update pulse), and exit.
+const ENTER_DURATION_MS = 240;
+const EXIT_DURATION_MS = 220;
+const UPDATE_DURATION_MS = 150;
+const FLIP_DURATION_MS = 240;
+const FLIP_EASING = "cubic-bezier(0.32, 0.72, 0, 1)";
 
 /** Shared with bespoke lists (e.g. FollowUpBoard) so exit timing never drifts. */
 export const LIST_EXIT_MS = EXIT_DURATION_MS;
@@ -220,7 +223,7 @@ export function useAnimatedList<T extends { id: string }>(serverItems: T[]) {
     setTimeout(() => {
       enteringIds.current.delete(id);
       triggerRender();
-    }, EXIT_DURATION_MS);
+    }, prefersReducedMotion() ? 0 : ENTER_DURATION_MS);
   }, [triggerRender]);
 
   const markUpdating = useCallback((id: string) => {
@@ -234,7 +237,7 @@ export function useAnimatedList<T extends { id: string }>(serverItems: T[]) {
       updatingIds.current.delete(id);
       updateTimers.current.delete(id);
       triggerRender();
-    }, UPDATE_DURATION_MS);
+    }, prefersReducedMotion() ? 0 : UPDATE_DURATION_MS);
 
     updateTimers.current.set(id, timer);
   }, [triggerRender]);
@@ -380,7 +383,7 @@ export function useAnimatedList<T extends { id: string }>(serverItems: T[]) {
           mutation,
           pendingKey: id,
         });
-      }, EXIT_DURATION_MS);
+      }, prefersReducedMotion() ? 0 : EXIT_DURATION_MS);
 
       exitTimers.current.set(id, timer);
     },
@@ -428,7 +431,7 @@ export function useAnimatedList<T extends { id: string }>(serverItems: T[]) {
           mutation,
           pendingKey: ids.join(","),
         });
-      }, EXIT_DURATION_MS);
+      }, prefersReducedMotion() ? 0 : EXIT_DURATION_MS);
 
       for (const id of ids) {
         exitTimers.current.set(id, timer);

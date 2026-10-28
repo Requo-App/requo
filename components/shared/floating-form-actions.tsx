@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 
+import { useOverlayPresence } from "@/components/ui/overlay-state";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
@@ -44,11 +45,15 @@ export function FloatingFormActions({
   extraAction,
   stackActionsOnMobile = false,
 }: FloatingFormActionsProps) {
-  if (!visible) {
+  // Keep the bar mounted briefly after `visible` drops so the exit animation
+  // can play instead of disappearing in one frame.
+  const present = useOverlayPresence(visible, 200);
+
+  if (!present) {
     return null;
   }
 
-  const isClosing = state === "closed";
+  const isClosing = !visible || state === "closed";
   const disableCancelButton = isPending;
   const disableSubmitButton = isPending || (!isClosing && disableSubmit);
 
@@ -57,12 +62,12 @@ export function FloatingFormActions({
       <div
         data-padding="none"
         className={cn(
-          "overlay-surface motion-safe:data-[state=open]:animate-in motion-safe:data-[state=open]:fade-in-0 motion-safe:data-[state=open]:slide-in-from-bottom-2 motion-safe:data-[state=open]:zoom-in-95 motion-safe:data-[state=open]:duration-200 motion-safe:data-[state=open]:ease-(--motion-ease-emphasized) motion-safe:data-[state=closed]:animate-out motion-safe:data-[state=closed]:fade-out-0 motion-safe:data-[state=closed]:slide-out-to-bottom-2 motion-safe:data-[state=closed]:zoom-out-95 motion-safe:data-[state=closed]:duration-150 motion-safe:data-[state=closed]:ease-(--motion-ease-standard) data-[state=closed]:pointer-events-none motion-reduce:animate-none flex w-full max-w-2xl items-center justify-center sm:justify-between gap-3 border px-4 py-3",
+          "overlay-surface motion-floating-bar flex w-full max-w-2xl items-center justify-center gap-3 border px-4 py-3 sm:justify-between",
           stackActionsOnMobile &&
             "flex-col items-stretch sm:flex-row sm:items-center",
           className,
         )}
-        data-state={state}
+        data-state={isClosing ? "closed" : "open"}
       >
         <p className="hidden sm:block text-sm text-muted-foreground">{message}</p>
         <div

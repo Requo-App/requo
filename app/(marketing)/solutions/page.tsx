@@ -68,7 +68,7 @@ export default async function SolutionsHubPage() {
               return (
                 <li key={solution.slug}>
                   <Link
-                    className="soft-panel group flex h-full flex-col gap-2.5 transition-shadow duration-200 hover:shadow-md"
+                    className="soft-panel motion-lift group flex h-full flex-col gap-2.5 hover:shadow-md"
                     href={solutionHref(solution.slug)}
                   >
                     <span className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary-ink">

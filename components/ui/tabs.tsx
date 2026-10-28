@@ -121,7 +121,7 @@ function TabsList({
         <span
           aria-hidden
           data-slot="tabs-indicator"
-          className="pointer-events-none absolute top-0 left-0 z-0 rounded-md border border-border/80 bg-[var(--control-bg)] shadow-[var(--control-shadow)] transition-[transform,width,height] duration-200 ease-[var(--motion-ease-emphasized)] motion-reduce:hidden"
+          className="motion-control-thumb pointer-events-none absolute top-0 left-0 z-0 rounded-md border border-border/80 bg-[var(--control-bg)] shadow-[var(--control-shadow)] motion-reduce:hidden"
           style={{
             transform: `translate(${thumb.x}px, ${thumb.y}px)`,
             width: thumb.w,
@@ -133,7 +133,7 @@ function TabsList({
         <span
           aria-hidden
           data-slot="tabs-indicator"
-          className="pointer-events-none absolute top-0 left-0 z-0 rounded-full bg-primary transition-[transform,width,height] duration-200 ease-[var(--motion-ease-emphasized)] motion-reduce:hidden"
+          className="motion-control-thumb pointer-events-none absolute top-0 left-0 z-0 rounded-full bg-primary motion-reduce:hidden"
           style={{
             transform: `translate(${thumb.x}px, ${thumb.y}px)`,
             width: thumb.w,
@@ -153,7 +153,7 @@ function TabsTrigger({
     <TabsPrimitive.Trigger
       data-slot="tabs-trigger"
       className={cn(
-        "relative inline-flex h-auto min-h-0 shrink-0 items-center justify-center gap-2 rounded-md border border-transparent px-3 py-1.5 text-sm font-medium whitespace-nowrap text-foreground/65 transition-all group-data-horizontal/tabs:flex-none group-data-vertical/tabs:w-full group-data-vertical/tabs:justify-start hover:text-foreground focus-visible:border-ring/50 focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:outline-1 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2 dark:text-muted-foreground dark:hover:text-foreground group-data-[variant=default]/tabs-list:data-active:shadow-[var(--control-shadow)] group-data-[variant=line]/tabs-list:data-active:shadow-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        "motion-press relative inline-flex h-auto min-h-0 shrink-0 items-center justify-center gap-2 rounded-md border border-transparent px-3 py-1.5 text-sm font-medium whitespace-nowrap text-foreground/65 group-data-horizontal/tabs:flex-none group-data-vertical/tabs:w-full group-data-vertical/tabs:justify-start hover:text-foreground focus-visible:border-ring/50 focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:outline-1 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2 dark:text-muted-foreground dark:hover:text-foreground group-data-[variant=default]/tabs-list:data-active:shadow-[var(--control-shadow)] group-data-[variant=line]/tabs-list:data-active:shadow-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         "group-data-[variant=line]/tabs-list:bg-transparent group-data-[variant=line]/tabs-list:data-active:bg-transparent dark:group-data-[variant=line]/tabs-list:data-active:border-transparent dark:group-data-[variant=line]/tabs-list:data-active:bg-transparent",
         "data-active:border-[var(--control-border)] data-active:bg-[var(--control-bg)] data-active:text-foreground dark:data-active:border-[var(--control-border)] dark:data-active:text-foreground group-data-[variant=line]/tabs-list:data-active:text-primary-ink dark:group-data-[variant=line]/tabs-list:data-active:text-primary-ink",
         "after:absolute after:bg-primary after:opacity-0 after:transition-opacity group-data-horizontal/tabs:after:inset-x-0 group-data-horizontal/tabs:after:bottom-[-5px] group-data-horizontal/tabs:after:h-0.5 group-data-vertical/tabs:after:inset-y-0 group-data-vertical/tabs:after:-right-1 group-data-vertical/tabs:after:w-0.5 group-data-[variant=line]/tabs-list:data-active:after:opacity-100",

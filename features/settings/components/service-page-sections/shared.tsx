@@ -86,7 +86,7 @@ export function DisclosureSection({
         <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-full border border-border/70 bg-muted text-muted-foreground transition-colors group-hover:border-border">
           <ChevronDown
             className={cn(
-              "size-4 transition-transform duration-200",
+              "motion-icon-swap size-4",
               isOpen && "rotate-180",
             )}
           />

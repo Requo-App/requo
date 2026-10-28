@@ -68,7 +68,7 @@ export function ToolProcessDisclosure({
         <ChevronRight
           aria-hidden="true"
           className={cn(
-            "size-3.5 transition-transform duration-[var(--motion-duration-fast)]",
+            "size-3.5 transition-transform [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)]",
             open && "rotate-90",
           )}
         />

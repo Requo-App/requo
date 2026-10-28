@@ -39,7 +39,7 @@ import { SettingsTools } from "@/components/shared/settings-tools";
  *             the page itself scrolls when taller than the shell (General).
  *
  * Open/close animation: the panel fades in from scale 0.96 + 8px rise
- * (200ms), the backdrop cross-fades (150ms); the same transition plays in
+ * (240ms), the backdrop cross-fades (150ms); the same transition plays in
  * reverse on close, and the modal unmounts only after the exit finishes.
  */
 
@@ -105,35 +105,10 @@ const PAGE_TITLES: Record<SettingsPage, string> = {
   tools: "Tools",
 };
 
-const settingsBackdropVariants = cva(
-  "absolute inset-0 cursor-default bg-[var(--modal-backdrop)] transition-opacity duration-150 ease-out",
-  {
-    variants: {
-      visible: {
-        true: "opacity-100",
-        false: "opacity-0",
-      },
-    },
-    defaultVariants: {
-      visible: false,
-    },
-  },
-);
+const settingsBackdropClassName =
+  "motion-backdrop absolute inset-0 cursor-default bg-[var(--modal-backdrop)]";
 
-const settingsShellVariants = cva(
-  "relative transform-gpu transition-[opacity,transform] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]",
-  {
-    variants: {
-      visible: {
-        true: "scale-100 translate-y-0 opacity-100",
-        false: "scale-[0.96] translate-y-2 opacity-0",
-      },
-    },
-    defaultVariants: {
-      visible: false,
-    },
-  },
-);
+const settingsShellClassName = "motion-dialog-surface relative";
 
 const settingsPanelVariants = cva(
   // overflow-CLIP, not hidden: hidden boxes are still programmatically
@@ -148,7 +123,7 @@ const settingsPanelVariants = cva(
 );
 
 const settingsNavItemVariants = cva(
-  "flex w-full cursor-pointer items-center gap-2 rounded-md p-2 text-left outline-none transition-colors duration-150 ease focus-visible:ring-2 focus-visible:ring-ring",
+  "motion-press flex w-full cursor-pointer items-center gap-2 rounded-md p-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring",
   {
     variants: {
       selected: {
@@ -178,7 +153,7 @@ const settingsTitleRowVariants = cva("flex shrink-0 items-center justify-between
 });
 
 const settingsTopFadeVariants = cva(
-  "pointer-events-none absolute inset-x-0 top-0 h-10 bg-linear-to-b from-[var(--overlay-surface-bg)] to-transparent transition-opacity duration-200 ease-out",
+  "pointer-events-none absolute inset-x-0 top-0 h-10 bg-linear-to-b from-[var(--overlay-surface-bg)] to-transparent transition-opacity [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)]",
   {
     variants: {
       scrolled: {
@@ -193,7 +168,7 @@ const settingsTopFadeVariants = cva(
 );
 
 const settingsSavedToastVariants = cva(
-  "pointer-events-none absolute bottom-0 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1 rounded-full border border-border bg-card py-1 pr-2.5 pl-1.5 shadow-[var(--overlay-surface-shadow)] transition-[opacity,transform] duration-200 ease-out",
+  "pointer-events-none absolute bottom-0 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1 rounded-full border border-border bg-card py-1 pr-2.5 pl-1.5 shadow-[var(--overlay-surface-shadow)] transition-[opacity,translate,scale] [transition-duration:var(--motion-duration-base)] [transition-timing-function:var(--motion-ease-emphasized)]",
   {
     variants: {
       phase: {
@@ -239,7 +214,7 @@ export function SettingsModal({
       setSavedPhase("leaving");
       // Reset to the below-the-edge start once the fade-out finished, so the
       // next save rises in from the bottom again (invisible: opacity 0 → 0).
-      savedTimer.current = setTimeout(() => setSavedPhase("hidden"), 220);
+      savedTimer.current = setTimeout(() => setSavedPhase("hidden"), 240);
     }, 2000);
   };
 
@@ -268,7 +243,7 @@ export function SettingsModal({
     } else {
       setVisible(false);
       setSavedPhase("hidden");
-      unmountTimer.current = setTimeout(() => setMounted(false), 230);
+      unmountTimer.current = setTimeout(() => setMounted(false), 200);
     }
     return () => {
       for (const id of rafIds.current) cancelAnimationFrame(id);
@@ -295,10 +270,17 @@ export function SettingsModal({
       if (focusable.length === 0) return;
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
+      const active = document.activeElement;
+      // The panel itself holds focus on open (tabIndex -1), so Shift+Tab must
+      // wrap from the panel as well as from the first focusable control.
+      const focusOutsidePanel = !panelRef.current.contains(active);
+      if (
+        event.shiftKey &&
+        (active === first || active === panelRef.current || focusOutsidePanel)
+      ) {
         event.preventDefault();
         last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
+      } else if (!event.shiftKey && (active === last || focusOutsidePanel)) {
         event.preventDefault();
         first.focus();
       }
@@ -322,7 +304,8 @@ export function SettingsModal({
         aria-label="Close settings"
         tabIndex={-1}
         onClick={onClose}
-        className={settingsBackdropVariants({ visible })}
+        data-state={visible ? "open" : "closed"}
+        className={settingsBackdropClassName}
       />
 
       {/* Animated wrapper — carries the open/close transition for the panel
@@ -330,8 +313,9 @@ export function SettingsModal({
           must live outside the panel's overflow-clip. Non-interactive while
           exiting so closing never leaves an invisible interactive layer. */}
       <div
+        data-state={visible ? "open" : "closed"}
         className={cn(
-          settingsShellVariants({ visible }),
+          settingsShellClassName,
           !visible && "pointer-events-none",
         )}
       >
@@ -395,9 +379,9 @@ export function SettingsModal({
               aria-label="Close settings"
               onClick={onClose}
               className={cn(
-                "flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-full",
+                "motion-press flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-full",
                 "bg-muted text-muted-foreground",
-                "transition-colors duration-150 ease hover:bg-accent",
+                "hover:bg-accent",
                 "outline-none focus-visible:ring-2 focus-visible:ring-ring",
               )}
             >

@@ -213,7 +213,7 @@ export function SelectBusinessDialog({
                     disabled={!isClickable}
                     onClick={() => handleSelectBusiness(business)}
                     className={cn(
-                      "group relative flex w-full items-center justify-between gap-3 rounded-xl border border-border bg-card p-3.5 text-left transition-all",
+                      "motion-transition group relative flex w-full items-center justify-between gap-3 rounded-xl border border-border bg-card p-3.5 text-left",
                       "hover:border-primary hover:bg-muted hover:shadow-sm cursor-pointer active:scale-[0.99]",
                       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                       isStarting && "opacity-90 pointer-events-none",
@@ -227,7 +227,7 @@ export function SelectBusinessDialog({
                       />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <p className="truncate text-sm font-medium text-foreground group-hover:text-primary-ink transition-colors">
+                          <p className="motion-transition truncate text-sm font-medium text-foreground group-hover:text-primary-ink">
                             {business.name}
                           </p>
                           <PlanBadge plan={business.plan as PlanTier} />
@@ -239,7 +239,7 @@ export function SelectBusinessDialog({
                     </div>
 
                     <div className="shrink-0">
-                      <div className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-mono font-medium uppercase tracking-wider text-primary-foreground transition-all group-hover:bg-primary/90">
+                      <div className="motion-transition flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-mono font-medium uppercase tracking-wider text-primary-foreground group-hover:bg-primary/90">
                         {isStarting ? (
                           <>
                             <Spinner className="size-3.5 text-primary-foreground" aria-hidden="true" />

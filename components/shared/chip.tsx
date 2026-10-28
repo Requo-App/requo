@@ -25,7 +25,7 @@ export interface ChipProps extends HTMLAttributes<HTMLSpanElement> {
 }
 
 const chipVariants = cva(
-  "inline-flex items-center justify-center rounded-md px-1.5 whitespace-nowrap transition-[padding,font-size] duration-200 ease",
+  "inline-flex items-center justify-center rounded-md px-1.5 whitespace-nowrap transition-[padding,font-size] [transition-duration:var(--motion-duration-base)] [transition-timing-function:var(--motion-ease-standard)]",
   {
     variants: {
       variant: {

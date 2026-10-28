@@ -597,7 +597,7 @@ export function MobileBusinessSwitcher({
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
-            className="control-surface flex size-8 shrink-0 items-center justify-center rounded-lg border transition-colors hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 active:scale-95"
+            className="motion-press control-surface flex size-8 shrink-0 items-center justify-center rounded-lg border hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
             aria-label="Switch business"
             type="button"
           >
@@ -796,7 +796,7 @@ export function MobileUserMenu({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
-          className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-transparent transition-colors hover:border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-95"
+          className="motion-press flex size-8 shrink-0 items-center justify-center rounded-lg border border-transparent hover:border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           aria-label="User profile menu"
           type="button"
         >

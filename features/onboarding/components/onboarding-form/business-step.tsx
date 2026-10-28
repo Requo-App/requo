@@ -121,7 +121,7 @@ export function BusinessStep({
                       role="button"
                       tabIndex={isPending ? -1 : 0}
                     >
-                      <span className="absolute inset-0 rounded-full bg-foreground/0 transition-colors duration-150 sm:group-hover:bg-foreground/10" />
+                      <span className="motion-transition absolute inset-0 rounded-full bg-foreground/0 sm:group-hover:bg-foreground/10" />
                       <span className="control-surface relative mr-0.5 mb-0.5 inline-flex size-8 items-center justify-center rounded-full border text-foreground">
                         <Camera className="size-3.5" />
                         <span className="sr-only">Upload photo</span>
@@ -244,7 +244,7 @@ export function BusinessStep({
                   role="button"
                   tabIndex={isPending ? -1 : 0}
                 >
-                  <span className="absolute inset-0 rounded-xl bg-foreground/0 transition-colors duration-150 sm:group-hover:bg-foreground/10" />
+                  <span className="motion-transition absolute inset-0 rounded-xl bg-foreground/0 sm:group-hover:bg-foreground/10" />
                   <span className="control-surface relative mr-0.5 mb-0.5 inline-flex size-8 items-center justify-center rounded-full border text-foreground">
                     <Camera className="size-3.5" />
                     <span className="sr-only">Upload logo</span>

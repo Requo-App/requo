@@ -195,7 +195,7 @@ export function ImporterQuoteLibraryReview({
             return (
               <div
                 className={cn(
-                  "flex flex-col gap-3 rounded-lg border bg-card px-4 py-4 transition-[border-color,background-color] duration-300",
+                  "flex flex-col gap-3 rounded-lg border bg-card px-4 py-4 transition-[border-color,background-color] [transition-duration:var(--motion-duration-base)] [transition-timing-function:var(--motion-ease-standard)]",
                   isOver
                     ? "border-destructive/70 bg-destructive/5 ring-1 ring-destructive/30"
                     : "border-border/70",

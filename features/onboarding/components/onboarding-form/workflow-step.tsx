@@ -63,7 +63,7 @@ export function WorkflowStep({
                   <button
                     key={workflowKey}
                     className={cn(
-                      "group relative flex items-center gap-4 rounded-xl border p-4 text-left transition-all duration-150 sm:p-5",
+                      "motion-transition group relative flex items-center gap-4 rounded-xl border p-4 text-left sm:p-5",
                       isSelected
                         ? "border-primary bg-primary/[0.04] ring-1 ring-primary/20 shadow-sm"
                         : "border-border/70 bg-card hover:border-border hover:bg-accent/40",

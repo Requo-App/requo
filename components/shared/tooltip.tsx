@@ -37,7 +37,7 @@ import { cn } from "@/lib/utils";
 export type TooltipSize = "sm" | "md";
 
 const tooltipVariants = cva(
-  "pointer-events-none z-50 max-w-[240px] select-none rounded-lg border border-border-button-default bg-background-primary-default text-text-primary shadow-dropdown transition duration-200 ease-out data-[entering]:scale-90 data-[entering]:opacity-0 data-[entering]:blur-[4px] data-[exiting]:scale-90 data-[exiting]:opacity-0 data-[exiting]:blur-[4px]",
+  "motion-aria-popover pointer-events-none z-50 max-w-[240px] select-none rounded-lg border border-border-button-default bg-background-primary-default text-text-primary shadow-dropdown",
   {
     variants: {
       size: {

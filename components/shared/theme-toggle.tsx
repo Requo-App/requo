@@ -206,7 +206,7 @@ const themeSegmentGroupVariants = cva("relative inline-flex w-fit items-center g
 });
 
 const themeSegmentThumbVariants = cva(
-  "pointer-events-none absolute rounded-full border border-border shadow-xs transition-transform duration-200 ease",
+  "motion-control-thumb pointer-events-none absolute rounded-full border border-border shadow-xs",
   {
     variants: {
       // Position/size live in the branches so only one set reaches the DOM.
@@ -235,7 +235,7 @@ const themeSegmentThumbVariants = cva(
 );
 
 const themeSegmentButtonVariants = cva(
-  "relative z-10 grid cursor-pointer place-items-center rounded-full outline-none transition-colors duration-150 ease focus-visible:ring-2 focus-visible:ring-ring",
+  "motion-press relative z-10 grid cursor-pointer place-items-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring",
   {
     variants: {
       // Segment size lives in the branches so only one reaches the DOM.
@@ -258,14 +258,14 @@ const themeSegmentButtonVariants = cva(
 );
 
 const themeCollapsedButtonVariants = cva(
-  "flex size-9 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors duration-150 ease hover:bg-accent hover:text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring",
+  "motion-press flex size-9 cursor-pointer items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring",
   {
     variants: {},
   },
 );
 
 const themeRowSwitchVariants = cva(
-  "flex w-full cursor-pointer items-center justify-between rounded-md p-2 transition-colors duration-150 ease hover:bg-accent",
+  "motion-transition flex w-full cursor-pointer items-center justify-between rounded-md p-2 hover:bg-accent",
   {
     variants: {
       focusVisible: {

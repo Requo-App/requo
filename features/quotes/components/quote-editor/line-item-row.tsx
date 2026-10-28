@@ -120,7 +120,9 @@ export function LineItemCard({
       ref={setNodeRef}
       style={style}
       className={cn(
-        "group/line-item rounded-lg border border-border/60 bg-card px-3 py-2.5 transition-[border-color,box-shadow,background-color] duration-150 hover:border-border",
+        // dnd-kit writes the live drag transform inline; a transform
+        // transition here would make the card trail the pointer.
+        "group/line-item rounded-lg border border-border/60 bg-card px-3 py-2.5 transition-[border-color,box-shadow,background-color] hover:border-border",
         isDragging && "border-primary/40 shadow-[var(--overlay-surface-shadow)]",
         item.isAiGenerated && "ai-glow-border",
       )}

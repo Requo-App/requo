@@ -12,8 +12,8 @@ import { cn } from "@/lib/utils";
 const highlightTransition = {
   // Mirrors `--motion-duration-fast` / `--motion-ease-standard`. Motion needs
   // numbers here, so the shared values are duplicated rather than a CSS var.
-  duration: 0.16,
-  ease: [0.25, 1, 0.5, 1] as const,
+  duration: 0.15,
+  ease: [0.32, 0.72, 0, 1] as const,
 };
 
 export type MarketingMenuItem = {

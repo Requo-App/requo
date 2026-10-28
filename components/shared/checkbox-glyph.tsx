@@ -23,7 +23,7 @@ export interface CheckboxGlyphState {
 // same-group conflicts last-wins, while cva concatenates, so stacking both
 // sides would leave the winner to stylesheet order instead.
 const checkboxGlyphVariants = cva(
-  "flex shrink-0 items-center justify-center rounded-sm transition-[background-color,border-color,box-shadow] duration-150 ease",
+  "motion-transition flex shrink-0 items-center justify-center rounded-sm",
   {
     variants: {
       size: {

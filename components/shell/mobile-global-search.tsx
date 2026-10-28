@@ -69,6 +69,44 @@ export function MobileGlobalSearch({
   const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
   const [state, setState] = useState<SearchState>({ status: "idle" });
+  const [mounted, setMounted] = useState(open);
+  const [visible, setVisible] = useState(false);
+  const unmountTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const rafIds = useRef<number[]>([]);
+
+  // Two-phase mount so the fullscreen surface can play its enter and exit
+  // motion before leaving the DOM.
+  useEffect(() => {
+    if (open) {
+      if (unmountTimer.current) clearTimeout(unmountTimer.current);
+      setMounted(true);
+      rafIds.current.push(
+        requestAnimationFrame(() =>
+          rafIds.current.push(
+            requestAnimationFrame(() => {
+              setVisible(true);
+              inputRef.current?.focus();
+            }),
+          ),
+        ),
+      );
+    } else if (mounted) {
+      setVisible(false);
+      unmountTimer.current = setTimeout(() => setMounted(false), 240);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mounted is read at close time
+  }, [open]);
+
+  useEffect(() => {
+    if (!mounted) {
+      return;
+    }
+    return () => {
+      for (const id of rafIds.current) cancelAnimationFrame(id);
+      rafIds.current = [];
+      if (unmountTimer.current) clearTimeout(unmountTimer.current);
+    };
+  }, [mounted]);
 
   useEffect(() => {
     if (!open) {
@@ -76,9 +114,12 @@ export function MobileGlobalSearch({
     }
     setQuery("");
     setState({ status: "idle" });
-    const frame = window.requestAnimationFrame(() =>
-      inputRef.current?.focus(),
-    );
+  }, [open]);
+
+  useEffect(() => {
+    if (!mounted) {
+      return;
+    }
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         onOpenChange(false);
@@ -88,15 +129,18 @@ export function MobileGlobalSearch({
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
-      window.cancelAnimationFrame(frame);
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = previousOverflow;
     };
-  }, [open, onOpenChange]);
+  }, [mounted, onOpenChange]);
 
   // Close the overlay on successful navigation.
   useEffect(() => {
     if (open) {
+      // Leave instantly on navigation: a fading overlay over the destination
+      // reads as a stuck screen, not as motion.
+      setVisible(false);
+      setMounted(false);
       onOpenChange(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -139,7 +183,7 @@ export function MobileGlobalSearch({
     };
   }, [open, query, businessSlug]);
 
-  if (!open) {
+  if (!mounted) {
     return null;
   }
 
@@ -151,7 +195,11 @@ export function MobileGlobalSearch({
       role="dialog"
       aria-modal="true"
       aria-label="Search records"
-      className="fixed inset-0 z-50 flex flex-col bg-background lg:hidden"
+      data-state={visible ? "open" : "closed"}
+      className={cn(
+        "motion-fullscreen-panel motion-fullscreen-nav fixed inset-0 z-50 flex flex-col bg-background lg:hidden",
+        !visible && "pointer-events-none",
+      )}
     >
       <div className="flex h-13 shrink-0 items-center gap-2 border-b border-border/70 px-3">
         <RiSearchLine
@@ -171,7 +219,7 @@ export function MobileGlobalSearch({
           type="button"
           onClick={() => onOpenChange(false)}
           aria-label="Close search"
-          className="flex size-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40 active:scale-95"
+          className="motion-press flex size-9 shrink-0 items-center justify-center rounded-full text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40"
         >
           <RiCloseLine className="size-5" aria-hidden="true" />
         </button>
@@ -205,7 +253,7 @@ export function MobileGlobalSearch({
                   href={result.href}
                   prefetch={true}
                   className={cn(
-                    "flex min-h-11 items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
+                    "motion-transition flex min-h-11 items-center gap-3 rounded-lg px-3 py-2.5 text-sm",
                     "text-foreground hover:bg-muted",
                     "outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
                   )}

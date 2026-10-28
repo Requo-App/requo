@@ -198,26 +198,29 @@ const sortableHeaderLabelVariants = cva("whitespace-nowrap", {
   },
 });
 
-const sortableHeaderChevronVariants = cva("size-6 transition-[transform,color] duration-150 ease", {
-  variants: {
-    active: {
-      true: "text-foreground",
-      false: "text-muted-foreground",
+const sortableHeaderChevronVariants = cva(
+  "size-6 [transition:rotate_var(--motion-duration-base)_var(--motion-ease-spring),color_var(--motion-duration-fast)_var(--motion-ease-standard)]",
+  {
+    variants: {
+      active: {
+        true: "text-foreground",
+        false: "text-muted-foreground",
+      },
+      direction: {
+        asc: "rotate-180",
+        desc: "",
+        none: "",
+      },
     },
-    direction: {
-      asc: "rotate-180",
-      desc: "",
-      none: "",
+    defaultVariants: {
+      active: false,
+      direction: "none",
     },
   },
-  defaultVariants: {
-    active: false,
-    direction: "none",
-  },
-});
+);
 
 const rowMoreMenuTriggerVariants = cva(
-  "relative inline-flex size-8 shrink-0 items-center justify-center rounded-md border border-border bg-card text-foreground shadow-xs transition-[background-color,border-color,box-shadow,color] duration-150 ease hover:border-border hover:bg-accent",
+  "motion-press relative inline-flex size-8 shrink-0 items-center justify-center rounded-md border border-border bg-card text-foreground shadow-xs hover:border-border hover:bg-accent",
   {
     variants: {
       open: {
@@ -339,7 +342,7 @@ function RowMoreMenu({ name }: { name: string }) {
 }
 
 type RowAnimationPhase = "idle" | "entering" | "exiting";
-const ROW_EXIT_DURATION_MS = 225;
+const ROW_EXIT_DURATION_MS = 220;
 
 /** Shared row transition shell. Entry reveals a newly uploaded row from
  *  beneath the header; exit plays the exact structural reverse before the

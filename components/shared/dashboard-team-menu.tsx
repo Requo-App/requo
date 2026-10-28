@@ -83,7 +83,7 @@ const GROUPS: MenuGroup[] = [
 ];
 
 const collapsibleVariants = cva(
-  "flex min-w-0 items-center overflow-hidden transition-[max-width,opacity,filter] duration-300 ease-in-out",
+  "flex min-w-0 items-center overflow-hidden transition-[max-width,opacity,filter] shell-sidebar-motion",
   {
     variants: {
       collapsed: {
@@ -98,7 +98,7 @@ const collapsibleVariants = cva(
 );
 
 const teamMenuItemVariants = cva(
-  "flex w-full items-center gap-2.5 rounded-md p-2 outline-none transition-colors",
+  "motion-transition flex w-full items-center gap-2.5 rounded-md p-2 outline-none",
   {
     variants: {
       selected: {
@@ -113,7 +113,7 @@ const teamMenuItemVariants = cva(
 );
 
 const teamMenuTriggerVariants = cva(
-  "flex cursor-pointer items-center overflow-hidden outline-none border-2 border-transparent hover:border-sidebar-border transition-[width,background-color,border-color,padding] duration-300 ease-in-out focus-visible:ring-2 focus-visible:ring-sidebar-ring/40",
+  "flex cursor-pointer items-center overflow-hidden outline-none border-2 border-transparent hover:border-sidebar-border transition-[width,background-color,border-color,padding] shell-sidebar-motion focus-visible:ring-2 focus-visible:ring-sidebar-ring/40",
   {
     variants: {
       collapsed: {
@@ -128,7 +128,7 @@ const teamMenuTriggerVariants = cva(
 );
 
 const teamMenuPopoverVariants = cva(
-  "w-[16.5625rem] max-w-[calc(100vw-2rem)] origin-bottom-left overflow-y-auto rounded-2xl border border-[var(--overlay-surface-border)] bg-popover p-2.5 shadow-[var(--overlay-surface-shadow)] transition duration-150 ease-out data-[entering]:opacity-0 data-[entering]:scale-95 data-[entering]:blur-[2px] data-[exiting]:opacity-0 data-[exiting]:scale-95 data-[exiting]:blur-[2px]",
+  "motion-aria-popover w-[16.5625rem] max-w-[calc(100vw-2rem)] origin-bottom-left overflow-y-auto rounded-2xl border border-[var(--overlay-surface-border)] bg-popover p-2.5 shadow-[var(--overlay-surface-shadow)]",
   {
     variants: {},
   },
@@ -205,7 +205,7 @@ export function DashboardTeamMenu({
         <Collapsible collapsed={collapsed}>
           <span className="flex size-4 shrink-0 items-center justify-center rounded-[3px] bg-card">
             <ChevronDownSmall
-              className={cn("size-4 text-muted-foreground transition-transform duration-200 ease", isOpen && "rotate-180")}
+              className={cn("motion-icon-swap size-4 text-muted-foreground", isOpen && "rotate-180")}
             />
           </span>
         </Collapsible>

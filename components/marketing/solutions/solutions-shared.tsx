@@ -105,7 +105,7 @@ export function SolutionFeatures({
     <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
       {items.map((item, index) => (
         <div
-          className="soft-panel group flex flex-col gap-2.5 transition-shadow duration-200 motion-safe:hover:-translate-y-0.5 hover:shadow-md"
+          className="soft-panel motion-lift group flex flex-col gap-2.5 hover:shadow-md"
           key={item.title}
         >
           <div className="flex items-center justify-between gap-3">
@@ -290,7 +290,7 @@ export function RelatedSolutions({ detail }: { detail: SolutionDetail }) {
         return (
           <li key={link.slug}>
             <Link
-              className="soft-panel group flex h-full flex-col gap-2.5 transition-shadow duration-200 hover:shadow-md"
+              className="soft-panel motion-lift group flex h-full flex-col gap-2.5 hover:shadow-md"
               href={solutionHref(link.slug)}
             >
               <span className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary-ink">
@@ -306,7 +306,7 @@ export function RelatedSolutions({ detail }: { detail: SolutionDetail }) {
                 Explore solution
                 <ArrowRight
                   aria-hidden="true"
-                  className="size-4 transition-transform duration-200 group-hover:translate-x-0.5"
+                  className="size-4 transition-transform [transition-duration:var(--motion-duration-base)] [transition-timing-function:var(--motion-ease-standard)] group-hover:translate-x-0.5"
                 />
               </span>
             </Link>

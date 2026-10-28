@@ -231,7 +231,7 @@ export function TrendChart({
                 }}
                 connectNulls
                 isAnimationActive={!reduceMotion}
-                animationDuration={280}
+                animationDuration={240}
               />
             ) : (
               <Line
@@ -252,7 +252,7 @@ export function TrendChart({
                 }}
                 connectNulls
                 isAnimationActive={!reduceMotion}
-                animationDuration={280}
+                animationDuration={240}
               />
             ),
           )}
@@ -274,7 +274,7 @@ export function TrendChart({
                     activeDot={false}
                     connectNulls
                     isAnimationActive={!reduceMotion}
-                    animationDuration={280}
+                    animationDuration={240}
                   />
                 ))
             : null}

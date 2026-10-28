@@ -131,7 +131,7 @@ const inputFieldVariants = cva(
     "rounded-md",
     "bg-muted text-muted-foreground",
     "ring-2 ring-inset ring-transparent",
-    "transition-[background-color,box-shadow,color] duration-[var(--input-transition-ms)] ease",
+    "transition-[background-color,box-shadow,color] [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)]",
   ].join(" "),
   {
     variants: {

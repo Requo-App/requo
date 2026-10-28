@@ -34,8 +34,8 @@ export type PillTabVariant = "blue" | "gray";
 
 const pillTabVariants = cva(
   cn(
-    "group relative z-10 flex shrink-0 cursor-pointer items-center gap-1 px-2 py-[5px]",
-    "outline-none transition-colors duration-150 ease",
+    "motion-press group relative z-10 flex shrink-0 cursor-pointer items-center gap-1 px-2 py-[5px]",
+    "outline-none",
     "focus-visible:ring-2 focus-visible:ring-ring",
   ),
   {
@@ -53,9 +53,7 @@ const pillTabVariants = cva(
 
 const pillThumbVariants = cva(
   cn(
-    "pointer-events-none absolute left-0 top-0",
-    "transition-[transform,width,height] duration-300",
-    "[transition-timing-function:cubic-bezier(0.34,1.2,0.64,1)]",
+    "motion-control-thumb pointer-events-none absolute left-0 top-0",
   ),
   {
     variants: {
@@ -71,7 +69,7 @@ const pillThumbVariants = cva(
 );
 
 const pillHoverVariants = cva(
-  "pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-200 ease-out",
+  "pointer-events-none absolute inset-0 opacity-0 transition-opacity [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)]",
   {
     variants: {
       variant: {

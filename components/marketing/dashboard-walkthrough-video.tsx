@@ -153,7 +153,7 @@ export function DashboardWalkthroughVideo() {
           <video
             aria-hidden="true"
             className={cn(
-              "absolute inset-0 h-full w-full object-cover object-top transition-opacity duration-500",
+              "absolute inset-0 h-full w-full object-cover object-top [transition:opacity_var(--motion-duration-slow)_var(--motion-ease-standard)]",
               canPlay ? "opacity-100" : "opacity-0",
             )}
             disablePictureInPicture
@@ -181,7 +181,7 @@ export function DashboardWalkthroughVideo() {
               aria-label={
                 playing ? "Pause the walkthrough" : "Play the walkthrough"
               }
-              className="pointer-events-auto flex scale-90 cursor-pointer items-center justify-center rounded-full opacity-0 outline-none transition-[opacity,transform,scale] duration-200 ease-out focus-visible:scale-100 focus-visible:opacity-100 group-hover/walkthrough:scale-100 group-hover/walkthrough:opacity-100"
+              className="pointer-events-auto flex scale-90 cursor-pointer items-center justify-center rounded-full opacity-0 outline-none transition-[opacity,transform,scale] [transition-duration:var(--motion-duration-base)] [transition-timing-function:var(--motion-ease-standard)] focus-visible:scale-100 focus-visible:opacity-100 group-hover/walkthrough:scale-100 group-hover/walkthrough:opacity-100"
               onClick={handleTogglePlayback}
               type="button"
             >
@@ -189,11 +189,11 @@ export function DashboardWalkthroughVideo() {
                 aria-hidden="true"
                 className="flex size-28 items-center justify-center rounded-full bg-background/10 backdrop-blur-md"
               >
-                <span className="flex size-20 items-center justify-center rounded-full border border-background/25 bg-foreground/55 text-background shadow-md backdrop-blur-sm transition-transform duration-200 ease-out group-hover/walkthrough:scale-[1.15]">
+                <span className="flex size-20 items-center justify-center rounded-full border border-background/25 bg-foreground/55 text-background shadow-md backdrop-blur-sm transition-transform [transition-duration:var(--motion-duration-base)] [transition-timing-function:var(--motion-ease-standard)] group-hover/walkthrough:scale-[1.15]">
                   {playing ? (
-                    <Pause className="size-8 fill-current transition-transform duration-200 ease-out group-hover/walkthrough:scale-105" />
+                    <Pause className="size-8 fill-current transition-transform [transition-duration:var(--motion-duration-base)] [transition-timing-function:var(--motion-ease-standard)] group-hover/walkthrough:scale-105" />
                   ) : (
-                    <Play className="size-8 fill-current transition-transform duration-200 ease-out group-hover/walkthrough:scale-105" />
+                    <Play className="size-8 fill-current transition-transform [transition-duration:var(--motion-duration-base)] [transition-timing-function:var(--motion-ease-standard)] group-hover/walkthrough:scale-105" />
                   )}
                 </span>
               </span>

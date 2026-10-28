@@ -45,8 +45,8 @@ import { BuilderSection, SectionVisibilityToggle } from "./shared";
 const inquiryPageCardsDndContextId = "service-page-cards-dnd";
 const inquiryPageCardsSortableContextId = "service-page-cards-sortable";
 const inquiryPageSortableTransition = {
-  duration: 160,
-  easing: "cubic-bezier(0.25, 1, 0.5, 1)",
+  duration: 150,
+  easing: "cubic-bezier(0.32, 0.72, 0, 1)",
 } as const;
 
 export type CardsSectionProps = {

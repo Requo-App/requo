@@ -31,7 +31,7 @@ export interface AvatarProps extends HTMLAttributes<HTMLSpanElement> {
 }
 
 const avatarVariants = cva(
-  "inline-flex shrink-0 select-none items-center justify-center overflow-hidden rounded-full text-center align-middle transition-[width,height,font-size] duration-200 ease",
+  "inline-flex shrink-0 select-none items-center justify-center overflow-hidden rounded-full text-center align-middle transition-[width,height,font-size] [transition-duration:var(--motion-duration-base)] [transition-timing-function:var(--motion-ease-standard)]",
   {
     variants: {
       size: {
