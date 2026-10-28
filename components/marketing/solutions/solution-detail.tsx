@@ -6,18 +6,36 @@ import { MarketingFooter } from "@/components/marketing/marketing-footer";
 import { MarketingHeader } from "@/components/marketing/marketing-header";
 import type { SolutionDetail } from "@/components/marketing/solutions-data";
 import { SolutionDemo } from "@/components/marketing/solutions/solution-demo";
+import { SolutionLandingPage } from "@/components/marketing/solutions/solution-landing";
 import {
   CustomerViewSection,
   RelatedSolutions,
   SolutionFaq,
   SolutionFeatures,
   SolutionHeroCard,
+  SolutionsFeatureLine,
   SolutionsFinalCta,
 } from "@/components/marketing/solutions/solutions-shared";
 import { PublicPageShell } from "@/components/shared/public-page-shell";
 import { Button } from "@/components/ui/button";
 
-export function SolutionDetailPage({ detail }: { detail: SolutionDetail }) {
+export function SolutionDetailPage({
+  detail,
+  breadcrumbLabel,
+}: {
+  detail: SolutionDetail;
+  breadcrumbLabel?: string;
+}) {
+  if (detail.landing) {
+    return (
+      <SolutionLandingPage
+        breadcrumbLabel={breadcrumbLabel}
+        detail={detail}
+        landing={detail.landing}
+      />
+    );
+  }
+
   const workflowHref = `/solutions/${detail.slug}#workflow`;
   return (
     <div className="overflow-x-clip">
@@ -135,7 +153,7 @@ export function SolutionDetailPage({ detail }: { detail: SolutionDetail }) {
               className="font-heading text-3xl font-semibold tracking-tight text-balance sm:text-4xl"
               id="solution-faq-heading"
             >
-              Frequently asked questions
+              Frequently asked questions.
             </h2>
           </InViewReveal>
           <InViewReveal className="relative z-10 mt-8 sm:mt-10" delay={80}>
@@ -154,51 +172,7 @@ export function SolutionDetailPage({ detail }: { detail: SolutionDetail }) {
             >
               Explore another workflow.
             </h2>
-            <p className="text-sm leading-5 text-muted-foreground sm:text-base sm:leading-6">
-              Every solution runs on the same six features —{" "}
-              <Link
-                className="font-medium text-primary-ink hover:underline"
-                href="/features/inquiries"
-              >
-                inquiries
-              </Link>
-              {", "}
-              <Link
-                className="font-medium text-primary-ink hover:underline"
-                href="/features/quotes"
-              >
-                quotes
-              </Link>
-              {", "}
-              <Link
-                className="font-medium text-primary-ink hover:underline"
-                href="/features/follow-ups"
-              >
-                follow-ups
-              </Link>
-              {", "}
-              <Link
-                className="font-medium text-primary-ink hover:underline"
-                href="/features/ai"
-              >
-                AI drafting
-              </Link>
-              {", "}
-              <Link
-                className="font-medium text-primary-ink hover:underline"
-                href="/features/invoices"
-              >
-                invoices
-              </Link>
-              {", and "}
-              <Link
-                className="font-medium text-primary-ink hover:underline"
-                href="/features/analytics"
-              >
-                analytics
-              </Link>
-              .
-            </p>
+            <SolutionsFeatureLine />
           </InViewReveal>
           <InViewReveal className="relative z-10 mt-8 sm:mt-10" delay={80}>
             <RelatedSolutions detail={detail} />

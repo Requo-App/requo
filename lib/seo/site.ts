@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 export const siteName = "Requo";
+export const siteTwitterHandle = "@requoapp";
 export const siteTagline =
   "Manage inquiries, send quotes, and follow up in one place.";
 export const siteDescription =
@@ -160,6 +161,7 @@ export function createPageMetadata({
         width: 1200,
       },
     ],
+    locale: "en_US",
     siteName,
     title: socialTitle,
     type: openGraphType,
@@ -168,8 +170,10 @@ export function createPageMetadata({
 
   const twitter: NonNullable<Metadata["twitter"]> = {
     card: "summary_large_image",
+    creator: siteTwitterHandle,
     description,
     images: [normalizePathname(twitterImagePath)],
+    site: siteTwitterHandle,
     title: socialTitle,
     ...(twitterOverrides ?? {}),
   };
