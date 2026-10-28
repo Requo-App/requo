@@ -17,7 +17,7 @@ if (!url) {
 }
 
 export default defineConfig({
-  schema: path.join(rootDir, "lib/db/schema/index.ts"),
+  schema: path.join(rootDir, "lib/db/schema/index.ts").replace(/\\/g, "/"),
   // Drizzle prefixes the output path with "./", so it must stay relative.
   out: path.relative(process.cwd(), path.join(rootDir, "drizzle")) || ".",
   dialect: "postgresql",

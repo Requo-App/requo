@@ -34,7 +34,7 @@
     "vercel-build": "npm run db:migrate:strict && next build",
     "start": "next start",
     "start:app": "next start",
-    "lint": "eslint . --config config/eslint.config.mjs",
+    "lint": "eslint --config config/eslint.config.mjs",
     "typecheck": "tsc --noEmit",
     "audit:loading-coverage": "tsx scripts/audit-loading-coverage.ts",
     "audit:image-priority": "tsx scripts/audit-image-priority.ts",

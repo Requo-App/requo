@@ -88,6 +88,24 @@ path: `eslint --config`, `vitest --config`, `playwright --config`, and
 `drizzle-kit --config`. Test-only helpers live with their tests; development
 Dockerfiles live under `docker/`.
 
+Editor integrations do not use the `package.json` lint script, and ESLint does
+not automatically discover `config/eslint.config.mjs` for application files.
+In VS Code, open the repository root as the workspace and merge this override
+into `.vscode/settings.json` for the ESLint extension:
+
+```json
+{
+  "eslint.options": {
+    "overrideConfigFile": "config/eslint.config.mjs"
+  }
+}
+```
+
+Other editor integrations need the equivalent explicit config path, resolved
+from the repository root. The npm scripts keep their explicit config options.
+`npm run lint` checks the current directory by default; pass files with
+`npm run lint -- path/to/file.ts` to lint only those files.
+
 ## Canonical patterns
 
 These patterns are verified against the current tree. Follow them for new
