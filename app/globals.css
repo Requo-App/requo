@@ -3749,7 +3749,9 @@ html[data-reload-loading="fade-out"] #app-root-content {
    * surface instead of from the page. Light keeps its current control and
    * empty-state values.
    */
-  .dark .overlay-surface {
+  .dark .overlay-surface,
+  .dark [data-slot="navigation-menu"][data-viewport="false"]
+    [data-slot="navigation-menu-content"] {
     --empty-surface-bg: transparent;
     --empty-surface-shadow: none;
     /* Muted fills (selected rows, icon tiles, progress tracks) must sit above
