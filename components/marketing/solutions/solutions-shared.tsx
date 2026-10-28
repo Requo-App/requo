@@ -11,6 +11,7 @@ import type { ReactNode } from "react";
 import {
   getSolutionRelated,
   solutionHref,
+  solutionLinks,
   type SolutionCardData,
   type SolutionFaq,
   type SolutionFeature,
@@ -25,6 +26,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { InvoiceStatusBadge } from "@/features/invoices/components/invoice-status-badge";
 import { QuoteStatusBadge } from "@/features/quotes/components/quote-status-badge";
+import { cn } from "@/lib/utils";
 
 /**
  * Single product-card shell used by the hero card, the demo tabs, and the
@@ -141,7 +143,7 @@ const customerViewPoints: readonly {
     icon: Eye,
     title: "You see when it's viewed",
     description:
-      "The first view stamps the quote and notifies you, so you know exactly when to nudge and when to wait.",
+      "Each view updates the quote's timestamp and notifies you, so you know when to nudge and when to wait.",
   },
   {
     icon: CheckCircle2,
@@ -313,6 +315,109 @@ export function RelatedSolutions({ detail }: { detail: SolutionDetail }) {
           </li>
         );
       })}
+    </ul>
+  );
+}
+
+/** The shared "same six features" line linking each feature page. */
+export function SolutionsFeatureLine({ className }: { className?: string }) {
+  return (
+    <p
+      className={
+        className ??
+        "text-sm leading-5 text-muted-foreground sm:text-base sm:leading-6"
+      }
+    >
+      Every solution runs on the same six features —{" "}
+      <Link
+        className="font-medium text-primary-ink hover:underline"
+        href="/features/inquiries"
+      >
+        inquiries
+      </Link>
+      {", "}
+      <Link
+        className="font-medium text-primary-ink hover:underline"
+        href="/features/quotes"
+      >
+        quotes
+      </Link>
+      {", "}
+      <Link
+        className="font-medium text-primary-ink hover:underline"
+        href="/features/follow-ups"
+      >
+        follow-ups
+      </Link>
+      {", "}
+      <Link
+        className="font-medium text-primary-ink hover:underline"
+        href="/features/ai"
+      >
+        AI drafting
+      </Link>
+      {", "}
+      <Link
+        className="font-medium text-primary-ink hover:underline"
+        href="/features/invoices"
+      >
+        invoices
+      </Link>
+      {", and "}
+      <Link
+        className="font-medium text-primary-ink hover:underline"
+        href="/features/analytics"
+      >
+        analytics
+      </Link>{" "}
+      (Pro and Business).
+    </p>
+  );
+}
+
+/** All other solutions as compact cards, excluding the current page. */
+export function ExploreSolutions({
+  currentSlug,
+  className,
+}: {
+  currentSlug: string;
+  className?: string;
+}) {
+  return (
+    <ul
+      aria-label="Other service business solutions"
+      className={cn("grid gap-3 sm:grid-cols-2 lg:grid-cols-3 sm:gap-4", className)}
+    >
+      {solutionLinks
+        .filter((solution) => solution.slug !== currentSlug)
+        .map((link) => {
+          const Icon = link.icon;
+          return (
+            <li key={link.slug}>
+              <Link
+                className="soft-panel motion-lift group flex h-full flex-col gap-2.5 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:[outline-style:solid]"
+                href={solutionHref(link.slug)}
+              >
+                <span className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary-ink">
+                  <Icon aria-hidden="true" className="size-4" />
+                </span>
+                <span className="font-heading text-base font-semibold tracking-tight">
+                  {link.title}
+                </span>
+                <span className="text-sm leading-5 text-muted-foreground">
+                  {link.description}
+                </span>
+                <span className="mt-auto inline-flex items-center gap-1.5 pt-1 text-sm font-medium text-primary-ink">
+                  Explore solution
+                  <ArrowRight
+                    aria-hidden="true"
+                    className="size-4 transition-transform [transition-duration:var(--motion-duration-base)] [transition-timing-function:var(--motion-ease-standard)] group-hover:translate-x-0.5"
+                  />
+                </span>
+              </Link>
+            </li>
+          );
+        })}
     </ul>
   );
 }

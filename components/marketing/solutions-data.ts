@@ -158,6 +158,105 @@ export type SolutionRelated = {
 
 export type SolutionCustomerView = SolutionCardData;
 
+export type SolutionLandingLinkCard = {
+  icon: LucideIcon;
+  title: string;
+  body: string;
+  href: string;
+  linkLabel: string;
+};
+
+export type SolutionLandingWorkflowMock =
+  | "inquiry"
+  | "quote"
+  | "send"
+  | "follow-up"
+  | "payment";
+
+export type SolutionLandingInlineLink = {
+  text: string;
+  href: string;
+};
+
+export type SolutionLandingWorkflowStep = {
+  id: string;
+  label: string;
+  title: string;
+  body: string;
+  /** Optional inline link inside `body`, e.g. "AI draft" → /features/ai. */
+  inlineLink?: SolutionLandingInlineLink;
+  points: readonly string[];
+  /** Primary text link under the step, pointing at the matching feature page. */
+  href: string;
+  linkLabel: string;
+  mock: SolutionLandingWorkflowMock;
+};
+
+export type SolutionLandingProofFact = {
+  value: string;
+  label: string;
+  description: string;
+};
+
+export type SolutionTestimonial = {
+  quote: string;
+  name: string;
+  role: string;
+};
+
+/**
+ * One illustrative record shared by the hero and every workflow mock on a
+ * landing page. Values are sample data, never a customer claim.
+ */
+export type SolutionLandingSample = {
+  customer: string;
+  initials: string;
+  project: string;
+  /** Short label shown above the mock, e.g. "Kitchen renovation". */
+  label: string;
+  quoteNumber: string;
+  invoiceNumber: string;
+  total: string;
+  lineItems: readonly SolutionExampleField[];
+  inquiryFields: readonly SolutionExampleField[];
+  attachmentLabel: string;
+  attachmentCount: string;
+  attachmentTiles: readonly string[];
+  attachmentSummary: string;
+  quoteFooter: string;
+  followUpTitle: string;
+  followUpMessage: string;
+  paymentMethod: string;
+};
+
+/**
+ * Optional landing treatment layered over the shared solution page. Only a
+ * solution with this content renders the longer page; the other solution
+ * pages keep the concise shared template.
+ */
+export type SolutionLandingContent = {
+  eyebrow: string;
+  subhead: string;
+  trustPoints: readonly string[];
+  linkCardsEyebrow: string;
+  linkCardsHeading: string;
+  linkCardsIntro: string;
+  linkCards: readonly SolutionLandingLinkCard[];
+  workflowHeading: string;
+  workflowIntro: string;
+  workflowSteps: readonly SolutionLandingWorkflowStep[];
+  proofEyebrow: string;
+  proofHeading: string;
+  proofIntro: string;
+  proofFacts: readonly SolutionLandingProofFact[];
+  sample: SolutionLandingSample;
+  /**
+   * Data-driven on purpose. The testimonial section renders nothing until a
+   * real, attributable quote exists.
+   */
+  testimonial?: SolutionTestimonial;
+};
+
 export type SolutionDetail = {
   slug: string;
   /** Short label for headings and footer links. */
@@ -183,11 +282,44 @@ export type SolutionDetail = {
   ctaSub: string;
   seoTitle: string;
   seoDescription: string;
+  /** Present only for solutions with the longer landing-page treatment. */
+  landing?: SolutionLandingContent;
 };
 
 export function solutionHref(slug: string) {
   return `/solutions/${slug}`;
 }
+
+/**
+ * Product-level facts shared by every solution landing page. Keep these
+ * traceable to the plan catalog and quote code before changing them.
+ */
+const landingTrustPoints = [
+  "Free plan · no time limit",
+  "No card required",
+  "Inquiry to payment in one workflow",
+] as const;
+
+const landingProofFacts: readonly SolutionLandingProofFact[] = [
+  {
+    value: "Unlimited",
+    label: "Inquiries, quotes, and invoices",
+    description:
+      "Included on every plan, including Free. Manual payment records are unlimited too.",
+  },
+  {
+    value: "No account",
+    label: "For customers to review a quote",
+    description:
+      "They open a secure link and can accept, decline, or request changes from any device.",
+  },
+  {
+    value: "Every version",
+    label: "Of a quote stays on the record",
+    description:
+      "Revising a quote archives the previous version, so the approved scope is the scope you invoice.",
+  },
+];
 
 export const solutionDetails: Record<string, SolutionDetail> = {
   "contractors-home-services": {
@@ -273,7 +405,7 @@ export const solutionDetails: Record<string, SolutionDetail> = {
         label: "Follow-up",
         stageHeadline: "Know when to nudge.",
         stageBody:
-          "The first view is stamped, and a due task keeps the quote visible until Sarah decides.",
+          "Each view updates the timestamp, and a due task keeps the quote visible until Sarah decides.",
         cardTitle: "Sarah Jenkins",
         cardSubtitle: "Kitchen Renovation · $21,400",
         fields: [
@@ -305,7 +437,7 @@ export const solutionDetails: Record<string, SolutionDetail> = {
         quoteValue: "$0",
         statusLabel: "Payment status",
         statusValue: "Paid",
-        note: "One invoice per quote · manual payments only, no pay page",
+        note: "One active invoice per accepted quote · manual payments only, no pay page",
         quoteStatus: "accepted",
         invoiceStatus: "paid",
       },
@@ -327,12 +459,12 @@ export const solutionDetails: Record<string, SolutionDetail> = {
       {
         icon: FileText,
         title: "Price from line items, not memory",
-        body: "Build the estimate from your quote library or custom lines. Every send and revision is snapshotted as a version, and expiry dates keep old prices from lingering.",
+        body: "Build the estimate from your quote library or custom lines. Every revision is snapshotted as a version, and expiry dates keep old prices from lingering.",
       },
       {
         icon: BellRing,
         title: "See which quotes are waiting",
-        body: "The first view is stamped and you get notified. Follow-up tasks with due dates and reminders keep open estimates visible until the homeowner decides.",
+        body: "Each view updates the timestamp and notifies you. Follow-up tasks with due dates and reminders keep open estimates visible until the homeowner decides.",
       },
       {
         icon: Sparkles,
@@ -363,22 +495,22 @@ export const solutionDetails: Record<string, SolutionDetail> = {
       {
         question: "Can I collect project details and photos through an inquiry?",
         answer:
-          "Yes. Inquiry forms support custom fields for the property, scope, budget, and timeline, and customers can attach photos and files to the inquiry itself — so measurements and images arrive with the request instead of scattered across messages.",
+          "Yes. The contractor starter form asks for the project details, budget range, target completion, and photos or plans, and adds custom fields for service location, location type, preferred visit or start date, and access notes. Free supports 3 custom fields per service, so the fourth starter field is a Pro or Business addition. Customers can attach photos and files to the inquiry itself.",
       },
       {
         question: "Can I create quotes from project requests?",
         answer:
-          "Yes. Build the quote from line items using your quote library or custom lines. AI can draft a starting point from the inquiry that you review and adjust — it never sets prices. Every send and revision is saved as a version, and you can set an expiry date.",
+          "Yes. Build the quote from line items using your quote library or custom lines. AI can draft a starting point from the inquiry that you review and adjust before it goes out. When you revise a quote, the previous version is archived and the next version goes out with its own version number. You can also set an expiry date.",
       },
       {
         question: "Can I keep customer and project information together?",
         answer:
-          "Yes. The inquiry holds the project details, attached photos and files, and your notes in one place. Past inquiries and quotes from the same customer are grouped into a history view by email, so repeat work starts with context.",
+          "Yes. The inquiry holds the project details, attached photos and files, and your notes in one place. Past inquiries and quotes from the same customer are grouped into a history view by email or contact handle, so repeat work starts with context.",
       },
       {
         question: "Can I track quotes that need follow-up?",
         answer:
-          "Yes. The first time a customer views a quote it is stamped and you are notified. Follow-up tasks with due dates and reminders keep open estimates visible, and eligible plans can send automatic follow-up emails for quotes that go quiet.",
+          "Yes. Each time a customer views a quote the timestamp updates and you are notified. Follow-up tasks with due dates and reminders keep open estimates visible, and Pro and Business plans can send automatic follow-up emails for quotes that go quiet.",
       },
       {
         question: "How do payments work for a finished job?",
@@ -400,9 +532,155 @@ export const solutionDetails: Record<string, SolutionDetail> = {
     ctaHeadline: "Ready for the next project inquiry?",
     ctaSub:
       "Capture the request, send a clear quote, and know what needs your attention.",
-    seoTitle: "Contractor Quote & Inquiry Software | Requo",
+    seoTitle: "Contractor Quote & Inquiry Software",
     seoDescription:
       "Turn scattered project inquiries into confident quotes: property details, photos, line-item pricing, follow-ups, invoices, and payment status in one workflow.",
+    landing: {
+      eyebrow: "Quote software for contractors & home services",
+      subhead:
+        "Collect job details and site photos on one inquiry, price the work from line items, track every quote view, and turn the accepted quote into an invoice.",
+      trustPoints: landingTrustPoints,
+      linkCardsEyebrow: "The contractor workflow",
+      linkCardsHeading: "Everything around the quote.",
+      linkCardsIntro:
+        "The pieces a contractor actually touches, from the first call to the final payment.",
+      linkCards: [
+        {
+          icon: ClipboardList,
+          title: "Inquiries",
+          body: "Custom forms collect the property, scope, budget, and timeline. Photos and files stay attached to the request.",
+          href: "/features/inquiries",
+          linkLabel: "Learn more",
+        },
+        {
+          icon: FileText,
+          title: "Quotes",
+          body: "Build from your quote library or an AI draft, adjust every price, and keep a version of every revision.",
+          href: "/features/quotes",
+          linkLabel: "Learn more",
+        },
+        {
+          icon: ReceiptText,
+          title: "Invoices",
+          body: "Turn an accepted quote into an invoice, record manual payments, and see what's paid or overdue.",
+          href: "/features/invoices",
+          linkLabel: "Learn more",
+        },
+      ],
+      workflowHeading: "One record from first call to final payment.",
+      workflowIntro:
+        "The same job carries through every step — nothing retyped. Sarah Jenkins' $21,400 kitchen renovation is the record in every visual below.",
+      workflowSteps: [
+        {
+          id: "inquiry",
+          label: "01 / Inquiry",
+          title: "Get the details before you drive out",
+          body: "Inquiry forms collect the property, scope, budget, and timeline. Customers attach photos and files to the same request, so measurements and images arrive with it. Pro and Business include all four starter custom fields; Free keeps the first three.",
+          points: [
+            "Structured project details",
+            "Site, budget, and timing",
+            "Photos or plans attached",
+          ],
+          href: "/features/inquiries",
+          linkLabel: "Explore inquiries",
+          mock: "inquiry",
+        },
+        {
+          id: "quote",
+          label: "02 / Quote",
+          title: "Price from line items, not memory",
+          body: "Build estimates from your quote library or custom lines, or start from an AI draft and adjust every price yourself. Each revision is saved as a version, and expiry dates keep old prices from lingering. Free includes about 10 AI drafts a month.",
+          inlineLink: { text: "AI draft", href: "/features/ai" },
+          points: [
+            "Five line items total $21,400",
+            "Quote library or custom lines",
+            "Expiry date you control",
+          ],
+          href: "/features/quotes",
+          linkLabel: "Explore quotes",
+          mock: "quote",
+        },
+        {
+          id: "send",
+          label: "03 / Send",
+          title: "Customers respond from a link",
+          body: "Email the quote or paste its secure link into WhatsApp, SMS, or Messenger. Customers open it on their phone, with no account and no app, and accept, decline, or request changes.",
+          points: [
+            "No account or app",
+            "Per-item change requests",
+            "Viewed timestamp",
+          ],
+          href: "/features/quotes",
+          linkLabel: "Explore the customer link",
+          mock: "send",
+        },
+        {
+          id: "follow-up",
+          label: "04 / Follow-up",
+          title: "Know which quotes are waiting",
+          body: "Each view updates the timestamp and notifies you. Follow-up tasks with due dates and reminders keep open quotes visible until the homeowner decides.",
+          points: [
+            "View timestamp and alert",
+            "Tasks with due dates",
+            "Automatic nudges on Pro and Business",
+          ],
+          href: "/features/follow-ups",
+          linkLabel: "Explore follow-ups",
+          mock: "follow-up",
+        },
+        {
+          id: "payment",
+          label: "05 / Paid",
+          title: "Turn the approval into an invoice",
+          body: "An accepted quote becomes an invoice without retyping the job. Record manual payments — cash, bank transfer, GCash, Maya, check — and the status follows: unpaid, partially paid, paid, or overdue.",
+          points: [
+            "One active invoice per accepted quote",
+            "Manual payments only, no card processing",
+            "Unpaid, partially paid, paid, overdue",
+          ],
+          href: "/features/invoices",
+          linkLabel: "Explore invoices",
+          mock: "payment",
+        },
+      ],
+      proofEyebrow: "Built into the product",
+      proofHeading: "Facts, not promises.",
+      proofIntro:
+        "These are product limits and behaviors you can check before you start.",
+      proofFacts: landingProofFacts,
+      sample: {
+        customer: "Sarah Jenkins",
+        initials: "SJ",
+        project: "Kitchen Renovation",
+        label: "Kitchen renovation",
+        quoteNumber: "Q-1048",
+        invoiceNumber: "INV-1048",
+        total: "$21,400",
+        lineItems: [
+          { label: "Shaker cabinets + hardware", value: "$8,400" },
+          { label: "Quartz countertops", value: "$4,200" },
+          { label: "Labor and installation", value: "$6,300" },
+          { label: "Plumbing and electrical", value: "$1,800" },
+          { label: "Debris removal", value: "$700" },
+        ],
+        inquiryFields: [
+          { label: "Property", value: "Single-family home" },
+          { label: "Preferred start", value: "Apr 8" },
+          { label: "Budget range", value: "$18–25k" },
+          { label: "Target completion", value: "6 weeks" },
+        ],
+        attachmentLabel: "Photos or plans",
+        attachmentCount: "3 attached",
+        attachmentTiles: ["Kitchen", "Island", "Cabinets"],
+        attachmentSummary: "Budget range $18–25k · 3 photos",
+        quoteFooter: "Secure link · expiry date you control",
+        followUpTitle: "Follow up on kitchen quote",
+        followUpMessage:
+          "Hi Sarah — just checking in on the kitchen quote. Happy to walk through any of the line items.",
+        paymentMethod: "Bank transfer",
+      },
+      // No testimonial is rendered until a real, attributable quote exists.
+    },
   },
   "professional-it-services": {
     slug: "professional-it-services",
@@ -487,7 +765,7 @@ export const solutionDetails: Record<string, SolutionDetail> = {
         label: "Follow-up",
         stageHeadline: "Know when to nudge.",
         stageBody:
-          "The first view is stamped, and a due task keeps the proposal visible until Acme decides.",
+          "Each view updates the timestamp, and a due task keeps the proposal visible until Acme decides.",
         cardTitle: "Acme Consulting",
         cardSubtitle: "Growth Strategy · $8,500",
         fields: [
@@ -582,17 +860,17 @@ export const solutionDetails: Record<string, SolutionDetail> = {
       {
         question: "Can Requo handle custom service quotes?",
         answer:
-          "Yes. There are no fixed packages to squeeze into: proposals are built from custom line items, so phased engagements, workshops, retainers-style scopes, and one-off advisory work are all priced the way you actually sell them.",
+          "Yes. There are no fixed packages to squeeze into: proposals are built from custom line items, so phased engagements, workshops, and one-off advisory work are all priced the way you actually sell them.",
       },
       {
         question: "How does the client respond to a proposal?",
         answer:
-          "Through a secure link — no account needed. They can accept, decline, or request changes, including comments on individual line items. You see when the proposal is viewed and every response as it happens.",
+          "Through a secure link — no account needed. They can accept, decline, or request changes, including comments on individual line items. You see when the proposal is viewed and every response on the record.",
       },
       {
         question: "Can I track proposal follow-ups?",
         answer:
-          "Yes. Follow-up tasks with due dates and reminders keep open proposals visible, view tracking shows when a client has seen the proposal, and eligible plans can send automatic follow-up emails while you wait on a decision.",
+          "Yes. Follow-up tasks with due dates and reminders keep open proposals visible, view tracking shows when a client has seen the proposal, and Pro and Business can send automatic follow-up emails while you wait on a decision.",
       },
       {
         question: "How does approved work move into invoicing?",
@@ -615,9 +893,154 @@ export const solutionDetails: Record<string, SolutionDetail> = {
     ctaHeadline: "Give the next client inquiry a clear path forward.",
     ctaSub:
       "Scope it once, propose it clearly, and follow it through to paid.",
-    seoTitle: "Proposal Software for Professional & IT Services | Requo",
+    seoTitle: "Proposal Software for Professional & IT Services",
     seoDescription:
       "Turn client inquiries into scoped proposals: capture requirements, spell out deliverables, share secure links, follow up, and invoice from the approved scope.",
+    landing: {
+      eyebrow: "Proposal software for professional & IT services",
+      subhead:
+        "Collect the client's goals and constraints on one inquiry, price the engagement line by line, see the moment the proposal is viewed, and turn the accepted scope into an invoice.",
+      trustPoints: landingTrustPoints,
+      linkCardsEyebrow: "The professional workflow",
+      linkCardsHeading: "Everything around the proposal.",
+      linkCardsIntro:
+        "The pieces a client-facing team actually touches, from discovery call to final payment.",
+      linkCards: [
+        {
+          icon: ClipboardList,
+          title: "Inquiries",
+          body: "Custom forms collect the challenge, format, participant count, desired start, budget, and reference files, so discovery starts with context.",
+          href: "/features/inquiries",
+          linkLabel: "Learn more",
+        },
+        {
+          icon: FileText,
+          title: "Proposals",
+          body: "Build from your quote library or an AI draft, adjust every fee, and send a secure link the client can accept or comment on.",
+          href: "/features/quotes",
+          linkLabel: "Learn more",
+        },
+        {
+          icon: ReceiptText,
+          title: "Invoices",
+          body: "Turn an accepted proposal into an invoice, record manual payments, and see what's paid or overdue.",
+          href: "/features/invoices",
+          linkLabel: "Learn more",
+        },
+      ],
+      workflowHeading: "One engagement. Five clear stages.",
+      workflowIntro:
+        "Acme Consulting's $8,500 growth strategy stays on one record from discovery to the final manual payment. Every stage below uses the same engagement — nothing is retyped.",
+      workflowSteps: [
+        {
+          id: "inquiry",
+          label: "01 / Inquiry",
+          title: "Start with the client's context",
+          body: "The inquiry collects the challenge, preferred format, participant count, desired start, budget, and reference files. Discovery begins with the client's own words instead of a blank page.",
+          points: [
+            "Challenge and constraints",
+            "Budget and timing",
+            "Reference files attached",
+          ],
+          href: "/features/inquiries",
+          linkLabel: "Explore inquiries",
+          mock: "inquiry",
+        },
+        {
+          id: "quote",
+          label: "02 / Proposal",
+          title: "Price the scope line by line",
+          body: "Turn the inquiry into an $8,500 proposal: discovery, analysis, workshop, roadmap, and presentation each on its own line. Start from an AI draft and adjust every fee yourself. Free includes about 10 AI drafts a month.",
+          inlineLink: { text: "AI draft", href: "/features/ai" },
+          points: [
+            "Five deliverables, one total",
+            "AI draft or custom lines",
+            "Expiry date you control",
+          ],
+          href: "/features/quotes",
+          linkLabel: "Explore proposals",
+          mock: "quote",
+        },
+        {
+          id: "send",
+          label: "03 / Send",
+          title: "The client responds from a link",
+          body: "Send the proposal by email or paste its secure link into chat. The client opens it on any device, with no account, and can accept, decline, or request changes.",
+          points: [
+            "No account or app",
+            "Per-item change requests",
+            "Viewed timestamp",
+          ],
+          href: "/features/quotes",
+          linkLabel: "Explore the client link",
+          mock: "send",
+        },
+        {
+          id: "follow-up",
+          label: "04 / Follow-up",
+          title: "Know which proposals are waiting",
+          body: "Each view updates the timestamp and notifies you. Follow-up tasks with due dates and reminders keep the decision visible; Pro and Business can send automatic follow-up emails.",
+          points: [
+            "View timestamp and alert",
+            "Tasks with due dates",
+            "Automatic nudges on Pro and Business",
+          ],
+          href: "/features/follow-ups",
+          linkLabel: "Explore follow-ups",
+          mock: "follow-up",
+        },
+        {
+          id: "payment",
+          label: "05 / Paid",
+          title: "Turn the approval into an invoice",
+          body: "The accepted scope becomes an invoice without retyping the five lines. Record the client's bank transfer by hand and the balance drops to $0.",
+          points: [
+            "One active invoice per accepted proposal",
+            "Manual payments, including partial",
+            "Unpaid, partially paid, paid, overdue",
+          ],
+          href: "/features/invoices",
+          linkLabel: "Explore invoices",
+          mock: "payment",
+        },
+      ],
+      proofEyebrow: "Built into the product",
+      proofHeading: "Facts, not promises.",
+      proofIntro:
+        "These are product limits and behaviors you can check before you start.",
+      proofFacts: landingProofFacts,
+      sample: {
+        customer: "Acme Consulting",
+        initials: "AC",
+        project: "Growth Strategy",
+        label: "Strategy engagement",
+        quoteNumber: "Q-3102",
+        invoiceNumber: "INV-3102",
+        total: "$8,500",
+        lineItems: [
+          { label: "Discovery & interviews", value: "$1,500" },
+          { label: "Market analysis", value: "$2,200" },
+          { label: "Workshop facilitation", value: "$1,800" },
+          { label: "Growth plan & roadmap", value: "$2,400" },
+          { label: "Final presentation", value: "$600" },
+        ],
+        inquiryFields: [
+          { label: "Goal", value: "Market analysis + growth plan" },
+          { label: "Format", value: "Online" },
+          { label: "Participants", value: "6" },
+          { label: "Start", value: "Next quarter" },
+        ],
+        attachmentLabel: "Reference files",
+        attachmentCount: "3 attached",
+        attachmentTiles: ["Brief", "Data", "Notes"],
+        attachmentSummary: "Budget $8–10k · 3 files",
+        quoteFooter: "Secure link · valid 30 days",
+        followUpTitle: "Follow up on growth strategy proposal",
+        followUpMessage:
+          "Hi Acme team — just checking in on the proposal. Happy to walk through the scope.",
+        paymentMethod: "Bank transfer",
+      },
+    },
   },
   "creative-marketing": {
     slug: "creative-marketing",
@@ -734,7 +1157,7 @@ export const solutionDetails: Record<string, SolutionDetail> = {
         quoteValue: "$0",
         statusLabel: "Payment status",
         statusValue: "Paid",
-        note: "One invoice per quote · manual payments only, no pay page",
+        note: "One active invoice per accepted quote · manual payments only, no pay page",
         quoteStatus: "accepted",
         invoiceStatus: "paid",
       },
@@ -761,7 +1184,7 @@ export const solutionDetails: Record<string, SolutionDetail> = {
       {
         icon: BellRing,
         title: "Chase approvals without the awkward",
-        body: "View tracking tells you the proposal landed. Follow-up tasks and reminders — plus automatic nudges on eligible plans — keep the decision moving.",
+        body: "View tracking tells you the proposal landed. Follow-up tasks and reminders — plus automatic nudges on Pro and Business — keep the decision moving.",
       },
       {
         icon: Users,
@@ -792,7 +1215,7 @@ export const solutionDetails: Record<string, SolutionDetail> = {
       {
         question: "Can clients submit creative briefs?",
         answer:
-          "Yes. Public inquiry forms support custom fields for objectives, deliverables, timeline, and budget — so the brief arrives structured instead of as a few scattered messages.",
+          "Yes. Public inquiry forms can collect the project brief, target date, where the work will be used, budget, and reference files — so the brief arrives before the first call instead of as scattered messages.",
       },
       {
         question: "Can I attach project files to an inquiry?",
@@ -802,12 +1225,12 @@ export const solutionDetails: Record<string, SolutionDetail> = {
       {
         question: "Can I keep deliverables with the quote?",
         answer:
-          "Yes. Each deliverable is quoted on its own line item, and every send or revision is saved as a version — so the client always sees exactly what the price covers.",
+          "Yes. Each deliverable is quoted on its own line item, and every revision is saved as a version — so the client always sees exactly what the price covers.",
       },
       {
         question: "Can I track approval and follow-up?",
         answer:
-          "Yes. View tracking shows when the proposal lands, change requests arrive with per-item comments, and follow-up tasks with reminders — plus automatic nudges on eligible plans — keep the decision from stalling.",
+          "Yes. View tracking shows when the proposal lands, change requests arrive with per-item comments, and follow-up tasks with reminders — plus automatic nudges on Pro and Business — keep the decision from stalling.",
       },
       {
         question: "How does billing work after approval?",
@@ -830,9 +1253,153 @@ export const solutionDetails: Record<string, SolutionDetail> = {
     ctaHeadline: "Give every project brief a clearer path to approval.",
     ctaSub:
       "Keep the brief, the assets, and the quote in one place.",
-    seoTitle: "Quote Software for Creative Businesses | Requo",
+    seoTitle: "Quote Software for Creative & Marketing Studios",
     seoDescription:
-      "From brief to approval: collect objectives and assets, quote deliverables line by line, handle revisions with per-item comments, and invoice the approved scope.",
+      "From brief to approval: collect the project brief and reference files, quote each deliverable, handle revisions with comments, and invoice the approved scope.",
+    landing: {
+      eyebrow: "Quote software for creative & marketing studios",
+      subhead:
+        "Collect the brief and references on one inquiry, price each deliverable, keep every revision, and turn the approved scope into an invoice.",
+      trustPoints: landingTrustPoints,
+      linkCardsEyebrow: "The creative workflow",
+      linkCardsHeading: "Everything around the brief.",
+      linkCardsIntro:
+        "The pieces a studio actually touches, from the first client message to the final payment.",
+      linkCards: [
+        {
+          icon: ClipboardList,
+          title: "Inquiries",
+          body: "Custom forms collect the project brief, target date, where the work will be used, budget, and reference files, so the brief arrives before the first call.",
+          href: "/features/inquiries",
+          linkLabel: "Learn more",
+        },
+        {
+          icon: FileText,
+          title: "Quotes",
+          body: "Price each deliverable on its own line, send a secure link, and keep every revision on the record.",
+          href: "/features/quotes",
+          linkLabel: "Learn more",
+        },
+        {
+          icon: ReceiptText,
+          title: "Invoices",
+          body: "Turn an accepted quote into an invoice, record manual payments, and see what's paid or overdue.",
+          href: "/features/invoices",
+          linkLabel: "Learn more",
+        },
+      ],
+      workflowHeading: "One brand project. Five clear stages.",
+      workflowIntro:
+        "Northstar Studio's $4,800 brand identity project stays on one record from brief to final payment. Every stage below uses the same project — nothing is retyped.",
+      workflowSteps: [
+        {
+          id: "inquiry",
+          label: "01 / Brief",
+          title: "The brief arrives complete",
+          body: "The inquiry captures the goal, target date, where the work will be used, budget, and reference files. The context behind the price stays attached.",
+          points: [
+            "Goal and audience",
+            "Timing and placement",
+            "Reference files attached",
+          ],
+          href: "/features/inquiries",
+          linkLabel: "Explore inquiries",
+          mock: "inquiry",
+        },
+        {
+          id: "quote",
+          label: "02 / Quote",
+          title: "Price deliverables, not hours of mystery",
+          body: "Build the $4,800 quote from four lines: strategy, logo, identity system, and guidelines. Start from an AI draft or your quote library and adjust every price. Free includes about 10 AI drafts a month.",
+          inlineLink: { text: "AI draft", href: "/features/ai" },
+          points: [
+            "Four deliverables, one total",
+            "Quote library or custom lines",
+            "Expiry date you control",
+          ],
+          href: "/features/quotes",
+          linkLabel: "Explore quotes",
+          mock: "quote",
+        },
+        {
+          id: "send",
+          label: "03 / Send",
+          title: "The client responds from a link",
+          body: "Email the quote or paste its secure link into chat. The client opens it on their phone, with no account, and can accept, decline, or request changes on individual deliverables.",
+          points: [
+            "No account or app",
+            "Comments on individual lines",
+            "Viewed timestamp",
+          ],
+          href: "/features/quotes",
+          linkLabel: "Explore the client link",
+          mock: "send",
+        },
+        {
+          id: "follow-up",
+          label: "04 / Follow-up",
+          title: "Keep the decision moving",
+          body: "Each view updates the timestamp and notifies you. Follow-up tasks with due dates keep the quote visible; Pro and Business can send automatic follow-up emails.",
+          points: [
+            "View timestamp and alert",
+            "Tasks with due dates",
+            "Automatic nudges on Pro and Business",
+          ],
+          href: "/features/follow-ups",
+          linkLabel: "Explore follow-ups",
+          mock: "follow-up",
+        },
+        {
+          id: "payment",
+          label: "05 / Paid",
+          title: "Approval becomes an invoice",
+          body: "The accepted quote becomes an invoice without retyping the deliverables. Record the client's bank transfer by hand and the balance drops to $0.",
+          points: [
+            "One active invoice per accepted quote",
+            "Manual payments, including partial",
+            "Unpaid, partially paid, paid, overdue",
+          ],
+          href: "/features/invoices",
+          linkLabel: "Explore invoices",
+          mock: "payment",
+        },
+      ],
+      proofEyebrow: "Built into the product",
+      proofHeading: "Facts, not promises.",
+      proofIntro:
+        "These are product limits and behaviors you can check before you start.",
+      proofFacts: landingProofFacts,
+      sample: {
+        customer: "Northstar Studio",
+        initials: "NS",
+        project: "Brand Identity",
+        label: "Brand identity",
+        quoteNumber: "Q-2071",
+        invoiceNumber: "INV-2071",
+        total: "$4,800",
+        lineItems: [
+          { label: "Brand strategy", value: "$1,200" },
+          { label: "Logo design", value: "$1,800" },
+          { label: "Identity system", value: "$1,400" },
+          { label: "Brand guidelines", value: "$400" },
+        ],
+        inquiryFields: [
+          { label: "Project", value: "Brand identity" },
+          { label: "Target date", value: "6 weeks" },
+          { label: "Use", value: "Web · Social · Print" },
+          { label: "Budget", value: "$4–6k" },
+        ],
+        attachmentLabel: "Reference files",
+        attachmentCount: "3 attached",
+        attachmentTiles: ["Moodboard", "Logo refs", "Guidelines"],
+        attachmentSummary: "Budget $4–6k · 3 files",
+        quoteFooter: "Secure link · revisions sent as a new version",
+        followUpTitle: "Follow up on brand identity quote",
+        followUpMessage:
+          "Hi Northstar team — just checking in on the brand identity quote. Happy to walk through the deliverables.",
+        paymentMethod: "Bank transfer",
+      },
+    },
   },
   "photo-video": {
     slug: "photo-video",
@@ -929,7 +1496,7 @@ export const solutionDetails: Record<string, SolutionDetail> = {
         quoteValue: "$0",
         statusLabel: "Payment status",
         statusValue: "Paid",
-        note: "One invoice per quote · manual payments only, no pay page",
+        note: "One active invoice per accepted quote · manual payments only, no pay page",
         quoteStatus: "accepted",
         invoiceStatus: "paid",
       },
@@ -946,7 +1513,7 @@ export const solutionDetails: Record<string, SolutionDetail> = {
       {
         icon: CheckCircle2,
         title: "Approve the package, not a thread",
-        body: "The client approves the exact package version through a secure link — or requests changes with a comment. Re-uploads become new versions, never silent edits.",
+        body: "The client approves the exact package version through a secure link — or requests changes with a comment. Revisions become new versions, never silent edits.",
       },
       {
         icon: BellRing,
@@ -977,7 +1544,7 @@ export const solutionDetails: Record<string, SolutionDetail> = {
       {
         question: "How do clients approve a shoot package?",
         answer:
-          "Through a secure link: they approve the exact package version, or request changes with a comment. Re-uploads and resubmissions become new versions, so the approved record never changes silently.",
+          "Through a secure link: they approve the exact package version, or request changes with a comment. Revisions become new versions, so the approved record never changes silently.",
       },
       {
         question: "Can I split payment into a retainer and balance?",
@@ -1005,18 +1572,161 @@ export const solutionDetails: Record<string, SolutionDetail> = {
     ctaHeadline: "Book the next shoot with confidence.",
     ctaSub:
       "Pin the coverage facts early, approve the package, follow it to paid.",
-    seoTitle: "Photo & Video Quote Software | Requo",
+    seoTitle: "Photo & Video Quote Software",
     seoDescription:
-      "Quote photo and video shoots with confidence: capture date, venue, and coverage, approve the exact package version, and invoice to paid.",
+      "Quote photo and video shoots with confidence: capture date, venue, and coverage, approve the package through a secure link, and invoice to paid.",
+    landing: {
+      eyebrow: "Quote software for photo & video studios",
+      subhead:
+        "Collect the date, venue, coverage, and deliverables on one inquiry, send a package the client can approve, and follow it through to payment.",
+      trustPoints: landingTrustPoints,
+      linkCardsEyebrow: "The shoot workflow",
+      linkCardsHeading: "Everything around the shoot.",
+      linkCardsIntro:
+        "The pieces a photographer or videographer actually touches, from the first inquiry to the final payment.",
+      linkCards: [
+        {
+          icon: ClipboardList,
+          title: "Inquiries",
+          body: "Custom forms collect the shoot date, venue, duration, budget, and reference files before you quote.",
+          href: "/features/inquiries",
+          linkLabel: "Learn more",
+        },
+        {
+          icon: FileText,
+          title: "Quotes",
+          body: "Price coverage and deliverables on their own lines, send a secure link, and keep every revision on record.",
+          href: "/features/quotes",
+          linkLabel: "Learn more",
+        },
+        {
+          icon: ReceiptText,
+          title: "Invoices",
+          body: "Turn an accepted package into an invoice, record manual payments, and see what's paid or overdue.",
+          href: "/features/invoices",
+          linkLabel: "Learn more",
+        },
+      ],
+      workflowHeading: "One wedding shoot. Five clear stages.",
+      workflowIntro:
+        "Harper's $3,800 full-day coverage stays on one record from inquiry to final payment. Every stage below uses the same booking — nothing is retyped.",
+      workflowSteps: [
+        {
+          id: "inquiry",
+          label: "01 / Inquiry",
+          title: "The date arrives first",
+          body: "The inquiry captures the shoot date, venue, duration, budget, and reference files. The facts every coverage quote depends on arrive together.",
+          points: [
+            "Date and venue",
+            "Coverage length",
+            "Reference files attached",
+          ],
+          href: "/features/inquiries",
+          linkLabel: "Explore inquiries",
+          mock: "inquiry",
+        },
+        {
+          id: "quote",
+          label: "02 / Quote",
+          title: "Price the package from the facts",
+          body: "Build the $3,800 package from coverage, edited photos, and the album. Start from an AI draft or your quote library and adjust every line. Free includes about 10 AI drafts a month.",
+          inlineLink: { text: "AI draft", href: "/features/ai" },
+          points: [
+            "Coverage and deliverables",
+            "Quote library or custom lines",
+            "Expiry date you control",
+          ],
+          href: "/features/quotes",
+          linkLabel: "Explore quotes",
+          mock: "quote",
+        },
+        {
+          id: "send",
+          label: "03 / Send",
+          title: "The client approves the package",
+          body: "Send the quote by email or paste its secure link into chat. The client opens it on any device, with no account, and can approve or request changes.",
+          points: [
+            "No account or app",
+            "Comments on individual lines",
+            "Viewed timestamp",
+          ],
+          href: "/features/quotes",
+          linkLabel: "Explore the client link",
+          mock: "send",
+        },
+        {
+          id: "follow-up",
+          label: "04 / Follow-up",
+          title: "Never lose an unbooked date",
+          body: "Each view updates the timestamp and notifies you. Follow-up tasks with due dates keep the date warm; Pro and Business can send automatic follow-up emails.",
+          points: [
+            "View timestamp and alert",
+            "Tasks with due dates",
+            "Automatic nudges on Pro and Business",
+          ],
+          href: "/features/follow-ups",
+          linkLabel: "Explore follow-ups",
+          mock: "follow-up",
+        },
+        {
+          id: "payment",
+          label: "05 / Paid",
+          title: "The booking becomes an invoice",
+          body: "The accepted quote becomes an invoice without retyping the package. Record each payment by hand — retainer, balance, or partial — and the status follows.",
+          points: [
+            "One active invoice per accepted quote",
+            "Retainer and balance, recorded by hand",
+            "Unpaid, partially paid, paid, overdue",
+          ],
+          href: "/features/invoices",
+          linkLabel: "Explore invoices",
+          mock: "payment",
+        },
+      ],
+      proofEyebrow: "Built into the product",
+      proofHeading: "Facts, not promises.",
+      proofIntro:
+        "These are product limits and behaviors you can check before you start.",
+      proofFacts: landingProofFacts,
+      sample: {
+        customer: "Harper Wedding",
+        initials: "HW",
+        project: "Full-Day Coverage",
+        label: "Wedding shoot",
+        quoteNumber: "Q-4188",
+        invoiceNumber: "INV-4188",
+        total: "$3,800",
+        lineItems: [
+          { label: "8 hours, 2 shooters", value: "$2,400" },
+          { label: "400+ edited photos", value: "$900" },
+          { label: "Album design", value: "$500" },
+        ],
+        inquiryFields: [
+          { label: "Date", value: "June 14" },
+          { label: "Venue", value: "Rosewood Barn" },
+          { label: "Coverage", value: "8 hours" },
+          { label: "Deliverables", value: "400+ photos + album" },
+        ],
+        attachmentLabel: "Reference files",
+        attachmentCount: "3 attached",
+        attachmentTiles: ["Venue", "Mood", "Shot list"],
+        attachmentSummary: "Budget $3–5k · 3 files",
+        quoteFooter: "Secure link · package approval",
+        followUpTitle: "Follow up on wedding quote",
+        followUpMessage:
+          "Hi Harper — just checking in on the coverage quote. Happy to adjust the package.",
+        paymentMethod: "Bank transfer",
+      },
+    },
   },
   "events-rentals": {
     slug: "events-rentals",
     shortTitle: "Events & Rentals",
     headline: "Quote events from the date, the venue, and the count.",
     description:
-      "Capture event dates, venues, and guest counts on one inquiry, confirm the final count with the organizer, and follow every event from first message to paid.",
+      "Capture event dates, venues, guest counts, and budgets on one inquiry, and follow every event from first message to paid.",
     definition:
-      "Event quote software prices the occasion from the facts every event depends on: date, venue, and guest count land on one inquiry, line items build the services, the organizer confirms the final count through a secure link, and the accepted quote becomes the invoice.",
+      "Event quote software prices the occasion from the facts every event depends on: date, venue, and guest count land on one inquiry, line items build the services, the organizer reviews them through a secure link, and the accepted quote becomes the invoice.",
     secondaryCtaLabel: "See the event workflow",
     heroCard: {
       cardTitle: "Corporate Event",
@@ -1072,19 +1782,19 @@ export const solutionDetails: Record<string, SolutionDetail> = {
         label: "Quote",
         stageHeadline: "Price the services without starting over.",
         stageBody:
-          "Services sit on the same event — date and venue already there. The organizer opens a link and confirms the final count.",
+          "Services sit on the same event — date and venue already there. The organizer opens a link to review the priced services and respond.",
         cardTitle: "Corporate Event",
         cardSubtitle: "Full Production · $12,500",
         fields: [
           { label: "Services", value: "AV · Lighting · Stage · Setup" },
-          { label: "Count", value: "180 · final-count approval" },
+          { label: "Guests", value: "180" },
           { label: "Terms", value: "Valid 30 days" },
         ],
         quoteLabel: "Quote",
         quoteValue: "$12,500",
         statusLabel: "Status",
         statusValue: "Viewed",
-        note: "Secure link · count confirmation · version 1",
+        note: "Secure link · version 1",
         quoteStatus: "sent",
       },
       {
@@ -1104,7 +1814,7 @@ export const solutionDetails: Record<string, SolutionDetail> = {
         quoteValue: "$0",
         statusLabel: "Payment status",
         statusValue: "Paid",
-        note: "One invoice per quote · manual payments only, no pay page",
+        note: "One active invoice per accepted quote · manual payments only, no pay page",
         quoteStatus: "accepted",
         invoiceStatus: "paid",
       },
@@ -1120,8 +1830,8 @@ export const solutionDetails: Record<string, SolutionDetail> = {
       },
       {
         icon: Users,
-        title: "Confirm the final count, not a thread",
-        body: "The organizer confirms the headcount through a secure approval link. A recount creates a new version — the confirmed count is never edited in place. Counts drive readiness and approvals, never inventory.",
+        title: "Keep the event details on the record",
+        body: "The inquiry keeps the date, venue, duration, and guest count together. When the scope changes, the business proposes a change order and the organizer approves the delta through a secure link.",
       },
       {
         icon: BellRing,
@@ -1145,19 +1855,19 @@ export const solutionDetails: Record<string, SolutionDetail> = {
       quoteValue: "$12,500",
       statusLabel: "Status",
       statusValue: "Quote viewed",
-      note: "The organizer opens a secure link — no account needed. They confirm the count, accept, decline, or request changes.",
+      note: "The organizer opens a secure link — no account needed. They review the services, accept, decline, or request changes.",
       quoteStatus: "sent",
     },
     faqs: [
       {
-        question: "How do final headcounts work?",
+        question: "How is the guest count handled?",
         answer:
-          "The organizer confirms the count through a secure approval link. If the number changes, the recount creates a new approval version — history is preserved and the balance recalculates from the confirmed count. Counts never touch inventory.",
+          "Guest count is collected on the inquiry with the date and venue; it is the fourth starter custom field, so Free leaves it off. If it changes after approval, the business proposes updated services in a change order, and the organizer approves the delta through a secure link.",
       },
       {
         question: "What happens when event details change after approval?",
         answer:
-          "Changes go through change orders: the business proposes added, removed, or adjusted services, the organizer approves the delta through the same secure link family, and only approved changes join the commercial state.",
+          "Changes go through change orders: the business proposes added, removed, or adjusted services, the organizer approves the delta through a secure link, and only approved changes update the current scope and total.",
       },
       {
         question: "How do payments work for events?",
@@ -1179,10 +1889,155 @@ export const solutionDetails: Record<string, SolutionDetail> = {
     ],
     ctaHeadline: "Keep the next event opportunity moving.",
     ctaSub:
-      "Pin the details early, confirm the count, follow it to paid.",
-    seoTitle: "Event Quote Software | Requo",
+      "Pin the details early, price the services, follow it to paid.",
+    seoTitle: "Event & Rental Quote Software",
     seoDescription:
-      "Quote events with confidence: capture the date, venue, and guest count, confirm the final count, and invoice to paid.",
+      "Quote events and rentals from the date, venue, and guest count. Price services line by line, approve change orders, and track the invoice to paid.",
+    landing: {
+      eyebrow: "Quote software for event & rental businesses",
+      subhead:
+        "Collect the date, venue, duration, and budget on one inquiry — guest count too on Pro and Business — price the services line by line, and carry the approved event through to payment.",
+      trustPoints: landingTrustPoints,
+      linkCardsEyebrow: "The event workflow",
+      linkCardsHeading: "Everything around the event.",
+      linkCardsIntro:
+        "The pieces an event team actually touches, from the first inquiry to the final payment.",
+      linkCards: [
+        {
+          icon: ClipboardList,
+          title: "Inquiries",
+          body: "Custom forms collect the date, venue, duration, budget, and reference files before you price. Guest count is a Pro and Business field.",
+          href: "/features/inquiries",
+          linkLabel: "Learn more",
+        },
+        {
+          icon: FileText,
+          title: "Quotes",
+          body: "Price AV, lighting, rentals, and setup on their own lines, send a secure link, and keep every revision on record.",
+          href: "/features/quotes",
+          linkLabel: "Learn more",
+        },
+        {
+          icon: ReceiptText,
+          title: "Invoices",
+          body: "Turn an accepted quote into an invoice, record manual payments, and see what's paid or overdue.",
+          href: "/features/invoices",
+          linkLabel: "Learn more",
+        },
+      ],
+      workflowHeading: "One corporate event. Five clear stages.",
+      workflowIntro:
+        "A $12,500 full-production event stays on one record from inquiry to final payment. Every stage below uses the same event — nothing is retyped.",
+      workflowSteps: [
+        {
+          id: "inquiry",
+          label: "01 / Inquiry",
+          title: "The date arrives first",
+          body: "The inquiry captures the event date, venue, duration, guest count, budget, and reference files. Guest count is the fourth starter custom field, so Free's three-field limit leaves it off.",
+          points: [
+            "Date, venue, and duration",
+            "Guest count is field four",
+            "Free keeps three custom fields",
+          ],
+          href: "/features/inquiries",
+          linkLabel: "Explore inquiries",
+          mock: "inquiry",
+        },
+        {
+          id: "quote",
+          label: "02 / Quote",
+          title: "Price the services from the facts",
+          body: "Build the $12,500 quote from stage, AV, rentals, setup, and coordination. Start from an AI draft or your quote library and adjust every line. Free includes about 10 AI drafts a month.",
+          inlineLink: { text: "AI draft", href: "/features/ai" },
+          points: [
+            "Services and quantities",
+            "Quote library or custom lines",
+            "Expiry date you control",
+          ],
+          href: "/features/quotes",
+          linkLabel: "Explore quotes",
+          mock: "quote",
+        },
+        {
+          id: "send",
+          label: "03 / Send",
+          title: "The organizer responds from a link",
+          body: "Email the quote or paste its secure link into chat. The organizer opens it on any device, with no account, and can accept, decline, or request changes.",
+          points: [
+            "No account or app",
+            "Comments on individual lines",
+            "Viewed timestamp",
+          ],
+          href: "/features/quotes",
+          linkLabel: "Explore the client link",
+          mock: "send",
+        },
+        {
+          id: "follow-up",
+          label: "04 / Follow-up",
+          title: "Never lose an unbooked date",
+          body: "Each view updates the timestamp and notifies you. Follow-up tasks with due dates keep the event visible; Pro and Business can send automatic follow-up emails.",
+          points: [
+            "View timestamp and alert",
+            "Tasks with due dates",
+            "Automatic nudges on Pro and Business",
+          ],
+          href: "/features/follow-ups",
+          linkLabel: "Explore follow-ups",
+          mock: "follow-up",
+        },
+        {
+          id: "payment",
+          label: "05 / Paid",
+          title: "The approved event becomes an invoice",
+          body: "The accepted quote becomes an invoice without retyping the services. Record each payment by hand as it arrives and the status follows.",
+          points: [
+            "One active invoice per accepted quote",
+            "Manual payments, including partial",
+            "Unpaid, partially paid, paid, overdue",
+          ],
+          href: "/features/invoices",
+          linkLabel: "Explore invoices",
+          mock: "payment",
+        },
+      ],
+      proofEyebrow: "Built into the product",
+      proofHeading: "Facts, not promises.",
+      proofIntro:
+        "These are product limits and behaviors you can check before you start.",
+      proofFacts: landingProofFacts,
+      sample: {
+        customer: "Corporate Event",
+        initials: "CE",
+        project: "Full Production",
+        label: "Corporate event",
+        quoteNumber: "Q-5210",
+        invoiceNumber: "INV-5210",
+        total: "$12,500",
+        lineItems: [
+          { label: "Stage & backdrop", value: "$4,500" },
+          { label: "AV & lighting", value: "$3,800" },
+          { label: "Furniture rental", value: "$2,200" },
+          { label: "Setup & teardown", value: "$1,200" },
+          { label: "On-site coordination", value: "$800" },
+        ],
+        inquiryFields: [
+          { label: "Date", value: "October 24" },
+          { label: "Venue", value: "Grand Hall" },
+          { label: "Duration", value: "Full day" },
+          { label: "Guests", value: "180" },
+        ],
+        attachmentLabel: "Reference files",
+        attachmentCount: "3 attached",
+        attachmentTiles: ["Floorplan", "Run sheet", "Mood"],
+        attachmentSummary: "Budget $10–15k · 3 files",
+        quoteFooter: "Secure link · services and terms",
+        followUpTitle: "Follow up on event quote",
+        followUpMessage:
+          "Hi team — just checking in on the event quote. Happy to walk through the services.",
+        paymentMethod: "Bank transfer",
+      },
+    },
   },
   "custom-fabrication-signage": {
     slug: "custom-fabrication-signage",
@@ -1259,7 +2114,7 @@ export const solutionDetails: Record<string, SolutionDetail> = {
         quoteValue: "$1,850",
         statusLabel: "Status",
         statusValue: "Viewed",
-        note: "Secure link · proof sent with the quote · version 1",
+        note: "Secure link · specs and artwork stay on the order · version 1",
         quoteStatus: "sent",
       },
       {
@@ -1299,7 +2154,7 @@ export const solutionDetails: Record<string, SolutionDetail> = {
         quoteValue: "$0",
         statusLabel: "Payment status",
         statusValue: "Paid",
-        note: "One invoice per quote · manual payments only, no pay page",
+        note: "One active invoice per accepted quote · manual payments only, no pay page",
         quoteStatus: "accepted",
         invoiceStatus: "paid",
       },
@@ -1362,7 +2217,7 @@ export const solutionDetails: Record<string, SolutionDetail> = {
       {
         question: "Can I collect custom specifications?",
         answer:
-          "Yes. Inquiry forms support custom fields for quantity, dimensions, material, finish, deadline, and anything else your quoting depends on — collected before you price, not after.",
+          "Yes. Inquiry forms can collect quantity, dimensions, material, finish, and deadline through custom fields, so the specs arrive before you price.",
       },
       {
         question: "Can I quote different quantities and line items?",
@@ -1377,7 +2232,7 @@ export const solutionDetails: Record<string, SolutionDetail> = {
       {
         question: "How do payments work for custom orders?",
         answer:
-          "An accepted quote converts into an invoice without retyping the specs. Record each manual payment — cash, bank transfer, GCash, Maya, check, or other — and the invoice shows as unpaid, partially paid, paid, or overdue. Requo tracks payment status; it does not process cards or online payments.",
+          "An accepted quote converts into an invoice without retyping the quoted lines. Record each manual payment — cash, bank transfer, GCash, Maya, check, or other — and the invoice shows as unpaid, partially paid, paid, or overdue. Requo tracks payment status; it does not process cards or online payments.",
       },
     ],
     related: [
@@ -1394,10 +2249,154 @@ export const solutionDetails: Record<string, SolutionDetail> = {
     ],
     ctaHeadline: "Turn the next custom request into a clear quote.",
     ctaSub:
-      "Collect the specs and files first — the price writes itself from there.",
-    seoTitle: "Custom Fabrication & Signage Quotes | Requo",
+      "Collect the specs and files first, then price the work line by line.",
+    seoTitle: "Custom Fabrication & Signage Quote Software",
     seoDescription:
-      "Quote custom fabrication and signage without the guesswork: gather specs and artwork, price options line by line, approve the exact version, and track each order to payment.",
+      "Quote custom fabrication and signage without guesswork: gather specs and artwork, price options line by line, approve the exact version, and invoice the order.",
+    landing: {
+      eyebrow: "Quote software for custom fabrication & signage",
+      subhead:
+        "Collect the specs, quantities, and artwork on one inquiry, price every option, and carry the approved order through to payment.",
+      trustPoints: landingTrustPoints,
+      linkCardsEyebrow: "The custom-order workflow",
+      linkCardsHeading: "Everything around the order.",
+      linkCardsIntro:
+        "The pieces a fabricator actually touches, from the first request to the final payment.",
+      linkCards: [
+        {
+          icon: ClipboardList,
+          title: "Inquiries",
+          body: "Custom forms can collect quantity, dimensions, material, finish, deadline, and artwork files before you quote.",
+          href: "/features/inquiries",
+          linkLabel: "Learn more",
+        },
+        {
+          icon: FileText,
+          title: "Quotes",
+          body: "Price quantities, materials, and finishing on their own lines, send a secure link, and keep every revision on record.",
+          href: "/features/quotes",
+          linkLabel: "Learn more",
+        },
+        {
+          icon: ReceiptText,
+          title: "Invoices",
+          body: "Turn an accepted quote into an invoice, record manual payments, and see what's paid or overdue.",
+          href: "/features/invoices",
+          linkLabel: "Learn more",
+        },
+      ],
+      workflowHeading: "One custom order. Five clear stages.",
+      workflowIntro:
+        "Brightline Retail's $1,850 signage order stays on one record from inquiry to final payment. Every stage below uses the same order — nothing is retyped.",
+      workflowSteps: [
+        {
+          id: "inquiry",
+          label: "01 / Inquiry",
+          title: "The specs arrive complete",
+          body: "Use custom fields for the specs that set the price — quantity, size, material, finish — and attach artwork to the same request. Free covers three custom fields per service; Pro and Business add more.",
+          points: [
+            "Quantity and dimensions",
+            "Material and finish",
+            "Artwork files attached",
+          ],
+          href: "/features/inquiries",
+          linkLabel: "Explore inquiries",
+          mock: "inquiry",
+        },
+        {
+          id: "quote",
+          label: "02 / Quote",
+          title: "Price every option",
+          body: "Build the $1,850 order from panels, print and mounting, artwork prep, and delivery. Start from an AI draft or your quote library and adjust every line. Free includes about 10 AI drafts a month.",
+          inlineLink: { text: "AI draft", href: "/features/ai" },
+          points: [
+            "Options and quantities",
+            "Quote library or custom lines",
+            "Expiry date you control",
+          ],
+          href: "/features/quotes",
+          linkLabel: "Explore quotes",
+          mock: "quote",
+        },
+        {
+          id: "send",
+          label: "03 / Send",
+          title: "The buyer approves the exact quote version",
+          body: "Email the quote or paste its secure link into chat. The buyer opens it on any device, with no account, and can accept, decline, or request changes.",
+          points: [
+            "No account or app",
+            "Comments on individual lines",
+            "Viewed timestamp",
+          ],
+          href: "/features/quotes",
+          linkLabel: "Explore the client link",
+          mock: "send",
+        },
+        {
+          id: "follow-up",
+          label: "04 / Follow-up",
+          title: "Never lose a waiting order",
+          body: "Each view updates the timestamp and notifies you. Follow-up tasks with due dates keep the order visible; Pro and Business can send automatic follow-up emails.",
+          points: [
+            "View timestamp and alert",
+            "Tasks with due dates",
+            "Automatic nudges on Pro and Business",
+          ],
+          href: "/features/follow-ups",
+          linkLabel: "Explore follow-ups",
+          mock: "follow-up",
+        },
+        {
+          id: "payment",
+          label: "05 / Paid",
+          title: "The approved order becomes an invoice",
+          body: "The accepted quote becomes an invoice without retyping the line items. Record each payment by hand as it arrives and the status follows.",
+          points: [
+            "One active invoice per accepted quote",
+            "Manual payments, including partial",
+            "Unpaid, partially paid, paid, overdue",
+          ],
+          href: "/features/invoices",
+          linkLabel: "Explore invoices",
+          mock: "payment",
+        },
+      ],
+      proofEyebrow: "Built into the product",
+      proofHeading: "Facts, not promises.",
+      proofIntro:
+        "These are product limits and behaviors you can check before you start.",
+      proofFacts: landingProofFacts,
+      sample: {
+        customer: "Brightline Retail",
+        initials: "BR",
+        project: "Custom Signage",
+        label: "Custom signage",
+        quoteNumber: "Q-6314",
+        invoiceNumber: "INV-6314",
+        total: "$1,850",
+        lineItems: [
+          { label: "24 acrylic panels", value: "$1,200" },
+          { label: "Print & mounting", value: "$350" },
+          { label: "Artwork prep", value: "$200" },
+          { label: "Packaging & delivery", value: "$100" },
+        ],
+        inquiryFields: [
+          { label: "Quantity", value: "24" },
+          { label: "Size", value: "24 × 36 in" },
+          { label: "Material", value: "Acrylic" },
+          { label: "Finish", value: "Matte" },
+        ],
+        attachmentLabel: "Artwork files",
+        attachmentCount: "3 attached",
+        attachmentTiles: ["Logo", "Proof", "Spec sheet"],
+        attachmentSummary: "Qty 24 · 3 files",
+        quoteFooter: "Secure link · specs stay on the order",
+        followUpTitle: "Follow up on signage quote",
+        followUpMessage:
+          "Hi team — just checking in on the signage quote. Happy to review the proof.",
+        paymentMethod: "Bank transfer",
+      },
+    },
   },
 };
 

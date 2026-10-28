@@ -2724,6 +2724,57 @@ html[data-reload-loading="fade-out"] #app-root-content {
     background: var(--marketing-accent);
   }
 
+  /*
+   * One tinted stage behind a solution landing illustration. Light gets a
+   * soft emerald wash over the muted surface; dark caps the glow and the dot
+   * grid at a 6% effective tint. `content-visibility` defers below-fold mock
+   * painting while the intrinsic size keeps the row from shifting on approach.
+   */
+  .marketing-solution-stage {
+    position: relative;
+    background:
+      radial-gradient(
+        120% 100% at 18% 0%,
+        color-mix(in srgb, var(--primary) 7%, transparent) 0%,
+        transparent 58%
+      ),
+      var(--marketing-surface-muted);
+    content-visibility: auto;
+    contain-intrinsic-size: auto 30rem;
+  }
+
+  .dark .marketing-solution-stage {
+    background:
+      radial-gradient(
+        120% 100% at 18% 0%,
+        color-mix(in srgb, var(--primary) 6%, transparent) 0%,
+        transparent 58%
+      ),
+      var(--marketing-surface-muted);
+  }
+
+  .marketing-solution-stage::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image: radial-gradient(
+      color-mix(in srgb, var(--primary) 12%, transparent) 1px,
+      transparent 1px
+    );
+    background-size: 18px 18px;
+    opacity: 0;
+  }
+
+  .dark .marketing-solution-stage::before {
+    opacity: 0.5;
+  }
+
+  .marketing-solution-stage > * {
+    position: relative;
+    z-index: 1;
+  }
+
   .marketing-accent-text {
     color: var(--marketing-accent);
   }
