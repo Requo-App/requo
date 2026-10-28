@@ -142,7 +142,7 @@ export function DashboardShellFrame({
       <NavBadgeProvider>
       {navBadgeSlot}
       <div
-        className="flex h-svh min-w-0 flex-1 overflow-hidden bg-shell-frame"
+        className="flex h-dvh min-w-0 flex-1 overflow-hidden bg-shell-frame"
         data-shell-root
       >
         {/* Desktop sidebar — a seamless rail in the shell frame (hidden below lg; mobile uses the top bar + floating dock). Its width animates; the content card is a flex sibling, so it resizes in the same layout pass with no margin switch. */}

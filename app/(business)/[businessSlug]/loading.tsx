@@ -14,7 +14,7 @@ export default function BusinessSlugLoading() {
 
   return (
     <div
-      className="flex h-svh min-w-0 flex-1 overflow-hidden bg-shell-frame"
+      className="flex h-dvh min-w-0 flex-1 overflow-hidden bg-shell-frame"
       data-shell-root
     >
       {/* Seamless desktop rail — same geometry as the real sidebar. */}
