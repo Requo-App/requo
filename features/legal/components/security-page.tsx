@@ -4,7 +4,6 @@ import {
   type LegalDocumentSection,
   LegalList,
   LegalParagraph,
-  LegalSectionHeading,
   LegalSubheading,
 } from "@/features/legal/components/legal-document-page";
 
@@ -14,7 +13,6 @@ const securitySections: LegalDocumentSection[] = [
     title: "1. Overview",
     content: (
       <>
-        <LegalSectionHeading>1. Overview</LegalSectionHeading>
         <LegalParagraph>
           Security is foundational to how {legalConfig.companyName} is built and
           operated. This page describes the technical and organizational
@@ -29,7 +27,6 @@ const securitySections: LegalDocumentSection[] = [
     title: "2. Encryption",
     content: (
       <>
-        <LegalSectionHeading>2. Encryption</LegalSectionHeading>
         <LegalSubheading>In Transit</LegalSubheading>
         <LegalParagraph>
           All data transmitted between your browser and {legalConfig.companyName}{" "}
@@ -50,7 +47,6 @@ const securitySections: LegalDocumentSection[] = [
     title: "3. Authentication",
     content: (
       <>
-        <LegalSectionHeading>3. Authentication</LegalSectionHeading>
         <LegalParagraph>
           {legalConfig.companyName} supports multiple authentication methods to
           balance security and convenience:
@@ -85,7 +81,6 @@ const securitySections: LegalDocumentSection[] = [
     title: "4. Access Control",
     content: (
       <>
-        <LegalSectionHeading>4. Access Control</LegalSectionHeading>
         <LegalParagraph>
           {legalConfig.companyName} enforces strict data isolation between
           businesses:
@@ -114,7 +109,6 @@ const securitySections: LegalDocumentSection[] = [
     title: "5. Infrastructure",
     content: (
       <>
-        <LegalSectionHeading>5. Infrastructure</LegalSectionHeading>
         <LegalList
           items={[
             <>
@@ -139,7 +133,6 @@ const securitySections: LegalDocumentSection[] = [
     title: "6. Compliance Alignment",
     content: (
       <>
-        <LegalSectionHeading>6. Compliance Alignment</LegalSectionHeading>
         <LegalParagraph>
           {legalConfig.companyName} aligns its data handling practices with the
           following frameworks:
@@ -170,7 +163,6 @@ const securitySections: LegalDocumentSection[] = [
     title: "7. Security Headers",
     content: (
       <>
-        <LegalSectionHeading>7. Security Headers</LegalSectionHeading>
         <LegalParagraph>
           {legalConfig.companyName} applies the following HTTP security headers
           to all responses:
@@ -211,7 +203,6 @@ const securitySections: LegalDocumentSection[] = [
     title: "8. Responsible Disclosure",
     content: (
       <>
-        <LegalSectionHeading>8. Responsible Disclosure</LegalSectionHeading>
         <LegalParagraph>
           We welcome responsible security research. If you discover a
           vulnerability in {legalConfig.companyName}, please report it to us
@@ -263,5 +254,11 @@ const securitySections: LegalDocumentSection[] = [
 ];
 
 export function SecurityPage() {
-  return <LegalDocumentPage title="Security" sections={securitySections} />;
+  return (
+    <LegalDocumentPage
+      content={securitySections}
+      effectiveDate={legalConfig.effectiveDate}
+      title="Security"
+    />
+  );
 }

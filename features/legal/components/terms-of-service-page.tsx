@@ -6,591 +6,422 @@ import {
   type LegalDocumentSection,
   LegalList,
   LegalParagraph,
-  LegalSectionHeading,
-  LegalSubheading,
 } from "@/features/legal/components/legal-document-page";
 
 const termsSections: LegalDocumentSection[] = [
   {
     id: "acceptance",
-    title: "1. Acceptance Of These Terms",
+    legacyIds: ["eligibility"],
+    title: "1. Agreement And Eligibility",
     content: (
       <>
-        <LegalSectionHeading>1. Acceptance Of These Terms</LegalSectionHeading>
         <LegalParagraph>
-          These Terms of Service (&quot;Terms&quot;) are a legally binding
-          agreement between you and Requo (&quot;Requo,&quot; &quot;we,&quot;
+          These Terms of Service (&quot;Terms&quot;) are a binding agreement
+          between you and Requo (&quot;Requo,&quot; &quot;we,&quot;
           &quot;us,&quot; or &quot;our&quot;) governing your access to and use
-          of Requo, including the website, application, public inquiry pages,
-          public quote pages, and related communications made available at{" "}
-          <a
-            className="text-foreground underline-offset-4 hover:underline"
-            href={legalConfig.domain}
-          >
-            {legalConfig.domain}
-          </a>
-          .
+          of the Requo website, application, public inquiry pages, public quote
+          links, and related communications at{" "}
+          <a href={legalConfig.domain}>{legalConfig.domain}</a> (the
+          &quot;Service&quot;).
         </LegalParagraph>
         <LegalParagraph>
-          By accessing or using the Service, you agree to these Terms. If you do
-          not agree, do not use the Service.
+          By creating an account, using the Service, or accepting these Terms,
+          you agree to these Terms. If you use Requo on behalf of a business or
+          other organization, you represent that you have authority to bind that
+          entity, and &quot;you&quot; includes that entity.
         </LegalParagraph>
-      </>
-    ),
-  },
-  {
-    id: "eligibility",
-    title: "2. Eligibility And Authority",
-    content: (
-      <>
-        <LegalSectionHeading>2. Eligibility And Authority</LegalSectionHeading>
         <LegalParagraph>
           You may use the Service only if you are legally capable of entering
-          into a binding agreement and, if you use the Service on behalf of a
-          business or other organization, you have authority to bind that entity
-          to these Terms.
-        </LegalParagraph>
-        <LegalParagraph>
-          If you use the Service on behalf of an organization, &quot;you&quot;
-          includes both you and that organization.
+          into a binding agreement. If you do not agree to these Terms, do not
+          use the Service. If you access a public inquiry page or quote link,
+          these Terms apply to your use of that page or link, along with any
+          terms provided by the business operating it.
         </LegalParagraph>
       </>
     ),
   },
   {
     id: "accounts",
-    title: "3. Accounts, Authentication, And Security",
+    legacyIds: ["businesses"],
+    title: "2. Accounts And Businesses",
     content: (
       <>
-        <LegalSectionHeading>
-          3. Accounts, Authentication, And Security
-        </LegalSectionHeading>
         <LegalParagraph>
-          You may need an account to use certain parts of the Service. You agree
-          to provide accurate information, keep your login credentials
-          confidential, and promptly update your information if it changes.
+          You must provide accurate account information, keep your login
+          credentials secure, and promptly notify us of unauthorized access. You
+          are responsible for activity under your account.
         </LegalParagraph>
         <LegalParagraph>
-          The Service currently supports email-and-password sign-in, optional
-          email magic links (when transactional email is configured), password
-          reset, session management, account deletion, and optional Google OAuth
-          sign-in when enabled.
+          A business owner controls its Requo workspace, including membership,
+          roles, and access to business data. Members may access and use business
+          data according to the permissions the owner grants. The business is
+          responsible for its members and for obtaining any notices, consents,
+          and permissions required for its use of Requo and its customer
+          communications.
         </LegalParagraph>
         <LegalParagraph>
-          You are responsible for all activity that occurs under your account to
-          the extent caused by your actions or failure to safeguard access. If
-          you believe your account has been compromised, contact us promptly at{" "}
-          <a
-            className="text-foreground underline-offset-4 hover:underline"
-            href={`mailto:${legalConfig.supportEmail}`}
-          >
-            {legalConfig.supportEmail}
-          </a>
-          .
+          We may suspend or limit access to an account or business if we believe
+          it presents a security, legal, or abuse risk, or if these Terms are
+          violated.
         </LegalParagraph>
       </>
     ),
   },
   {
-    id: "businesses",
-    title: "4. Businesses, Multi-Business Access, And Invites",
+    id: "the-service",
+    legacyIds: ["permitted-use"],
+    title: "3. The Service",
     content: (
       <>
-        <LegalSectionHeading>
-          4. Businesses, Multi-Business Access, And Invites
-        </LegalSectionHeading>
         <LegalParagraph>
-          Requo supports businesses, member invites, role-based access,
-          and multi-business switching. A user may belong to more than one
-          business if invited or otherwise authorized.
+          Requo helps service businesses receive and manage inquiries, prepare
+          and share quotes, follow up with customers, issue invoices, and record
+          payments received outside Requo.
         </LegalParagraph>
         <LegalParagraph>
-          If you create or administer a business, you are responsible
-          for managing the people you invite, the permissions you grant, and the
-          content you or your team make available through that business.
-        </LegalParagraph>
-      </>
-    ),
-  },
-  {
-    id: "permitted-use",
-    title: "5. Permitted Use",
-    content: (
-      <>
-        <LegalSectionHeading>5. Permitted Use</LegalSectionHeading>
-        <LegalParagraph>
-          Subject to these Terms, Requo grants you a limited, non-exclusive,
-          non-transferable, revocable right to access and use the Service for
-          your internal business use in managing inquiries, quotes, and related
-          customer communications.
+          <strong>Requo does not process payments.</strong> We do not hold funds,
+          act as a payment processor or merchant of record for your customer
+          payments, or guarantee payment. Payment records are owner-entered
+          records of funds received elsewhere, and invoices are requests for
+          payment.
         </LegalParagraph>
         <LegalParagraph>
-          The Service is designed for service businesses and related
-          workflows such as inquiry intake, lead qualification, quote delivery,
-          follow-up scheduling, and internal drafting support.
+          Businesses remain responsible for their services, pricing, quotes,
+          invoices, taxes, customer communications, and compliance with the laws
+          that apply to them. Templates, analytics, and AI suggestions are tools,
+          not professional advice.
+        </LegalParagraph>
+        <LegalParagraph>
+          We offer a free plan and paid plans. Current features, limits, and
+          pricing are described on our pricing page and at checkout.
         </LegalParagraph>
       </>
     ),
   },
   {
     id: "prohibited-use",
-    title: "6. Prohibited Use",
+    title: "4. Acceptable Use",
     content: (
       <>
-        <LegalSectionHeading>6. Prohibited Use</LegalSectionHeading>
+        <LegalParagraph>You agree not to:</LegalParagraph>
         <LegalList
           items={[
-            "Use the Service in violation of law, regulation, contractual restrictions, or the rights of others.",
-            "Upload, submit, or transmit unlawful, infringing, abusive, fraudulent, defamatory, or harmful content.",
-            "Attempt to gain unauthorized access to the Service, another user's account, or another business.",
-            "Interfere with the operation, security, or integrity of the Service, including by introducing malware or abusive traffic.",
-            "Use automated means to scrape, copy, or extract data from the Service except as expressly permitted by us.",
-            "Use public inquiry pages or public quote links in a way that misrepresents identity, collects unrelated data, or circumvents the intended workflow of the Service.",
-            "Use the Service in a way that could create material legal, security, or operational risk for Requo, our users, or others.",
+            "Use the Service in violation of applicable law or to infringe the rights of others.",
+            "Submit or send unlawful, harmful, fraudulent, misleading, or abusive content, or send spam or unsolicited communications.",
+            "Collect or submit personal information without the notices, consents, and permissions required by law.",
+            "Upload malware or interfere with the security, integrity, or availability of the Service.",
+            "Attempt to access another account, business, or system without authorization, or probe, scan, or test the Service for vulnerabilities.",
+            "Reverse engineer, copy, scrape, resell, rent, or time-share the Service, or evade usage limits.",
+            "Use AI features to create unlawful, deceptive, or harmful content, or to make decisions that require human judgment.",
+            "Impersonate another person or misrepresent your affiliation with a business.",
           ]}
         />
+        <LegalParagraph>
+          We may investigate suspected violations and suspend or terminate access
+          as described in section 9.
+        </LegalParagraph>
       </>
     ),
   },
   {
     id: "user-content",
-    title: "7. User Content, Uploaded Content, And Public Submissions",
+    legacyIds: ["public-pages"],
+    title: "5. Your Content And Public Pages",
     content: (
       <>
-        <LegalSectionHeading>
-          7. User Content, Uploaded Content, And Public Submissions
-        </LegalSectionHeading>
-        <LegalSubheading>A. What counts as user content</LegalSubheading>
         <LegalParagraph>
-          &quot;User Content&quot; includes business information, inquiry forms,
-          inquiry submissions, quotes, messages, uploaded files, notes, pricing
-          entries, public quote responses, and other content
-          you or your customers submit through the Service.
+          You retain ownership of the content you submit to the Service,
+          including business information, inquiries, quotes, invoices, files, and
+          other materials (&quot;Your Content&quot;). You grant Requo a limited,
+          non-exclusive, worldwide, royalty-free license to host, store, process,
+          transmit, display, and deliver Your Content as needed to provide the
+          Service to you and your customers.
         </LegalParagraph>
-        <LegalSubheading>B. Ownership</LegalSubheading>
         <LegalParagraph>
-          As between you and Requo, you retain ownership of your User Content.
+          You represent that you have the rights, notices, consents, and
+          permissions needed to submit Your Content and to send communications
+          through the Service, and that Your Content and communications are
+          accurate and lawful.
         </LegalParagraph>
-        <LegalSubheading>
-          C. License you grant to operate the Service
-        </LegalSubheading>
         <LegalParagraph>
-          You grant Requo a non-exclusive, worldwide, royalty-free license to
-          host, store, reproduce, process, transmit, display, and otherwise use
-          your User Content as necessary to operate, maintain, secure, and
-          provide the Service and its features.
+          Public inquiry pages, forms, and quote links are accessible to anyone
+          who has the link. You control what you publish and who you share links
+          with. Do not publish confidential information or collect sensitive
+          personal information through public pages without appropriate
+          safeguards and notices.
         </LegalParagraph>
-        <LegalSubheading>D. Your responsibilities</LegalSubheading>
-        <LegalList
-          items={[
-            "You are responsible for the legality, accuracy, and appropriateness of your User Content.",
-            "You represent that you have all rights and permissions needed to submit User Content and allow us to process it as described in these Terms and the Privacy Policy.",
-            "You are responsible for your relationship with your own customers, including the content of inquiries, quotes, offers, and underlying business commitments.",
-          ]}
-        />
-      </>
-    ),
-  },
-  {
-    id: "public-pages",
-    title: "8. Public Inquiry Pages And Public Quote Links",
-    content: (
-      <>
-        <LegalSectionHeading>
-          8. Public Inquiry Pages And Public Quote Links
-        </LegalSectionHeading>
-        <LegalSubheading>A. Public inquiry pages and forms</LegalSubheading>
         <LegalParagraph>
-          Requo allows businesses to publish public inquiry pages and inquiry
-          forms that can be accessed without a Requo login. You are responsible
-          for the content, configuration, and collection practices of the public
-          inquiry pages and forms you publish through the Service.
-        </LegalParagraph>
-        <LegalSubheading>B. Public quote links</LegalSubheading>
-        <LegalParagraph>
-          Public quote links are designed to let a recipient view and respond to
-          a quote without a separate customer login. Anyone who has the link may
-          be able to access the corresponding quote page while the link remains
-          active, so you should treat public quote links as sensitive.
-        </LegalParagraph>
-        <LegalSubheading>C. Underlying business relationship</LegalSubheading>
-        <LegalParagraph>
-          Requo is not a party to the underlying transaction or service
-          relationship between a business using Requo and that business&rsquo;s
-          customer. We do not guarantee customer payment, service performance,
-          legal enforceability of a quote, or compliance of a business&rsquo;s
-          own documents or commitments.
-        </LegalParagraph>
-      </>
-    ),
-  },
-  {
-    id: "third-party-services",
-    title: "9. Third-Party Services And Integrations",
-    content: (
-      <>
-        <LegalSectionHeading>
-          9. Third-Party Services And Integrations
-        </LegalSectionHeading>
-        <LegalParagraph>
-          The Service uses third-party services for hosting, data and file
-          storage, payment processing, transactional email, AI request routing,
-          and optional social sign-in. The providers supported in the current
-          Service include:
-        </LegalParagraph>
-        <LegalList
-          items={[
-            `${legalConfig.hostingProvider}, for hosting and application delivery.`,
-            `${legalConfig.storageProvider}, for database, storage, and related backend infrastructure.`,
-            `${legalConfig.paymentProvider}, for subscription billing and payment processing as the merchant of record; subscription changes, cancellations, and refunds are handled through its customer portal.`,
-            "Resend (with Mailtrap and Brevo as fallback providers), for transactional email delivery.",
-            "Groq, Google Gemini, Cloudflare Workers AI, NVIDIA NIM, and OpenRouter, for AI request routing when AI features are used.",
-            "Google, for optional OAuth sign-in when enabled; transactional email carries magic-link sign-in when configured.",
-          ]}
-        />
-        <LegalParagraph>
-          Your use of a third-party login or payment provider may also be
-          subject to that provider&rsquo;s own terms and privacy practices.
-          Requo is not responsible for third-party services we do not control.
+          We may remove content that violates these Terms or applicable law, or
+          that creates a security or legal risk.
         </LegalParagraph>
       </>
     ),
   },
   {
     id: "ai-features",
-    title: "10. AI Features",
+    title: "6. AI Features",
     content: (
       <>
-        <LegalSectionHeading>10. AI Features</LegalSectionHeading>
-        <LegalSubheading>A. Internal AI drafting</LegalSubheading>
         <LegalParagraph>
-          Requo includes AI-assisted drafting features intended for internal use
-          by authorized business users. These features may send
-          prompts and related business content through our configured AI
-          providers (Groq, Google Gemini, Cloudflare Workers AI, NVIDIA NIM,
-          or routed via OpenRouter) and,
-          depending on configuration, to the model provider used
-          to generate drafts, summaries, and suggestions.
-        </LegalParagraph>
-        <LegalSubheading>B. AI outputs are for review</LegalSubheading>
-        <LegalParagraph>
-          AI outputs are provided for convenience only. They can be incomplete,
-          inaccurate, or unsuitable for your use case, and you are responsible
-          for reviewing and approving any output before you rely on it, send it,
-          or act on it.
+          AI features are assistive tools. Outputs may be incomplete, inaccurate,
+          or unsuitable for your use case, and you are responsible for reviewing
+          them before you rely on them, send them, or act on them. Do not treat
+          AI output as legal, financial, compliance, or other professional
+          advice.
         </LegalParagraph>
         <LegalParagraph>
-          Do not treat AI output as legal, financial, compliance, or
-          professional advice, and do not rely on it without human review.
+          Do not submit sensitive personal, financial, health, or confidential
+          information to AI features unless it is necessary and permitted for
+          your use. Some AI actions require confirmation before they create or
+          change records or send customer-facing content; do not bypass those
+          controls.
+        </LegalParagraph>
+        <LegalParagraph>
+          We may process AI inputs through third-party providers. See our{" "}
+          <Link href="/privacy">Privacy Policy</Link> and{" "}
+          <Link href="/subprocessors">Subprocessors</Link> page for more
+          information.
         </LegalParagraph>
       </>
     ),
   },
   {
     id: "fees",
-    title: "11. Paid Plans, Fees, And Billing",
+    title: "7. Plans, Billing, And Refunds",
     content: (
       <>
-        <LegalSectionHeading>11. Paid Plans, Fees, And Billing</LegalSectionHeading>
         <LegalParagraph>
-          Requo offers a free plan with limited features and paid subscription
-          plans (Pro and Business) with additional capabilities. Paid plans are
-          available on monthly or yearly billing cycles. Current pricing is
-          displayed on the pricing page and during checkout.
+          Paid plans are billed monthly or yearly at the prices shown at
+          checkout. Subscriptions renew automatically at the end of each billing
+          period unless you cancel before the renewal date, and you authorize our
+          payment provider to charge your payment method for each renewal.
         </LegalParagraph>
-        <LegalSubheading>A. Payment processing</LegalSubheading>
         <LegalParagraph>
-          Subscription payments are processed by {legalConfig.paymentProvider},
-          our merchant of record. USD is the base billing currency;{" "}
+          Payments are processed by {legalConfig.paymentProvider}, our merchant
+          of record. USD is the base billing currency;{" "}
           {legalConfig.paymentProvider} may display a local-currency amount at
-          checkout for convenience.
+          checkout for convenience. We do not collect or store full payment card
+          details.
         </LegalParagraph>
-        <LegalSubheading>B. Recurring billing</LegalSubheading>
         <LegalParagraph>
-          Paid subscriptions renew automatically at the end of each billing
-          period unless you cancel before the renewal date. You authorize{" "}
-          {legalConfig.paymentProvider} to charge your payment method on file
-          for each renewal.
+          You may cancel at any time through the {legalConfig.paymentProvider}{" "}
+          customer portal linked from your billing settings. After cancellation,
+          you retain access to paid features until the end of the current billing
+          period, after which the business reverts to the free plan. Refunds are
+          handled through that portal and are subject to our{" "}
+          <Link href="/refund-policy">Refund Policy</Link>. Cancellation does not
+          by itself entitle you to a refund.
         </LegalParagraph>
-        <LegalSubheading>C. Cancellation</LegalSubheading>
         <LegalParagraph>
-          You may cancel your subscription at any time through the{" "}
-          {legalConfig.paymentProvider} customer portal linked from your
-          billing settings. After cancellation, you retain access to paid
-          features until the end of the current billing period, after which
-          your business reverts to the free plan.
+          We may change plan pricing. If we increase the price of a plan you are
+          subscribed to, we will provide reasonable advance notice before the
+          change takes effect on your next renewal. If a payment fails or remains
+          overdue, we may suspend paid features or downgrade the business.
         </LegalParagraph>
-        <LegalSubheading>D. Refunds</LegalSubheading>
+      </>
+    ),
+  },
+  {
+    id: "third-party-services",
+    title: "8. Third-Party Services",
+    content: (
+      <>
         <LegalParagraph>
-          Refund eligibility and procedures are described in our{" "}
-          <Link
-            className="text-foreground underline-offset-4 hover:underline"
-            href="/refund-policy"
-          >
-            Refund Policy
-          </Link>
-          .
+          The Service may link to or work with third-party services, such as
+          payment processing, email delivery, optional sign-in, AI providers, and
+          customer support tools. Their terms and privacy policies apply to your
+          use of them, and we are not responsible for their acts or omissions.
         </LegalParagraph>
-        <LegalSubheading>E. Price changes</LegalSubheading>
         <LegalParagraph>
-          We may change plan pricing from time to time. If we increase the price
-          of a plan you are subscribed to, we will provide reasonable advance
-          notice before the change takes effect on your next renewal.
+          When you connect or use a third-party service, you authorize us to
+          share the information needed for that integration. Disconnecting the
+          integration stops future sharing but does not delete information the
+          third party already holds.
         </LegalParagraph>
       </>
     ),
   },
   {
     id: "availability",
-    title: "12. Service Availability And Changes",
+    legacyIds: ["suspension", "force-majeure", "data-export-commitment"],
+    title: "9. Availability, Suspension, And Termination",
     content: (
       <>
-        <LegalSectionHeading>
-          12. Service Availability And Changes
-        </LegalSectionHeading>
         <LegalParagraph>
-          We may modify, suspend, or discontinue all or part of the Service at
-          any time, including features, integrations, access methods, or
-          supported plans. We do not guarantee that the Service will always be
-          available, uninterrupted, timely, or error-free.
-        </LegalParagraph>
-      </>
-    ),
-  },
-  {
-    id: "suspension",
-    title: "13. Suspension And Termination",
-    content: (
-      <>
-        <LegalSectionHeading>
-          13. Suspension And Termination
-        </LegalSectionHeading>
-        <LegalParagraph>
-          We may suspend or terminate your access to the Service if we believe,
-          in good faith, that you have violated these Terms, your use creates
-          security or legal risk, or suspension is needed to protect the Service,
-          our users, or others.
+          We may modify, suspend, or discontinue all or part of the Service,
+          including features, integrations, and plans. We do not guarantee that
+          the Service will be uninterrupted, timely, secure, or error-free.
         </LegalParagraph>
         <LegalParagraph>
-          You may stop using the Service at any time. Account deletion and
-          business deletion tools are available in the current Service, but
-          deletion may not be immediate in all systems, including backups or
-          operational logs.
-        </LegalParagraph>
-      </>
-    ),
-  },
-  {
-    id: "force-majeure",
-    title: "14. Force Majeure",
-    content: (
-      <>
-        <LegalSectionHeading>14. Force Majeure</LegalSectionHeading>
-        <LegalParagraph>
-          Neither party will be liable for any failure or delay in performing its
-          obligations under these Terms where such failure or delay results from
-          events beyond the affected party&rsquo;s reasonable control.
+          We may suspend or terminate your access if you violate these Terms,
+          fail to pay applicable fees, create a security or legal risk, or if
+          suspension is needed to protect the Service or others. Where
+          reasonable, we will provide notice and an opportunity to remedy the
+          issue.
         </LegalParagraph>
         <LegalParagraph>
-          Force majeure events include, but are not limited to:
-        </LegalParagraph>
-        <LegalList
-          items={[
-            "Natural disasters (earthquakes, floods, hurricanes, volcanic eruptions).",
-            "Pandemics, epidemics, or widespread public health emergencies.",
-            "Government actions, orders, embargoes, or sanctions.",
-            "War, armed conflict, or terrorism.",
-            "Infrastructure failures (power grid outages, internet backbone failures, telecommunications disruptions).",
-            "Third-party service outages beyond Requo's operational control (cloud providers, payment processors, DNS providers).",
-          ]}
-        />
-        <LegalParagraph>
-          The affected party will use reasonable efforts to mitigate the impact
-          of the force majeure event and resume performance as soon as
-          practicable. If a force majeure event continues for more than 60
-          consecutive days, either party may terminate these Terms upon written
-          notice.
-        </LegalParagraph>
-      </>
-    ),
-  },
-  {
-    id: "data-export-commitment",
-    title: "15. Data Export",
-    content: (
-      <>
-        <LegalSectionHeading>15. Data Export</LegalSectionHeading>
-        <LegalParagraph>
-          While your account is active, you can export inquiries and quotes to
-          CSV from within the Service. Export before deleting an account or
-          business: deletion removes data through cascading deletes, and we do
-          not promise a post-termination export window.
+          You may stop using the Service at any time and delete your account or
+          business using the available tools. Deletion may not be immediate in
+          backups and operational logs. Export inquiries and quotes to CSV before
+          deleting an account or business; we do not promise a post-termination
+          export window.
         </LegalParagraph>
         <LegalParagraph>
-          If you need help exporting, contact us using the details in the{" "}
-          <Link
-            className="text-foreground underline-offset-4 hover:underline"
-            href="/privacy"
-          >
-            Privacy Policy
-          </Link>
-          .
+          When these Terms end, your right to use the Service ends. Provisions
+          that by their nature should survive, including intellectual property,
+          disclaimers, limitation of liability, indemnity, and governing law,
+          will survive.
         </LegalParagraph>
       </>
     ),
   },
   {
     id: "ownership",
-    title: "16. Ownership Of The Service And Limited License",
+    legacyIds: ["feedback"],
+    title: "10. Intellectual Property",
     content: (
       <>
-        <LegalSectionHeading>
-          16. Ownership Of The Service And Limited License
-        </LegalSectionHeading>
         <LegalParagraph>
-          The Service, including its software, design, trademarks, and related
-          materials, is owned by Requo or its licensors and is protected by
-          applicable intellectual property and other laws.
+          The Service, including its software, design, trademarks, documentation,
+          and other materials provided by Requo, is owned by Requo or its
+          licensors and is protected by intellectual property laws. Except for
+          the limited rights granted in these Terms, we reserve all rights.
         </LegalParagraph>
         <LegalParagraph>
-          Except for the limited rights expressly granted in these Terms, Requo
-          reserves all rights in and to the Service.
+          Subject to these Terms, we grant you a limited, non-exclusive,
+          non-transferable, revocable right to access and use the Service for
+          your internal business purposes during your subscription. You may not
+          sublicense, resell, or make the Service available to third parties
+          except as permitted by these Terms.
         </LegalParagraph>
-      </>
-    ),
-  },
-  {
-    id: "feedback",
-    title: "17. Feedback",
-    content: (
-      <>
-        <LegalSectionHeading>17. Feedback</LegalSectionHeading>
         <LegalParagraph>
-          If you provide suggestions, ideas, or feedback about the Service, you
-          grant Requo a non-exclusive, royalty-free right to use that feedback
-          to operate and improve the Service without compensation to you.
+          If you provide suggestions or feedback, you grant us a royalty-free
+          right to use it to improve the Service without compensation or
+          obligation to you. We will not identify you as the source without your
+          permission.
         </LegalParagraph>
       </>
     ),
   },
   {
     id: "disclaimers",
-    title: "18. Disclaimers",
+    title: "11. Disclaimers",
     content: (
       <>
-        <LegalSectionHeading>18. Disclaimers</LegalSectionHeading>
         <LegalParagraph>
-          To the maximum extent permitted by applicable law, the Service is
-          provided &quot;as is&quot; and &quot;as available.&quot; Requo
-          disclaims all warranties of any kind, whether express, implied,
-          statutory, or otherwise, including implied warranties of
-          merchantability, fitness for a particular purpose, title, and
-          non-infringement.
+          To the maximum extent permitted by law, the Service is provided
+          &quot;as is&quot; and &quot;as available.&quot; Requo disclaims all
+          warranties of any kind, whether express, implied, statutory, or
+          otherwise, including implied warranties of merchantability, fitness for
+          a particular purpose, title, and non-infringement.
         </LegalParagraph>
         <LegalParagraph>
-          Without limiting the foregoing, Requo does not warrant that the
-          Service will meet your requirements, be uninterrupted, be secure, be
-          error-free, or produce any particular business result.
+          We do not warrant that the Service will meet your requirements, be
+          uninterrupted, secure, or error-free, or produce any particular
+          business result. Some jurisdictions do not allow the exclusion of
+          certain warranties, so some of these exclusions may not apply to you.
         </LegalParagraph>
       </>
     ),
   },
   {
     id: "liability",
-    title: "19. Limitation Of Liability",
+    title: "12. Limitation Of Liability",
     content: (
       <>
-        <LegalSectionHeading>
-          19. Limitation Of Liability
-        </LegalSectionHeading>
         <LegalParagraph>
-          To the maximum extent permitted by applicable law, Requo and its
-          affiliates, officers, directors, employees, agents, suppliers, and
-          licensors will not be liable for any indirect, incidental, special,
-          consequential, exemplary, or punitive damages, or for any loss of
-          profits, revenues, goodwill, data, or business opportunities, arising
-          out of or relating to the Service or these Terms.
+          To the maximum extent permitted by law, Requo and its affiliates,
+          officers, directors, employees, agents, suppliers, and licensors will
+          not be liable for indirect, incidental, special, consequential,
+          exemplary, or punitive damages, or for loss of profits, revenues,
+          goodwill, data, or business opportunities, arising out of or relating
+          to the Service or these Terms.
         </LegalParagraph>
         <LegalParagraph>
-          To the maximum extent permitted by applicable law, Requo&rsquo;s
-          aggregate liability arising out of or relating to the Service or these
-          Terms will not exceed the greater of (a) the total amount you paid to
-          Requo for the Service during the twelve (12) months preceding the
-          event giving rise to the claim, or (b) one hundred U.S. dollars
-          (US$100). If you have not paid any amounts to Requo, Requo&rsquo;s
-          total liability will not exceed one hundred U.S. dollars (US$100).
+          To the maximum extent permitted by law, Requo&apos;s aggregate
+          liability arising out of or relating to the Service or these Terms will
+          not exceed the greater of (a) the total amount you paid to Requo for
+          the Service during the twelve months preceding the event giving rise to
+          the claim, or (b) one hundred U.S. dollars (US$100). If you have not
+          paid any amounts to Requo, our total liability will not exceed US$100.
+        </LegalParagraph>
+        <LegalParagraph>
+          Nothing in these Terms limits liability that cannot be limited by
+          applicable law.
         </LegalParagraph>
       </>
     ),
   },
   {
     id: "indemnity",
-    title: "20. Indemnity",
+    title: "13. Indemnity",
     content: (
       <>
-        <LegalSectionHeading>20. Indemnity</LegalSectionHeading>
         <LegalParagraph>
-          You agree to defend, indemnify, and hold harmless Requo, its
-          affiliates, and their respective officers, directors, employees,
-          agents, suppliers, and licensors from and against claims, losses,
-          liabilities, damages, judgments, and expenses (including reasonable
-          attorneys&rsquo; fees) arising out of or related to your use of the
-          Service, your User Content, your violation of these Terms, or your
-          violation of law or the rights of another person or entity.
+          You agree to defend, indemnify, and hold harmless Requo, its affiliates,
+          and their respective officers, directors, employees, agents, suppliers,
+          and licensors from claims, losses, liabilities, damages, judgments, and
+          expenses (including reasonable attorneys&apos; fees) arising out of or
+          related to your use of the Service, Your Content, your violation of
+          these Terms, or your violation of law or the rights of another person
+          or entity.
+        </LegalParagraph>
+        <LegalParagraph>
+          We will notify you of a covered claim and may participate in the
+          defense. You may not settle a claim in a way that admits our fault or
+          imposes obligations on us without our prior written consent.
         </LegalParagraph>
       </>
     ),
   },
   {
     id: "governing-law",
-    title: "21. Governing Law And Venue",
+    title: "14. Governing Law",
     content: (
       <>
-        <LegalSectionHeading>
-          21. Governing Law And Venue
-        </LegalSectionHeading>
         <LegalParagraph>
-          These Terms and any dispute arising out of or relating to these Terms
-          or the Service will be governed by and construed in accordance with{" "}
-          {legalConfig.governingLaw}, without regard to conflict of law
-          principles.
+          These Terms and any dispute arising out of or relating to them or the
+          Service will be governed by {legalConfig.governingLaw}, without regard
+          to conflict of law principles.
         </LegalParagraph>
         <LegalParagraph>
           Any dispute, claim, or controversy arising out of or relating to these
-          Terms or the Service will be brought exclusively in {legalConfig.venue}
-          , and you consent to the personal jurisdiction and venue of those
-          courts.
+          Terms or the Service will be brought exclusively in{" "}
+          {legalConfig.venue}, and you consent to the personal jurisdiction and
+          venue of those courts.
         </LegalParagraph>
       </>
     ),
   },
   {
     id: "changes-and-contact",
-    title: "22. Changes To These Terms And Contact Information",
+    title: "15. Changes And Contact",
     content: (
       <>
-        <LegalSectionHeading>
-          22. Changes To These Terms And Contact Information
-        </LegalSectionHeading>
         <LegalParagraph>
-          We may update these Terms from time to time. If we make material
-          changes, we will post the updated version on this page and update the
-          effective date above. By continuing to use the Service after the
-          updated Terms take effect, you agree to the revised Terms.
+          We may update these Terms from time to time. We will post the updated
+          version on this page and update the effective date. If we make material
+          changes, we will provide reasonable notice by email, in-product notice,
+          or another reasonable method where required. By continuing to use the
+          Service after the updated Terms take effect, you agree to the revised
+          Terms. If you do not agree, stop using the Service and cancel your
+          subscription.
         </LegalParagraph>
         <LegalParagraph>
-          If you have questions about these Terms, you may contact us at{" "}
-          <a
-            className="text-foreground underline-offset-4 hover:underline"
-            href={`mailto:${legalConfig.supportEmail}`}
-          >
+          These Terms, together with the Privacy Policy, Refund Policy, and other
+          policies referenced here, form the entire agreement between you and
+          Requo regarding the Service, unless you have a separate written
+          agreement with us. If any provision is found unenforceable, the
+          remaining provisions will remain in effect. Our failure to enforce a
+          provision is not a waiver.
+        </LegalParagraph>
+        <LegalParagraph>
+          Questions about these Terms:{" "}
+          <a href={`mailto:${legalConfig.supportEmail}`}>
             {legalConfig.supportEmail}
           </a>{" "}
           or{" "}
-          <a
-            className="text-foreground underline-offset-4 hover:underline"
-            href={`mailto:${legalConfig.privacyEmail}`}
-          >
+          <a href={`mailto:${legalConfig.privacyEmail}`}>
             {legalConfig.privacyEmail}
           </a>
           , or by mail at {legalConfig.address}.
@@ -601,5 +432,11 @@ const termsSections: LegalDocumentSection[] = [
 ];
 
 export function TermsOfServicePage() {
-  return <LegalDocumentPage title="Terms of Service" sections={termsSections} />;
+  return (
+    <LegalDocumentPage
+      content={termsSections}
+      effectiveDate={legalConfig.effectiveDate}
+      title="Terms of Service"
+    />
+  );
 }

@@ -5,5 +5,5 @@ import { LegalPageSkeleton } from "@/features/legal/components/legal-loading";
  * Renders the legal document page frame synchronously.
  */
 export default function SubprocessorsLoading() {
-  return <LegalPageSkeleton title="Subprocessors" sections={4} />;
+  return <LegalPageSkeleton title="Subprocessors" sections={4} withToc={false} />;
 }

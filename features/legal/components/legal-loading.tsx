@@ -1,36 +1,64 @@
+import { MarketingHeader } from "@/components/marketing/marketing-header";
+import { PublicPageShell } from "@/components/shared/public-page-shell";
 import { Skeleton } from "@/components/ui/skeleton";
+import { legalConfig } from "@/features/legal/config";
 
 export function LegalPageSkeleton({
   title,
   sections = 5,
+  withToc = sections >= 3,
 }: {
   title: string;
   sections?: number;
+  withToc?: boolean;
 }) {
   return (
-    <div data-padding="none" className="section-panel mx-auto w-full max-w-4xl overflow-hidden">
-      {/* Document header */}
-      <div className="border-b border-border/70 px-5 py-6 sm:px-8 sm:py-8">
-        <p className="meta-label">Effective date</p>
-        <Skeleton className="mt-3 h-4 w-32 rounded-md" />
-        <h1 className="mt-5 font-heading text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
-          {title}
-        </h1>
-      </div>
+    <PublicPageShell
+      brandSubtitle={null}
+      className="public-page--flush"
+      header={<MarketingHeader />}
+    >
+      <div className="marketing-shell-container legal-page">
+        <div
+          className={
+            withToc ? "legal-grid legal-grid--with-toc" : "legal-grid"
+          }
+        >
+          <header className="legal-header">
+            <p className="legal-effective-date">
+              Effective date: {legalConfig.effectiveDate}
+            </p>
+            <h1 className="legal-title font-heading">{title}</h1>
+          </header>
 
-      {/* Document body skeleton */}
-      <div className="px-5 py-6 sm:px-8 sm:py-8">
-        <div className="mx-auto flex w-full max-w-3xl flex-col gap-8">
-          {Array.from({ length: sections }).map((_, i) => (
-            <div className="flex flex-col gap-4" key={`section-${i}`}>
-              <Skeleton className="h-7 w-48 rounded-md" />
-              <Skeleton className="h-4 w-full rounded-md" />
-              <Skeleton className="h-4 w-full rounded-md" />
-              <Skeleton className="h-4 w-3/4 rounded-md" />
+          <article className="legal-article">
+            <div className="legal-prose">
+              {Array.from({ length: sections }).map((_, index) => (
+                <div className="flex flex-col gap-4" key={`section-${index}`}>
+                  <Skeleton className="h-7 w-52 rounded-md" />
+                  <Skeleton className="h-4 w-full rounded-md" />
+                  <Skeleton className="h-4 w-full rounded-md" />
+                  <Skeleton className="h-4 w-3/4 rounded-md" />
+                </div>
+              ))}
             </div>
-          ))}
+          </article>
+
+          {withToc ? (
+            <aside className="legal-sidebar">
+              <div className="legal-sidebar-sticky flex flex-col gap-3">
+                <Skeleton className="h-4 w-24 rounded-md" />
+                {Array.from({ length: 8 }).map((_, index) => (
+                  <Skeleton
+                    className="h-3.5 w-full rounded-md"
+                    key={`toc-${index}`}
+                  />
+                ))}
+              </div>
+            </aside>
+          ) : null}
         </div>
       </div>
-    </div>
+    </PublicPageShell>
   );
 }

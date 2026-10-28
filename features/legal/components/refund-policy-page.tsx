@@ -4,7 +4,6 @@ import {
   type LegalDocumentSection,
   LegalList,
   LegalParagraph,
-  LegalSectionHeading,
   LegalSubheading,
 } from "@/features/legal/components/legal-document-page";
 
@@ -14,7 +13,6 @@ const refundSections: LegalDocumentSection[] = [
     title: "1. Overview",
     content: (
       <>
-        <LegalSectionHeading>1. Overview</LegalSectionHeading>
         <LegalParagraph>
           This Refund Policy explains the terms and conditions under which{" "}
           {legalConfig.companyName} (&quot;{legalConfig.companyName},&quot;
@@ -45,7 +43,6 @@ const refundSections: LegalDocumentSection[] = [
     title: "2. Refund Eligibility",
     content: (
       <>
-        <LegalSectionHeading>2. Refund Eligibility</LegalSectionHeading>
         <LegalParagraph>
           {legalConfig.companyName} does not offer a fixed money-back
           guarantee. Refund requests are handled through the{" "}
@@ -67,7 +64,6 @@ const refundSections: LegalDocumentSection[] = [
     title: "3. How To Request A Refund",
     content: (
       <>
-        <LegalSectionHeading>3. How To Request A Refund</LegalSectionHeading>
         <LegalParagraph>
           Request a refund through the {legalConfig.paymentProvider} customer
           portal linked from your billing settings:
@@ -102,7 +98,6 @@ const refundSections: LegalDocumentSection[] = [
     title: "4. Subscription Cancellation",
     content: (
       <>
-        <LegalSectionHeading>4. Subscription Cancellation</LegalSectionHeading>
         <LegalParagraph>
           You can cancel your subscription at any time through the{" "}
           {legalConfig.paymentProvider} customer portal linked from your
@@ -124,7 +119,6 @@ const refundSections: LegalDocumentSection[] = [
     title: "5. Payment Provider",
     content: (
       <>
-        <LegalSectionHeading>5. Payment Provider</LegalSectionHeading>
         <LegalParagraph>
           {legalConfig.companyName} uses {legalConfig.paymentProvider} as its
           merchant of record. USD is the base billing currency;{" "}
@@ -146,7 +140,6 @@ const refundSections: LegalDocumentSection[] = [
     title: "6. Exceptions And Limitations",
     content: (
       <>
-        <LegalSectionHeading>6. Exceptions And Limitations</LegalSectionHeading>
         <LegalParagraph>
           Cancelling a subscription stops future charges but does not, by
           itself, refund past payments. Before opening a payment dispute or
@@ -167,7 +160,6 @@ const refundSections: LegalDocumentSection[] = [
     title: "7. Questions And Contact",
     content: (
       <>
-        <LegalSectionHeading>7. Questions And Contact</LegalSectionHeading>
         <LegalParagraph>
           If you have questions about this Refund Policy or need help with a
           refund request, please contact us:
@@ -203,5 +195,11 @@ const refundSections: LegalDocumentSection[] = [
 ];
 
 export function RefundPolicyPage() {
-  return <LegalDocumentPage title="Refund Policy" sections={refundSections} />;
+  return (
+    <LegalDocumentPage
+      content={refundSections}
+      effectiveDate={legalConfig.effectiveDate}
+      title="Refund Policy"
+    />
+  );
 }

@@ -1,5 +1,30 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# CodeRabbit reads this file from the pull request's head branch. Keep review
+# behavior in version control and change it here instead of the CodeRabbit UI.
+
+language: "en-US"
+
 reviews:
+  profile: "chill"
+
   auto_review:
     enabled: true
+    auto_incremental_review: true
+    drafts: false
+    # List every base branch explicitly. When this only contained
+    # `refactor/*`, CodeRabbit skipped PRs targeting `main`. `.*` covers
+    # `main`, stacked refactor branches, and future release branches.
     base_branches:
-      - "^refactor/.*$"
+      - ".*"
+    ignore_title_keywords:
+      - "[WIP]"
+      - "WIP:"
+      - "DO NOT MERGE"
+      - "[skip review]"
+
+  pre_merge_checks:
+    docstrings:
+      mode: "off"
+
+chat:
+  auto_reply: true

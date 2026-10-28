@@ -6,7 +6,6 @@ import {
   type LegalDocumentSection,
   LegalList,
   LegalParagraph,
-  LegalSectionHeading,
   LegalSubheading,
 } from "@/features/legal/components/legal-document-page";
 
@@ -16,7 +15,6 @@ const dpaSections: LegalDocumentSection[] = [
     title: "1. Introduction",
     content: (
       <>
-        <LegalSectionHeading>1. Introduction</LegalSectionHeading>
         <LegalParagraph>
           This Data Processing Agreement (&quot;DPA&quot;) forms part of the
           agreement between you (&quot;Controller&quot;) and{" "}
@@ -38,7 +36,6 @@ const dpaSections: LegalDocumentSection[] = [
     title: "2. Definitions",
     content: (
       <>
-        <LegalSectionHeading>2. Definitions</LegalSectionHeading>
         <LegalList
           items={[
             <span key="controller">
@@ -78,9 +75,6 @@ const dpaSections: LegalDocumentSection[] = [
     title: "3. Scope and Role of the Processor",
     content: (
       <>
-        <LegalSectionHeading>
-          3. Scope and Role of the Processor
-        </LegalSectionHeading>
         <LegalParagraph>
           {legalConfig.companyName} is designated as the Processor for all
           business customer data processed through the Service. The Controller
@@ -118,12 +112,9 @@ const dpaSections: LegalDocumentSection[] = [
   },
   {
     id: "standard-contractual-clauses",
-    title: "4. Standard Contractual Clauses (Module 2)",
+    title: "4. Standard Contractual Clauses (Module 2: Controller-to-Processor)",
     content: (
       <>
-        <LegalSectionHeading>
-          4. Standard Contractual Clauses (Module 2: Controller-to-Processor)
-        </LegalSectionHeading>
         <LegalParagraph>
           For transfers of Personal Data from the European Economic Area (EEA),
           United Kingdom, or Switzerland to countries that have not received an
@@ -162,9 +153,6 @@ const dpaSections: LegalDocumentSection[] = [
     title: "5. Technical and Organizational Measures Annex",
     content: (
       <>
-        <LegalSectionHeading>
-          5. Technical and Organizational Measures Annex
-        </LegalSectionHeading>
         <LegalParagraph>
           The Processor implements and maintains the following technical and
           organizational measures to protect Personal Data:
@@ -228,7 +216,6 @@ const dpaSections: LegalDocumentSection[] = [
     title: "6. Subprocessors",
     content: (
       <>
-        <LegalSectionHeading>6. Subprocessors</LegalSectionHeading>
         <LegalParagraph>
           The Controller provides general authorization for the Processor to
           engage Subprocessors to assist in providing the Service. The Processor
@@ -259,7 +246,6 @@ const dpaSections: LegalDocumentSection[] = [
     title: "7. Controller Obligations",
     content: (
       <>
-        <LegalSectionHeading>7. Controller Obligations</LegalSectionHeading>
         <LegalParagraph>The Controller shall:</LegalParagraph>
         <LegalList
           items={[
@@ -277,7 +263,6 @@ const dpaSections: LegalDocumentSection[] = [
     title: "8. Data Subject Rights",
     content: (
       <>
-        <LegalSectionHeading>8. Data Subject Rights</LegalSectionHeading>
         <LegalParagraph>
           The Processor shall assist the Controller in responding to Data Subject
           requests to exercise their rights under applicable data protection law,
@@ -297,7 +282,6 @@ const dpaSections: LegalDocumentSection[] = [
     title: "9. Term and Termination",
     content: (
       <>
-        <LegalSectionHeading>9. Term and Termination</LegalSectionHeading>
         <LegalParagraph>
           This DPA remains in effect for as long as the Processor processes
           Personal Data on behalf of the Controller. Upon termination of the
@@ -317,7 +301,6 @@ const dpaSections: LegalDocumentSection[] = [
     title: "10. Governing Law",
     content: (
       <>
-        <LegalSectionHeading>10. Governing Law</LegalSectionHeading>
         <LegalParagraph>
           This DPA is governed by {legalConfig.governingLaw}. For transfers
           subject to the Standard Contractual Clauses, the SCCs shall be
@@ -333,7 +316,6 @@ const dpaSections: LegalDocumentSection[] = [
     title: "11. Contact",
     content: (
       <>
-        <LegalSectionHeading>11. Contact</LegalSectionHeading>
         <LegalParagraph>
           For questions about this DPA or to request a signed copy, contact us
           at{" "}
@@ -353,7 +335,8 @@ const dpaSections: LegalDocumentSection[] = [
 export function DpaPage() {
   return (
     <LegalDocumentPage
-      sections={dpaSections}
+      content={dpaSections}
+      effectiveDate={legalConfig.effectiveDate}
       title="Data Processing Agreement"
     />
   );
