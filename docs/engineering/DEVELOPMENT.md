@@ -77,15 +77,16 @@ module, and use `lib/` for shared infrastructure. Reuse existing UI and
 authorization/data-access patterns. Update authoritative docs when a material
 behavior or architectural fact changes.
 
-### Root files
+### Config and tooling files
 
-Keep tool entry points at the repository root — their CLIs and editor
-integrations discover them there by default: `next.config.ts`, `proxy.ts`,
-`tsconfig.json`, `eslint.config.mjs`, `postcss.config.mjs`,
-`playwright.config.ts`, `vitest.config.ts`, `drizzle.config.ts`,
-`docker-compose.yml`, and `skills-lock.json`. Keep secondary configuration
-next to what it serves instead: test-only config lives under `tests/`, and
-development Dockerfiles live under `docker/`.
+Keep only files whose tools require a fixed root location at the repository
+root: `next.config.ts`, `proxy.ts`, `tsconfig.json`, `postcss.config.mjs`,
+`vercel.json`, `components.json`, `docker-compose.yml`, and
+`skills-lock.json` (the skills CLI hardcodes its lock file there). Other
+tool configuration lives in `config/` and `package.json` passes the explicit
+path: `eslint --config`, `vitest --config`, `playwright --config`, and
+`drizzle-kit --config`. Test-only helpers live with their tests; development
+Dockerfiles live under `docker/`.
 
 ## Canonical patterns
 

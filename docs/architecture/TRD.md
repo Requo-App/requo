@@ -11,12 +11,12 @@ tests define exact behavior.
 |---|---|---|
 | Runtime/framework | Node.js 24+, Next.js 16.4.2 App Router, React 19.2.4, TypeScript 5.9.3 | [`package.json`](../../package.json), [`.nvmrc`](../../.nvmrc), [`next.config.ts`](../../next.config.ts) |
 | UI | React Server Components by default, client components where interaction requires them; Tailwind CSS 4.2.2, Radix primitives and repository-owned components | [`app/`](../../app/), [`components/`](../../components/), [`DESIGN.md`](../../DESIGN.md) |
-| Data | PostgreSQL, Drizzle ORM 0.45.2, postgres-js; SQL migrations are committed under `drizzle/` | [`lib/db/client.ts`](../../lib/db/client.ts), [`lib/db/schema/`](../../lib/db/schema/), [`drizzle/`](../../drizzle/), [`drizzle.config.ts`](../../drizzle.config.ts) |
+| Data | PostgreSQL, Drizzle ORM 0.45.2, postgres-js; SQL migrations are committed under `drizzle/` | [`lib/db/client.ts`](../../lib/db/client.ts), [`lib/db/schema/`](../../lib/db/schema/), [`drizzle/`](../../drizzle/), [`config/drizzle.config.ts`](../../config/drizzle.config.ts) |
 | Identity | Better Auth 1.7.4 with the Drizzle adapter | [`lib/auth/`](../../lib/auth/), [`auth route`](../../app/api/auth/%5B...all%5D/route.ts) |
 | Async work | Inngest 4.4.0, exposed through `/api/inngest`; Vercel Cron invokes selected route handlers | [`lib/inngest/`](../../lib/inngest/), [`Inngest route`](../../app/api/inngest/route.ts), [`vercel.json`](../../vercel.json) |
 | Storage/realtime | Supabase Storage and authenticated Realtime notification plumbing; Postgres application data uses Drizzle | [`lib/supabase/`](../../lib/supabase/), [`lib/db/`](../../lib/db/) |
 | Billing/email/AI | Polar, provider-fallback transactional email, Vercel AI SDK 6.0.276 with a shared model router | [`lib/billing/`](../../lib/billing/), [`lib/email/`](../../lib/email/), [`lib/ai/`](../../lib/ai/) |
-| Tests | Vitest, Testing Library, PostgreSQL integration tests, Playwright | [`Vitest config`](../../vitest.config.ts), [`Playwright config`](../../playwright.config.ts), [`tests/`](../../tests/) |
+| Tests | Vitest, Testing Library, PostgreSQL integration tests, Playwright | [`Vitest config`](../../config/vitest.config.ts), [`Playwright config`](../../config/playwright.config.ts), [`tests/`](../../tests/) |
 
 The lockfile is `package-lock.json`; the repository is a single application,
 not a workspace monorepo. Do not infer installed APIs from a different
