@@ -913,14 +913,14 @@ html[data-reload-loading="fade-out"] #app-root-content {
 
   100% {
     opacity: 1;
-    transform: translate3d(0, 0, 0);
+    transform: none;
   }
 }
 
 @keyframes sidebar-sheet-exit-left {
   0% {
     opacity: 1;
-    transform: translate3d(0, 0, 0);
+    transform: none;
   }
 
   100% {
@@ -937,14 +937,14 @@ html[data-reload-loading="fade-out"] #app-root-content {
 
   100% {
     opacity: 1;
-    transform: translate3d(0, 0, 0);
+    transform: none;
   }
 }
 
 @keyframes sidebar-sheet-exit-right {
   0% {
     opacity: 1;
-    transform: translate3d(0, 0, 0);
+    transform: none;
   }
 
   100% {
@@ -961,14 +961,14 @@ html[data-reload-loading="fade-out"] #app-root-content {
 
   100% {
     opacity: 1;
-    transform: translate3d(0, 0, 0);
+    transform: none;
   }
 }
 
 @keyframes sidebar-sheet-exit-top {
   0% {
     opacity: 1;
-    transform: translate3d(0, 0, 0);
+    transform: none;
   }
 
   100% {
@@ -985,14 +985,14 @@ html[data-reload-loading="fade-out"] #app-root-content {
 
   100% {
     opacity: 1;
-    transform: translate3d(0, 0, 0);
+    transform: none;
   }
 }
 
 @keyframes sidebar-sheet-exit-bottom {
   0% {
     opacity: 1;
-    transform: translate3d(0, 0, 0);
+    transform: none;
   }
 
   100% {
@@ -1350,7 +1350,7 @@ html[data-reload-loading="fade-out"] #app-root-content {
   /* Sheets and drawers travel the full edge distance on the way in and leave
      on a faster, accelerating curve so dismissal feels immediate. */
   .motion-sheet-panel {
-    transform: translate3d(0, 0, 0);
+    transform: none;
     backface-visibility: hidden;
     contain: paint;
   }
@@ -1462,7 +1462,7 @@ html[data-reload-loading="fade-out"] #app-root-content {
 
   .motion-fullscreen-panel[data-state="open"] {
     opacity: 1;
-    transform: translate3d(0, 0, 0);
+    transform: none;
   }
 
   .motion-fullscreen-panel[data-state="closed"] {

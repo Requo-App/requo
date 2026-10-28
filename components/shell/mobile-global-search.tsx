@@ -67,6 +67,7 @@ export function MobileGlobalSearch({
 }: MobileGlobalSearchProps) {
   const pathname = usePathname();
   const inputRef = useRef<HTMLInputElement>(null);
+  const restoreFocusRef = useRef<HTMLElement | null>(null);
   const [query, setQuery] = useState("");
   const [state, setState] = useState<SearchState>({ status: "idle" });
   const [mounted, setMounted] = useState(open);
@@ -79,6 +80,10 @@ export function MobileGlobalSearch({
   useEffect(() => {
     if (open) {
       if (unmountTimer.current) clearTimeout(unmountTimer.current);
+      restoreFocusRef.current =
+        document.activeElement instanceof HTMLElement
+          ? document.activeElement
+          : null;
       setMounted(true);
       rafIds.current.push(
         requestAnimationFrame(() =>
@@ -94,19 +99,13 @@ export function MobileGlobalSearch({
       setVisible(false);
       unmountTimer.current = setTimeout(() => setMounted(false), 240);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mounted is read at close time
-  }, [open]);
-
-  useEffect(() => {
-    if (!mounted) {
-      return;
-    }
     return () => {
       for (const id of rafIds.current) cancelAnimationFrame(id);
       rafIds.current = [];
       if (unmountTimer.current) clearTimeout(unmountTimer.current);
     };
-  }, [mounted]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mounted is read at close time
+  }, [open]);
 
   useEffect(() => {
     if (!open) {
@@ -117,7 +116,7 @@ export function MobileGlobalSearch({
   }, [open]);
 
   useEffect(() => {
-    if (!mounted) {
+    if (!mounted || !open) {
       return;
     }
     const onKey = (event: KeyboardEvent) => {
@@ -128,11 +127,13 @@ export function MobileGlobalSearch({
     document.addEventListener("keydown", onKey);
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    const restoreTarget = restoreFocusRef.current;
     return () => {
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = previousOverflow;
+      restoreTarget?.focus?.();
     };
-  }, [mounted, onOpenChange]);
+  }, [mounted, open, onOpenChange]);
 
   // Close the overlay on successful navigation.
   useEffect(() => {
@@ -192,6 +193,7 @@ export function MobileGlobalSearch({
 
   return (
     <div
+      inert={!open}
       role="dialog"
       aria-modal="true"
       aria-label="Search records"

@@ -55,11 +55,12 @@ export function FloatingFormActions({
 
   const isClosing = !visible || state === "closed";
   const disableCancelButton = isPending;
-  const disableSubmitButton = isPending || (!isClosing && disableSubmit);
+  const disableSubmitButton = isPending || disableSubmit;
 
   return (
     <div className="fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-40 flex justify-center px-4 lg:bottom-4">
       <div
+        inert={isClosing}
         data-padding="none"
         className={cn(
           "overlay-surface motion-floating-bar flex w-full max-w-2xl items-center justify-center gap-3 border px-4 py-3 sm:justify-between",

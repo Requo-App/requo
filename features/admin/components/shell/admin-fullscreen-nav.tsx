@@ -57,11 +57,16 @@ export function AdminFullscreenNav({
       setVisible(false);
       unmountTimer.current = setTimeout(() => setMounted(false), 240);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mounted is write-only here
+    return () => {
+      for (const id of rafIds.current) cancelAnimationFrame(id);
+      rafIds.current = [];
+      if (unmountTimer.current) clearTimeout(unmountTimer.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mounted is read at close time
   }, [open]);
 
   useEffect(() => {
-    if (!mounted) {
+    if (!mounted || !open) {
       return;
     }
     const onKey = (event: KeyboardEvent) => {
@@ -97,14 +102,11 @@ export function AdminFullscreenNav({
     panelRef.current?.focus();
     const restoreTarget = restoreFocusRef.current;
     return () => {
-      for (const id of rafIds.current) cancelAnimationFrame(id);
-      rafIds.current = [];
-      if (unmountTimer.current) clearTimeout(unmountTimer.current);
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = previousOverflow;
       restoreTarget?.focus?.();
     };
-  }, [mounted, onOpenChange]);
+  }, [mounted, open, onOpenChange]);
 
   // Close the overlay on successful navigation — instantly, so stale
   // navigation never animates over the destination.
@@ -126,6 +128,7 @@ export function AdminFullscreenNav({
   return (
     <div
       ref={panelRef}
+      inert={!open}
       role="dialog"
       aria-modal="true"
       tabIndex={-1}
