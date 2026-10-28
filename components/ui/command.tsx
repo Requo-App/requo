@@ -13,7 +13,7 @@ function Command({
   return (
     <CommandPrimitive
       className={cn(
-        "flex h-full w-full flex-col overflow-hidden rounded-xl bg-popover text-popover-foreground",
+        "flex h-full w-full flex-col overflow-hidden rounded-xl bg-transparent text-popover-foreground",
         className,
       )}
       data-slot="command"
@@ -28,7 +28,7 @@ function CommandInput({
 }: React.ComponentProps<typeof CommandPrimitive.Input>) {
   return (
     <div
-      className="flex items-center gap-2 border-b border-border/70 px-3"
+      className="flex items-center gap-2 border-b border-[var(--overlay-divider)] px-3"
       data-slot="command-input-wrapper"
     >
       <SearchIcon className="size-4 shrink-0 text-muted-foreground" />
@@ -95,7 +95,7 @@ function CommandSeparator({
 }: React.ComponentProps<typeof CommandPrimitive.Separator>) {
   return (
     <CommandPrimitive.Separator
-      className={cn("-mx-1 h-px bg-border", className)}
+      className={cn("-mx-1 h-px bg-[var(--overlay-divider)]", className)}
       data-slot="command-separator"
       {...props}
     />

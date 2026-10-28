@@ -95,7 +95,7 @@ export function MobileTabsCombobox({
         </PopoverTrigger>
         <PopoverContent
           align="start"
-          className="overlay-surface w-[var(--radix-popover-trigger-width)] p-0"
+          className="w-[var(--radix-popover-trigger-width)] p-0"
         >
           <Command value={focusValue} onValueChange={setFocusValue}>
             <CommandList>

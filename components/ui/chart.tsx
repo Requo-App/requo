@@ -202,7 +202,7 @@ function ChartTooltipContent({
   return (
     <div
       className={cn(
-        "grid min-w-32 items-start gap-1.5 rounded-lg border border-[var(--overlay-surface-border)] bg-popover px-2.5 py-1.5 text-xs shadow-xl",
+        "tooltip-surface grid min-w-32 items-start gap-1.5 rounded-lg px-2.5 py-1.5 text-xs",
         className
       )}
     >

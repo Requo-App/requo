@@ -100,6 +100,7 @@ const DARK_SURFACE_TOKENS = [
   "shell-card",
   "surface-inset-bg",
   "tooltip-surface-bg",
+  "overlay-surface-bg",
   "theme-preview-dark-bg",
   "theme-preview-dark-card",
   "inverse-surface",
@@ -169,6 +170,7 @@ const REQUIRED_TOKENS = [
   "control-border-hover",
   "control-disabled-fg",
   "control-disabled-border",
+  "overlay-divider",
 ] as const;
 
 const REQUIRED_THEME_MAPPINGS = [
@@ -437,6 +439,22 @@ export function parseTokenBlock(
   return tokens;
 }
 
+/** Resolve a token whose whole value is a `var(--token)` reference. */
+function resolveToken(
+  tokens: Map<string, string>,
+  name: string,
+  seen = new Set<string>(),
+): string | null {
+  const value = tokens.get(name);
+  if (!value) return null;
+  const match = /^var\(\s*--([a-z0-9-]+)\s*\)$/.exec(value);
+  if (!match) return value;
+  if (seen.has(name)) return null;
+  const nextSeen = new Set(seen);
+  nextSeen.add(name);
+  return resolveToken(tokens, match[1], nextSeen);
+}
+
 function normalize(rel: string): string {
   return rel.replace(/\\/g, "/");
 }
@@ -621,7 +639,7 @@ async function run(): Promise<void> {
 
   const darkTokens = dark;
   for (const token of DARK_SURFACE_TOKENS) {
-    const value = darkTokens.get(token);
+    const value = resolveToken(darkTokens, token);
     if (!value) continue;
     const rgb = parseColor(value);
     if (!rgb || rgb.a < 1) continue;
@@ -642,6 +660,93 @@ async function run(): Promise<void> {
       });
     }
   }
+
+  const darkOverlaySurfaceTokens = [
+    "popover",
+    "overlay-surface-bg",
+    "tooltip-surface-bg",
+  ] as const;
+  const darkOverlaySurfaces = darkOverlaySurfaceTokens.map((token) => {
+    const value = resolveToken(darkTokens, token);
+    return { token, rgb: value ? parseColor(value) : null };
+  });
+  const firstOverlaySurface = darkOverlaySurfaces[0]?.rgb;
+  if (!firstOverlaySurface) {
+    offenders.push({
+      file: GLOBALS,
+      line: 1,
+      message: "dark: could not resolve --popover for the overlay surface check",
+    });
+  } else {
+    const sameColor = (rgb: typeof firstOverlaySurface) =>
+      rgb.r === firstOverlaySurface.r &&
+      rgb.g === firstOverlaySurface.g &&
+      rgb.b === firstOverlaySurface.b &&
+      rgb.a === firstOverlaySurface.a;
+    for (const { token, rgb } of darkOverlaySurfaces) {
+      if (!rgb || !sameColor(rgb)) {
+        offenders.push({
+          file: GLOBALS,
+          line: 1,
+          message: `dark: --${token} must equal --popover (${formatRgb(firstOverlaySurface)}) so every overlay shares one surface`,
+        });
+      }
+    }
+  }
+
+  const OVERLAY_EDGE_MAX = 1.22;
+  const OVERLAY_DIVIDER_MAX = 1.2;
+  const overlayRows: string[] = [];
+  for (const { name, tokens } of themes) {
+    const surfaceValue = resolveToken(tokens, "overlay-surface-bg");
+    const edgeValue = resolveToken(tokens, "overlay-surface-border");
+    const dividerValue = resolveToken(tokens, "overlay-divider");
+    const surfaceRgb = surfaceValue ? parseColor(surfaceValue) : null;
+    const edgeRgb = edgeValue ? parseColor(edgeValue) : null;
+    const dividerRgb = dividerValue ? parseColor(dividerValue) : null;
+
+    if (!surfaceRgb || !edgeRgb || !dividerRgb) {
+      offenders.push({
+        file: GLOBALS,
+        line: 1,
+        message: `${name}: could not resolve the overlay surface, edge, or divider`,
+      });
+      continue;
+    }
+
+    const edge = contrastRatio(
+      mixColor(edgeRgb, surfaceRgb, edgeRgb.a),
+      surfaceRgb,
+    );
+    const divider = contrastRatio(
+      mixColor(dividerRgb, surfaceRgb, dividerRgb.a),
+      surfaceRgb,
+    );
+
+    if (edge > OVERLAY_EDGE_MAX) {
+      offenders.push({
+        file: GLOBALS,
+        line: 1,
+        message: `${name}: overlay edge on the overlay surface is ${edge.toFixed(2)}:1 (max ${OVERLAY_EDGE_MAX}:1)`,
+      });
+    }
+    if (divider > OVERLAY_DIVIDER_MAX) {
+      offenders.push({
+        file: GLOBALS,
+        line: 1,
+        message: `${name}: overlay divider on the overlay surface is ${divider.toFixed(2)}:1 (max ${OVERLAY_DIVIDER_MAX}:1)`,
+      });
+    }
+
+    overlayRows.push(
+      `${name.padEnd(6)} ${formatRgb(surfaceRgb).padEnd(8)} ${`${edge.toFixed(2)}:1`.padEnd(8)} ${divider.toFixed(2)}:1`,
+    );
+  }
+
+  console.log("Color-system overlay table");
+  console.log("theme  surface  edge    divider");
+  console.log(overlayRows.join("\n"));
+  console.log("");
 
   const contrastRows: string[] = [];
   for (const { name, tokens } of themes) {

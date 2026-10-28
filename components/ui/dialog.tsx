@@ -118,10 +118,13 @@ function DialogContent({
   className,
   showCloseButton = true,
   overlayClassName,
+  surface = "overlay",
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
   overlayClassName?: string
+  /** Full-screen previews render the page itself, not a floating panel. */
+  surface?: "overlay" | "page"
 }) {
   const { open, present } = useDialogStateContext("DialogContent")
   const isClosing = !open && present
@@ -136,7 +139,8 @@ function DialogContent({
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          "overlay-surface modal-layer-content motion-dialog-panel fixed bottom-2 left-1/2 top-auto flex max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-3xl -translate-x-1/2 translate-y-0 flex-col overflow-y-auto rounded-xl border text-popover-foreground sm:bottom-auto sm:top-1/2 sm:max-h-[calc(100dvh-2rem)] sm:w-[calc(100vw-2rem)] sm:-translate-y-1/2 sm:overflow-hidden",
+          "modal-layer-content motion-dialog-panel fixed bottom-2 left-1/2 top-auto flex max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-3xl -translate-x-1/2 translate-y-0 flex-col overflow-y-auto rounded-xl border text-popover-foreground sm:bottom-auto sm:top-1/2 sm:max-h-[calc(100dvh-2rem)] sm:w-[calc(100vw-2rem)] sm:-translate-y-1/2 sm:overflow-hidden",
+          surface === "overlay" && "overlay-surface",
           isClosing && "pointer-events-none",
           className
         )}

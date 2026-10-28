@@ -6,8 +6,8 @@
  * motion, and row treatments from here.
  */
 export const MENU_POPOVER_SURFACE = [
-  "motion-aria-popover max-w-[calc(100vw-32px)] overflow-y-auto",
-  "rounded-2xl border border-[var(--overlay-surface-border)] bg-popover p-2.5 shadow-[var(--overlay-surface-shadow)]",
+  "overlay-surface motion-aria-popover max-w-[calc(100vw-32px)] overflow-y-auto",
+  "rounded-2xl border p-2.5",
   "data-[placement=bottom]:origin-top-left data-[placement=top]:origin-bottom-left",
   "data-[placement=left]:origin-right data-[placement=right]:origin-left",
   "data-[placement=bottom]:data-[entering]:-translate-y-1 data-[placement=bottom]:data-[exiting]:-translate-y-1",

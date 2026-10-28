@@ -116,17 +116,20 @@ function SheetContent({
   showCloseButton = true,
   overlayClassName,
   motionPreset = "default",
+  surface = "overlay",
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Content> & {
   side?: "top" | "right" | "bottom" | "left"
   showCloseButton?: boolean
   overlayClassName?: string
   motionPreset?: "default" | "sidebar"
+  /** Full-screen previews render the page itself, not a floating panel. */
+  surface?: "overlay" | "page"
 }) {
   const { open, present } = useSheetStateContext("SheetContent")
   const isClosing = !open && present
   const baseClasses =
-    "overlay-surface modal-layer-content fixed flex max-h-[100dvh] flex-col gap-0 overflow-hidden border bg-clip-padding text-sm text-popover-foreground data-[side=bottom]:inset-x-0 data-[side=bottom]:bottom-0 data-[side=bottom]:h-auto data-[side=bottom]:max-h-[calc(100dvh-1rem)] data-[side=bottom]:rounded-t-xl data-[side=bottom]:border-t data-[side=left]:inset-y-0 data-[side=left]:left-0 data-[side=left]:h-full data-[side=left]:w-[92vw] data-[side=left]:max-w-[calc(100vw-0.75rem)] data-[side=left]:border-r data-[side=right]:inset-y-0 data-[side=right]:right-0 data-[side=right]:h-full data-[side=right]:w-[92vw] data-[side=right]:max-w-[calc(100vw-0.75rem)] data-[side=right]:border-l data-[side=top]:inset-x-0 data-[side=top]:top-0 data-[side=top]:h-auto data-[side=top]:max-h-[calc(100dvh-1rem)] data-[side=top]:rounded-b-xl data-[side=top]:border-b data-[side=left]:sm:max-w-sm data-[side=right]:sm:max-w-sm"
+    "modal-layer-content fixed flex max-h-[100dvh] flex-col gap-0 overflow-hidden border bg-clip-padding text-sm text-popover-foreground data-[side=bottom]:inset-x-0 data-[side=bottom]:bottom-0 data-[side=bottom]:h-auto data-[side=bottom]:max-h-[calc(100dvh-1rem)] data-[side=bottom]:rounded-t-xl data-[side=bottom]:border-t data-[side=left]:inset-y-0 data-[side=left]:left-0 data-[side=left]:h-full data-[side=left]:w-[92vw] data-[side=left]:max-w-[calc(100vw-0.75rem)] data-[side=left]:border-r data-[side=right]:inset-y-0 data-[side=right]:right-0 data-[side=right]:h-full data-[side=right]:w-[92vw] data-[side=right]:max-w-[calc(100vw-0.75rem)] data-[side=right]:border-l data-[side=top]:inset-x-0 data-[side=top]:top-0 data-[side=top]:h-auto data-[side=top]:max-h-[calc(100dvh-1rem)] data-[side=top]:rounded-b-xl data-[side=top]:border-b data-[side=left]:sm:max-w-sm data-[side=right]:sm:max-w-sm"
 
   const motionClasses = "motion-sheet-panel transform-gpu"
 
@@ -147,6 +150,7 @@ function SheetContent({
         data-slot="sheet-content"
         data-side={side}
         className={cn(
+          surface === "overlay" && "overlay-surface",
           baseClasses,
           motionClasses,
           isClosing && "pointer-events-none",

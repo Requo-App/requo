@@ -137,7 +137,7 @@ export function QuoteLibrarySheet({
         </SheetHeader>
 
         <SheetBody className="min-h-0 flex-1 gap-0 px-0 py-0 sm:px-0 sm:py-0">
-          <div className="flex flex-col gap-4 border-b border-border/70 px-5 py-5 sm:px-6 sm:py-6">
+          <div className="flex flex-col gap-4 border-b border-[var(--overlay-divider)] px-5 py-5 sm:px-6 sm:py-6">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input

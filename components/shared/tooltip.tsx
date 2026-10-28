@@ -37,7 +37,7 @@ import { cn } from "@/lib/utils";
 export type TooltipSize = "sm" | "md";
 
 const tooltipVariants = cva(
-  "motion-aria-popover pointer-events-none z-50 max-w-[240px] select-none rounded-lg border border-border-button-default bg-background-primary-default text-text-primary shadow-dropdown",
+  "tooltip-surface motion-aria-popover pointer-events-none z-50 max-w-[240px] select-none rounded-lg",
   {
     variants: {
       size: {
@@ -110,7 +110,7 @@ export function Tooltip({ children, className, size = "sm", showArrow = true, of
                 width={caret.width}
                 height={caret.height}
                 viewBox={`0 0 ${caret.width} ${caret.height}`}
-                className="block overflow-visible fill-background-primary-default stroke-border-button-default"
+                className="block overflow-visible fill-[var(--tooltip-surface-bg)] stroke-[var(--tooltip-surface-border)]"
                 style={{ filter: `drop-shadow(${caret.shadow} rgb(0 0 0 / 0.05))` }}
               >
                 <path d={caret.path} />

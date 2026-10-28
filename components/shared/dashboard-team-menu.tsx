@@ -128,7 +128,7 @@ const teamMenuTriggerVariants = cva(
 );
 
 const teamMenuPopoverVariants = cva(
-  "motion-aria-popover w-[16.5625rem] max-w-[calc(100vw-2rem)] origin-bottom-left overflow-y-auto rounded-2xl border border-[var(--overlay-surface-border)] bg-popover p-2.5 shadow-[var(--overlay-surface-shadow)]",
+  "overlay-surface motion-aria-popover w-[16.5625rem] max-w-[calc(100vw-2rem)] origin-bottom-left overflow-y-auto rounded-2xl border p-2.5",
   {
     variants: {},
   },
@@ -249,7 +249,7 @@ export function DashboardTeamMenu({
 function Group({ group, showDivider, onSelect }: { group: MenuGroup; showDivider: boolean; onSelect: () => void }) {
   return (
     <>
-      {showDivider && <div className="-mx-2.5 my-2.5 h-px bg-border" />}
+      {showDivider && <div className="-mx-2.5 my-2.5 h-px bg-[var(--overlay-divider)]" />}
       <div className={cn("flex w-full flex-col gap-1", group.label && "gap-1.5 pt-1")}>
         {group.label && (
           <span className="px-2 text-body-medium text-muted-foreground">{group.label}</span>

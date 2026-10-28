@@ -41,6 +41,7 @@ export function BusinessQuotePreviewOverlay({
         className="inset-0 h-[100dvh] max-h-[100dvh] w-screen max-w-none translate-x-0 translate-y-0 rounded-none border-0 bg-background p-0 shadow-none sm:inset-0 sm:w-screen sm:translate-x-0 sm:translate-y-0"
         data-testid="quote-preview-overlay"
         showCloseButton={false}
+        surface="page"
       >
         <DialogTitle className="sr-only">Quote preview</DialogTitle>
         <DialogDescription className="sr-only">

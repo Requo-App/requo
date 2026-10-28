@@ -484,7 +484,8 @@
     0 1px 2px rgb(201 55 44 / 0.14),
     0 14px 24px -16px rgb(201 55 44 / 0.42);
   --overlay-surface-bg: var(--popover);
-  --overlay-surface-border: #e5e5ea;
+  --overlay-surface-border: rgb(229 229 234 / 0.8);
+  --overlay-divider: rgb(229 229 234 / 0.5);
   --overlay-surface-shadow: 0 24px 48px -12px rgb(0 0 0 / 0.12),
     0 1px 2px rgb(0 0 0 / 0.06);
   --modal-backdrop: rgb(0 0 0 / 0.45);
@@ -650,9 +651,10 @@ html[data-reload-loading="fade-out"] #app-root-content {
   --foreground: #f5f5f7;
   --card: #262628;
   --card-foreground: #f5f5f7;
-  /* Popovers sit above card controls: a card control resolves to ~#313133,
-     so the menu surface must clear it. */
-  --popover: #343436;
+  /* The overlay surface sits one step above the card (#262628). Card controls
+     resolve slightly brighter, so separation comes from the shadow and
+     hairline edge rather than surface brightness. */
+  --popover: #2c2c2e;
   --popover-foreground: #f5f5f7;
   --primary: #008060;
   --primary-foreground: #f4fffb;
@@ -770,13 +772,20 @@ html[data-reload-loading="fade-out"] #app-root-content {
     0 1px 2px rgb(201 55 44 / 0.14),
     0 14px 24px -16px rgb(201 55 44 / 0.42);
   --overlay-surface-bg: var(--popover);
-  --overlay-surface-border: rgb(255 255 255 / 0.10);
-  --overlay-surface-shadow: 0 18px 36px -20px rgb(0 0 0 / 0.45);
+  --overlay-surface-border: rgb(255 255 255 / 0.06);
+  --overlay-divider: rgb(255 255 255 / 0.05);
+  --overlay-surface-shadow:
+    0 0 0 1px rgb(0 0 0 / 0.45),
+    0 16px 40px -12px rgb(0 0 0 / 0.65),
+    0 3px 10px rgb(0 0 0 / 0.35);
   --modal-backdrop: rgb(0 0 0 / 0.58);
   --tooltip-surface-bg: var(--popover);
   --tooltip-surface-fg: var(--popover-foreground);
   --tooltip-surface-border: var(--overlay-surface-border);
-  --tooltip-surface-shadow: 0 14px 28px -18px rgb(0 0 0 / 0.42);
+  --tooltip-surface-shadow:
+    0 0 0 1px rgb(0 0 0 / 0.4),
+    0 10px 24px -10px rgb(0 0 0 / 0.55),
+    0 2px 6px rgb(0 0 0 / 0.3);
   --table-header-bg: transparent;
   --table-footer-bg: transparent;
   --table-row-hover-bg: rgb(255 255 255 / 0.05);
@@ -3730,6 +3739,47 @@ html[data-reload-loading="fade-out"] #app-root-content {
   .overlay-surface {
     background: var(--overlay-surface-bg);
     border-color: var(--overlay-surface-border);
+    box-shadow: var(--overlay-surface-shadow);
+  }
+
+  /*
+   * One fill per overlay. Dark overlays are only one step above the card, so
+   * page-level inset fills and control borders would either sink below the
+   * overlay or out-shout its hairline edge. Re-derive them from the overlay
+   * surface instead of from the page. Light keeps its current control and
+   * empty-state values.
+   */
+  .dark .overlay-surface,
+  .dark [data-slot="navigation-menu"][data-viewport="false"]
+    [data-slot="navigation-menu-content"] {
+    --empty-surface-bg: transparent;
+    --empty-surface-shadow: none;
+    /* Muted fills (selected rows, icon tiles, progress tracks) must sit above
+       the overlay; the page-level muted value equals the overlay surface. */
+    --muted: rgb(255 255 255 / 0.05);
+    --control-bg: rgb(255 255 255 / 0.05);
+    --control-bg-hover: rgb(255 255 255 / 0.08);
+    --control-bg-strong: rgb(255 255 255 / 0.08);
+    --control-secondary-bg: rgb(255 255 255 / 0.05);
+    --control-secondary-bg-strong: rgb(255 255 255 / 0.08);
+    --control-accent-bg: rgb(255 255 255 / 0.05);
+    --control-border: rgb(255 255 255 / 0.08);
+    --control-border-hover: rgb(255 255 255 / 0.10);
+    --control-shadow: none;
+    --control-shadow-hover: none;
+  }
+
+  /* Every separator rendered inside an overlay uses the overlay divider. */
+  .overlay-surface [data-slot="separator"] {
+    background-color: var(--overlay-divider);
+  }
+
+  /* NavigationMenu without the shared viewport still renders the same panel
+     recipe; with a viewport, the viewport itself owns the surface. */
+  [data-slot="navigation-menu"][data-viewport="false"]
+    [data-slot="navigation-menu-content"] {
+    border: 1px solid var(--overlay-surface-border);
+    background: var(--overlay-surface-bg);
     box-shadow: var(--overlay-surface-shadow);
   }
 

@@ -225,5 +225,5 @@ export function DropdownItem({ selected, onSelect, className, children }: Dropdo
 /** Full-bleed 1px divider between groups (bleeds through the panel's p-2.5).
  *  my-1.5 + the dialog's gap-1 on both sides = the original 10px breathing room. */
 export function DropdownDivider({ className }: { className?: string }) {
-  return <div className={cn("-mx-2.5 my-1.5 h-px shrink-0 bg-border", className)} />;
+  return <div className={cn("-mx-2.5 my-1.5 h-px shrink-0 bg-[var(--overlay-divider)]", className)} />;
 }

@@ -131,7 +131,7 @@ export function SidebarChecklist({ items }: SidebarChecklistProps) {
           side="right"
           sideOffset={8}
         >
-          <div className="flex items-start justify-between border-b border-border/60 px-4 py-3">
+          <div className="flex items-start justify-between border-b border-[var(--overlay-divider)] px-4 py-3">
             <div>
               <p className="font-heading text-sm font-semibold text-foreground">
                 Getting started
@@ -259,7 +259,7 @@ export function SidebarChecklist({ items }: SidebarChecklistProps) {
           </ol>
 
           {/* Dismiss option */}
-          <div className="border-t border-border/60 px-4 py-2">
+          <div className="border-t border-[var(--overlay-divider)] px-4 py-2">
             <button
               className="text-xs text-muted-foreground transition-colors hover:text-foreground"
               onClick={handleDismiss}

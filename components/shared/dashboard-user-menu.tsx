@@ -89,7 +89,7 @@ const userMenuTriggerVariants = cva(
 );
 
 const userMenuPopoverVariants = cva(
-  "motion-aria-popover w-[16.5625rem] max-w-[calc(100vw-2rem)] origin-top-left overflow-y-auto rounded-2xl border border-[var(--overlay-surface-border)] bg-popover p-2.5 shadow-[var(--overlay-surface-shadow)]",
+  "overlay-surface motion-aria-popover w-[16.5625rem] max-w-[calc(100vw-2rem)] origin-top-left overflow-y-auto rounded-2xl border p-2.5",
   {
     variants: {},
   },
@@ -135,7 +135,7 @@ export function AccountMenuContent({ onSelect }: { onSelect: () => void }) {
       </div>
 
       {/* Divider centered in the 28px gap between the list and the actions */}
-      <div className="-mx-2.5 my-3.5 h-px bg-border" />
+      <div className="-mx-2.5 my-3.5 h-px bg-[var(--overlay-divider)]" />
 
       {/* Actions — pb-2 makes the space below the buttons match their
           left/right inset (panel p-2.5 + row px-2 = 18px on every side). */}
