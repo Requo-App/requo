@@ -127,7 +127,7 @@ export function AnalyticsRangePicker({
             })}
           </ul>
 
-          <div className="flex min-w-0 flex-col gap-2 sm:border-l sm:border-border/70 sm:pl-4">
+          <div className="flex min-w-0 flex-col gap-2 sm:border-l sm:border-[var(--overlay-divider)] sm:pl-4">
             <p className="meta-label">Custom range</p>
             <div className="overflow-x-auto">
               <RangeCalendar

@@ -31,7 +31,7 @@ on.
 | `background` | App background | `#ffffff` | `#1c1c1e` |
 | `foreground` | Primary text | `#1d1d1f` | `#f5f5f7` |
 | `card` | Raised card surface | `#ffffff` | `#262628` |
-| `popover` | Popover/overlay surface | `#ffffff` | `#343436` |
+| `popover` | Popover/overlay surface | `#ffffff` | `#2c2c2e` |
 | `primary` | Primary action fill and emphasis | `#008060` | `#008060` |
 | `primary-foreground` | Text on primary fills | `#f4fffb` | `#f4fffb` |
 | `secondary` | Subtle surface/action | `#f5f5f7` | `#2c2c2e` |
@@ -59,9 +59,12 @@ contrast on its tinted banners — `--warning-ink` must clear 4.5:1 on both the
 `color-scheme` in both themes, the required ink/status/preview mappings, the
 contrast table (`--foreground` ≥ 7:1 and `--muted-foreground` ≥ 4.5:1 on
 background/card/popover/sidebar/muted; semantic inks ≥ 4.5:1; warning ink on
-warning/10 and warning/15 ≥ 4.5:1), and the raw-colour boundary. That boundary
-rejects raw palette and black/white utilities, ink tokens used as fills, and
-colour literals. Files that mix static artwork with live UI allow only the
+warning/10 and warning/15 ≥ 4.5:1), and the raw-colour boundary. It also
+requires `popover`, `overlay-surface-bg`, and `tooltip-surface-bg` to resolve
+to one dark surface and caps the overlay edge and divider at 1.22:1 and
+1.20:1 in both themes. That boundary rejects raw palette and black/white
+utilities, ink tokens used as fills, and colour literals. Files that mix
+static artwork with live UI allow only the
 exact static literals listed in the audit; everything else in those files is
 still scanned.
 
@@ -98,19 +101,31 @@ in light and white at 5% in dark.
 | `control-border-hover` | Control hover border | `#e5e5ea` | `rgb(255 255 255 / 0.14)` |
 | `control-disabled-fg` | Disabled label | foreground 45% | foreground 40% |
 | `control-disabled-border` | Disabled border | `#e5e5ea` | `rgb(255 255 255 / 0.06)` |
-| `overlay-surface-bg` | Menu, popover, dialog | `var(--popover)` | `var(--popover)` |
-| `overlay-surface-border` | Overlay edge | `#e5e5ea` | `rgb(255 255 255 / 0.10)` |
+| `overlay-surface-bg` | Menu, popover, dialog, toast | `var(--popover)` | `var(--popover)` |
+| `overlay-surface-border` | Overlay edge | `rgb(229 229 234 / 0.8)` | `rgb(255 255 255 / 0.06)` |
+| `overlay-divider` | Divider inside an overlay | `rgb(229 229 234 / 0.5)` | `rgb(255 255 255 / 0.05)` |
+| `overlay-surface-shadow` | Overlay elevation | `0 24px 48px -12px rgb(0 0 0 / 0.12), 0 1px 2px rgb(0 0 0 / 0.06)` | `0 0 0 1px rgb(0 0 0 / 0.45), 0 16px 40px -12px rgb(0 0 0 / 0.65), 0 3px 10px rgb(0 0 0 / 0.35)` |
 
 Rules:
 
-- Dark separates with fill first and border second; light uses a hairline plus
-  a tight, low shadow. Large soft shadows belong to popovers, dialogs, and the
-  landing hero preview only.
+- Every floating surface uses one recipe: `.overlay-surface` plus `border`
+  on the primitive itself (popover, dropdown, select, combobox, command,
+  dialog, sheet, navigation viewport, toast). Call sites never restyle a
+  surface, and full-screen page previews opt out with `surface="page"`.
+- Inside an overlay, fills derive from the overlay instead of the page: empty
+  states are transparent, separators use `--overlay-divider`, and muted and
+  control fills sit one small step above the surface.
+- Dark cards separate with fill first and border second; dark overlays separate
+  with a layered shadow plus a hairline edge. Light uses a hairline plus a
+  tight, low shadow. Large soft shadows belong to overlays and the landing hero
+  preview only.
 - Dark neutral borders are capped against the surface they sit on: cards and
-  dividers ≤ 1.3:1, controls ≤ 1.4:1, hover ≤ 1.6:1. The brand-green focus
+  dividers ≤ 1.3:1, controls ≤ 1.4:1, hover ≤ 1.6:1; overlay edges ≤ 1.22:1
+  and overlay dividers ≤ 1.20:1. The brand-green focus
   ring and green focus border are a deliberate accent outside that neutral
   cap and must maintain at least 3:1 contrast against the adjacent surface.
-  Light borders are unchanged.
+  Light borders keep their strength apart from the overlay edge and divider
+  values above.
 - Controls share one visual language on the page and inside cards. Dark
   outline/secondary buttons, inputs, selects, and chips use the same
   `--control-*` fill and border; light controls are white with a hairline.

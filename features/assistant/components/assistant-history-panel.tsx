@@ -143,7 +143,7 @@ export function AssistantHistoryPanel({
       <PopoverTrigger asChild>{trigger}</PopoverTrigger>
       <PopoverContent
         align="end"
-        className="overlay-surface w-[min(23rem,calc(100vw-1.5rem))] rounded-2xl p-0"
+        className="w-[min(23rem,calc(100vw-1.5rem))] rounded-2xl p-0"
         sideOffset={10}
       >
         {content}

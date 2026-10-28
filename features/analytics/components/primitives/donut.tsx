@@ -135,7 +135,7 @@ function DonutTooltip({ active, payload }: DonutTooltipProps) {
   if (!slice) return null;
 
   return (
-    <div className="rounded-lg border border-border/60 bg-popover px-2.5 py-1.5 text-xs shadow-sm">
+    <div className="tooltip-surface rounded-lg px-2.5 py-1.5 text-xs">
       <span className="text-muted-foreground">{slice.label}</span>
       <span className="ml-2 font-semibold text-foreground tabular-nums">
         {slice.count.toLocaleString()}

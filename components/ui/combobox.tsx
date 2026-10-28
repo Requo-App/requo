@@ -120,7 +120,7 @@ export function Combobox<TOption extends ComboboxOption>({
       <PopoverContent
         align="start"
         className={cn(
-          "overlay-surface w-auto min-w-[var(--radix-popover-trigger-width)] max-w-[min(20rem,calc(100vw-2rem))] p-0",
+          "w-auto min-w-[var(--radix-popover-trigger-width)] max-w-[min(20rem,calc(100vw-2rem))] p-0",
           contentClassName,
         )}
         onWheel={(e) => e.stopPropagation()}

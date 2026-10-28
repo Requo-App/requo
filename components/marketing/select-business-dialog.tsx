@@ -119,7 +119,7 @@ export function SelectBusinessDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg p-0 overflow-hidden">
-        <DialogHeader className="border-b border-border p-6 pb-4">
+        <DialogHeader className="border-b border-[var(--overlay-divider)] p-6 pb-4">
           <DialogTitle className="text-xl font-heading font-semibold">
             Choose a business to upgrade
           </DialogTitle>
@@ -260,7 +260,7 @@ export function SelectBusinessDialog({
           )}
         </div>
 
-        <div className="border-t border-border bg-muted px-6 py-3.5 flex items-center justify-between text-xs text-muted-foreground">
+        <div className="border-t border-[var(--overlay-divider)] bg-muted px-6 py-3.5 flex items-center justify-between text-xs text-muted-foreground">
           <span>Need a new business?</span>
           <Button
             asChild

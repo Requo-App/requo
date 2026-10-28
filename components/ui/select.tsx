@@ -165,7 +165,7 @@ const SelectSeparator = ({
 }: ComponentPropsWithoutRef<typeof SelectPrimitive.Separator>) => (
   <SelectPrimitive.Separator
     data-slot="select-separator"
-    className={cn("-mx-1 my-1 h-px bg-border", className)}
+    className={cn("-mx-1 my-1 h-px bg-[var(--overlay-divider)]", className)}
     {...props}
   />
 );

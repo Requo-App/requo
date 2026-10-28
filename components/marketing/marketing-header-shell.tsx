@@ -138,7 +138,7 @@ export function MarketingHeaderShell({
                 className="w-[20rem] max-w-[calc(100vw-1.5rem)] max-sm:data-[side=right]:inset-0 max-sm:data-[side=right]:h-[100dvh] max-sm:data-[side=right]:w-full max-sm:data-[side=right]:max-w-none max-sm:data-[side=right]:rounded-none max-sm:data-[side=right]:border-0"
                 side="right"
               >
-                <SheetHeader className="border-b border-border/70">
+                <SheetHeader className="border-b border-[var(--overlay-divider)]">
                   <SheetTitle className="sr-only">Navigation</SheetTitle>
                   <BrandMark subtitle={null} size="default" />
                 </SheetHeader>
@@ -198,7 +198,7 @@ export function MarketingHeaderShell({
                   </div>
                 </SheetBody>
 
-                <SheetFooter className="flex-col gap-2.5 border-t border-border/70">
+                <SheetFooter className="flex-col gap-2.5 border-t border-[var(--overlay-divider)]">
                   {mobileActions}
                 </SheetFooter>
               </SheetContent>

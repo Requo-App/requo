@@ -97,7 +97,7 @@ export function MobileWelcomeCard({
 
   return (
     <div className="motion-enter fixed inset-x-0 bottom-0 z-50 p-4 md:hidden">
-      <div className="rounded-2xl border border-border/80 bg-popover p-5 shadow-xl">
+      <div className="overlay-surface rounded-2xl border p-5">
         <div className="flex items-start justify-between gap-3">
           <div>
             <h3 className="font-heading text-base font-semibold text-foreground">
@@ -121,7 +121,7 @@ export function MobileWelcomeCard({
           {features.map((feature) => (
             <div
               key={feature.title}
-              className="flex items-center gap-2.5 rounded-lg border border-border/50 bg-muted/30 px-3 py-2.5"
+              className="flex items-center gap-2.5 rounded-lg border border-[var(--overlay-divider)] bg-muted/30 px-3 py-2.5"
             >
               <feature.icon className="size-4 shrink-0 text-primary-ink" />
               <div className="min-w-0">
