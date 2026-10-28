@@ -73,7 +73,7 @@ Extended token groups:
 - `table-*`: table header, footer, hover, and selected row states.
 - `sidebar-*`: sidebar background, text, border, accent, and ring tokens.
 - `radius-*`: all resolve to the single shared `--radius` (8px); use `rounded-lg` / `rounded-xl`, never hard-coded radii.
-- `motion-*`: shared durations, easing, and lift distance for subtle motion.
+- `motion-*`: shared durations, easing, entrance/exit geometry, and press feedback for app-wide motion (see Motion).
 
 ### Surfaces and Controls
 
@@ -277,9 +277,23 @@ Radius rules (single shared radius):
 
 ### Motion
 
-- Use the shared motion tokens: `--motion-duration-fast`, `--motion-duration-base`, `--motion-duration-slow`, `--motion-ease-standard`, `--motion-ease-emphasized`.
-- Motion should clarify interaction, not decorate the UI.
-- Use subtle lift, shadow, opacity, and panel transitions. Avoid flashy animation or large movement on core product pages.
+Motion follows Apple's interaction model: immediate acknowledgement, a short decelerating entrance, and a faster accelerating exit. Movement is small (single-digit pixels), scale changes stay near 1, and repeated elements stagger by less than 50ms.
+
+- Core tokens live in `app/globals.css`:
+  - duration: `--motion-duration-instant` (90ms), `--motion-duration-fast` (150ms), `--motion-duration-base` (240ms), `--motion-duration-slow` (360ms), `--motion-duration-sheet` (420ms), `--motion-duration-exit` (220ms)
+  - easing: `--motion-ease-standard`, `--motion-ease-emphasized`, `--motion-ease-spring`, `--motion-ease-exit`
+  - geometry: `--motion-press-scale`, `--motion-enter-distance`, `--motion-enter-scale`, `--motion-exit-distance`, `--motion-exit-scale`, `--motion-stagger-step`
+- Use the shared utilities instead of one-off durations/easings:
+  - press/hover: `motion-press`, `button-press-motion`, `motion-transition`, `motion-lift`
+  - overlays: `motion-overlay`, `motion-dialog-panel`, `motion-popover`, `motion-tooltip`, `motion-sheet-panel`, `motion-backdrop`, `motion-dialog-surface`, `motion-aria-popover`
+  - surfaces: `motion-floating-bar`, `motion-fullscreen-panel`, `motion-fullscreen-nav`
+  - content: `motion-enter`, `motion-card-enter`, `motion-list-item`, `motion-disclosure`
+  - controls: `motion-control-thumb`, `motion-icon-swap`, `animate-check-draw`, `motion-check-pop`
+- Use CSS transitions/animations for state that already exists in the DOM. Keep Motion for layout-aware collections and notification stacks (`components/shared/notification.tsx`), and match the same token timings there.
+- Enter from the interaction origin: menus scale from their Radix/Aria transform origin; sheets travel the edge; dialogs rise 8px; overlays only fade. Exits are shorter and must actually run before unmount (two-phase presence for custom overlays).
+- Never leave a non-`none` transform on a container after entrance — it becomes a containing block and breaks `position: sticky` descendants.
+- Respect `prefers-reduced-motion`: shared classes collapse durations to near-zero (so exit `forwards` states still land before unmount), zero stagger delays, and remove press transforms. Any new motion must ship the same fallback.
+- Motion should clarify interaction, not decorate the UI. Avoid flashy animation or large movement on core product pages.
 
 ## Component Standards
 

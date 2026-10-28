@@ -121,8 +121,8 @@ const inquiryProjectFieldsDndContextId = "service-project-fields-dnd";
 const inquiryProjectFieldsSortableContextId =
   "service-project-fields-sortable";
 const inquirySortableTransition = {
-  duration: 160,
-  easing: "cubic-bezier(0.25, 1, 0.5, 1)",
+  duration: 150,
+  easing: "cubic-bezier(0.32, 0.72, 0, 1)",
 } as const;
 const contactMethodOptions = inquiryContactMethods.map((method) => ({
   label: inquiryContactMethodLabels[method],
@@ -351,8 +351,8 @@ export function ServiceForm({
           { transform: "translate(0px, 0px)" },
         ],
         {
-          duration: 220,
-          easing: "cubic-bezier(0.22, 1, 0.36, 1)",
+          duration: 240,
+          easing: "cubic-bezier(0.32, 0.72, 0, 1)",
         },
       );
 
@@ -501,7 +501,7 @@ export function ServiceForm({
           currentIds.filter((currentId) => currentId !== fieldId),
         );
       },
-      prefersReducedMotion ? 0 : 180,
+      prefersReducedMotion ? 0 : 220,
     );
   }
 
@@ -528,7 +528,7 @@ export function ServiceForm({
         setEnteringProjectFieldIds((currentIds) =>
           currentIds.filter((currentId) => currentId !== fieldId),
         ),
-      prefersReducedMotion ? 0 : 220,
+      prefersReducedMotion ? 0 : 240,
     );
   }
 
@@ -1174,13 +1174,10 @@ function ProjectFieldCard({
       </button>
 
       <div
-        className={cn(
-          "flex min-w-0 flex-1 flex-col gap-1.5 rounded-lg p-2 transition-shadow motion-reduce:animate-none",
-          isEntering &&
-            "motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:duration-200",
-          isExiting &&
-            "pointer-events-none motion-safe:animate-out motion-safe:fade-out-0 motion-safe:slide-out-to-bottom-2 motion-safe:duration-150",
-        )}
+        className="motion-list-item flex min-w-0 flex-1 flex-col gap-1.5 rounded-lg p-2"
+        data-motion-state={
+          isExiting ? "exiting" : isEntering ? "entering" : undefined
+        }
       >
         <div className="flex min-w-0 items-center gap-1.5">
           <div className="group flex min-w-0 flex-1 items-center gap-1.5">

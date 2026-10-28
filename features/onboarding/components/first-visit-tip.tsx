@@ -57,7 +57,7 @@ export function FirstVisitTip({
   return (
     <div
       className={cn(
-        "animate-in fade-in-0 slide-in-from-top-2 duration-300",
+        "motion-enter",
         "rounded-lg border border-primary/15 bg-primary/[0.03] px-4 py-3",
         className,
       )}

@@ -73,7 +73,7 @@ function useStaggerState(active: boolean): StaggerState {
 
   useEffect(() => {
     if (!hiding) return;
-    const timer = setTimeout(() => setHiding(false), 200);
+    const timer = setTimeout(() => setHiding(false), 220);
     return () => clearTimeout(timer);
   }, [hiding]);
 
@@ -87,7 +87,8 @@ const staggerLine = (state: StaggerState) =>
   cn(
     state === "shown" &&
       "translate-y-0 opacity-100 blur-0 [transition:opacity_var(--stagger-dur)_var(--stagger-ease),translate_var(--stagger-dur)_var(--stagger-ease),filter_var(--stagger-dur)_var(--stagger-ease)]",
-    state === "hiding" && "translate-y-0 opacity-0 blur-0 [transition:opacity_200ms_ease]",
+    state === "hiding" &&
+      "translate-y-0 opacity-0 blur-0 [transition:opacity_var(--motion-duration-exit)_var(--motion-ease-exit)]",
     state === "hidden" && "translate-y-3 opacity-0 blur-[3px] transition-none",
   );
 
@@ -223,7 +224,7 @@ export function FileUpload({
       }}
       className={cn(
         "group relative h-[164px] w-full shrink-0 rounded-2xl outline-none",
-        "transition-colors duration-300 ease-out",
+        "[transition:background-color_var(--motion-duration-base)_var(--motion-ease-standard)]",
         busy ? "bg-card" : "cursor-pointer bg-muted",
         "focus-visible:ring-2 focus-visible:ring-ring",
         className,
@@ -249,7 +250,7 @@ export function FileUpload({
           dragOver
             ? "border-ring"
             : "border-[var(--control-border)] group-hover:border-[var(--control-border-hover)]",
-          "transition-[opacity,border-color] duration-300 ease-out",
+          "transition-[opacity,border-color] [transition-duration:var(--motion-duration-base)] [transition-timing-function:var(--motion-ease-standard)]",
           busy ? "opacity-0" : "opacity-100",
         )}
       />
@@ -259,7 +260,7 @@ export function FileUpload({
         viewBox={`0 0 ${box.width} ${box.height}`}
         preserveAspectRatio="none"
         className={cn(
-          "pointer-events-none absolute inset-0 size-full transition-opacity duration-300 ease-out",
+          "pointer-events-none absolute inset-0 size-full transition-opacity [transition-duration:var(--motion-duration-base)] [transition-timing-function:var(--motion-ease-standard)]",
           busy ? "opacity-100" : "opacity-0",
         )}
       >
@@ -281,7 +282,7 @@ export function FileUpload({
           strokeLinecap="round"
           pathLength={100}
           strokeDasharray={`${busy ? (progress >= 100 ? 102 : progress) : 0} 200`}
-          className="transition-[stroke-dasharray] duration-200 ease-linear"
+          className="[transition:stroke-dasharray_var(--motion-duration-base)_linear]"
         />
       </svg>
 
@@ -290,7 +291,7 @@ export function FileUpload({
         className={cn(
           "absolute -top-[9.5px] left-1/2 -translate-x-1/2 rounded-md bg-primary px-1.5 py-0.5",
           "text-caption-1-medium whitespace-nowrap text-primary-foreground tabular-nums",
-          "[transition:opacity_160ms_ease-out,filter_160ms_ease-out,translate_300ms_ease-out]",
+          "[transition:opacity_var(--motion-duration-fast)_var(--motion-ease-standard),filter_var(--motion-duration-fast)_var(--motion-ease-standard),translate_var(--motion-duration-base)_var(--motion-ease-standard)]",
           busy ? "translate-y-0 opacity-100 blur-0" : "-translate-y-2.5 opacity-0 blur-[2px]",
         )}
       >
@@ -306,7 +307,7 @@ export function FileUpload({
       >
         <span className="t-stagger-line t-stagger-line--1 flex size-10 items-center justify-center rounded-full bg-primary/10 p-2.5">
           <RiUploadCloud2Line
-            className="size-6 shrink-0 text-primary-ink transition-colors duration-150 ease"
+            className="motion-transition size-6 shrink-0 text-primary-ink"
             aria-hidden
           />
         </span>

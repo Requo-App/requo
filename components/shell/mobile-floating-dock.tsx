@@ -121,7 +121,7 @@ export function MobileFloatingDock({
           aria-label="Open navigation"
           aria-expanded={navOpen}
           className={cn(
-            "flex size-11 items-center justify-center rounded-full transition-colors active:scale-95",
+            "motion-press flex size-11 items-center justify-center rounded-full",
             "outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
             navOpen
               ? "bg-primary/10 text-primary-ink"
@@ -136,7 +136,7 @@ export function MobileFloatingDock({
           aria-label="Search records"
           aria-expanded={searchOpen}
           className={cn(
-            "flex size-11 items-center justify-center rounded-full transition-colors active:scale-95",
+            "motion-press flex size-11 items-center justify-center rounded-full",
             "outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
             searchOpen
               ? "bg-primary/10 text-primary-ink"
@@ -151,7 +151,7 @@ export function MobileFloatingDock({
           aria-label="Open settings"
           aria-expanded={settingsOpen}
           className={cn(
-            "flex size-11 items-center justify-center rounded-full transition-colors active:scale-95",
+            "motion-press flex size-11 items-center justify-center rounded-full",
             "outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
             settingsOpen
               ? "bg-primary/10 text-primary-ink"

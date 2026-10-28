@@ -31,7 +31,7 @@ const savableInputVariants = cva("w-[202px] shrink-0", {
 });
 
 const birthTriggerVariants = cva(
-  "flex h-8 w-[202px] shrink-0 cursor-pointer items-center gap-0.5 rounded-lg px-2 border border-border bg-card shadow-xs transition-colors duration-150 ease hover:bg-accent outline-none focus-visible:ring-2 focus-visible:ring-ring",
+  "motion-transition flex h-8 w-[202px] shrink-0 cursor-pointer items-center gap-0.5 rounded-lg px-2 border border-border bg-card shadow-xs hover:bg-accent outline-none focus-visible:ring-2 focus-visible:ring-ring",
   {
     variants: {},
   },

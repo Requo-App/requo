@@ -75,7 +75,7 @@ const breadcrumbItemVariants = cva("", {
     current: {
       true: "flex items-center gap-1.5 text-caption-1-medium whitespace-nowrap text-foreground",
       false:
-        "-mx-1 flex items-center gap-1.5 rounded-md px-1 py-0.5 text-caption-1-medium whitespace-nowrap text-muted-foreground transition-colors duration-150 ease outline-none hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring",
+        "motion-transition -mx-1 flex items-center gap-1.5 rounded-md px-1 py-0.5 text-caption-1-medium whitespace-nowrap text-muted-foreground outline-none hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring",
     },
   },
   defaultVariants: {

@@ -96,7 +96,7 @@ export function MobileWelcomeCard({
   if (!visible) return null;
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-50 p-4 md:hidden animate-in slide-in-from-bottom-4 duration-300">
+    <div className="motion-enter fixed inset-x-0 bottom-0 z-50 p-4 md:hidden">
       <div className="rounded-2xl border border-border/80 bg-popover p-5 shadow-xl">
         <div className="flex items-start justify-between gap-3">
           <div>

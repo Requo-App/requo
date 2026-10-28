@@ -37,7 +37,7 @@ const USERS: UserRow[] = [
 ];
 
 const collapsibleVariants = cva(
-  "flex min-w-0 items-center overflow-hidden transition-[max-width,opacity,filter] duration-300 ease-in-out",
+  "flex min-w-0 items-center overflow-hidden transition-[max-width,opacity,filter] shell-sidebar-motion",
   {
     variants: {
       collapsed: {
@@ -52,7 +52,7 @@ const collapsibleVariants = cva(
 );
 
 const userMenuItemVariants = cva(
-  "flex w-full items-center gap-2 rounded-md px-2 py-1.5 outline-none transition-colors",
+  "motion-transition flex w-full items-center gap-2 rounded-md px-2 py-1.5 outline-none",
   {
     variants: {
       selected: {
@@ -67,7 +67,7 @@ const userMenuItemVariants = cva(
 );
 
 const userMenuTriggerVariants = cva(
-  "relative flex min-w-0 cursor-pointer items-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring before:pointer-events-none before:absolute before:-inset-y-[0.3125rem] before:rounded-full before:border-2 before:border-transparent before:transition-colors before:duration-150",
+  "relative flex min-w-0 cursor-pointer items-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring before:pointer-events-none before:absolute before:-inset-y-[0.3125rem] before:rounded-full before:border-2 before:border-transparent before:transition-colors before:[transition-duration:var(--motion-duration-fast)] before:[transition-timing-function:var(--motion-ease-standard)]",
   {
     variants: {
       hoverable: {
@@ -89,7 +89,7 @@ const userMenuTriggerVariants = cva(
 );
 
 const userMenuPopoverVariants = cva(
-  "w-[16.5625rem] max-w-[calc(100vw-2rem)] origin-top-left overflow-y-auto rounded-2xl border border-[var(--overlay-surface-border)] bg-popover p-2.5 shadow-[var(--overlay-surface-shadow)] transition duration-150 ease-out data-[entering]:opacity-0 data-[entering]:scale-95 data-[entering]:blur-[2px] data-[exiting]:opacity-0 data-[exiting]:scale-95 data-[exiting]:blur-[2px]",
+  "motion-aria-popover w-[16.5625rem] max-w-[calc(100vw-2rem)] origin-top-left overflow-y-auto rounded-2xl border border-[var(--overlay-surface-border)] bg-popover p-2.5 shadow-[var(--overlay-surface-shadow)]",
   {
     variants: {},
   },

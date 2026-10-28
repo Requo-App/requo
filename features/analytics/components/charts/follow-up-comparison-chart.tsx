@@ -104,7 +104,7 @@ export function FollowUpComparisonChart({
           radius={[4, 4, 0, 0]}
           maxBarSize={40}
           isAnimationActive={!reduceMotion}
-          animationDuration={280}
+          animationDuration={240}
         />
         <Bar
           dataKey="withoutFollowUp"
@@ -113,7 +113,7 @@ export function FollowUpComparisonChart({
           radius={[4, 4, 0, 0]}
           maxBarSize={40}
           isAnimationActive={!reduceMotion}
-          animationDuration={280}
+          animationDuration={240}
         />
       </BarChart>
     </ChartContainer>

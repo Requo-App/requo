@@ -161,7 +161,7 @@ export function TourModal({
             <button
               aria-label={`Go to step ${i + 1}`}
               className={cn(
-                "size-2 rounded-full transition-all duration-200",
+                "[transition:background-color_var(--motion-duration-fast)_var(--motion-ease-standard),scale_var(--motion-duration-fast)_var(--motion-ease-spring)] size-2 rounded-full",
                 i === currentStep
                   ? "scale-125 bg-primary"
                   : i < currentStep

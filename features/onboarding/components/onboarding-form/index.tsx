@@ -483,7 +483,7 @@ export function OnboardingForm({
             </Alert>
           ) : null}
 
-          <div className="min-w-0 animate-in fade-in slide-in-from-bottom-3 duration-300" key={currentStepId}>
+          <div className="motion-enter min-w-0" key={currentStepId}>
             {currentStepId === "business" ? (
               <BusinessStep
                 avatarInputRef={avatarInputRef}

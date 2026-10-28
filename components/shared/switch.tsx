@@ -83,7 +83,7 @@ export function SwitchTrack({
       // source's cx() resolved them last-wins; cva concatenates, so stacking
       // both would leave the winner to stylesheet order instead).
       className={[
-        "relative shrink-0 transition-colors duration-200 ease",
+        "motion-transition relative shrink-0",
         s.track,
         s.trackRadius[shape],
         state.isSelected ? `bg-primary ${s.onShadow}` : "bg-muted",
@@ -98,8 +98,7 @@ export function SwitchTrack({
         className={[
           "absolute",
           "bg-switch-thumb",
-          "shadow-[var(--switch-thumb-shadow)]",
-          "transition-transform duration-200 ease",
+          "motion-control-thumb shadow-[var(--switch-thumb-shadow)]",
           s.thumb,
           s.thumbRadius[shape],
           s.offset,

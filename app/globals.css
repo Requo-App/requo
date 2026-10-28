@@ -80,10 +80,28 @@
   --radius-2xl: var(--radius);
   --radius-3xl: var(--radius);
   --radius-4xl: var(--radius);
-  --animate-accordion-down: accordion-down 240ms cubic-bezier(0.32, 0.72, 0, 1);
-  --animate-accordion-up: accordion-up 200ms cubic-bezier(0.32, 0.72, 0, 1);
-  --animate-collapsible-down: collapsible-down 220ms var(--motion-ease-standard);
-  --animate-collapsible-up: collapsible-up 200ms var(--motion-ease-standard);
+  /* Bare transition utilities inherit the shared fast clock and standard
+     decelerating curve instead of Tailwind's default ease. */
+  --default-transition-duration: var(--motion-duration-fast);
+  --default-transition-timing-function: var(--motion-ease-standard);
+  --animate-accordion-down: accordion-down var(--motion-duration-base)
+    var(--motion-ease-emphasized);
+  --animate-accordion-up: accordion-up var(--motion-duration-fast)
+    var(--motion-ease-exit);
+  --animate-collapsible-down: collapsible-down var(--motion-duration-base)
+    var(--motion-ease-emphasized);
+  --animate-collapsible-up: collapsible-up var(--motion-duration-fast)
+    var(--motion-ease-exit);
+  /* Storage row add/remove: the wrapper grows/collapses while the inner row
+     slides, so a list reflows instead of snapping. */
+  --animate-row-grow-in: row-grow-in var(--motion-duration-base)
+    var(--motion-ease-emphasized);
+  --animate-row-collapse-out: row-collapse-out var(--motion-duration-exit)
+    var(--motion-ease-exit) forwards;
+  --animate-row-slide-in: row-slide-in var(--motion-duration-base)
+    var(--motion-ease-emphasized);
+  --animate-row-slide-out: row-slide-out var(--motion-duration-exit)
+    var(--motion-ease-exit) forwards;
   /* The "How it works" stepper's active rail: one 5s fill per step. The step
      advances on `animationend`, so this duration is the pace of the cycle. */
   --animate-workflow-progress: workflow-progress 5s linear forwards;
@@ -129,6 +147,50 @@
     to {
       height: 0;
       opacity: 0;
+    }
+  }
+
+  @keyframes row-grow-in {
+    from {
+      grid-template-rows: 0fr;
+      opacity: 0;
+    }
+    to {
+      grid-template-rows: 1fr;
+      opacity: 1;
+    }
+  }
+
+  @keyframes row-collapse-out {
+    from {
+      grid-template-rows: 1fr;
+      opacity: 1;
+    }
+    to {
+      grid-template-rows: 0fr;
+      opacity: 0;
+    }
+  }
+
+  @keyframes row-slide-in {
+    from {
+      opacity: 0;
+      transform: translate3d(0, calc(var(--motion-enter-distance) * -1), 0);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes row-slide-out {
+    from {
+      opacity: 1;
+      transform: none;
+    }
+    to {
+      opacity: 0;
+      transform: translate3d(0, calc(var(--motion-exit-distance) * -1), 0);
     }
   }
 
@@ -329,11 +391,28 @@
   /* The inline sparkline in a KPI tile. */
   --analytics-sparkline-height: 2.5rem;
   --radius: 0.5rem;
-  --motion-duration-fast: 160ms;
-  --motion-duration-base: 220ms;
-  --motion-duration-slow: 320ms;
-  --motion-ease-standard: cubic-bezier(0.25, 1, 0.5, 1);
-  --motion-ease-emphasized: cubic-bezier(0.22, 1, 0.36, 1);
+  /* Apple-inspired motion: quick, direct feedback that settles instead of
+     stopping. Entrances decelerate, exits accelerate, and the spring curve is
+     reserved for press feedback and elements that travel between positions
+     (tabs, switches, toasts). Keep these names stable — every shared motion
+     utility below reads them. */
+  --motion-duration-instant: 90ms;
+  --motion-duration-fast: 150ms;
+  --motion-duration-base: 240ms;
+  --motion-duration-slow: 360ms;
+  --motion-duration-sheet: 420ms;
+  --motion-duration-exit: 220ms;
+  --motion-ease-standard: cubic-bezier(0.32, 0.72, 0, 1);
+  --motion-ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
+  --motion-ease-spring: cubic-bezier(0.34, 1.28, 0.64, 1);
+  --motion-ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  --motion-press-scale: 0.97;
+  --motion-press-duration: 110ms;
+  --motion-enter-distance: 8px;
+  --motion-enter-scale: 0.96;
+  --motion-exit-distance: 4px;
+  --motion-exit-scale: 0.97;
+  --motion-stagger-step: 45ms;
   --motion-lift-distance: 2px;
   --sidebar: #f5f5f7;
   --sidebar-foreground: #1d1d1f;
@@ -353,8 +432,8 @@
   --shell-card: #ffffff;
   /* One place to tune the sidebar/card resize. The card follows the rail
      purely through flex layout, so only the width transition needs these. */
-  --shell-motion-duration: 200ms;
-  --shell-motion-easing: linear;
+  --shell-motion-duration: 280ms;
+  --shell-motion-easing: var(--motion-ease-standard);
   /* One fill per surface. Cards use the elevated fill; nested panels use the
      flat inset fill and never re-tint from the page background. */
   --surface-elevated-bg: #ffffff;
@@ -497,12 +576,14 @@ html[data-reload-loading="true"] [data-reload-loading-overlay] {
 
 html[data-reload-loading="fade-out"] [data-reload-loading-overlay] {
   display: flex;
-  animation: reload-overlay-fade-out 300ms ease-out forwards;
+  animation: reload-overlay-fade-out var(--motion-duration-base)
+    var(--motion-ease-standard) forwards;
 }
 
 html[data-reload-loading="fade-out"] #app-root-content {
   visibility: visible;
-  animation: reload-content-fade-in 300ms ease-out forwards;
+  animation: reload-content-fade-in var(--motion-duration-base)
+    var(--motion-ease-standard) forwards;
 }
 
 @keyframes reload-overlay-fade-out {
@@ -782,24 +863,24 @@ html[data-reload-loading="fade-out"] #app-root-content {
 @keyframes subtle-fade-up {
   0% {
     opacity: 0;
-    transform: translate3d(0, 10px, 0) scale(0.995);
+    transform: translate3d(0, var(--motion-enter-distance), 0) scale(0.995);
   }
 
   100% {
     opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
+    transform: none;
   }
 }
 
 @keyframes home-section-enter {
   0% {
     opacity: 0;
-    transform: translate3d(0, 12px, 0);
+    transform: translate3d(0, calc(var(--motion-enter-distance) * 1.5), 0);
   }
 
   100% {
     opacity: 1;
-    transform: translate3d(0, 0, 0);
+    transform: none;
   }
 }
 
@@ -832,14 +913,14 @@ html[data-reload-loading="fade-out"] #app-root-content {
 
   100% {
     opacity: 1;
-    transform: translate3d(0, 0, 0);
+    transform: none;
   }
 }
 
 @keyframes sidebar-sheet-exit-left {
   0% {
     opacity: 1;
-    transform: translate3d(0, 0, 0);
+    transform: none;
   }
 
   100% {
@@ -856,14 +937,14 @@ html[data-reload-loading="fade-out"] #app-root-content {
 
   100% {
     opacity: 1;
-    transform: translate3d(0, 0, 0);
+    transform: none;
   }
 }
 
 @keyframes sidebar-sheet-exit-right {
   0% {
     opacity: 1;
-    transform: translate3d(0, 0, 0);
+    transform: none;
   }
 
   100% {
@@ -880,14 +961,14 @@ html[data-reload-loading="fade-out"] #app-root-content {
 
   100% {
     opacity: 1;
-    transform: translate3d(0, 0, 0);
+    transform: none;
   }
 }
 
 @keyframes sidebar-sheet-exit-top {
   0% {
     opacity: 1;
-    transform: translate3d(0, 0, 0);
+    transform: none;
   }
 
   100% {
@@ -904,14 +985,14 @@ html[data-reload-loading="fade-out"] #app-root-content {
 
   100% {
     opacity: 1;
-    transform: translate3d(0, 0, 0);
+    transform: none;
   }
 }
 
 @keyframes sidebar-sheet-exit-bottom {
   0% {
     opacity: 1;
-    transform: translate3d(0, 0, 0);
+    transform: none;
   }
 
   100% {
@@ -1060,12 +1141,23 @@ html[data-reload-loading="fade-out"] #app-root-content {
     transform: none !important;
     will-change: auto;
   }
+
+  .mobile-nav-link,
+  .mobile-nav-actions,
+  .motion-card-enter,
+  [class*="motion-delay-"] {
+    animation-delay: 0ms !important;
+  }
 }
 
 @layer utilities {
+  /* Shared interactive transition: colors and small transforms on hover. */
   .motion-transition {
     transition-property:
       transform,
+      translate,
+      scale,
+      rotate,
       opacity,
       background-color,
       border-color,
@@ -1075,15 +1167,59 @@ html[data-reload-loading="fade-out"] #app-root-content {
     transition-timing-function: var(--motion-ease-standard);
   }
 
+  /* Dense, repeated controls (calendar cells, step dots) acknowledge faster
+     than full-size surfaces. Pair with a property-specific transition class. */
+  .motion-quick {
+    transition-duration: var(--motion-duration-instant);
+    transition-timing-function: var(--motion-ease-standard);
+  }
+
   .motion-lift {
     transition-property:
       transform,
+      translate,
+      scale,
+      rotate,
       background-color,
       border-color,
       box-shadow,
       color;
     transition-duration: var(--motion-duration-fast);
     transition-timing-function: var(--motion-ease-standard);
+  }
+
+  /* Press feedback. The press itself is near-instant and settles on release,
+     matching the way Apple controls acknowledge touch before they animate. */
+  .button-press-motion,
+  .motion-press {
+    -webkit-tap-highlight-color: transparent;
+    transition-property:
+      transform,
+      translate,
+      scale,
+      rotate,
+      background-color,
+      border-color,
+      color,
+      box-shadow,
+      opacity;
+    transition-duration: var(--motion-duration-fast);
+    transition-timing-function: var(--motion-ease-standard);
+  }
+
+  /* Sliding indicators and switch thumbs: one spring clock so every control
+     settles with the same weight. */
+  .motion-control-thumb {
+    transition-property: transform, translate, scale, rotate, width, height;
+    transition-duration: var(--motion-duration-base);
+    transition-timing-function: var(--motion-ease-spring);
+  }
+
+  .button-press-motion:active,
+  .motion-press:active {
+    transform: scale(var(--motion-press-scale));
+    transition-duration: var(--motion-press-duration);
+    transition-timing-function: var(--motion-ease-spring);
   }
 
   .motion-sidebar-panel {
@@ -1098,92 +1234,283 @@ html[data-reload-loading="fade-out"] #app-root-content {
     transition-timing-function: var(--shell-motion-easing);
   }
 
-  .motion-sheet-overlay {
+  /* Overlay scrims: fade in quickly, leave faster. */
+  .motion-overlay {
     will-change: opacity;
   }
 
-  .motion-sheet-overlay[data-state="open"] {
-    animation: sidebar-overlay-fade-in var(--motion-duration-fast)
+  .motion-overlay[data-state="open"] {
+    animation: motion-overlay-in var(--motion-duration-fast) linear both;
+  }
+
+  .motion-overlay[data-state="closed"] {
+    animation: motion-overlay-out var(--motion-duration-fast)
+      var(--motion-ease-exit) both;
+  }
+
+  .motion-fade[data-state="visible"],
+  .motion-fade[data-state="open"] {
+    animation: motion-overlay-in var(--motion-duration-fast) linear both;
+  }
+
+  .motion-fade[data-state="hidden"],
+  .motion-fade[data-state="closed"] {
+    animation: motion-overlay-out var(--motion-duration-fast)
+      var(--motion-ease-exit) both;
+  }
+
+  /* Dialogs rise from just below their resting position while scaling up
+     from 96% — a short, decelerating entrance with a quicker exit. */
+  .motion-dialog-panel {
+    will-change: opacity, transform;
+  }
+
+  .motion-dialog-panel[data-state="open"] {
+    animation: motion-dialog-in var(--motion-duration-base)
+      var(--motion-ease-emphasized) both;
+  }
+
+  .motion-dialog-panel[data-state="closed"] {
+    animation: motion-dialog-out var(--motion-duration-fast)
+      var(--motion-ease-exit) both;
+  }
+
+  /* Menus, selects, popovers, and tooltips grow from their Radix transform
+     origin. A slight spring in the scale keeps them feeling physical. */
+  .motion-popover {
+    will-change: opacity, transform;
+  }
+
+  .motion-popover[data-side="top"] {
+    --motion-popover-y: 3px;
+  }
+
+  .motion-popover[data-side="bottom"] {
+    --motion-popover-y: -3px;
+  }
+
+  .motion-popover[data-side="left"] {
+    --motion-popover-x: 3px;
+  }
+
+  .motion-popover[data-side="right"] {
+    --motion-popover-x: -3px;
+  }
+
+  .motion-popover[data-state="open"],
+  .motion-popover[data-state="delayed-open"] {
+    animation: motion-popover-in var(--motion-duration-base)
+      var(--motion-ease-spring) both;
+  }
+
+  .motion-popover[data-state="closed"] {
+    animation: motion-popover-out var(--motion-duration-fast)
+      var(--motion-ease-exit) both;
+  }
+
+  /* React Aria overlays expose data-entering / data-exiting instead of
+     data-state, so they share the same popover geometry through a transition. */
+  .motion-aria-popover {
+    transition-property: opacity, transform, translate, scale, rotate, filter;
+    transition-duration: var(--motion-duration-base);
+    transition-timing-function: var(--motion-ease-spring);
+  }
+
+  .motion-aria-popover[data-entering],
+  .motion-aria-popover[data-exiting] {
+    opacity: 0;
+    transform: scale(var(--motion-enter-scale));
+    filter: blur(2px);
+  }
+
+  .motion-aria-popover[data-exiting] {
+    transition-duration: var(--motion-duration-fast);
+    transition-timing-function: var(--motion-ease-exit);
+  }
+
+  /* Icon rotations (collapse chevrons, disclosure arrows) settle on the same
+     short spring as the controls they belong to. */
+  .motion-icon-swap {
+    transition-property: transform, translate, scale, rotate;
+    transition-duration: var(--motion-duration-base);
+    transition-timing-function: var(--motion-ease-spring);
+  }
+
+  .motion-tooltip[data-state="delayed-open"],
+  .motion-tooltip[data-state="open"] {
+    animation: motion-tooltip-in var(--motion-duration-fast)
       var(--motion-ease-standard) both;
   }
 
-  .motion-sheet-overlay[data-state="closed"] {
-    animation: sidebar-overlay-fade-out var(--motion-duration-fast)
-      var(--motion-ease-standard) both;
+  .motion-tooltip[data-state="closed"] {
+    animation: motion-tooltip-out var(--motion-duration-instant)
+      var(--motion-ease-exit) both;
   }
 
-  .motion-sheet-sidebar {
-    transform: translate3d(0, 0, 0);
+  /* Sheets and drawers travel the full edge distance on the way in and leave
+     on a faster, accelerating curve so dismissal feels immediate. */
+  .motion-sheet-panel {
+    transform: none;
     backface-visibility: hidden;
     contain: paint;
   }
 
-  /* Promote only while animating; a permanent will-change pins a
-     compositing layer for the sheet's whole mounted lifetime. */
-  .motion-sheet-sidebar[data-state="open"],
-  .motion-sheet-sidebar[data-state="closed"] {
+  /* Promote only while animating; a permanent will-change pins a compositing
+     layer for the sheet's whole mounted lifetime. */
+  .motion-sheet-panel[data-state="open"],
+  .motion-sheet-panel[data-state="closed"] {
     will-change: transform;
   }
 
-  .motion-sheet-sidebar[data-state="open"][data-side="left"] {
-    animation: sidebar-sheet-enter-left 240ms var(--motion-ease-emphasized) both;
+  .motion-sheet-panel[data-state="open"][data-side="left"] {
+    animation: sidebar-sheet-enter-left var(--motion-duration-sheet)
+      var(--motion-ease-emphasized) both;
   }
 
-  .motion-sheet-sidebar[data-state="closed"][data-side="left"] {
-    animation: sidebar-sheet-exit-left var(--motion-duration-base)
-      var(--motion-ease-standard) both;
+  .motion-sheet-panel[data-state="closed"][data-side="left"] {
+    animation: sidebar-sheet-exit-left var(--motion-duration-exit)
+      var(--motion-ease-exit) both;
   }
 
-  .motion-sheet-sidebar[data-state="open"][data-side="right"] {
-    animation: sidebar-sheet-enter-right 240ms var(--motion-ease-emphasized) both;
+  .motion-sheet-panel[data-state="open"][data-side="right"] {
+    animation: sidebar-sheet-enter-right var(--motion-duration-sheet)
+      var(--motion-ease-emphasized) both;
   }
 
-  .motion-sheet-sidebar[data-state="closed"][data-side="right"] {
-    animation: sidebar-sheet-exit-right var(--motion-duration-base)
-      var(--motion-ease-standard) both;
+  .motion-sheet-panel[data-state="closed"][data-side="right"] {
+    animation: sidebar-sheet-exit-right var(--motion-duration-exit)
+      var(--motion-ease-exit) both;
   }
 
-  .motion-sheet-sidebar[data-state="open"][data-side="top"] {
-    animation: sidebar-sheet-enter-top 240ms var(--motion-ease-emphasized) both;
+  .motion-sheet-panel[data-state="open"][data-side="top"] {
+    animation: sidebar-sheet-enter-top var(--motion-duration-sheet)
+      var(--motion-ease-emphasized) both;
   }
 
-  .motion-sheet-sidebar[data-state="closed"][data-side="top"] {
-    animation: sidebar-sheet-exit-top var(--motion-duration-base)
-      var(--motion-ease-standard) both;
+  .motion-sheet-panel[data-state="closed"][data-side="top"] {
+    animation: sidebar-sheet-exit-top var(--motion-duration-exit)
+      var(--motion-ease-exit) both;
   }
 
-  .motion-sheet-sidebar[data-state="open"][data-side="bottom"] {
-    animation: sidebar-sheet-enter-bottom 240ms var(--motion-ease-emphasized) both;
+  .motion-sheet-panel[data-state="open"][data-side="bottom"] {
+    animation: sidebar-sheet-enter-bottom var(--motion-duration-sheet)
+      var(--motion-ease-emphasized) both;
   }
 
-  .motion-sheet-sidebar[data-state="closed"][data-side="bottom"] {
-    animation: sidebar-sheet-exit-bottom var(--motion-duration-base)
-      var(--motion-ease-standard) both;
+  .motion-sheet-panel[data-state="closed"][data-side="bottom"] {
+    animation: sidebar-sheet-exit-bottom var(--motion-duration-exit)
+      var(--motion-ease-exit) both;
+  }
+
+  /* Floating action bars rise into place and drop away when dismissed. */
+  .motion-floating-bar[data-state="open"] {
+    animation: motion-floating-in var(--motion-duration-base)
+      var(--motion-ease-emphasized) both;
+  }
+
+  .motion-floating-bar[data-state="closed"] {
+    animation: motion-floating-out var(--motion-duration-fast)
+      var(--motion-ease-exit) both;
+    pointer-events: none;
+  }
+
+  /* Custom presence-based overlays can't use mount-time keyframes: their first
+     render is already "closed", which would flash the exit animation. These
+     transition utilities express the same geometry without that flash. */
+  .motion-backdrop {
+    opacity: 0;
+    transition: opacity var(--motion-duration-fast) var(--motion-ease-standard);
+  }
+
+  .motion-backdrop[data-state="open"] {
+    opacity: 1;
+  }
+
+  .motion-backdrop[data-state="closed"] {
+    transition-duration: var(--motion-duration-fast);
+    transition-timing-function: var(--motion-ease-exit);
+  }
+
+  .motion-dialog-surface {
+    opacity: 0;
+    transform: translate3d(0, var(--motion-enter-distance), 0)
+      scale(var(--motion-enter-scale));
+    transition-property: opacity, transform;
+    transition-duration: var(--motion-duration-base);
+    transition-timing-function: var(--motion-ease-emphasized);
+  }
+
+  .motion-dialog-surface[data-state="open"] {
+    opacity: 1;
+    transform: none;
+  }
+
+  .motion-dialog-surface[data-state="closed"] {
+    opacity: 0;
+    transform: translate3d(0, var(--motion-exit-distance), 0)
+      scale(var(--motion-exit-scale));
+    transition-duration: var(--motion-duration-fast);
+    transition-timing-function: var(--motion-ease-exit);
+  }
+
+  /* Fullscreen mobile surfaces fade and settle a few pixels. */
+  .motion-fullscreen-panel {
+    transition-property: opacity, transform;
+    transition-duration: var(--motion-duration-base);
+    transition-timing-function: var(--motion-ease-emphasized);
+  }
+
+  .motion-fullscreen-panel[data-state="open"] {
+    opacity: 1;
+    transform: none;
+  }
+
+  .motion-fullscreen-panel[data-state="closed"] {
+    opacity: 0;
+    transform: translate3d(0, calc(var(--motion-enter-distance) * -0.75), 0);
+    transition-duration: var(--motion-duration-exit);
+    transition-timing-function: var(--motion-ease-exit);
+  }
+
+  .motion-fullscreen-nav[data-state="closed"] {
+    transform: translate3d(calc(var(--motion-enter-distance) * -1.5), 0, 0);
   }
 
   .motion-card-enter {
-    animation: subtle-fade-up var(--motion-duration-base) var(--motion-ease-emphasized)
-      both;
+    animation: subtle-fade-up var(--motion-duration-slow)
+      var(--motion-ease-emphasized) both;
+  }
+
+  /* One-shot mount entrance for small surfaces that appear without a state
+     attribute (tooltips, onboarding cards, route-step content). */
+  .motion-enter {
+    animation: motion-fade-up var(--motion-duration-base)
+      var(--motion-ease-emphasized) both;
+  }
+
+  .motion-check-pop[data-state="checked"] {
+    animation: motion-check-pop var(--motion-duration-base)
+      var(--motion-ease-spring) both;
   }
 
   .motion-delay-1 {
-    animation-delay: 40ms;
+    animation-delay: var(--motion-stagger-step);
   }
 
   .motion-delay-2 {
-    animation-delay: 90ms;
+    animation-delay: calc(var(--motion-stagger-step) * 2);
   }
 
   .motion-delay-3 {
-    animation-delay: 140ms;
+    animation-delay: calc(var(--motion-stagger-step) * 3);
   }
 
   .motion-delay-4 {
-    animation-delay: 190ms;
+    animation-delay: calc(var(--motion-stagger-step) * 4);
   }
 
   .motion-delay-5 {
-    animation-delay: 240ms;
+    animation-delay: calc(var(--motion-stagger-step) * 5);
   }
 
   .motion-disclosure {
@@ -1192,12 +1519,13 @@ html[data-reload-loading="fade-out"] #app-root-content {
     opacity: 0;
     transition-property: grid-template-rows, opacity;
     transition-duration: var(--motion-duration-base);
-    transition-timing-function: var(--motion-ease-standard);
+    transition-timing-function: var(--motion-ease-exit);
   }
 
   .motion-disclosure[data-open="true"] {
     grid-template-rows: 1fr;
     opacity: 1;
+    transition-timing-function: var(--motion-ease-standard);
   }
 
   .motion-disclosure-inner {
@@ -1223,7 +1551,8 @@ html[data-reload-loading="fade-out"] #app-root-content {
   }
 
   .motion-list-item[data-motion-state="exiting"] {
-    animation: motion-fade-out 0.28s var(--motion-ease-standard) forwards;
+    animation: motion-fade-out var(--motion-duration-exit)
+      var(--motion-ease-exit) forwards;
     pointer-events: none;
   }
 
@@ -1232,25 +1561,40 @@ html[data-reload-loading="fade-out"] #app-root-content {
       both;
   }
 
+  /* SVG check glyphs draw once on selection (paired with pathLength=1). */
+  .animate-check-draw {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    animation: check-draw var(--motion-duration-base) var(--motion-ease-emphasized)
+      40ms forwards;
+  }
+
+  @keyframes check-draw {
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+
   @keyframes motion-fade-up {
     from {
       opacity: 0;
-      transform: translate3d(0, 8px, 0) scale(0.98);
+      transform: translate3d(0, var(--motion-enter-distance), 0) scale(0.98);
     }
     to {
       opacity: 1;
-      transform: translate3d(0, 0, 0) scale(1);
+      transform: none;
     }
   }
 
   @keyframes motion-fade-out {
     from {
       opacity: 1;
-      transform: translate3d(0, 0, 0) scale(1);
+      transform: none;
     }
     to {
       opacity: 0;
-      transform: translate3d(0, -4px, 0) scale(0.96);
+      transform: translate3d(0, calc(var(--motion-exit-distance) * -1), 0)
+        scale(var(--motion-exit-scale));
     }
   }
 
@@ -1261,6 +1605,141 @@ html[data-reload-loading="fade-out"] #app-root-content {
     }
     50% {
       opacity: 0.72;
+    }
+  }
+
+  @keyframes motion-check-pop {
+    from {
+      opacity: 0;
+      transform: scale(0.72);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes motion-overlay-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes motion-overlay-out {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+
+  @keyframes motion-dialog-in {
+    from {
+      opacity: 0;
+      transform: translate3d(0, var(--motion-enter-distance), 0)
+        scale(var(--motion-enter-scale));
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes motion-dialog-out {
+    from {
+      opacity: 1;
+      transform: none;
+    }
+    to {
+      opacity: 0;
+      transform: translate3d(0, var(--motion-exit-distance), 0)
+        scale(var(--motion-exit-scale));
+    }
+  }
+
+  @keyframes motion-popover-in {
+    from {
+      opacity: 0;
+      transform: translate3d(
+          var(--motion-popover-x, 0),
+          var(--motion-popover-y, 0),
+          0
+        )
+        scale(var(--motion-enter-scale));
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes motion-popover-out {
+    from {
+      opacity: 1;
+      transform: none;
+    }
+    to {
+      opacity: 0;
+      transform: scale(var(--motion-exit-scale));
+    }
+  }
+
+  @keyframes motion-tooltip-in {
+    from {
+      opacity: 0;
+      transform: scale(0.97);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes motion-tooltip-out {
+    from {
+      opacity: 1;
+      transform: none;
+    }
+    to {
+      opacity: 0;
+      transform: scale(0.98);
+    }
+  }
+
+  @keyframes motion-floating-in {
+    from {
+      opacity: 0;
+      transform: translate3d(0, var(--motion-enter-distance), 0) scale(0.97);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes motion-floating-out {
+    from {
+      opacity: 1;
+      transform: none;
+    }
+    to {
+      opacity: 0;
+      transform: translate3d(0, var(--motion-exit-distance), 0) scale(0.98);
+    }
+  }
+
+  @keyframes motion-page-in {
+    from {
+      opacity: 0;
+      transform: translate3d(0, 6px, 0);
+    }
+    to {
+      opacity: 1;
+      transform: none;
     }
   }
 
@@ -1275,6 +1754,57 @@ html[data-reload-loading="fade-out"] #app-root-content {
     .motion-list-item[data-motion-state="exiting"] {
       opacity: 0;
     }
+
+    /* Do not use `animation: none` here: closed overlays and bars rely on
+       their exit keyframes' `forwards` fill to stay hidden until the presence
+       timers unmount them. The base reduced-motion rule already collapses
+       every duration to 0.01ms, so only delays need clearing. */
+    .motion-card-enter,
+    .motion-enter,
+    .motion-check-pop,
+    .motion-delay-1,
+    .motion-delay-2,
+    .motion-delay-3,
+    .motion-delay-4,
+    .motion-delay-5,
+    .motion-overlay,
+    .motion-dialog-panel,
+    .motion-popover,
+    .motion-tooltip,
+    .motion-sheet-panel,
+    .motion-floating-bar,
+    .motion-aria-popover,
+    .motion-icon-swap,
+    .dashboard-page {
+      animation-delay: 0ms !important;
+    }
+
+    .motion-aria-popover,
+    .motion-icon-swap,
+    .motion-control-thumb,
+    .motion-quick,
+    .motion-backdrop,
+    .motion-dialog-surface,
+    .motion-fullscreen-panel,
+    .motion-sidebar-panel,
+    .shell-sidebar-motion {
+      transition: none !important;
+    }
+
+    .animate-check-draw {
+      animation: none !important;
+      stroke-dashoffset: 0;
+    }
+
+    .button-press-motion:active,
+    .motion-press:active {
+      transform: none !important;
+    }
+
+    .motion-lift:hover,
+    .motion-lift:active {
+      transform: none !important;
+    }
   }
 
   @media (hover: hover) and (pointer: fine) {
@@ -1284,7 +1814,9 @@ html[data-reload-loading="fade-out"] #app-root-content {
   }
 
   .motion-lift:active {
-    transform: translate3d(0, 0, 0) scale(0.995);
+    transform: translate3d(0, 0, 0) scale(var(--motion-press-scale));
+    transition-duration: var(--motion-press-duration);
+    transition-timing-function: var(--motion-ease-spring);
   }
 
   .page-wrap {
@@ -1302,6 +1834,8 @@ html[data-reload-loading="fade-out"] #app-root-content {
 
   .dashboard-page {
     @apply flex min-w-0 flex-col gap-6;
+    animation: motion-page-in var(--motion-duration-base)
+      var(--motion-ease-standard) both;
   }
 
   .dashboard-actions {
@@ -1576,15 +2110,15 @@ html[data-reload-loading="fade-out"] #app-root-content {
   }
 
   .home-entrance > .home-entrance-section:nth-child(2) {
-    animation-delay: 40ms;
+    animation-delay: var(--motion-stagger-step);
   }
 
   .home-entrance > .home-entrance-section:nth-child(3) {
-    animation-delay: 80ms;
+    animation-delay: calc(var(--motion-stagger-step) * 2);
   }
 
   .home-entrance > .home-entrance-section:nth-child(4) {
-    animation-delay: 120ms;
+    animation-delay: calc(var(--motion-stagger-step) * 3);
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -1845,11 +2379,13 @@ html[data-reload-loading="fade-out"] #app-root-content {
   }
 
   .marketing-header .marketing-nav-panel[data-state="open"] {
-    animation: marketing-nav-panel-in 180ms var(--marketing-ease) both;
+    animation: marketing-nav-panel-in var(--motion-duration-fast)
+      var(--motion-ease-emphasized) both;
   }
 
   .marketing-header .marketing-nav-panel[data-state="closed"] {
-    animation: marketing-nav-panel-out 120ms var(--motion-ease-standard) both;
+    animation: marketing-nav-panel-out var(--motion-duration-instant)
+      var(--motion-ease-exit) both;
   }
 
   @keyframes marketing-nav-panel-in {
@@ -2789,7 +3325,8 @@ html[data-reload-loading="fade-out"] #app-root-content {
   .hover-scrollbar {
     scrollbar-width: thin;
     scrollbar-color: transparent transparent;
-    transition: scrollbar-color 0.3s ease;
+    transition: scrollbar-color var(--motion-duration-base)
+      var(--motion-ease-standard);
   }
 
   .hover-scrollbar:hover,
@@ -3048,7 +3585,8 @@ html[data-reload-loading="fade-out"] #app-root-content {
 
   .marketing-landing .marketing-button-secondary [data-icon="inline-end"],
   .marketing-header .marketing-button-secondary [data-icon="inline-end"] {
-    transition: translate 150ms var(--motion-ease-standard);
+    transition: translate var(--motion-duration-fast)
+      var(--motion-ease-standard);
   }
 
   .marketing-landing .marketing-button-secondary:hover [data-icon="inline-end"],
@@ -3112,7 +3650,8 @@ html[data-reload-loading="fade-out"] #app-root-content {
   }
 
   .marketing-cta-panel .marketing-cta-button-primary [data-icon="inline-end"] {
-    transition: translate 150ms var(--motion-ease-standard);
+    transition: translate var(--motion-duration-fast)
+      var(--motion-ease-standard);
   }
 
   .marketing-cta-panel
@@ -3258,14 +3797,14 @@ html[data-reload-loading="fade-out"] #app-root-content {
       transform-origin: bottom center !important;
       border-width: 1px 1px 0;
       border-radius: var(--radius-xl) var(--radius-xl) 0 0 !important;
-      animation: sidebar-sheet-enter-bottom 220ms var(--motion-ease-emphasized)
-        both !important;
+      animation: sidebar-sheet-enter-bottom var(--motion-duration-slow)
+        var(--motion-ease-emphasized) both !important;
     }
 
     [data-slot="dropdown-menu-content"][data-mobile-sheet="true"][data-state="closed"],
     [data-slot="dropdown-menu-sub-content"][data-mobile-sheet="true"][data-state="closed"] {
-      animation: sidebar-sheet-exit-bottom var(--motion-duration-base)
-        var(--motion-ease-standard) both !important;
+      animation: sidebar-sheet-exit-bottom var(--motion-duration-exit)
+        var(--motion-ease-exit) both !important;
     }
   }
 
@@ -3338,7 +3877,8 @@ html[data-reload-loading="fade-out"] #app-root-content {
   }
 
   .table-row-surface {
-    transition: background-color 150ms ease;
+    transition: background-color var(--motion-duration-fast)
+      var(--motion-ease-standard);
   }
 
   .table-row-surface:hover,
@@ -4075,8 +4615,8 @@ html[data-reload-loading="fade-out"] #app-root-content {
   border-radius: 9999px;
   background-color: var(--foreground);
   transition-property: transform, opacity;
-  transition-duration: 300ms;
-  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  transition-duration: var(--motion-duration-base);
+  transition-timing-function: var(--motion-ease-spring);
   will-change: transform, opacity;
 }
 
@@ -4134,12 +4674,14 @@ html[data-reload-loading="fade-out"] #app-root-content {
 }
 
 .mobile-nav-overlay[data-state="open"] {
-  animation: mobile-nav-overlay-enter 400ms var(--motion-ease-emphasized) both;
+  animation: mobile-nav-overlay-enter var(--motion-duration-sheet)
+    var(--motion-ease-emphasized) both;
   pointer-events: auto;
 }
 
 .mobile-nav-overlay[data-state="closed"] {
-  animation: mobile-nav-overlay-exit 280ms var(--motion-ease-standard) both;
+  animation: mobile-nav-overlay-exit var(--motion-duration-exit)
+    var(--motion-ease-exit) both;
   pointer-events: none;
 }
 
@@ -4171,17 +4713,22 @@ html[data-reload-loading="fade-out"] #app-root-content {
   opacity: 0;
   transform: translateY(16px);
   transition-property: transform, opacity, background-color, color;
-  transition-duration: 350ms;
-  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  transition-duration: var(--motion-duration-base);
+  transition-timing-function: var(--motion-ease-standard);
 }
 
 .mobile-nav-overlay[data-state="open"] .mobile-nav-link {
-  animation: mobile-nav-item-enter 350ms var(--motion-ease-emphasized) both;
-  animation-delay: calc(120ms + var(--item-index, 0) * 55ms);
+  animation: mobile-nav-item-enter var(--motion-duration-slow)
+    var(--motion-ease-emphasized) both;
+  animation-delay: calc(
+    var(--motion-stagger-step) * 2 + var(--item-index, 0) *
+      var(--motion-stagger-step)
+  );
 }
 
 .mobile-nav-overlay[data-state="closed"] .mobile-nav-link {
-  animation: mobile-nav-item-exit 160ms var(--motion-ease-standard) both;
+  animation: mobile-nav-item-exit var(--motion-duration-fast)
+    var(--motion-ease-exit) both;
 }
 
 .mobile-nav-link:hover,
@@ -4231,17 +4778,19 @@ html[data-reload-loading="fade-out"] #app-root-content {
   opacity: 0;
   transform: translateY(12px);
   transition-property: transform, opacity;
-  transition-duration: 350ms;
-  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  transition-duration: var(--motion-duration-base);
+  transition-timing-function: var(--motion-ease-standard);
 }
 
 .mobile-nav-overlay[data-state="open"] .mobile-nav-actions {
-  animation: mobile-nav-item-enter 350ms var(--motion-ease-emphasized) both;
-  animation-delay: calc(120ms + 4 * 55ms + 60ms);
+  animation: mobile-nav-item-enter var(--motion-duration-slow)
+    var(--motion-ease-emphasized) both;
+  animation-delay: calc(var(--motion-stagger-step) * 7);
 }
 
 .mobile-nav-overlay[data-state="closed"] .mobile-nav-actions {
-  animation: mobile-nav-item-exit 160ms var(--motion-ease-standard) both;
+  animation: mobile-nav-item-exit var(--motion-duration-fast)
+    var(--motion-ease-exit) both;
 }
 
 @keyframes mobile-nav-overlay-enter {

@@ -26,7 +26,7 @@ export function PublicStickyHeader({
   return (
     <header
       className={cn(
-        "sticky top-0 z-50 w-full transition-all duration-300",
+        "sticky top-0 z-50 w-full [transition:background-color_var(--motion-duration-base)_var(--motion-ease-standard),border-color_var(--motion-duration-base)_var(--motion-ease-standard),box-shadow_var(--motion-duration-base)_var(--motion-ease-standard)]",
         isScrolled
           ? "border-b border-border bg-background"
           : "border-b-transparent bg-transparent",

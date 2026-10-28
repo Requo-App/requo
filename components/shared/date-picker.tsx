@@ -150,7 +150,7 @@ export function DatePicker({
                         initial={{ opacity: 0, y: -12 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -12 }}
-                        transition={{ duration: 0.25, ease: [0.34, 1.2, 0.64, 1] }}
+                        transition={{ duration: 0.24, ease: [0.34, 1.28, 0.64, 1] }}
                       >
                         <DateChipInput date={pendingValue} label="Date" onCommit={setPendingValue} />
                       </motion.div>

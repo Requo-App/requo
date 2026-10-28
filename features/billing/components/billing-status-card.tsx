@@ -602,7 +602,7 @@ function UsageBar({
         aria-valuemax={100}
       >
         <div
-          className="h-full rounded-full bg-primary transition-all motion-reduce:transition-none"
+          className="h-full rounded-full bg-primary [transition:width_var(--motion-duration-slow)_var(--motion-ease-standard)] motion-reduce:transition-none"
           style={{ width: `${remainingPct}%` }}
         />
       </div>

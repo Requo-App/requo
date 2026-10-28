@@ -104,7 +104,7 @@ function DialogOverlay({
       data-state={open ? "open" : "closed"}
       data-slot="dialog-overlay"
       className={cn(
-        "modal-backdrop modal-layer-overlay fixed inset-0 pointer-events-auto duration-150 fill-mode-forwards data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+        "modal-backdrop modal-layer-overlay motion-overlay fixed inset-0 pointer-events-auto",
         !open && "pointer-events-none",
         className,
       )}
@@ -136,7 +136,7 @@ function DialogContent({
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          "overlay-surface modal-layer-content fixed bottom-2 left-1/2 top-auto flex max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-3xl -translate-x-1/2 translate-y-0 flex-col overflow-y-auto rounded-xl border text-popover-foreground duration-200 fill-mode-forwards data-open:animate-in data-open:fade-in-0 data-open:zoom-in-[0.96] data-open:slide-in-from-bottom-2 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-[0.96] data-closed:slide-out-to-bottom-2 sm:bottom-auto sm:top-1/2 sm:max-h-[calc(100dvh-2rem)] sm:w-[calc(100vw-2rem)] sm:-translate-y-1/2 sm:overflow-hidden",
+          "overlay-surface modal-layer-content motion-dialog-panel fixed bottom-2 left-1/2 top-auto flex max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-3xl -translate-x-1/2 translate-y-0 flex-col overflow-y-auto rounded-xl border text-popover-foreground sm:bottom-auto sm:top-1/2 sm:max-h-[calc(100dvh-2rem)] sm:w-[calc(100vw-2rem)] sm:-translate-y-1/2 sm:overflow-hidden",
           isClosing && "pointer-events-none",
           className
         )}

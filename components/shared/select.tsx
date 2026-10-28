@@ -50,7 +50,7 @@ const selectTriggerVariants = cva(
     "flex w-full cursor-pointer items-center justify-between rounded-md",
     "control-surface border",
     "text-foreground",
-    "transition-[background-color,border-color,box-shadow,padding,font-size] duration-200 ease",
+    "transition-[background-color,border-color,box-shadow,padding,font-size] [transition-duration:var(--motion-duration-base)] [transition-timing-function:var(--motion-ease-standard)]",
     "hover:bg-[var(--control-bg-hover)] hover:border-[var(--control-border-hover)]",
     "outline-none focus-visible:border-ring/50 focus-visible:ring-2 focus-visible:ring-ring",
     "disabled:cursor-not-allowed disabled:bg-transparent disabled:border-[var(--control-disabled-border)] disabled:text-[var(--control-disabled-fg)] disabled:shadow-none disabled:opacity-100",
@@ -154,7 +154,7 @@ export function Select<T extends object>({
             </AriaSelectValue>
             <ChevronDownSmall
               className={cn(
-                "shrink-0 text-muted-foreground transition-transform duration-200 ease",
+                "motion-icon-swap shrink-0 text-muted-foreground",
                 size === "sm" ? "size-3.5" : "size-4",
                 isOpen && "rotate-180",
               )}

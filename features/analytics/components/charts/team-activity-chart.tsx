@@ -131,7 +131,7 @@ export function TeamActivityChart({
               radius={index === visible.length - 1 ? [4, 4, 0, 0] : 0}
               maxBarSize={40}
               isAnimationActive={!reduceMotion}
-              animationDuration={280}
+              animationDuration={240}
             />
           ))}
         </BarChart>

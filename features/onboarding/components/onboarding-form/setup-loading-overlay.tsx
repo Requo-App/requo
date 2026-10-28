@@ -43,7 +43,7 @@ export function SetupLoadingOverlay() {
           {setupLoadingSteps.map((step, index) => (
             <div
               className={cn(
-                "flex items-center gap-3 transition-all duration-500",
+                "flex items-center gap-3 [transition:opacity_var(--motion-duration-base)_var(--motion-ease-standard),translate_var(--motion-duration-base)_var(--motion-ease-emphasized)]",
                 index > activeStep && "translate-y-2 opacity-0",
                 index <= activeStep && "translate-y-0 opacity-100",
               )}
@@ -60,7 +60,7 @@ export function SetupLoadingOverlay() {
               )}
               <p
                 className={cn(
-                  "text-sm font-medium transition-colors duration-300",
+                  "motion-transition text-sm font-medium",
                   index <= activeStep
                     ? "text-foreground"
                     : "text-muted-foreground",

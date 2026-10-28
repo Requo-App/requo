@@ -154,7 +154,7 @@ export function SidebarChecklist({ items }: SidebarChecklistProps) {
           <div className="px-4 pt-3 pb-1">
             <div className="h-1 overflow-hidden rounded-full bg-muted">
               <div
-                className="h-full rounded-full bg-primary transition-all duration-500"
+                className="h-full rounded-full bg-primary [transition:width_var(--motion-duration-slow)_var(--motion-ease-standard)]"
                 style={{ width: `${progressPercent}%` }}
               />
             </div>

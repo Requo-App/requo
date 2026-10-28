@@ -208,7 +208,7 @@ function SidebarNavRow({
   return (
     <div
       className={cn(
-        "flex w-full items-center justify-between gap-2 overflow-hidden rounded-md px-2 py-1.5 text-muted-foreground transition-[width,background-color] duration-300 ease-in-out hover:bg-sidebar-accent hover:text-sidebar-foreground",
+        "flex w-full items-center justify-between gap-2 overflow-hidden rounded-md px-2 py-1.5 text-muted-foreground transition-[width,background-color,color] [transition-duration:var(--motion-duration-base)] [transition-timing-function:var(--motion-ease-standard)] hover:bg-sidebar-accent hover:text-sidebar-foreground",
         selected &&
           "bg-sidebar-selected font-medium text-sidebar-foreground",
       )}
@@ -244,19 +244,19 @@ function SidebarThemeToggle() {
     >
       <span
         aria-hidden
-        className="pointer-events-none absolute top-1 left-1 size-8 rounded-full border border-border bg-card shadow-xs transition-transform duration-200 ease"
+        className="motion-control-thumb pointer-events-none absolute top-1 left-1 size-8 rounded-full border border-border bg-card shadow-xs"
       />
       <button
         aria-label="Use light mode"
         aria-pressed
-        className="relative z-10 grid size-8 cursor-pointer place-items-center rounded-full text-foreground transition-colors duration-150 ease outline-none"
+        className="motion-transition relative z-10 grid size-8 cursor-pointer place-items-center rounded-full text-foreground outline-none"
         type="button"
       >
         <RiSunLine aria-hidden className="size-4" />
       </button>
       <button
         aria-label="Use dark mode"
-        className="relative z-10 grid size-8 cursor-pointer place-items-center rounded-full text-muted-foreground transition-colors duration-150 ease outline-none hover:text-foreground"
+        className="motion-transition relative z-10 grid size-8 cursor-pointer place-items-center rounded-full text-muted-foreground outline-none hover:text-foreground"
         type="button"
       >
         <RiMoonLine aria-hidden className="size-4" />
@@ -418,7 +418,7 @@ export function MarketingDashboardPreview() {
             </div>
             <button
               aria-label="Collapse sidebar"
-              className="cursor-pointer text-muted-foreground transition-transform duration-300 ease-in-out"
+              className="motion-icon-swap cursor-pointer text-muted-foreground"
               type="button"
             >
               <RiSideBarFill aria-hidden className="size-5 -scale-x-100" />
@@ -429,7 +429,7 @@ export function MarketingDashboardPreview() {
             {/* Quick search */}
             <button
               aria-label="Search"
-              className="flex w-full cursor-pointer items-center gap-2 rounded-full bg-sidebar-accent px-2 py-1.5 transition-[width,border-radius,background-color] duration-300 ease-in-out hover:bg-sidebar-accent/70"
+              className="flex w-full cursor-pointer items-center gap-2 rounded-full bg-sidebar-accent px-2 py-1.5 transition-[width,border-radius,background-color] [transition-duration:var(--motion-duration-base)] [transition-timing-function:var(--motion-ease-standard)] hover:bg-sidebar-accent/70"
               type="button"
             >
               <span className="flex min-w-0 flex-1 items-center gap-2">

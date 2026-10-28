@@ -236,7 +236,7 @@ export function AdminMobileUserMenu({ user }: { user: AdminShellUser }) {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
-          className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-transparent transition-colors hover:border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-95"
+          className="motion-press flex size-8 shrink-0 items-center justify-center rounded-lg border border-transparent hover:border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           aria-label="Admin profile menu"
           type="button"
         >

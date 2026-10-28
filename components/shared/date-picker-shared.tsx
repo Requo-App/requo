@@ -113,7 +113,7 @@ export function DayCell(props: CalendarCellRenderProps & { isRange: boolean }) {
       <span
         aria-hidden
         className={cn(
-          "absolute inset-y-0 bg-primary/10 transition-[opacity,border-radius] duration-100 ease-out",
+          "motion-quick absolute inset-y-0 bg-primary/10 transition-[opacity,border-radius]",
           isSelectionStart ? "left-1/2" : extendLeft ? "-left-1.5" : "left-0",
           isSelectionEnd ? "right-1/2" : extendRight ? "-right-1.5" : "right-0",
           !isSelectionStart && dayOfWeek === 0 && "rounded-l-lg",
@@ -125,14 +125,14 @@ export function DayCell(props: CalendarCellRenderProps & { isRange: boolean }) {
         className={cn(
           "relative flex size-8 items-center justify-center rounded-lg outline-none",
           !isSelected && isHovered && "hover:bg-accent",
-          "transition-colors duration-100 ease-out",
+          "motion-quick transition-colors",
           isFocusVisible && "ring-2 ring-inset ring-ring",
         )}
       >
         <span
           aria-hidden
           className={cn(
-            "absolute inset-0 bg-primary transition-[opacity,border-radius] duration-100 ease-out",
+            "motion-quick absolute inset-0 bg-primary transition-[opacity,border-radius]",
             isSingleDay && "rounded-lg",
             isSelectionStart && !isSingleDay && "rounded-l-lg",
             isSelectionEnd && !isSingleDay && "rounded-r-lg",
@@ -187,7 +187,7 @@ export function MonthPanel({
               {showPrev ? (
                 <RACButton
                   slot="previous"
-                  className="flex size-4 cursor-pointer items-center justify-center rounded-[3px] text-muted-foreground outline-none transition-colors duration-150 ease hover:bg-accent"
+                  className="motion-transition flex size-4 cursor-pointer items-center justify-center rounded-[3px] text-muted-foreground outline-none hover:bg-accent"
                 >
                 <ChevronLeft16 />
               </RACButton>
@@ -198,7 +198,7 @@ export function MonthPanel({
               {showNext ? (
                 <RACButton
                   slot="next"
-                  className="flex size-4 cursor-pointer items-center justify-center rounded-[3px] text-muted-foreground outline-none transition-colors duration-150 ease hover:bg-accent"
+                  className="motion-transition flex size-4 cursor-pointer items-center justify-center rounded-[3px] text-muted-foreground outline-none hover:bg-accent"
                 >
                 <ChevronRight16 />
               </RACButton>
@@ -273,7 +273,7 @@ export function DateChipInput({
         if (event.key === "Escape") setText(formatted);
       }}
       aria-label={label}
-      className="control-surface w-[104px] rounded-md border px-2 py-2 text-body-medium text-foreground outline-none transition-colors duration-100 ease-out focus-visible:border-ring/60"
+      className="motion-transition control-surface w-[104px] rounded-md border px-2 py-2 text-body-medium text-foreground outline-none focus-visible:border-ring/60"
     />
   );
 }
@@ -281,8 +281,7 @@ export function DateChipInput({
 /** Shared trigger-button chrome for both pickers (calendar icon +
  *  formatted-value text, white surface, 10px radius). */
 export const triggerButtonClassName = cn(
-  "control-surface inline-flex shrink-0 cursor-pointer items-center gap-0.5 rounded-md border p-2 outline-none",
-  "transition-[background-color,border-color,box-shadow] duration-150 ease",
+  "motion-transition control-surface inline-flex shrink-0 cursor-pointer items-center gap-0.5 rounded-md border p-2 outline-none",
   "hover:border-[var(--control-border-hover)] hover:bg-[var(--control-bg-hover)]",
   "focus-visible:border-ring/50 focus-visible:ring-2 focus-visible:ring-ring",
   "disabled:cursor-not-allowed disabled:border-[var(--control-disabled-border)] disabled:bg-transparent disabled:text-[var(--control-disabled-fg)] disabled:shadow-none disabled:opacity-100",
@@ -290,8 +289,5 @@ export const triggerButtonClassName = cn(
 
 /** Shared popover chrome (single shared surface radius) for both pickers. */
 export const popoverClassName = cn(
-  "overlay-surface origin-top rounded-xl border",
-  "transition duration-150 ease-out",
-  "data-[entering]:opacity-0 data-[entering]:scale-95 data-[entering]:blur-[2px]",
-  "data-[exiting]:opacity-0 data-[exiting]:scale-95 data-[exiting]:blur-[2px]",
+  "motion-aria-popover overlay-surface origin-top rounded-xl border",
 );

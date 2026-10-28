@@ -282,7 +282,7 @@ function ShowcaseImageEditorPreview({
           <InquiryShowcaseImageSurface
             alt=""
             className={cn(
-              "transition-[width,max-width] duration-200",
+              "transition-[width,max-width] [transition-duration:var(--motion-duration-base)] [transition-timing-function:var(--motion-ease-standard)]",
               getShowcaseImagePreviewSizeClass(size),
             )}
             crop={crop}

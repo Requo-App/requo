@@ -46,7 +46,6 @@ import {
   formatQuoteMoney,
   getQuoteLibraryEntryKindLabel,
 } from "@/features/quotes/utils";
-import { cn } from "@/lib/utils";
 
 export type QuoteLibraryBlockReference = {
   id: string;
@@ -80,8 +79,8 @@ type QuoteLibraryEntryFormProps = {
 };
 
 const initialState: QuoteLibraryActionState = {};
-const LINE_ITEM_ENTER_DURATION_MS = 220;
-const LINE_ITEM_EXIT_DURATION_MS = 180;
+const LINE_ITEM_ENTER_DURATION_MS = 240;
+const LINE_ITEM_EXIT_DURATION_MS = 220;
 const SAVE_REFRESH_DELAY_MS = 180;
 const quoteLibraryKindOptions = [
   {
@@ -618,13 +617,7 @@ function QuoteLibraryEntryFormFields({
           {items.map((item, index) => {
             return (
               <div
-                className={cn(
-                  "rounded-xl border border-border/70 bg-muted/60 p-4 motion-reduce:animate-none",
-                  item.motionState === "entering" &&
-                    "motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:duration-200",
-                  item.motionState === "exiting" &&
-                    "pointer-events-none motion-safe:animate-out motion-safe:fade-out-0 motion-safe:slide-out-to-bottom-2 motion-safe:duration-150",
-                )}
+                className="motion-list-item rounded-xl border border-border/70 bg-muted/60 p-4"
                 data-motion-state={item.motionState}
                 key={item.id}
               >

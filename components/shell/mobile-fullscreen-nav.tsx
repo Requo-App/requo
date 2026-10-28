@@ -48,8 +48,8 @@ export function MobileFullscreenNav({
   const pathname = usePathname();
   const panelRef = useRef<HTMLDivElement>(null);
   const restoreFocusRef = useRef<HTMLElement | null>(null);
-  // Two-phase mount so open plays a 240ms slide while route-change closes
-  // stay instant (the pathname effect below unmounts without animating).
+  // Two-phase mount so open and close both play the shared fullscreen
+  // motion before the overlay leaves the DOM.
   const [mounted, setMounted] = useState(open);
   const [visible, setVisible] = useState(false);
   const unmountTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -69,12 +69,12 @@ export function MobileFullscreenNav({
         ),
       );
     } else if (mounted) {
-      // Dismissal: quick 180ms slide-out before unmount.
+      // Dismissal: exit animation first, then unmount.
       setVisible(false);
-      unmountTimer.current = setTimeout(() => setMounted(false), 200);
+      unmountTimer.current = setTimeout(() => setMounted(false), 240);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mounted is write-only here
-  }, [open ]);
+  }, [open]);
 
   useEffect(() => {
     if (!mounted) {
@@ -92,10 +92,17 @@ export function MobileFullscreenNav({
       if (focusable.length === 0) return;
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
+      const active = document.activeElement;
+      // The panel itself holds focus on open (tabIndex -1), so Shift+Tab must
+      // wrap from the panel as well as from the first focusable control.
+      const focusOutsidePanel = !panelRef.current.contains(active);
+      if (
+        event.shiftKey &&
+        (active === first || active === panelRef.current || focusOutsidePanel)
+      ) {
         event.preventDefault();
         last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
+      } else if (!event.shiftKey && (active === last || focusOutsidePanel)) {
         event.preventDefault();
         first.focus();
       }
@@ -119,6 +126,10 @@ export function MobileFullscreenNav({
   // navigation never animates over the destination.
   useEffect(() => {
     if (open) {
+      // Leave instantly on navigation: a fading overlay over the destination
+      // reads as a stuck screen, not as motion.
+      setVisible(false);
+      setMounted(false);
       onOpenChange(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -151,11 +162,8 @@ export function MobileFullscreenNav({
       aria-label={variant === "main" ? "Business navigation" : "Settings navigation"}
       data-state={visible ? "open" : "closed"}
       className={cn(
-        "fixed inset-0 z-50 flex flex-col bg-sidebar outline-none lg:hidden",
-        "transition-[transform,opacity] ease-[var(--motion-ease-emphasized)]",
-        visible
-          ? "translate-x-0 opacity-100 duration-[240ms]"
-          : "-translate-x-4 pointer-events-none opacity-0 duration-[180ms]",
+        "motion-fullscreen-panel motion-fullscreen-nav fixed inset-0 z-50 flex flex-col bg-sidebar outline-none lg:hidden",
+        !visible && "pointer-events-none",
       )}
     >
       <div className="h-dvh w-full">

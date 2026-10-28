@@ -42,10 +42,10 @@ export function OnboardingStepper({
                     onClick={() => onStepSelect(index)}
                     type="button"
                   >
-                    <span className="flex size-8 items-center justify-center rounded-full bg-primary text-primary-foreground transition-all duration-500 ease-out group-hover:scale-110 group-hover:bg-primary/80">
+                    <span className="flex size-8 items-center justify-center rounded-full bg-primary text-primary-foreground transition-[background-color,scale] [transition-duration:var(--motion-duration-slow)] [transition-timing-function:var(--motion-ease-standard)] group-hover:scale-110 group-hover:bg-primary/80">
                       <Check className="size-4" />
                     </span>
-                    <span className="text-xs font-medium text-primary-ink transition-colors duration-300 group-hover:text-primary-ink/80">
+                    <span className="motion-transition text-xs font-medium text-primary-ink group-hover:text-primary-ink/80">
                       {item.label}
                     </span>
                   </button>
@@ -56,7 +56,7 @@ export function OnboardingStepper({
                   >
                     <span
                       className={cn(
-                        "flex size-8 items-center justify-center rounded-full border-2 text-xs font-semibold transition-all duration-500 ease-out",
+                        "flex size-8 items-center justify-center rounded-full border-2 text-xs font-semibold transition-[background-color,border-color,color,scale] [transition-duration:var(--motion-duration-slow)] [transition-timing-function:var(--motion-ease-standard)]",
                         isCurrent &&
                           "scale-110 border-primary bg-primary/10 text-primary-ink shadow-[0_0_0_4px_var(--color-primary)/0.1]",
                         !isCurrent &&
@@ -68,7 +68,7 @@ export function OnboardingStepper({
                     </span>
                     <span
                       className={cn(
-                        "text-xs font-medium transition-colors duration-300",
+                        "motion-transition text-xs font-medium",
                         isCurrent
                           ? "text-foreground"
                           : "text-muted-foreground/60",
@@ -84,7 +84,7 @@ export function OnboardingStepper({
                 <div className="relative mx-2 h-0.5 flex-1 overflow-hidden rounded-full bg-border">
                   <div
                     className={cn(
-                      "absolute inset-y-0 left-0 rounded-full bg-primary transition-all duration-500 ease-out",
+                      "absolute inset-y-0 left-0 rounded-full bg-primary [transition:width_var(--motion-duration-slow)_var(--motion-ease-standard)]",
                       isCompleted ? "w-full" : "w-0",
                     )}
                   />

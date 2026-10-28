@@ -119,7 +119,7 @@ export function TabList<T extends object>({ className, ref, ...props }: TabListP
       {underline && (
         <span
           aria-hidden
-          className="pointer-events-none absolute bottom-0 left-0 h-0.5 bg-primary transition-[transform,width] duration-200 ease"
+          className="motion-control-thumb pointer-events-none absolute bottom-0 left-0 h-0.5 bg-primary"
           style={{
             transform: `translateX(${underline.left}px)`,
             width: underline.width,
@@ -132,10 +132,9 @@ export function TabList<T extends object>({ className, ref, ...props }: TabListP
 
 const tabVariants = cva(
   cn(
-    "relative inline-flex cursor-pointer items-center gap-2.5 px-2.5 py-2 whitespace-nowrap",
-    "outline-none transition-[color,background-color,transform] duration-150 ease-[var(--motion-ease-standard)]",
+    "motion-press relative inline-flex cursor-pointer items-center gap-2.5 px-2.5 py-2 whitespace-nowrap",
+    "outline-none",
     "focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-ring",
-    "active:scale-[0.98] disabled:active:scale-100",
   ),
   {
     variants: {

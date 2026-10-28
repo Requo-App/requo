@@ -180,7 +180,7 @@ function NavTrigger({
         <span className="nav-underline" aria-hidden="true" />
         <ChevronDown
           aria-hidden="true"
-          className="size-3 opacity-50 transition-transform duration-150 group-data-[state=open]:rotate-180"
+          className="motion-icon-swap size-3 opacity-50 group-data-[state=open]:rotate-180"
         />
       </button>
     </NavigationMenuPrimitive.Trigger>
