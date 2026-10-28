@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { BrandMark } from "@/components/shared/brand-mark";
+import { legalPages } from "@/features/legal/legal-pages";
 
 function XIcon({ className }: { className?: string }) {
   return (
@@ -95,14 +96,10 @@ const footerColumns: FooterColumn[] = [
   },
   {
     title: "Legal",
-    links: [
-      { label: "Security", href: "/security" },
-      { label: "Terms of use", href: "/terms" },
-      { label: "Privacy policy", href: "/privacy" },
-      { label: "Refund policy", href: "/refund-policy" },
-      { label: "DPA", href: "/legal/dpa" },
-      { label: "Subprocessors", href: "/subprocessors" },
-    ],
+    links: legalPages.map((page) => ({
+      label: page.footerLabel,
+      href: page.href,
+    })),
   },
   {
     title: "Socials",

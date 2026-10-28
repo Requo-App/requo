@@ -2,7 +2,6 @@ import {
   LegalDocumentPage,
   type LegalDocumentSection,
   LegalParagraph,
-  LegalSectionHeading,
 } from "@/features/legal/components/legal-document-page";
 import { legalConfig } from "@/features/legal/config";
 
@@ -86,7 +85,6 @@ const subprocessorsSections: LegalDocumentSection[] = [
     title: "Overview",
     content: (
       <>
-        <LegalSectionHeading>Overview</LegalSectionHeading>
         <LegalParagraph>
           {legalConfig.companyName} uses the following third-party subprocessors
           to operate the service. Each subprocessor processes personal data only
@@ -112,8 +110,7 @@ const subprocessorsSections: LegalDocumentSection[] = [
     title: "Subprocessor List",
     content: (
       <>
-        <LegalSectionHeading>Subprocessor List</LegalSectionHeading>
-        <div className="overflow-x-auto">
+        <div className="legal-table-wrap">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border/70">
@@ -169,7 +166,6 @@ const subprocessorsSections: LegalDocumentSection[] = [
     title: "Updates",
     content: (
       <>
-        <LegalSectionHeading>Updates</LegalSectionHeading>
         <LegalParagraph>
           We may update this list from time to time as we add or change
           subprocessors. Material changes will be communicated via email to
@@ -183,6 +179,10 @@ const subprocessorsSections: LegalDocumentSection[] = [
 
 export function SubprocessorsPage() {
   return (
-    <LegalDocumentPage title="Subprocessors" sections={subprocessorsSections} />
+    <LegalDocumentPage
+      content={subprocessorsSections}
+      effectiveDate={legalConfig.effectiveDate}
+      title="Subprocessors"
+    />
   );
 }
