@@ -438,6 +438,12 @@ export function DashboardUserMenu({
           <DropdownMenuContent
             align="end"
             className="w-[min(16rem,calc(100vw-2rem))] rounded-xl"
+            onFocusOutside={(event) => {
+              // Safari can move focus out of the portaled sheet immediately
+              // after a touch open. The mobile nav owns focus while it is
+              // up, so do not let a transient focus escape dismiss the menu.
+              if (isMobile) event.preventDefault();
+            }}
           >
             <DropdownMenuLabel className="px-2 py-2.5">
               <div className="flex items-center gap-3">
@@ -597,14 +603,13 @@ export function MobileBusinessSwitcher({
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
-            className="motion-press control-surface flex size-8 shrink-0 items-center justify-center rounded-lg border hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+            className="motion-press flex size-8 shrink-0 items-center justify-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
             aria-label="Switch business"
             type="button"
           >
             <BusinessAvatar
               name={business.name}
               logoUrl={getSwitcherLogoUrl("/api/business/logo", business)}
-              size="sm"
               loading="eager"
             />
           </button>

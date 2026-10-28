@@ -515,7 +515,7 @@ function SidebarMenuButton({
     />
   );
 
-  if (!tooltip) {
+  if (!tooltip || isMobile) {
     return button;
   }
 

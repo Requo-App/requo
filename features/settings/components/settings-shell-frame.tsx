@@ -310,7 +310,7 @@ export function SettingsUserMenu({ user, businessSlug }: { user: SettingsUserDat
   return (
     <SidebarMenu>
       <SidebarMenuItem>
-        <DropdownMenu>
+        <DropdownMenu modal={isMobile}>
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
               className="group/user-menu h-auto cursor-pointer justify-between rounded-xl border-2 border-transparent bg-sidebar-accent py-2 pr-3 pl-2.5 shell-sidebar-motion hover:border-sidebar-border hover:bg-sidebar-accent group-data-[collapsed=true]/sidebar:h-9 group-data-[collapsed=true]/sidebar:w-9 group-data-[collapsed=true]/sidebar:justify-center group-data-[collapsed=true]/sidebar:gap-0 group-data-[collapsed=true]/sidebar:rounded-full group-data-[collapsed=true]/sidebar:border-transparent group-data-[collapsed=true]/sidebar:bg-transparent group-data-[collapsed=true]/sidebar:p-0 data-[state=open]:border-sidebar-border data-[state=open]:bg-sidebar-accent"
@@ -349,6 +349,12 @@ export function SettingsUserMenu({ user, businessSlug }: { user: SettingsUserDat
           <DropdownMenuContent
             align="end"
             className="w-[min(16rem,calc(100vw-2rem))] rounded-xl"
+            onFocusOutside={(event) => {
+              // Safari can move focus out of the portaled sheet immediately
+              // after a touch open. The mobile nav owns focus while it is
+              // up, so do not let a transient focus escape dismiss the menu.
+              if (isMobile) event.preventDefault();
+            }}
             side="top"
           >
             <DropdownMenuLabel className="px-2 py-2.5">
