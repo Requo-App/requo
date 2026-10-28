@@ -69,7 +69,7 @@ const buttonBase = [
   "inline-flex items-center justify-center gap-0.5 whitespace-nowrap overflow-hidden",
   "font-sans select-none cursor-pointer",
   "button-press-motion",
-  "outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-ring",
+  "outline-none focus-visible:ring-2 focus-visible:ring-ring",
   "disabled:cursor-not-allowed aria-disabled:cursor-not-allowed",
 ].join(" ");
 
@@ -119,12 +119,11 @@ const buttonVariantClasses: Record<ButtonVariant, string> = {
     "aria-disabled:bg-muted aria-disabled:text-muted-foreground aria-disabled:shadow-none",
   ].join(" "),
   secondary: [
-    "bg-card text-foreground",
-    "border border-border shadow-xs",
-    "hover:bg-accent hover:border-border",
-    "active:bg-accent active:border-ring",
-    "disabled:bg-muted disabled:border-border disabled:text-muted-foreground disabled:shadow-none",
-    "aria-disabled:bg-muted aria-disabled:border-border aria-disabled:text-muted-foreground aria-disabled:shadow-none",
+    "control-surface-secondary border text-foreground",
+    "hover:border-[var(--control-border-hover)] hover:bg-[var(--control-bg-hover)]",
+    "active:border-[var(--control-border-hover)] active:bg-[var(--control-bg-hover)]",
+    "disabled:border-[var(--control-disabled-border)] disabled:bg-transparent disabled:text-[var(--control-disabled-fg)] disabled:shadow-none disabled:opacity-100",
+    "aria-disabled:border-[var(--control-disabled-border)] aria-disabled:bg-transparent aria-disabled:text-[var(--control-disabled-fg)] aria-disabled:shadow-none aria-disabled:opacity-100",
   ].join(" "),
   ghost: [
     "text-muted-foreground",

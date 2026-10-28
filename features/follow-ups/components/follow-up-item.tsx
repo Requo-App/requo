@@ -230,7 +230,7 @@ export function FollowUpItem({
     <div
       ref={itemRef}
       className={cn(
-        "motion-list-item rounded-xl border border-border/60 bg-background transition-colors",
+        "motion-list-item rounded-xl border border-border/60 bg-card transition-colors",
         expanded ? "border-border/80" : "hover:border-border/80",
         className,
       )}

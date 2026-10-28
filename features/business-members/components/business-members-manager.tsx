@@ -950,7 +950,7 @@ function ManageAccessDialog({
 
                     return (
                       <Field
-                        className="rounded-xl border border-border bg-background/60 p-3"
+                        className="rounded-xl border border-border bg-muted/60 p-3"
                         key={roleValue}
                         orientation="horizontal"
                       >

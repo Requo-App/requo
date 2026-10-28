@@ -242,7 +242,7 @@ export function WorkflowSteps() {
                 aria-describedby={isActive ? descriptionId(index) : undefined}
                 aria-labelledby={`${labelElementId} ${titleElementId}`}
                 aria-selected={isActive}
-                className="marketing-step group relative flex w-full cursor-pointer flex-col items-start rounded-lg text-left outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                className="marketing-step group relative flex w-full cursor-pointer flex-col items-start rounded-lg text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                 id={tabElementId}
                 key={step.label}
                 onClick={() => moveToStep(index)}

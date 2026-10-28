@@ -19,7 +19,7 @@ function FormBuilderPreview() {
         <FormInput className="size-4 text-primary-ink" />
         <span className="text-xs font-medium text-primary-ink">Fields</span>
       </div>
-      <div className="flex flex-col gap-1.5 rounded-lg border border-border/50 bg-background p-2.5">
+      <div className="flex flex-col gap-1.5 rounded-lg border border-border/50 bg-card p-2.5">
         <div className="flex items-center gap-2 rounded border border-border/40 px-2 py-1.5">
           <div className="h-2.5 w-16 rounded bg-muted" />
           <div className="ml-auto h-2.5 w-8 rounded bg-muted" />
@@ -43,7 +43,7 @@ function PublicPagePreview() {
         <Eye className="size-4 text-primary-ink" />
         <span className="text-xs font-medium text-primary-ink">Public page</span>
       </div>
-      <div className="rounded-lg border border-border/50 bg-background p-3">
+      <div className="rounded-lg border border-border/50 bg-card p-3">
         <div className="mb-2 h-3 w-24 rounded bg-muted" />
         <div className="mb-3 h-2 w-full rounded bg-muted/60" />
         <div className="flex gap-2">
@@ -62,7 +62,7 @@ function FormSettingsPreview() {
         <Settings2 className="size-4 text-primary-ink" />
         <span className="text-xs font-medium text-primary-ink">Settings</span>
       </div>
-      <div className="flex flex-col gap-1.5 rounded-lg border border-border/50 bg-background p-2.5">
+      <div className="flex flex-col gap-1.5 rounded-lg border border-border/50 bg-card p-2.5">
         <div className="flex items-center justify-between rounded px-2 py-1.5">
           <span className="text-[10px] text-muted-foreground">Status</span>
           <div className="h-4 w-8 rounded-full bg-success/25" />

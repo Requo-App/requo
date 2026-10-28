@@ -209,7 +209,7 @@ export function ServicesList({
                 <ResponsiveOverlayBody className="gap-4">
                   {archivedServices.map((service) => (
                     <div
-                      className="flex items-center justify-between gap-3 rounded-lg border border-border/70 bg-background/75 px-4 py-3"
+                      className="flex items-center justify-between gap-3 rounded-lg border border-border/70 bg-muted/60 px-4 py-3"
                       key={service.id}
                     >
                       <div className="min-w-0 flex-1">
@@ -484,7 +484,7 @@ export function ServicesList({
                       settings.slug,
                       service.slug,
                     )}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-border/80 bg-background px-4 py-3.5 transition-colors hover:bg-muted/40"
+                    className="flex items-center justify-between gap-3 rounded-xl border border-border/80 bg-card px-4 py-3.5 transition-colors hover:bg-muted/40"
                   >
                     <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-muted/40 text-muted-foreground">
                       <PencilRuler className="size-4" />

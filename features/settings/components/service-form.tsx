@@ -1400,7 +1400,7 @@ function ProjectFieldEditorControl({
                   key={option.id}
                 >
                   <input
-                    className="size-4 rounded border border-input/95"
+                    className="size-4 rounded border border-[var(--control-border)]"
                     disabled={disabled}
                     id={optionId}
                     onClick={(event) => event.preventDefault()}

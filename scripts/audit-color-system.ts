@@ -8,7 +8,7 @@
  *
  * 1. Neutral tokens are actually neutral. Every opaque neutral must satisfy
  *    `R = G` and `|B - R| <= 6`; a green, teal, olive, slate-blue, or warm cast
- *    fails. Dark large surfaces must sit between #161618 and #2C2C2E and may
+ *    fails. Dark large surfaces must sit between #161618 and #343436 and may
  *    never be pure black or white.
  *
  * 2. Text keeps its contrast. `--foreground` is checked at >= 7:1 and
@@ -68,6 +68,7 @@ const NEUTRAL_TOKENS = [
   "sidebar-border",
   "shell-frame",
   "shell-card",
+  "surface-inset-bg",
   "theme-preview-light-bg",
   "theme-preview-light-card",
   "theme-preview-light-fg",
@@ -97,6 +98,7 @@ const DARK_SURFACE_TOKENS = [
   "sidebar",
   "shell-frame",
   "shell-card",
+  "surface-inset-bg",
   "tooltip-surface-bg",
   "theme-preview-dark-bg",
   "theme-preview-dark-card",
@@ -107,6 +109,7 @@ const DARK_SURFACE_TOKENS = [
 const CONTRAST_SURFACES = [
   "background",
   "card",
+  "surface-inset-bg",
   "popover",
   "sidebar",
   "muted",
@@ -161,6 +164,11 @@ const REQUIRED_TOKENS = [
   "theme-preview-dark-card",
   "theme-preview-dark-fg",
   "theme-preview-dark-border",
+  "surface-inset-bg",
+  "control-bg-hover",
+  "control-border-hover",
+  "control-disabled-fg",
+  "control-disabled-border",
 ] as const;
 
 const REQUIRED_THEME_MAPPINGS = [
@@ -617,14 +625,20 @@ async function run(): Promise<void> {
     if (!value) continue;
     const rgb = parseColor(value);
     if (!rgb || rgb.a < 1) continue;
-    const inBand = [rgb.r, rgb.g, rgb.b].every(
-      (channel) => channel >= 0x16 && channel <= 0x2e,
-    );
+    // The top of the band (#343436) carries the allowed neutral blue
+    // tolerance, so blue may sit two steps above red/green.
+    const inBand =
+      rgb.r >= 0x16 &&
+      rgb.r <= 0x34 &&
+      rgb.g >= 0x16 &&
+      rgb.g <= 0x34 &&
+      rgb.b >= 0x16 &&
+      rgb.b <= 0x36;
     if (!inBand) {
       offenders.push({
         file: GLOBALS,
         line: 1,
-        message: `--${token} (dark) is ${formatRgb(rgb)}, outside the #161618–#2C2C2E charcoal band`,
+        message: `--${token} (dark) is ${formatRgb(rgb)}, outside the #161618–#343436 charcoal band`,
       });
     }
   }

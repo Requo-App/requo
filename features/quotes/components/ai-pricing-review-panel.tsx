@@ -49,7 +49,7 @@ export function AiPricingReviewPanel({
 
           return (
             <li
-              className="rounded-lg border border-warning/20 bg-background/70 px-3 py-2.5"
+              className="rounded-lg border border-warning/20 bg-muted/60 px-3 py-2.5"
               key={item.id}
             >
               <p className="text-sm font-medium text-foreground">{label}</p>

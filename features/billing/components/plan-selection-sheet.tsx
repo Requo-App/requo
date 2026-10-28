@@ -164,7 +164,7 @@ export function PlanSelectionSheet({
                 className={cn(
                   "relative inline-flex items-center gap-1.5 rounded-md px-4 py-1.5 text-sm font-medium transition-colors",
                   interval === "yearly"
-                    ? "bg-background text-foreground shadow-sm"
+                    ? "bg-[var(--control-bg)] text-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground",
                 )}
               >
@@ -179,7 +179,7 @@ export function PlanSelectionSheet({
                 className={cn(
                   "relative inline-flex items-center rounded-md px-4 py-1.5 text-sm font-medium transition-colors",
                   interval === "monthly"
-                    ? "bg-background text-foreground shadow-sm"
+                    ? "bg-[var(--control-bg)] text-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground",
                 )}
               >

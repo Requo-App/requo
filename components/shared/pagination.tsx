@@ -63,11 +63,11 @@ function paginationRange(
 // Active/inactive are exclusive variants — the source's cx() kept the text
 // style next to the text color, while stock tailwind-merge would drop one.
 const pageCellVariants = cva(
-  "flex size-8 shrink-0 items-center justify-center rounded-lg text-body-medium cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-ring",
+  "flex size-8 shrink-0 items-center justify-center rounded-lg text-body-medium cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring",
   {
     variants: {
       active: {
-        true: "border border-border bg-card text-foreground shadow-xs",
+        true: "control-surface-secondary border text-foreground",
         false: "text-muted-foreground hover:bg-accent hover:text-foreground",
       },
     },

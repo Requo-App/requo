@@ -28,7 +28,7 @@ export function ContactHandleInput({
   if (contactHandlePrefix) {
     return (
       <div className="flex items-stretch">
-        <span className="inline-flex items-center rounded-l-lg border border-r-0 border-input bg-muted px-3 text-sm text-muted-foreground">
+        <span className="inline-flex items-center rounded-l-lg border border-r-0 border-[var(--control-border)] bg-[var(--surface-inset-bg)] px-3 text-sm text-muted-foreground">
           {contactHandlePrefix}
         </span>
         <Input

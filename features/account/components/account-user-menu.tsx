@@ -60,7 +60,7 @@ export function AccountUserMenu({ user }: AccountUserMenuProps) {
       <DropdownMenuTrigger asChild>
         <button
           aria-label="Open user menu"
-          className="inline-flex size-9 items-center justify-center rounded-full border border-border/70 bg-background/90 shadow-sm transition-colors hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 sm:size-8"
+          className="control-surface inline-flex size-9 items-center justify-center rounded-full border transition-colors hover:bg-[var(--control-bg-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 sm:size-8"
           type="button"
         >
           <Avatar className="size-8">

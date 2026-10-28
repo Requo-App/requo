@@ -674,7 +674,7 @@ export function DashboardNotificationBell({
                 >
                   <div
                     className={cn(
-                      "mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl border border-border/70 bg-background text-muted-foreground",
+                      "mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl border border-border/70 bg-muted text-muted-foreground",
                       item.unread && "border-primary/15 bg-primary/8 text-primary-ink",
                     )}
                   >

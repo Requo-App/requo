@@ -35,8 +35,7 @@ export function AdminHealthCheckCard({
         <div
           className={cn(
             "flex size-9 shrink-0 items-center justify-center rounded-lg border border-border/70",
-            "bg-accent/85 text-accent-foreground",
-            "dark:border-border dark:bg-accent",
+            "bg-muted text-foreground",
           )}
         >
           <Icon className="size-4" />

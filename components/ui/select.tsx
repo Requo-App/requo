@@ -13,14 +13,15 @@ const SelectGroup = SelectPrimitive.Group;
 const SelectValue = SelectPrimitive.Value;
 
 const selectTriggerVariants = cva(
-  "flex w-fit items-center justify-between gap-2 whitespace-nowrap rounded-md text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 data-[placeholder]:text-muted-foreground [&>span]:line-clamp-1 [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+  "flex w-fit items-center justify-between gap-2 whitespace-nowrap rounded-md text-sm outline-none transition-colors focus-visible:border-ring/50 focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:border-[var(--control-disabled-border)] disabled:bg-transparent disabled:text-[var(--control-disabled-fg)] disabled:opacity-100 data-[placeholder]:text-muted-foreground [&>span]:line-clamp-1 [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
   {
     variants: {
       variant: {
         outline:
-          "border border-input bg-transparent hover:bg-accent hover:text-accent-foreground",
+          "control-surface border text-foreground hover:border-[var(--control-border-hover)] hover:bg-[var(--control-bg-hover)] hover:text-accent-foreground",
         ghost: "hover:bg-accent hover:text-accent-foreground",
-        muted: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+        muted:
+          "control-surface-secondary border text-secondary-foreground hover:bg-[var(--control-secondary-bg-strong)]",
       },
       size: {
         default: "h-9 px-3 py-2",
@@ -101,7 +102,7 @@ const SelectContent = ({
       position={position}
       sideOffset={6}
       className={cn(
-        "relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-xl border bg-popover/95 p-1.5 text-popover-foreground shadow-lg backdrop-blur-sm",
+        "relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-xl border p-1.5 text-popover-foreground overlay-surface",
         "data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=open]:animate-in",
         "data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=closed]:animate-out",
         "data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
@@ -198,10 +199,10 @@ function Select({ options, placeholder, className, ...props }: SelectProps) {
     <SelectRoot {...props}>
       <SelectPrimitive.Trigger
         className={cn(
-          "flex items-center gap-1.5 rounded-md py-1 ps-3 pe-2 text-sm outline-none transition-colors",
-          "text-muted-foreground hover:bg-muted hover:text-foreground",
-          "focus-visible:ring-2 focus-visible:ring-ring/50",
-          "disabled:cursor-not-allowed disabled:opacity-50",
+          "control-surface flex items-center gap-1.5 rounded-md border py-1 ps-3 pe-2 text-sm outline-none transition-colors",
+          "text-muted-foreground hover:border-[var(--control-border-hover)] hover:bg-[var(--control-bg-hover)] hover:text-foreground",
+          "focus-visible:border-ring/50 focus-visible:ring-2 focus-visible:ring-ring",
+          "disabled:cursor-not-allowed disabled:border-[var(--control-disabled-border)] disabled:bg-transparent disabled:text-[var(--control-disabled-fg)] disabled:opacity-100",
           !selectedOption && placeholder && "italic opacity-70",
           className,
         )}

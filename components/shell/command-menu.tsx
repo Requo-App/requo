@@ -104,7 +104,7 @@ function ResultRow({
       className={cn(
         "flex min-h-11 items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
         "text-foreground hover:bg-muted",
-        "outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring",
+        "outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
       )}
     >
       <ResultIcon type={result.type} />
@@ -309,7 +309,7 @@ export function CommandMenu({
                   inputRef.current?.focus({ preventScroll: true });
                 }}
                 aria-label="Clear search"
-                className="shrink-0 rounded-md px-2 py-1 text-sm text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-border-focus-ring"
+                className="shrink-0 rounded-md px-2 py-1 text-sm text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40"
               >
                 Clear
               </button>
@@ -318,7 +318,7 @@ export function CommandMenu({
               type="button"
               onClick={() => handleOpenChange(false)}
               aria-label="Close search"
-              className="shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-border-focus-ring"
+              className="shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40"
             >
               <XIcon className="size-4" aria-hidden="true" />
             </button>
@@ -362,7 +362,7 @@ export function CommandMenu({
                       type="button"
                       onClick={handleClearRecents}
                       aria-label="Clear last opened"
-                      className="shrink-0 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-border-focus-ring"
+                      className="shrink-0 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40"
                     >
                       Clear
                     </button>

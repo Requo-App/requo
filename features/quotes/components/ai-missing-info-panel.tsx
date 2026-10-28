@@ -73,7 +73,7 @@ export function AiMissingInfoPanel({
       <div className="grid gap-2 sm:grid-cols-2">
         {missingInfo.map((item) => (
           <div
-            className="rounded-lg border border-border/70 bg-background/60 px-3 py-3"
+            className="rounded-lg border border-border/70 bg-muted/60 px-3 py-3"
             key={`${item.label}-${item.question}`}
           >
             <p className="text-sm font-medium text-foreground">

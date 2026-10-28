@@ -122,7 +122,7 @@ export function BusinessStep({
                       tabIndex={isPending ? -1 : 0}
                     >
                       <span className="absolute inset-0 rounded-full bg-foreground/0 transition-colors duration-150 sm:group-hover:bg-foreground/10" />
-                      <span className="relative mr-0.5 mb-0.5 inline-flex size-8 items-center justify-center rounded-full border border-border/80 bg-background/94 text-foreground shadow-sm">
+                      <span className="control-surface relative mr-0.5 mb-0.5 inline-flex size-8 items-center justify-center rounded-full border text-foreground">
                         <Camera className="size-3.5" />
                         <span className="sr-only">Upload photo</span>
                       </span>
@@ -245,7 +245,7 @@ export function BusinessStep({
                   tabIndex={isPending ? -1 : 0}
                 >
                   <span className="absolute inset-0 rounded-xl bg-foreground/0 transition-colors duration-150 sm:group-hover:bg-foreground/10" />
-                  <span className="relative mr-0.5 mb-0.5 inline-flex size-8 items-center justify-center rounded-full border border-border/80 bg-background/94 text-foreground shadow-sm">
+                  <span className="control-surface relative mr-0.5 mb-0.5 inline-flex size-8 items-center justify-center rounded-full border text-foreground">
                     <Camera className="size-3.5" />
                     <span className="sr-only">Upload logo</span>
                   </span>
@@ -303,7 +303,7 @@ export function BusinessStep({
           <FieldContent>
             <div
               className={cn(
-                "flex h-9 items-center rounded-md border border-border bg-background px-3 text-sm transition-colors",
+                "control-surface flex h-9 items-center rounded-md border px-3 text-sm transition-colors",
                 (Boolean(fieldErrors.businessSlug) || slugAvailability === "taken") && "border-destructive",
                 isPending && "opacity-60",
               )}

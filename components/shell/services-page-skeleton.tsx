@@ -23,7 +23,7 @@ export function ServicesPageSkeleton() {
           {Array.from({ length: 3 }).map((_, i) => (
             <div
               key={i}
-              className="flex items-center justify-between gap-3 rounded-xl border border-border/80 bg-background px-4 py-3.5"
+              className="flex items-center justify-between gap-3 rounded-xl border border-border/80 bg-card px-4 py-3.5"
             >
               <Skeleton className="size-9 shrink-0 rounded-lg" />
               <div className="min-w-0 flex-1 space-y-1.5">

@@ -82,11 +82,9 @@ export const onboardingSteps = [
 
 export const lastOnboardingStepIndex = onboardingSteps.length - 1;
 
-export const onboardingInputClassName =
-  "h-9 text-sm focus-visible:ring-0 focus-visible:ring-transparent focus-visible:border-border aria-invalid:border-input/95 aria-invalid:ring-0 aria-invalid:ring-transparent";
+export const onboardingInputClassName = "h-9 text-sm";
 
-export const onboardingComboboxButtonClassName =
-  "h-9 text-sm focus-visible:ring-0 focus-visible:ring-transparent focus-visible:border-border aria-invalid:border-border/85 aria-invalid:ring-0 aria-invalid:ring-transparent";
+export const onboardingComboboxButtonClassName = "h-9 text-sm";
 
 export function getFieldValidationError(
   field: OnboardingFieldName,

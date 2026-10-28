@@ -7,7 +7,7 @@
  */
 export const MENU_POPOVER_SURFACE = [
   "max-w-[calc(100vw-32px)] overflow-y-auto",
-  "rounded-2xl border border-border bg-card p-2.5 shadow-[var(--overlay-surface-shadow)]",
+  "rounded-2xl border border-[var(--overlay-surface-border)] bg-popover p-2.5 shadow-[var(--overlay-surface-shadow)]",
   "transition duration-150 ease-out data-[exiting]:duration-100",
   "data-[entering]:opacity-0 data-[entering]:scale-[0.96]",
   "data-[exiting]:opacity-0 data-[exiting]:scale-[0.96]",

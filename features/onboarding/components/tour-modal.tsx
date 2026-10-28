@@ -241,7 +241,7 @@ function PreviewSidebar({ highlight }: { highlight?: string }) {
   ];
 
   return (
-    <div className="flex w-[7.5rem] shrink-0 flex-col gap-0.5 rounded-lg border border-border/50 bg-background p-1.5">
+    <div className="flex w-[7.5rem] shrink-0 flex-col gap-0.5 rounded-lg border border-border/50 bg-card p-1.5">
       <div className="mb-1.5 flex items-center gap-2 rounded-md border border-border/40 px-2 py-1.5">
         <div className="flex size-5 items-center justify-center rounded bg-primary/10 text-[8px] font-bold text-primary-ink">
           AB
@@ -303,7 +303,7 @@ export function HomeOverviewPreview() {
     <div className="flex gap-3">
       <PreviewSidebar highlight="Home" />
       <div className="flex flex-1 flex-col gap-2">
-        <div className="rounded-lg border border-border/50 bg-background p-2.5">
+        <div className="rounded-lg border border-border/50 bg-card p-2.5">
           <p className="text-[11px] font-semibold text-foreground">Welcome back, Alex</p>
           <p className="text-[10px] text-muted-foreground">3 items need attention today.</p>
           <div className="mt-2 flex items-center gap-2 rounded-lg border border-border/60 bg-muted/30 px-2.5 py-2">
@@ -313,7 +313,7 @@ export function HomeOverviewPreview() {
             </span>
           </div>
         </div>
-        <div className="rounded-lg border border-border/50 bg-background p-3">
+        <div className="rounded-lg border border-border/50 bg-card p-3">
           <p className="text-[9px] font-medium uppercase tracking-wider text-muted-foreground">NEEDS ATTENTION</p>
           <p className="mt-0.5 text-[9px] text-muted-foreground">Quotes and inquiries waiting on the next step.</p>
           <div className="mt-2 flex flex-col divide-y divide-border/50">
@@ -341,7 +341,7 @@ export function InquiriesPreview() {
     <div className="flex gap-3">
       <PreviewSidebar highlight="Inquiries" />
       <div className="flex flex-1 flex-col gap-2">
-        <div className="rounded-lg border border-border/50 bg-background p-3">
+        <div className="rounded-lg border border-border/50 bg-card p-3">
           <div className="flex items-center justify-between">
             <p className="text-[11px] font-medium text-foreground">Inquiries</p>
             <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-medium text-primary-ink">3 new</span>
@@ -389,7 +389,7 @@ export function QuotesPreview() {
     <div className="flex gap-3">
       <PreviewSidebar highlight="Quotes" />
       <div className="flex flex-1 flex-col gap-2">
-        <div className="rounded-lg border border-border/50 bg-background p-3">
+        <div className="rounded-lg border border-border/50 bg-card p-3">
           <div className="flex items-center justify-between">
             <p className="text-[11px] font-medium text-foreground">Quotes</p>
           </div>
@@ -436,7 +436,7 @@ export function FollowUpsPreview() {
     <div className="flex gap-3">
       <PreviewSidebar highlight="Follow-ups" />
       <div className="flex flex-1 flex-col gap-2">
-        <div className="rounded-lg border border-border/50 bg-background p-3">
+        <div className="rounded-lg border border-border/50 bg-card p-3">
           <div className="flex items-center justify-between">
             <p className="text-[11px] font-medium text-foreground">Follow-ups</p>
             <span className="rounded-full bg-warning/10 px-1.5 py-0.5 text-[9px] font-medium text-warning-ink">2 due</span>
@@ -484,7 +484,7 @@ export function AiDraftingPreview() {
     <div className="flex gap-3">
       <PreviewSidebar highlight="Quotes" />
       <div className="flex flex-1 flex-col gap-2">
-        <div className="rounded-lg border border-border/50 bg-background p-3">
+        <div className="rounded-lg border border-border/50 bg-card p-3">
           <p className="text-[11px] font-medium text-foreground">Draft with AI</p>
           <p className="mt-0.5 text-[10px] text-muted-foreground">
             Turn an inquiry into a polished quote in seconds.
@@ -521,7 +521,7 @@ export function AssistantPreview() {
     <div className="flex gap-3">
       <PreviewSidebar highlight="Assistant" />
       <div className="flex flex-1 flex-col gap-2">
-        <div className="rounded-lg border border-border/50 bg-background p-3">
+        <div className="rounded-lg border border-border/50 bg-card p-3">
           <p className="text-[11px] font-medium text-foreground">Assistant</p>
           <p className="mt-0.5 text-[10px] text-muted-foreground">
             Ask about your business — it can search, draft, and run operations.
@@ -558,7 +558,7 @@ export function QuoteLibraryPreview() {
     <div className="flex gap-3">
       <PreviewSidebar highlight="Quote library" />
       <div className="flex flex-1 flex-col gap-2">
-        <div className="rounded-lg border border-border/50 bg-background p-3">
+        <div className="rounded-lg border border-border/50 bg-card p-3">
           <p className="text-[11px] font-medium text-foreground">Quote library</p>
           <p className="mt-0.5 text-[10px] text-muted-foreground">
             Save reusable items so quotes come together fast.
@@ -597,7 +597,7 @@ export function MembersPreview() {
     <div className="flex gap-3">
       <PreviewSidebar highlight="Members" />
       <div className="flex flex-1 flex-col gap-2">
-        <div className="rounded-lg border border-border/50 bg-background p-3">
+        <div className="rounded-lg border border-border/50 bg-card p-3">
           <div className="flex items-center justify-between">
             <p className="text-[11px] font-medium text-foreground">Members</p>
             <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-medium text-primary-ink">Invite</span>
@@ -644,7 +644,7 @@ export function AnalyticsPreview() {
     <div className="flex gap-3">
       <PreviewSidebar highlight="Analytics" />
       <div className="flex flex-1 flex-col gap-2">
-        <div className="rounded-lg border border-border/50 bg-background p-3">
+        <div className="rounded-lg border border-border/50 bg-card p-3">
           <p className="text-[11px] font-medium text-foreground">Analytics</p>
           <p className="mt-0.5 text-[10px] text-muted-foreground">
             See conversion and where leads drop off.
@@ -678,7 +678,7 @@ export function ServicesPreview() {
     <div className="flex gap-3">
       <PreviewSidebar highlight="Services" />
       <div className="flex flex-1 flex-col gap-2">
-        <div className="rounded-lg border border-border/50 bg-background p-3">
+        <div className="rounded-lg border border-border/50 bg-card p-3">
           <p className="text-[11px] font-medium text-foreground">Services</p>
           <p className="mt-0.5 text-[10px] text-muted-foreground">
             Each service has its own form, public page, and link.

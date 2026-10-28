@@ -166,7 +166,7 @@ export function FollowUpHistorySheet({
                 return (
                   <div
                     key={item.id}
-                    className="flex flex-col gap-1.5 rounded-xl border border-border/80 bg-background px-3.5 py-3"
+                    className="flex flex-col gap-1.5 rounded-xl border border-border/80 bg-muted/60 px-3.5 py-3"
                   >
                     <Link
                       className="block min-w-0 truncate text-sm font-semibold tracking-tight text-foreground hover:underline"

@@ -58,8 +58,8 @@ export function QuoteTemplatePicker({
             <div
               key={template.id}
               className={cn(
-                "group relative flex flex-col gap-2 rounded-xl border border-border/75 bg-background p-4 transition-all",
-                "hover:border-border hover:shadow-sm",
+                "group surface-card relative flex flex-col gap-2 rounded-xl p-4 transition-colors",
+                "hover:border-[var(--control-border-hover)]",
                 hasCurrencyMismatch && "opacity-60",
               )}
             >

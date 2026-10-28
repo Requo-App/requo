@@ -119,7 +119,7 @@ export function SortableEmailBlock({
         "hover:bg-muted/40 hover:shadow-[inset_0_0_0_1px_var(--border)]",
         selected &&
           "bg-muted/40 shadow-[inset_0_0_0_2px_var(--primary)]",
-        isDragging && "z-10 bg-background opacity-0 shadow-lg",
+        isDragging && "z-10 bg-card opacity-0 shadow-lg",
         hidden && "opacity-70",
         isDragging && hidden && "opacity-0",
       )}
@@ -133,7 +133,7 @@ export function SortableEmailBlock({
       <div className="pointer-events-auto absolute top-1/2 left-1 flex -translate-y-1/2 items-center">
         <Button
           aria-label={dragHandleLabel}
-          className="cursor-grab touch-none bg-background shadow-sm active:cursor-grabbing"
+          className="cursor-grab touch-none active:cursor-grabbing"
           ref={setActivatorNodeRef}
           size="icon-xs"
           type="button"
@@ -151,7 +151,6 @@ export function SortableEmailBlock({
         <Button
           aria-label={hidden ? `Show ${meta.label} block` : `Hide ${meta.label} block`}
           aria-pressed={hidden}
-          className="bg-background shadow-sm"
           disabled={isPending || block.type === "cta"}
           onClick={(event) => {
             event.stopPropagation();
@@ -168,7 +167,6 @@ export function SortableEmailBlock({
         {deletable ? (
           <Button
             aria-label={`Delete ${meta.label} block`}
-            className="bg-background shadow-sm"
             disabled={isPending}
             onClick={(event) => {
               event.stopPropagation();

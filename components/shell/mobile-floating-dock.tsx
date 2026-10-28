@@ -114,7 +114,7 @@ export function MobileFloatingDock({
         hidden && "pointer-events-none",
       )}
     >
-      <div className="flex items-center gap-1 rounded-full border border-border/70 bg-background/95 px-2 py-1.5 shadow-lg backdrop-blur supports-backdrop-filter:bg-background/85">
+      <div className="overlay-surface flex items-center gap-1 rounded-full border px-2 py-1.5">
         <button
           type="button"
           onClick={onHomeClick}
@@ -122,7 +122,7 @@ export function MobileFloatingDock({
           aria-expanded={navOpen}
           className={cn(
             "flex size-11 items-center justify-center rounded-full transition-colors active:scale-95",
-            "outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring",
+            "outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
             navOpen
               ? "bg-primary/10 text-primary-ink"
               : "text-muted-foreground hover:bg-muted hover:text-foreground active:text-foreground",
@@ -137,7 +137,7 @@ export function MobileFloatingDock({
           aria-expanded={searchOpen}
           className={cn(
             "flex size-11 items-center justify-center rounded-full transition-colors active:scale-95",
-            "outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring",
+            "outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
             searchOpen
               ? "bg-primary/10 text-primary-ink"
               : "text-muted-foreground hover:bg-muted hover:text-foreground active:text-foreground",
@@ -152,7 +152,7 @@ export function MobileFloatingDock({
           aria-expanded={settingsOpen}
           className={cn(
             "flex size-11 items-center justify-center rounded-full transition-colors active:scale-95",
-            "outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring",
+            "outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
             settingsOpen
               ? "bg-primary/10 text-primary-ink"
               : "text-muted-foreground hover:bg-muted hover:text-foreground active:text-foreground",

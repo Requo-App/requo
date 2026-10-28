@@ -117,7 +117,7 @@ function AuthFormCard({
 }: Pick<AuthShellProps, "badge" | "title" | "description" | "children">) {
   return (
     <Card className="auth-form-card gap-0">
-      <CardHeader className="gap-4 border-b border-border/70 bg-background/34 pb-6">
+      <CardHeader className="gap-4 border-b border-border/70 pb-6">
         <BrandMark subtitle={null} />
         <div className="flex flex-col gap-2.5">
           {badge ? <span className="eyebrow">{badge}</span> : null}

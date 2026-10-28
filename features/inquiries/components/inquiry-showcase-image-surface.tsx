@@ -99,7 +99,7 @@ export function InquiryShowcaseImageSurface({
   return (
     <div
       className={cn(
-        "group relative overflow-hidden rounded-xl border border-border/70 bg-background/94 shadow-[inset_0_1px_0_var(--surface-highlight)]",
+        "group relative overflow-hidden rounded-xl border border-border/70 bg-card shadow-[inset_0_1px_0_var(--surface-highlight)]",
         className,
       )}
     >

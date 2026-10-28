@@ -53,7 +53,7 @@ function SubmitButton({ children }: { children: React.ReactNode }) {
 }
 
 const selectClassName =
-  "control-surface h-9 w-full min-w-0 rounded-md border border-input/95 px-3 py-1 text-base outline-none focus-visible:border-ring focus-visible:ring-4 focus-visible:ring-ring/15 disabled:pointer-events-none disabled:opacity-50 md:text-sm";
+  "control-surface h-9 w-full min-w-0 rounded-md border px-3 py-1 text-base outline-none focus-visible:border-ring/60 focus-visible:ring-4 focus-visible:ring-ring/40 disabled:pointer-events-none disabled:border-[var(--control-disabled-border)] disabled:bg-[var(--control-bg)] disabled:text-[var(--control-disabled-fg)] disabled:opacity-100 md:text-sm";
 
 export function WorkflowSettingsManager({ data }: { data: WorkflowSettingsData }) {
   const [switchState, switchAction] = useActionState(switchBehaviorPackAction, initialState);

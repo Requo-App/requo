@@ -5,14 +5,14 @@ import { Slot } from "radix-ui"
 import { cn } from "@/lib/utils"
 
 const badgeVariants = cva(
-  "group/badge inline-flex h-6 w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-md border px-2.5 py-0.5 text-xs font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow,transform] duration-150 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20 has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&>svg]:pointer-events-none [&>svg]:size-3!",
+  "group/badge inline-flex h-6 w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-md border px-2.5 py-0.5 text-xs font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow,transform] duration-150 focus-visible:border-ring/50 focus-visible:ring-[3px] focus-visible:ring-ring has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&>svg]:pointer-events-none [&>svg]:size-3!",
   {
     variants: {
       variant: {
         default:
           "border-primary/80 bg-primary text-primary-foreground shadow-[var(--control-primary-shadow)]",
         secondary:
-          "control-surface-secondary border-border/80 text-secondary-foreground",
+          "control-surface-secondary text-secondary-foreground",
         // Colourless shell for semantic status pills: carries no background or
         // border colour so a tone class (bg-success/15 text-success-ink …) wins
         // through tailwind-merge without needing `!`. StatusBadge composes it.
@@ -21,9 +21,9 @@ const badgeVariants = cva(
         destructive:
           "border-destructive/22 bg-destructive/10 text-destructive-ink shadow-[var(--control-shadow)] focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:focus-visible:ring-destructive/40",
         outline:
-          "control-surface border-border/85 text-foreground",
+          "control-surface text-foreground",
         ghost:
-          "control-ghost-surface text-muted-foreground hover:border-border/55 hover:bg-[var(--control-accent-bg)] hover:text-foreground hover:shadow-[var(--control-shadow)]",
+          "control-ghost-surface text-muted-foreground hover:border-transparent hover:bg-[var(--control-accent-bg)] hover:text-foreground",
         link: "text-primary-ink underline-offset-4 hover:underline",
       },
     },

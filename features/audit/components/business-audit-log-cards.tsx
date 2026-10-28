@@ -33,7 +33,7 @@ export function BusinessAuditLogCards({ items }: BusinessAuditLogCardsProps) {
         return (
           <article
             key={item.id}
-            className="rounded-xl border border-border/80 bg-background px-3.5 py-3 shadow-xs"
+            className="rounded-xl border border-border/80 bg-card px-3.5 py-3"
           >
             <div className="flex min-w-0 flex-col gap-1">
               <p className="break-words text-sm font-semibold tracking-tight text-foreground">

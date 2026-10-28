@@ -290,7 +290,7 @@ function ShowcaseImageEditorPreview({
             url={trimmedUrl}
           />
         ) : (
-          <div className="flex min-h-52 items-center justify-center rounded-xl border border-dashed border-border/70 bg-background/70 px-6 text-center">
+          <div className="flex min-h-52 items-center justify-center rounded-xl border border-dashed border-border/70 bg-[var(--surface-inset-bg)] px-6 text-center">
             <p className="text-sm leading-6 text-muted-foreground">
               Add an image URL to show a preview here.
             </p>

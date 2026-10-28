@@ -134,7 +134,7 @@ export function AttachmentChips({
           <span className="shrink-0">{formatFileSize(file.size)}</span>
           <button
             aria-label={`Remove ${file.name}`}
-            className="shrink-0 rounded p-0.5 transition-colors hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="shrink-0 rounded p-0.5 transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             onClick={() => onRemove(index)}
             type="button"
           >
