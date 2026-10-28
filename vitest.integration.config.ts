@@ -2,7 +2,7 @@ import path from 'path';
 import { config } from 'dotenv';
 import { defineConfig } from 'vitest/config';
 
-import { COVERAGE_EXCLUDES } from './vitest.shared';
+import { COVERAGE_EXCLUDES } from './tests/vitest.shared';
 
 config({ path: '.env.local' });
 config();
