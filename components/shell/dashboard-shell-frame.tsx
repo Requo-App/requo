@@ -125,6 +125,10 @@ export function DashboardShellFrame({
           {checklistSlot}
         </div>
       ) : null}
+      <div
+        aria-hidden="true"
+        className="w-full shrink-0 border-t border-sidebar-border group-data-[collapsed=true]/sidebar:hidden"
+      />
       {userMenuSlot}
     </div>
   );

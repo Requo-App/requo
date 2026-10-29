@@ -8,7 +8,8 @@ import {
 type BusinessAvatarProps = {
   name: string;
   logoUrl?: string | null;
-  size?: "sm" | "default" | "lg";
+  /** `xs` is the 20px sidebar-header avatar with 10px initials. */
+  size?: "xs" | "sm" | "default" | "lg";
   className?: string;
   /** Set to "eager" for above-the-fold avatars (header). Default is "lazy". */
   loading?: "eager" | "lazy";
@@ -25,21 +26,32 @@ export function BusinessAvatar({
   className,
   loading = "lazy",
 }: BusinessAvatarProps) {
+  const isExtraSmall = size === "xs";
+
   return (
     <Avatar
-      size={size}
-      className={cn("rounded-lg", className)}
+      size={isExtraSmall ? "default" : size}
+      className={cn(
+        "rounded-lg",
+        isExtraSmall && "size-5 rounded-md",
+        className,
+      )}
     >
       {logoUrl ? (
         <AvatarImage
           src={logoUrl}
           alt={`${name} logo`}
-          className="rounded-lg"
+          className={cn("rounded-lg", isExtraSmall && "rounded-md")}
           loading={loading}
           decoding="async"
         />
       ) : null}
-      <AvatarFallback className="rounded-lg text-center text-xs font-semibold uppercase leading-none">
+      <AvatarFallback
+        className={cn(
+          "rounded-lg text-center text-xs font-semibold uppercase leading-none",
+          isExtraSmall && "rounded-md text-[10px]",
+        )}
+      >
         {getBusinessInitials(name)}
       </AvatarFallback>
     </Avatar>

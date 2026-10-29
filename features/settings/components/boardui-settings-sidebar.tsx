@@ -55,8 +55,6 @@ type BoarduiSettingsSidebarProps = {
   /** Rendered inside the mobile drawer: always expanded, close button instead of collapse. */
   mobile?: boolean;
   onClose?: () => void;
-  /** Hide the app-level theme control (e.g. mobile nav owns its own chrome). */
-  showThemeToggle?: boolean;
   /** Extra classes merged onto the sidebar panel (e.g. fullscreen overrides). */
   className?: string;
 };
@@ -66,9 +64,8 @@ type BoarduiSettingsSidebarProps = {
  * `groups` + `selected`).
  *
  * The User / Business / Other navigation groups render as labeled
- * sections; the demo secondary Support/Settings rows are hidden because
- * the settings shell owns its own navigation (Help & Support lives in the
- * Other group).
+ * sections; the demo secondary Settings row is hidden because the settings
+ * shell owns its own navigation (Help & Support lives in the Other group).
  */
 export function BoarduiSettingsSidebar({
   businessSlug: _businessSlug,
@@ -77,7 +74,6 @@ export function BoarduiSettingsSidebar({
   bottomSlot,
   mobile = false,
   onClose,
-  showThemeToggle = true,
   className,
 }: BoarduiSettingsSidebarProps) {
   const pathname = usePathname();
@@ -121,7 +117,6 @@ export function BoarduiSettingsSidebar({
       hideSecondaryNav
       mobile={mobile}
       onClose={onClose}
-      showThemeToggle={showThemeToggle}
       inset
       className={className}
     />

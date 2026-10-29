@@ -66,7 +66,51 @@ const currentBusiness = {
   business,
 };
 
-describe("BusinessSwitcher upgrade action", () => {
+describe("BusinessSwitcher", () => {
+  it("previews three businesses and expands the rest without sign-out", async () => {
+    const user = userEvent.setup();
+    const memberships = Array.from({ length: 5 }, (_, index) => ({
+      ...currentBusiness,
+      membershipId: `membership_${index + 1}`,
+      business: {
+        ...business,
+        id: `business_${index + 1}`,
+        name: `Business ${index + 1}`,
+        slug: `business-${index + 1}`,
+      },
+    }));
+
+    render(
+      <PlanSelectionProvider>
+        <BusinessSwitcher
+          businessQuota={{
+            allowed: true,
+            current: 5,
+            limit: 10,
+            ownerUserId: "user_1",
+            plan: "free",
+            upgradePlan: "pro",
+          }}
+          currentBusiness={memberships[0]}
+          memberships={memberships}
+          userId="user_1"
+        />
+      </PlanSelectionProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: /business 1/i }));
+
+    // Rows past the preview stay mounted for the height animation but are
+    // inert until the accordion opens.
+    expect(screen.getByText("Business 4").closest("[inert]")).not.toBeNull();
+    expect(screen.queryByText("Sign out")).not.toBeInTheDocument();
+
+    await user.click(screen.getByText("Show all 5 businesses"));
+
+    expect(screen.getByText("Show fewer businesses")).toBeInTheDocument();
+    expect(screen.getByText("Business 4").closest("[inert]")).toBeNull();
+  });
+
   it("opens the shared plan picker and closes the switcher menu", async () => {
     const user = userEvent.setup();
 

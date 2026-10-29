@@ -29,9 +29,9 @@ export type MobileFullscreenNavProps = {
  *
  * Reuses the same sidebar UI as desktop (`BoarduiMainSidebar` for the main
  * business nav, `BoarduiSettingsSidebar` for settings) stretched fullscreen,
- * but strips the chrome that already lives elsewhere on mobile: no theme
- * toggle, and no Support/Settings secondary rows. The user profile menu
- * renders at the bottom, same as desktop.
+ * but strips the chrome that already lives elsewhere on mobile: no Settings
+ * secondary row. The user profile menu renders at the bottom, same as
+ * desktop.
  */
 export function MobileFullscreenNav({
   open,
@@ -183,7 +183,6 @@ export function MobileFullscreenNav({
             onQuickSearch={onQuickSearch}
             mobile
             onClose={handleClose}
-            showThemeToggle={false}
             hideSecondaryNav
             className="h-full w-full rounded-none border-0 shadow-none"
           />
@@ -195,7 +194,6 @@ export function MobileFullscreenNav({
             bottomSlot={resolvedBottomSlot}
             mobile
             onClose={handleClose}
-            showThemeToggle={false}
             className="h-full w-full rounded-none border-0 shadow-none"
           />
         )}

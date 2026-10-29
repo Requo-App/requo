@@ -20,8 +20,8 @@ export type AdminFullscreenNavProps = {
  *
  * Mirrors `MobileFullscreenNav` (which is business-slug coupled) but renders
  * the admin rail: the same `DashboardSidebar` chrome stretched fullscreen, with
- * the theme toggle and secondary rows stripped because the mobile surface owns
- * its own chrome.
+ * the Settings secondary row stripped because the mobile surface owns its own
+ * chrome.
  */
 export function AdminFullscreenNav({
   open,

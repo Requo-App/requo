@@ -106,23 +106,21 @@ in light and white at 5% in dark.
 | `control-disabled-fg` | Disabled label | foreground 45% | foreground 40% |
 | `control-disabled-border` | Disabled border | `#e5e5ea` | `rgb(255 255 255 / 0.06)` |
 | `overlay-surface-bg` | Menu, popover, dialog, toast | `var(--popover)` | `var(--popover)` |
-| `overlay-surface-border` | Overlay edge | `rgb(229 229 234 / 0.8)` | `rgb(255 255 255 / 0.06)` |
+| `overlay-surface-border` | Overlay edge | `transparent` | `transparent` |
 | `overlay-divider` | Divider inside an overlay | `rgb(229 229 234 / 0.5)` | `rgb(255 255 255 / 0.05)` |
-| `overlay-surface-shadow` | Overlay elevation | `0 24px 48px -12px rgb(0 0 0 / 0.12), 0 1px 2px rgb(0 0 0 / 0.06)` | `0 0 0 1px rgb(0 0 0 / 0.45), 0 16px 40px -12px rgb(0 0 0 / 0.65), 0 3px 10px rgb(0 0 0 / 0.35)` |
+| `overlay-surface-shadow` | Overlay elevation | `0 24px 48px -12px rgb(0 0 0 / 0.12), 0 1px 2px rgb(0 0 0 / 0.06)` | `0 16px 40px -12px rgb(0 0 0 / 0.65), 0 3px 10px rgb(0 0 0 / 0.35)` |
 
 Rules:
 
-- Every floating surface uses one recipe: `.overlay-surface` plus `border`
-  on the primitive itself (popover, dropdown, select, combobox, command,
-  dialog, sheet, navigation viewport, toast). Call sites never restyle a
-  surface, and full-screen page previews opt out with `surface="page"`.
+- Every floating surface uses one recipe: `.overlay-surface` plus elevation.
+  The edge is borderless in both themes. Call sites never restyle a surface,
+  and full-screen page previews opt out with `surface="page"`.
 - Inside an overlay, fills derive from the overlay instead of the page: empty
   states are transparent, separators use `--overlay-divider`, and muted and
   control fills sit one small step above the surface.
-- Dark cards separate with fill first and border second; dark overlays separate
-  with a layered shadow plus a hairline edge. Light uses a hairline plus a
-  tight, low shadow. Large soft shadows belong to overlays and the landing hero
-  preview only.
+- Dark cards separate with fill first; dark overlays separate with a layered
+  shadow. Light overlays use a tight, low shadow. Large soft shadows belong to
+  overlays and the landing hero preview only.
 - Dark neutral borders are capped against the surface they sit on: cards and
   dividers ≤ 1.3:1, controls ≤ 1.4:1, hover ≤ 1.6:1; overlay edges ≤ 1.22:1
   and overlay dividers ≤ 1.20:1. The brand-green focus
@@ -259,8 +257,8 @@ Implemented density scale (authenticated surfaces):
   (customer name above email address — the email is the only available
   disambiguator, so rows never collapse to one line).
 - Page titles render on the two-step 20-to-24px scale above.
-- The sidebar rail is 240px wide with 32px navigation items (14px `text-sm`
-  labels, 20px icons); the desktop top
+- The sidebar rail is 264px wide with 32px navigation items (14px `text-sm`
+  labels, 16px icons); the desktop top
   bar is 48px. Page sections are separated by 24px (`gap-6` on
   `DashboardPage`).
 - Marketing, authentication, public inquiry pages, the public Agent chat,
@@ -525,7 +523,7 @@ mirrors this composition so the shell and the resolved page agree.
 Dashboard, settings, and admin surfaces share one responsive contract:
 
 - Page shell: `dashboard-main px-3 py-4 sm:px-5 sm:py-5 xl:px-6 xl:py-6`.
-- Sidebar rail 240px with 32px nav items on desktop; mobile uses the top bar, fullscreen nav, and floating dock (`components/shell/mobile-*`).
+- Sidebar rail 264px with 32px nav items on desktop; mobile uses the top bar, fullscreen nav, and floating dock (`components/shell/mobile-*`).
 - Filters live in the toolbar on desktop and move into a `Sheet` on mobile; desktop filter labels are visually hidden (placeholders carry hints) while the mobile sheet keeps visible labels.
 - Tables (`DashboardTableContainer`, rows edge-to-edge) collapse to stacked mobile rows via `mobile-record-row` with the same content hierarchy and tokens.
 - Assistant history renders as a header popover on desktop and a bottom sheet on mobile.

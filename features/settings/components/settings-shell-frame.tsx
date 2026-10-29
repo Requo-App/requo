@@ -130,11 +130,20 @@ export function SettingsShellFrame({
     [pathname],
   );
   const currentSectionLabel = breadcrumbs.at(-1)?.label ?? "Settings";
-  const sidebarBottomSlot =
+  const sidebarUserMenu =
     userMenuSlot ??
     (user ? (
       <SettingsUserMenu user={user} businessSlug={businessSlug} />
     ) : null);
+  const sidebarBottomSlot = sidebarUserMenu ? (
+    <div className="flex w-full flex-col gap-2 group-data-[collapsed=true]/sidebar:items-center group-data-[collapsed=true]/sidebar:gap-0">
+      <div
+        aria-hidden="true"
+        className="w-full shrink-0 border-t border-sidebar-border group-data-[collapsed=true]/sidebar:hidden"
+      />
+      {sidebarUserMenu}
+    </div>
+  ) : null;
 
   return (
     <SidebarProvider defaultOpen>

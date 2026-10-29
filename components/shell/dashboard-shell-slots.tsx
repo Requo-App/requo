@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import {
   BriefcaseBusiness,
   Check,
+  ChevronDown,
   ChevronsUpDown,
   Lock,
   LogOut,
@@ -14,6 +15,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
+import { cn } from "@/lib/utils";
 import { authClient } from "@/lib/auth/client";
 import { isBillingCurrency } from "@/lib/billing/currencies";
 import type { BillingCurrency } from "@/lib/billing/types";
@@ -83,6 +85,122 @@ function getSwitcherLogoUrl(
   return `${basePath}?v=${business.updatedAt.getTime()}`;
 }
 
+/** Businesses shown before the switcher list expands. */
+const BUSINESS_LIST_PREVIEW_COUNT = 3;
+/**
+ * Rows that fit inside the expanded list before it scrolls. The list renders
+ * every membership; this is only the viewport height cap.
+ */
+const BUSINESS_LIST_VISIBLE_ROWS = 10;
+
+/**
+ * Membership rows shared by the desktop and mobile business switchers.
+ *
+ * Three businesses show by default. The expander reveals the rest of the list
+ * inside a viewport capped at ten rows, so larger accounts scroll instead of
+ * growing the menu past the screen.
+ */
+function BusinessMembershipList({
+  memberships,
+  currentBusinessId,
+  onNavigate,
+}: {
+  memberships: BusinessContext[];
+  currentBusinessId: string;
+  onNavigate?: () => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const canExpand = memberships.length > BUSINESS_LIST_PREVIEW_COUNT;
+  const scrolls = expanded && memberships.length > BUSINESS_LIST_VISIBLE_ROWS;
+  const previewMemberships = memberships.slice(0, BUSINESS_LIST_PREVIEW_COUNT);
+  const extraMemberships = memberships.slice(BUSINESS_LIST_PREVIEW_COUNT);
+
+  function renderMembership(membership: BusinessContext) {
+    const isCurrent = membership.business.id === currentBusinessId;
+
+    return (
+      <DropdownMenuItem asChild key={membership.membershipId}>
+        <Link
+          href={getBusinessHomePath(membership.business.slug)}
+          prefetch={true}
+          onClick={onNavigate}
+        >
+          <BusinessAvatar
+            name={membership.business.name}
+            logoUrl={getSwitcherLogoUrl(
+              `/api/business/${membership.business.slug}/logo`,
+              membership.business,
+            )}
+          />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium text-foreground">
+              {membership.business.name}
+            </p>
+            <p className="truncate text-xs text-muted-foreground">
+              /{membership.business.slug}
+            </p>
+          </div>
+          <span className="meta-label">{membership.role}</span>
+          {membership.business.recordState === "locked" ? (
+            <Badge variant="outline" className="gap-1">
+              <Lock className="size-3" />
+              Locked
+            </Badge>
+          ) : null}
+          {isCurrent ? <Check className="size-4 text-primary-ink" /> : null}
+        </Link>
+      </DropdownMenuItem>
+    );
+  }
+
+  return (
+    <DropdownMenuGroup>
+      <div
+        className={cn(
+          "flex flex-col",
+          // Ten 3.25rem rows; the list still renders every membership.
+          scrolls && "max-h-[32.5rem] overflow-y-auto overscroll-contain",
+        )}
+      >
+        {previewMemberships.map(renderMembership)}
+        {canExpand ? (
+          <div
+            // The accordion animates the row height while `inert` keeps the
+            // collapsed links out of the tab order and the a11y tree.
+            inert={expanded ? undefined : true}
+            className={cn(
+              "grid transition-[grid-template-rows] [transition-duration:var(--motion-duration-base)] [transition-timing-function:var(--motion-ease-standard)]",
+              expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+            )}
+          >
+            <div className="flex min-h-0 flex-col overflow-hidden">
+              {extraMemberships.map(renderMembership)}
+            </div>
+          </div>
+        ) : null}
+      </div>
+      {canExpand ? (
+        <DropdownMenuItem
+          className="min-h-8 justify-center gap-1.5 text-xs font-medium text-muted-foreground"
+          onSelect={(event) => {
+            event.preventDefault();
+            setExpanded((value) => !value);
+          }}
+        >
+          <ChevronDown
+            aria-hidden="true"
+            className={cn(
+              "size-3.5 transition-transform [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)]",
+              expanded && "rotate-180",
+            )}
+          />
+          {expanded ? "Show fewer businesses" : `Show all ${memberships.length} businesses`}
+        </DropdownMenuItem>
+      ) : null}
+    </DropdownMenuGroup>
+  );
+}
+
 export function BusinessSwitcher({
   currentBusiness,
   memberships,
@@ -103,7 +221,6 @@ export function BusinessSwitcher({
   /** The business is inside its Pro trial and still needs a subscription. */
   isTrialing?: boolean;
 }) {
-  const [isPending, startTransition] = useTransition();
   const { isMobile, setOpenMobile } = useSidebar();
   const businessCheckout = useBusinessCheckout();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -146,23 +263,13 @@ export function BusinessSwitcher({
     }
   }
 
-  function handleSignOut() {
-    startTransition(async () => {
-      const result = await authClient.signOut();
-      if (result.error) return;
-      window.localStorage.removeItem(themeUserStorageKey);
-      clearPersistedThemePreference();
-      redirectToLogin();
-    });
-  }
-
   return (
     <>
       <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
         <DropdownMenuTrigger asChild>
         {compact ? (
           <button
-            className="group/business-switcher flex w-full cursor-pointer items-center gap-2 overflow-hidden rounded-xl px-2 py-1.5 text-left transition-[width,background-color,color] shell-sidebar-motion group-data-[collapsed=true]/sidebar:size-9 group-data-[collapsed=true]/sidebar:justify-start group-data-[collapsed=true]/sidebar:gap-0 group-data-[collapsed=true]/sidebar:rounded-full group-data-[collapsed=true]/sidebar:pl-1 group-data-[collapsed=true]/sidebar:pr-0 group-data-[collapsed=true]/sidebar:py-0 hover:bg-sidebar-accent data-[state=open]:bg-sidebar-accent"
+            className="group/business-switcher flex h-8 w-full min-w-0 cursor-pointer items-center gap-2 rounded-lg px-2 text-left transition-[background-color,color] shell-sidebar-motion hover:bg-sidebar-accent data-[state=open]:bg-sidebar-accent group-data-[collapsed=true]/sidebar:size-9 group-data-[collapsed=true]/sidebar:shrink-0 group-data-[collapsed=true]/sidebar:justify-center group-data-[collapsed=true]/sidebar:gap-0 group-data-[collapsed=true]/sidebar:rounded-lg group-data-[collapsed=true]/sidebar:px-0"
             data-tour="business-switcher"
             type="button"
             aria-label={`Switch business — current business ${business.name}`}
@@ -172,11 +279,26 @@ export function BusinessSwitcher({
               name={business.name}
               logoUrl={getSwitcherLogoUrl("/api/business/logo", business)}
               loading="eager"
+              size="xs"
+              className="shrink-0"
             />
-            <span className="min-w-0 max-w-full flex-1 overflow-hidden whitespace-nowrap text-sm font-medium text-sidebar-foreground opacity-100 transition-[max-width,opacity] shell-sidebar-motion group-data-[collapsed=true]/sidebar:max-w-0 group-data-[collapsed=true]/sidebar:opacity-0">
+            <span
+              className="min-w-0 flex-1 truncate text-sm font-semibold text-sidebar-foreground group-data-[collapsed=true]/sidebar:hidden"
+              title={business.name}
+            >
               {business.name}
             </span>
-            <ChevronsUpDown className="size-4 max-w-4 shrink-0 overflow-hidden text-muted-foreground opacity-100 transition-[max-width,opacity] shell-sidebar-motion group-data-[collapsed=true]/sidebar:max-w-0 group-data-[collapsed=true]/sidebar:opacity-0" />
+            <PlanBadge
+              plan={business.plan}
+              size="sm"
+              className="group-data-[collapsed=true]/sidebar:hidden"
+            />
+            <span
+              aria-hidden="true"
+              className="flex size-4 shrink-0 items-center justify-center rounded-sm text-muted-foreground transition-colors group-data-[state=open]/business-switcher:text-sidebar-foreground group-data-[collapsed=true]/sidebar:hidden"
+            >
+              <ChevronsUpDown className="size-4" />
+            </span>
           </button>
         ) : (
         <button
@@ -223,48 +345,11 @@ export function BusinessSwitcher({
           Switch business
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuGroup>
-          {shellMemberships.map((membership) => {
-            const isCurrent =
-              membership.business.id === currentBusiness.business.id;
-
-            return (
-              <DropdownMenuItem asChild key={membership.membershipId}>
-                <Link
-                  href={getBusinessHomePath(membership.business.slug)}
-                  prefetch={true}
-                  onClick={closeMobileSidebar}
-                >
-                  <BusinessAvatar
-                    name={membership.business.name}
-                    logoUrl={getSwitcherLogoUrl(
-                      `/api/business/${membership.business.slug}/logo`,
-                      membership.business,
-                    )}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-foreground">
-                      {membership.business.name}
-                    </p>
-                    <p className="truncate text-xs text-muted-foreground">
-                      /{membership.business.slug}
-                    </p>
-                  </div>
-                  <span className="meta-label">
-                    {membership.role}
-                  </span>
-                  {membership.business.recordState === "locked" ? (
-                    <Badge variant="outline" className="gap-1">
-                      <Lock className="size-3" />
-                      Locked
-                    </Badge>
-                  ) : null}
-                  {isCurrent ? <Check className="size-4 text-primary-ink" /> : null}
-                </Link>
-              </DropdownMenuItem>
-            );
-          })}
-        </DropdownMenuGroup>
+        <BusinessMembershipList
+          memberships={shellMemberships}
+          currentBusinessId={currentBusiness.business.id}
+          onNavigate={closeMobileSidebar}
+        />
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
           {businessQuota.allowed ? (
@@ -327,26 +412,6 @@ export function BusinessSwitcher({
             Invite team members
           </DropdownMenuItem>
         </DropdownMenuGroup>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          disabled={isPending}
-          onSelect={(event) => {
-            event.preventDefault();
-            handleSignOut();
-          }}
-        >
-          {isPending ? (
-            <>
-              <Spinner data-icon="inline-start" aria-hidden="true" />
-              Signing out...
-            </>
-          ) : (
-            <>
-              <LogOut data-icon="inline-start" />
-              Sign out
-            </>
-          )}
-        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
       
@@ -595,7 +660,6 @@ export function MobileBusinessSwitcher({
   /** The business is inside its Pro trial and still needs a subscription. */
   isTrialing?: boolean;
 }) {
-  const [isPending, startTransition] = useTransition();
   const businessCheckout = useBusinessCheckout();
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -631,16 +695,6 @@ export function MobileBusinessSwitcher({
       ? business.defaultCurrency
       : "USD");
 
-  function handleSignOut() {
-    startTransition(async () => {
-      const result = await authClient.signOut();
-      if (result.error) return;
-      window.localStorage.removeItem(themeUserStorageKey);
-      clearPersistedThemePreference();
-      redirectToLogin();
-    });
-  }
-
   return (
     <>
       <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
@@ -665,47 +719,10 @@ export function MobileBusinessSwitcher({
             Switch business
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuGroup>
-            {shellMemberships.map((membership) => {
-              const isCurrent =
-                membership.business.id === currentBusiness.business.id;
-
-              return (
-                <DropdownMenuItem asChild key={membership.membershipId}>
-                  <Link
-                    href={getBusinessHomePath(membership.business.slug)}
-                    prefetch={true}
-                  >
-                    <BusinessAvatar
-                      name={membership.business.name}
-                      logoUrl={getSwitcherLogoUrl(
-                        `/api/business/${membership.business.slug}/logo`,
-                        membership.business,
-                      )}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-foreground">
-                        {membership.business.name}
-                      </p>
-                      <p className="truncate text-xs text-muted-foreground">
-                        /{membership.business.slug}
-                      </p>
-                    </div>
-                    <span className="meta-label">
-                      {membership.role}
-                    </span>
-                    {membership.business.recordState === "locked" ? (
-                      <Badge variant="outline" className="gap-1">
-                        <Lock className="size-3" />
-                        Locked
-                      </Badge>
-                    ) : null}
-                    {isCurrent ? <Check className="size-4 text-primary-ink" /> : null}
-                  </Link>
-                </DropdownMenuItem>
-              );
-            })}
-          </DropdownMenuGroup>
+          <BusinessMembershipList
+            memberships={shellMemberships}
+            currentBusinessId={currentBusiness.business.id}
+          />
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
             {businessQuota.allowed ? (
@@ -765,26 +782,6 @@ export function MobileBusinessSwitcher({
               Invite team members
             </DropdownMenuItem>
           </DropdownMenuGroup>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            disabled={isPending}
-            onSelect={(event) => {
-              event.preventDefault();
-              handleSignOut();
-            }}
-          >
-            {isPending ? (
-              <>
-                <Spinner data-icon="inline-start" aria-hidden="true" />
-                Signing out...
-              </>
-            ) : (
-              <>
-                <LogOut data-icon="inline-start" />
-                Sign out
-              </>
-            )}
-          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
 
@@ -974,13 +971,12 @@ function BusinessSwitcherSkeleton() {
   return (
     <div
       aria-hidden="true"
-      className="flex w-full items-center gap-2 rounded-xl px-2 py-1.5 group-data-[collapsed=true]/sidebar:w-9 group-data-[collapsed=true]/sidebar:justify-center group-data-[collapsed=true]/sidebar:gap-0 group-data-[collapsed=true]/sidebar:px-0"
+      className="flex h-8 w-full min-w-0 items-center gap-2 group-data-[collapsed=true]/sidebar:size-9 group-data-[collapsed=true]/sidebar:shrink-0 group-data-[collapsed=true]/sidebar:justify-center group-data-[collapsed=true]/sidebar:gap-0"
     >
-      <div className="size-8 shrink-0 animate-pulse rounded-lg bg-muted" />
-      <div className="min-w-0 flex-1 group-data-[collapsed=true]/sidebar:hidden">
-        <div className="h-4 w-3/4 animate-pulse rounded-md bg-muted" />
-      </div>
-      <div className="size-4 shrink-0 animate-pulse rounded bg-muted group-data-[collapsed=true]/sidebar:hidden" />
+      <div className="size-5 shrink-0 animate-pulse rounded-md bg-sidebar-accent" />
+      <div className="h-4 min-w-0 flex-1 animate-pulse rounded-md bg-sidebar-accent group-data-[collapsed=true]/sidebar:hidden" />
+      <div className="h-5 w-10 shrink-0 animate-pulse rounded-md bg-sidebar-accent group-data-[collapsed=true]/sidebar:hidden" />
+      <div className="size-4 shrink-0 animate-pulse rounded bg-sidebar-accent group-data-[collapsed=true]/sidebar:hidden" />
     </div>
   );
 }

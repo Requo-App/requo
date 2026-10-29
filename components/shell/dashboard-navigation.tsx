@@ -36,11 +36,15 @@ import {
   getBusinessSettingsPath,
 } from "@/features/businesses/routes";
 
+/** Sidebar section an item belongs to. Items without one render standalone. */
+export type DashboardNavigationSection = "sales" | "business";
+
 export type DashboardNavigationItem = {
   href: string;
   label: string;
   description: string;
   icon: LucideIcon;
+  section?: DashboardNavigationSection;
 };
 
 export type DashboardBreadcrumbItem = {
@@ -64,48 +68,56 @@ export function getDashboardNavigation(
       label: "Inquiries",
       description: "Capture, review, and move customer inquiries forward.",
       icon: Inbox,
+      section: "sales",
     },
     {
       href: getBusinessQuotesPath(slug),
       label: "Quotes",
       description: "Draft, send, and track quotes from one place.",
       icon: FileText,
+      section: "sales",
     },
     {
       href: getBusinessInvoicesPath(slug),
       label: "Invoices",
       description: "Track invoices, payments, and balances.",
       icon: Receipt,
+      section: "sales",
     },
     {
       href: getBusinessPaymentsPath(slug),
       label: "Payments",
       description: "Review payments recorded against invoices.",
       icon: Wallet,
+      section: "sales",
     },
     {
       href: getBusinessFollowUpsPath(slug),
       label: "Follow-ups",
       description: "See who needs contact next and when.",
       icon: BellRing,
+      section: "sales",
     },
     {
       href: getBusinessAssistantPath(slug),
       label: "Assistant",
       description: "Chat with your business assistant.",
       icon: Astroid,
+      section: "business",
     },
     {
       href: getBusinessServicesPath(slug),
       label: "Services",
       description: "Build and manage the services that capture customer inquiries.",
       icon: PencilRuler,
+      section: "business",
     },
     {
       href: getBusinessQuoteLibraryPath(slug),
       label: "Quote library",
       description: "Reusable blocks and packages for faster quotes.",
       icon: Package,
+      section: "business",
     },
     ...(canViewBusinessAnalytics(role)
       ? [
@@ -114,6 +126,7 @@ export function getDashboardNavigation(
             label: "Analytics",
             description: "Track form performance, quote outcomes, and workflow timing.",
             icon: BarChart3,
+            section: "business" as const,
           },
         ]
       : []),
