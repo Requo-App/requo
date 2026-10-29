@@ -60,7 +60,7 @@ export function AdminSidebar({
     // `BrandMark` collapses on the shadcn `data-collapsible=icon` attribute;
     // the BoardUI rail uses `data-collapsed` instead, so the wordmark is hidden
     // here through the sidebar group variant.
-    <div className="w-full min-w-0 overflow-hidden px-3">
+    <div className="w-full min-w-0 overflow-hidden px-3 group-data-[collapsed=true]/sidebar:px-0">
       <BrandMark
         className="group-data-[collapsed=true]/sidebar:gap-0 group-data-[collapsed=true]/sidebar:[&>span:last-child]:hidden"
         href={ADMIN_ROOT_PATH}
