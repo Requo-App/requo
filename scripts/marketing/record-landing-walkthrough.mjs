@@ -76,11 +76,12 @@
  * the shipped asset and take the poster from the opening frame, so the frame
  * the hero shows before playback is the first frame of the loop:
  *
- *   cp .walkthrough/requo-walkthrough-<theme>.webm \
- *     public/marketing/requo-walkthrough-<theme>.webm
- *   ffmpeg -ss 0 -i public/marketing/requo-walkthrough-<theme>.webm \
+ *   theme=light   # or dark, matching the take you just recorded
+ *   cp ".walkthrough/requo-walkthrough-${theme}.webm" \
+ *     "public/marketing/requo-walkthrough-${theme}.webm"
+ *   ffmpeg -ss 0 -i "public/marketing/requo-walkthrough-${theme}.webm" \
  *     -frames:v 1 -update 1 \
- *     public/marketing/requo-walkthrough-<theme>-poster.png
+ *     "public/marketing/requo-walkthrough-${theme}-poster.png"
  *
  * The pointer art comes from `--cursor-dir`, filled by
  * `extract-windows-cursors.mjs` so the arrow and hand are the machine's real
@@ -787,10 +788,12 @@ async function main() {
 
   // The app's theme bootstrap reads this storage key before paint. Set it on
   // every navigation so an attached browser profile left in the other theme
-  // cannot leak into the take.
+  // cannot leak into the take. The authenticated profile marker makes
+  // ThemePreferenceSync restore the saved user preference, so clear it too.
   await page.addInitScript((theme) => {
     try {
       localStorage.setItem("requo-theme", theme);
+      localStorage.removeItem("requo-theme-user");
       document.documentElement.classList.toggle("dark", theme === "dark");
       document.documentElement.style.colorScheme = theme;
     } catch {}

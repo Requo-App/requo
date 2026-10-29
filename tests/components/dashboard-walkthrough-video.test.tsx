@@ -236,9 +236,16 @@ describe("DashboardWalkthroughVideo", () => {
     await emitIntersection(1);
     await waitFor(() => expect(playSpy).toHaveBeenCalled());
 
-    expect(container.querySelector("video")?.getAttribute("src")).toBe(
+    const lightVideo = container.querySelector("video");
+    expect(lightVideo?.getAttribute("src")).toBe(
       "/marketing/requo-walkthrough-light.webm",
     );
+    expect(lightVideo?.className).toContain("opacity-0");
+
+    await act(async () => {
+      lightVideo?.dispatchEvent(new Event("canplay"));
+    });
+    expect(lightVideo?.className).toContain("opacity-100");
 
     playSpy.mockClear();
 
@@ -251,9 +258,17 @@ describe("DashboardWalkthroughVideo", () => {
         "/marketing/requo-walkthrough-dark.webm",
       );
     });
-    expect(container.querySelector("video")?.getAttribute("poster")).toBe(
+
+    const darkVideo = container.querySelector("video");
+    expect(darkVideo?.getAttribute("poster")).toBe(
       "/marketing/requo-walkthrough-dark-poster.png",
     );
+    expect(darkVideo?.className).toContain("opacity-0");
+
+    await act(async () => {
+      darkVideo?.dispatchEvent(new Event("canplay"));
+    });
+    expect(darkVideo?.className).toContain("opacity-100");
     expect(playSpy).toHaveBeenCalled();
   });
 

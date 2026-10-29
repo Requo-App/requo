@@ -53,7 +53,11 @@ without changing a solid fill. Use `text-primary-ink`,
 (and the solid `--success` / `--warning` / `--info` tones) for fills. Never
 use an ink token as a button background, and keep warning copy at full ink
 contrast on its tinted banners — `--warning-ink` must clear 4.5:1 on both the
-10% and 15% warning tints in each theme.
+10% and 15% warning tints in each theme. The marketing landing is the one
+scope that keeps brand green on `--primary`: `.marketing-landing` resolves
+`--primary-ink`, `--success-ink`, and `--marketing-accent` to `--primary`, so
+its headings, labels, links, and status text match the primary button in both
+themes.
 
 `scripts/audit-color-system.ts` enforces the neutral rule, the charcoal band,
 `color-scheme` in both themes, the required ink/status/preview mappings, the

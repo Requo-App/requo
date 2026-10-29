@@ -2629,10 +2629,18 @@ html[data-reload-loading="fade-out"] #app-root-content {
   /*
    * Landing scope. Background and muted copy come from the app tokens; the
    * landing does not carry a separate dark palette.
+   *
+   * Every green text and accent token resolves to the primary button colour
+   * here, so the landing's headings, labels, links, and status text read as one
+   * brand green in both themes instead of stepping to the lighter dark-mode
+   * ink.
    */
   .marketing-landing {
     background-color: var(--background);
     --muted-foreground: var(--marketing-muted);
+    --marketing-accent: var(--primary);
+    --primary-ink: var(--primary);
+    --success-ink: var(--primary);
   }
 
   /* Sentence-case label above a landing headline or list. No node, rule, or

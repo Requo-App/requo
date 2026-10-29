@@ -91,7 +91,7 @@ export function MarketingHero() {
             <h1 className="max-w-4xl text-balance font-sans text-[clamp(2.75rem,calc(4vw+1.5rem),4.75rem)] font-semibold leading-[1.05] tracking-[-0.03em] text-foreground">
               Manage every inquiry.
               <br />
-              <span className="text-primary-ink">Send every quote.</span>
+              <span className="text-primary">Send every quote.</span>
             </h1>
           </div>
 
@@ -156,7 +156,7 @@ export function MarketingHero() {
           title={
             <>
               <span className="block text-balance">Every missed inquiry is an opportunity</span>
-              <span className="block text-primary-ink sm:whitespace-nowrap">someone else can win.</span>
+              <span className="block text-primary sm:whitespace-nowrap">someone else can win.</span>
             </>
           }
         />
@@ -213,7 +213,7 @@ export function MarketingHero() {
           title={
             <>
               Keep every{" "}
-              <span className="text-primary-ink">opportunity moving.</span>
+              <span className="text-primary">opportunity moving.</span>
             </>
           }
         />
@@ -233,7 +233,7 @@ export function MarketingHero() {
           title={
             <>
               One connected workflow from inquiry to{" "}
-              <span className="text-primary-ink">accepted quote.</span>
+              <span className="text-primary">accepted quote.</span>
             </>
           }
         />
