@@ -16,8 +16,18 @@ import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
 import { cn } from "@/lib/utils";
 
 // Recorded on the seeded local demo (see scripts/marketing/record-landing-walkthrough.mjs).
-const WALKTHROUGH_SRC = "/marketing/requo-walkthrough.webm";
-const WALKTHROUGH_POSTER_SRC = "/marketing/requo-walkthrough-poster.png";
+const WALKTHROUGH_MEDIA = {
+  light: {
+    src: "/marketing/requo-walkthrough-light.webm",
+    poster: "/marketing/requo-walkthrough-light-poster.png",
+  },
+  dark: {
+    src: "/marketing/requo-walkthrough-dark.webm",
+    poster: "/marketing/requo-walkthrough-dark-poster.png",
+  },
+} as const;
+
+type WalkthroughTheme = keyof typeof WALKTHROUGH_MEDIA;
 
 /** Fraction of the stage that must be visible before the loop plays. */
 const IN_VIEW_THRESHOLD = 0.35;
@@ -30,7 +40,7 @@ const MOUNT_ROOT_MARGIN = "320px";
  *
  * Playback model:
  *
- * - The clip autoplays once the stage is in view on a capable light-theme
+ * - The matching clip autoplays once the stage is in view on a capable
  *   client.
  * - It pauses by itself when the stage leaves the viewport or the tab is
  *   hidden, and picks back up when either returns — unless the visitor paused
@@ -47,10 +57,9 @@ const MOUNT_ROOT_MARGIN = "320px";
  *   with static server snapshots, so the server render, the hydration render,
  *   and the first paint all agree on the static stage. Reduced motion, no
  *   JavaScript, and unsupported codecs keep it that way.
- * - The clip was recorded in the light theme. Dark theme keeps the
- *   theme-aware static stage instead of dropping a bright recording onto a
- *   dark page; once a dark recording exists, this gate can open without
- *   changing the frame or playback behavior.
+ * - Each theme plays its own recording and poster, so the video always
+ *   matches the page surface it sits on. The theme-aware static stage stays
+ *   underneath as the poster and fallback.
  * - The `<video>` element and its control mount only once the stage comes
  *   near the viewport, so layouts and scroll positions that never bring the
  *   art close do not pay for the clip at all.
@@ -64,7 +73,9 @@ export function DashboardWalkthroughVideo() {
   const prefersReducedMotion = usePrefersReducedMotion();
   const isDarkTheme = useIsDarkTheme();
   const pageVisible = usePageVisible();
-  const motionAllowed = playable && !prefersReducedMotion && !isDarkTheme;
+  const walkthroughTheme: WalkthroughTheme = isDarkTheme ? "dark" : "light";
+  const media = WALKTHROUGH_MEDIA[walkthroughTheme];
+  const motionAllowed = playable && !prefersReducedMotion;
   const [nearViewport, setNearViewport] = useState(false);
   const [inView, setInView] = useState(false);
   const [canPlay, setCanPlay] = useState(false);
@@ -72,10 +83,12 @@ export function DashboardWalkthroughVideo() {
   const [userPaused, setUserPaused] = useState(false);
   const [previousMotionAllowed, setPreviousMotionAllowed] =
     useState(motionAllowed);
+  const [previousWalkthroughTheme, setPreviousWalkthroughTheme] =
+    useState(walkthroughTheme);
 
-  // The theme or motion preference can close the gate while the stage is
-  // still mounted. Clear the per-video state during the transition so opening
-  // it again starts from the observer's fresh measurement instead of a stale
+  // The motion preference can close the gate while the stage is still
+  // mounted. Clear the per-video state during the transition so opening it
+  // again starts from the observer's fresh measurement instead of a stale
   // in-view/playing pair. Adjusting state during render is the supported
   // pattern for deriving state from a changed input.
   if (previousMotionAllowed !== motionAllowed) {
@@ -87,6 +100,15 @@ export function DashboardWalkthroughVideo() {
       setCanPlay(false);
       setPlaying(false);
     }
+  }
+
+  // A theme switch swaps the source. Drop the old element's readiness and
+  // playback flags so the new poster stays visible until its own `canplay`.
+  // A manual pause is the visitor's choice and survives the swap.
+  if (previousWalkthroughTheme !== walkthroughTheme) {
+    setPreviousWalkthroughTheme(walkthroughTheme);
+    setCanPlay(false);
+    setPlaying(false);
   }
 
   useEffect(() => {
@@ -130,7 +152,14 @@ export function DashboardWalkthroughVideo() {
     } else {
       video.pause();
     }
-  }, [inView, motionAllowed, nearViewport, pageVisible, userPaused]);
+  }, [
+    inView,
+    motionAllowed,
+    nearViewport,
+    pageVisible,
+    userPaused,
+    walkthroughTheme,
+  ]);
 
   const handleTogglePlayback = useCallback(() => {
     setUserPaused(playing);
@@ -158,16 +187,17 @@ export function DashboardWalkthroughVideo() {
             )}
             disablePictureInPicture
             disableRemotePlayback
+            key={walkthroughTheme}
             loop
             muted
             onCanPlay={() => setCanPlay(true)}
             onPause={() => setPlaying(false)}
             onPlay={() => setPlaying(true)}
             playsInline
-            poster={WALKTHROUGH_POSTER_SRC}
+            poster={media.poster}
             preload="auto"
             ref={videoRef}
-            src={WALKTHROUGH_SRC}
+            src={media.src}
           />
 
           {/*

@@ -12,8 +12,9 @@ import { DashboardWalkthroughVideo } from "@/components/marketing/dashboard-walk
  * viewport, and it must stop decoding whenever the visitor cannot see it:
  * scrolled away or hidden tab. Manually pausing always wins over the
  * autoplay/auto-resume rules, and reduced motion keeps the static stage with
- * no clip and no control at all. The recorded clip is light-only, so the dark
- * theme deliberately keeps the theme-aware static stage too.
+ * no clip and no control at all. Each theme has its own recording and poster,
+ * so the dark theme swaps the media instead of falling back to the static
+ * stage.
  */
 
 type ObserverCallback = (
@@ -207,40 +208,94 @@ describe("DashboardWalkthroughVideo", () => {
     expect(playSpy).not.toHaveBeenCalled();
   });
 
-  it("keeps the theme-aware static stage in the dark theme", async () => {
+  it("plays the dark recording in the dark theme", async () => {
     document.documentElement.classList.add("dark");
 
     try {
       const { container } = render(<DashboardWalkthroughVideo />);
       await emitIntersection(1);
+      await waitFor(() => expect(playSpy).toHaveBeenCalled());
 
-      expect(container.querySelector("video")).toBeNull();
-      expect(screen.queryByRole("button", { name: /walkthrough/i })).toBeNull();
-      expect(playSpy).not.toHaveBeenCalled();
+      const video = container.querySelector("video");
+      expect(video?.getAttribute("src")).toBe(
+        "/marketing/requo-walkthrough-dark.webm",
+      );
+      expect(video?.getAttribute("poster")).toBe(
+        "/marketing/requo-walkthrough-dark-poster.png",
+      );
+      expect(
+        screen.getByRole("button", { name: "Pause the walkthrough" }),
+      ).not.toBeNull();
     } finally {
       document.documentElement.classList.remove("dark");
     }
   });
 
-  it("does not resume a stale in-view clip after the theme reopens the gate", async () => {
+  it("swaps the recording and poster when the theme changes mid-session", async () => {
     const { container } = render(<DashboardWalkthroughVideo />);
     await emitIntersection(1);
     await waitFor(() => expect(playSpy).toHaveBeenCalled());
 
+    const lightVideo = container.querySelector("video");
+    expect(lightVideo?.getAttribute("src")).toBe(
+      "/marketing/requo-walkthrough-light.webm",
+    );
+    expect(lightVideo?.className).toContain("opacity-0");
+
     await act(async () => {
-      document.documentElement.classList.add("dark");
+      lightVideo?.dispatchEvent(new Event("canplay"));
     });
-    await waitFor(() => expect(container.querySelector("video")).toBeNull());
+    expect(lightVideo?.className).toContain("opacity-100");
 
     playSpy.mockClear();
 
-    // Back to light without a fresh intersection: the old in-view measurement
-    // must not remount and autoplay the clip off-screen.
     await act(async () => {
-      document.documentElement.classList.remove("dark");
+      document.documentElement.classList.add("dark");
     });
 
-    expect(container.querySelector("video")).toBeNull();
+    await waitFor(() => {
+      expect(container.querySelector("video")?.getAttribute("src")).toBe(
+        "/marketing/requo-walkthrough-dark.webm",
+      );
+    });
+
+    const darkVideo = container.querySelector("video");
+    expect(darkVideo?.getAttribute("poster")).toBe(
+      "/marketing/requo-walkthrough-dark-poster.png",
+    );
+    expect(darkVideo?.className).toContain("opacity-0");
+
+    await act(async () => {
+      darkVideo?.dispatchEvent(new Event("canplay"));
+    });
+    expect(darkVideo?.className).toContain("opacity-100");
+    expect(playSpy).toHaveBeenCalled();
+  });
+
+  it("keeps a manual pause across a theme switch", async () => {
+    const user = userEvent.setup();
+    const { container } = render(<DashboardWalkthroughVideo />);
+    await emitIntersection(1);
+
+    const pauseButton = await screen.findByRole("button", {
+      name: "Pause the walkthrough",
+    });
+    await user.click(pauseButton);
+
+    playSpy.mockClear();
+
+    await act(async () => {
+      document.documentElement.classList.add("dark");
+    });
+
+    await waitFor(() => {
+      expect(container.querySelector("video")?.getAttribute("src")).toBe(
+        "/marketing/requo-walkthrough-dark.webm",
+      );
+    });
     expect(playSpy).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("button", { name: "Play the walkthrough" }),
+    ).not.toBeNull();
   });
 });

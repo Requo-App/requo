@@ -170,7 +170,7 @@ const queueItems: readonly QueuePreviewItem[] = [
     key: "draft-quote",
     category: "Quote",
     icon: FileText,
-    iconStyle: "bg-success/10 text-success-ink",
+    iconStyle: "bg-success/10 text-primary",
     title: "Electrical Panel Upgrade & Rewiring",
     description: "David Chen",
     meta: "Updated Oct 17, 2026",
@@ -180,7 +180,7 @@ const queueItems: readonly QueuePreviewItem[] = [
     key: "accepted-quote",
     category: "Quote",
     icon: CheckCircle2,
-    iconStyle: "bg-primary/10 text-primary-ink",
+    iconStyle: "bg-primary/10 text-primary",
     title: "Full Roof Replacement & Gutters",
     description: "Oakridge Property Management",
     meta: "Accepted Oct 18, 2026",
@@ -282,7 +282,7 @@ function KpiDeltaPill({
     <span
       className={cn(
         "flex shrink-0 items-center gap-1 rounded-full py-0.5 pr-2 pl-1",
-        delta.tone === "lime" && "bg-success/10 text-success-ink",
+        delta.tone === "lime" && "bg-success/10 text-primary",
         delta.tone === "rose" && "bg-destructive/10 text-destructive-ink",
         delta.tone === "neutral" && "bg-muted text-muted-foreground",
       )}
@@ -374,12 +374,12 @@ function QueueRow({ item }: { item: QueuePreviewItem }) {
       </div>
 
       <div className="flex shrink-0 items-center gap-1.5">
-        <span className="inline-flex text-xs font-semibold text-primary-ink/95 transition-colors group-hover:text-primary-ink group-hover:underline">
+        <span className="inline-flex text-xs font-semibold text-primary transition-colors group-hover:text-primary group-hover:underline">
           {item.actionLabel}
         </span>
         <ArrowRight
           aria-hidden
-          className="size-3.5 shrink-0 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5 group-hover:text-primary-ink"
+          className="size-3.5 shrink-0 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5 group-hover:text-primary"
         />
       </div>
     </div>

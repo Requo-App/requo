@@ -116,7 +116,7 @@ export function BookDemoDialog({
 
         {state.success ? (
           <DialogBody className="flex flex-col items-center gap-3 py-8 text-center">
-            <CheckCircle2 className="size-10 text-primary-ink" />
+            <CheckCircle2 className="size-10 text-primary" />
             <p className="text-sm font-medium text-foreground">
               We&rsquo;ve received your request!
             </p>

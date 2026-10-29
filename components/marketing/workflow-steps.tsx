@@ -65,7 +65,7 @@ function AcceptedPreview() {
     >
       <div className="flex min-h-0 flex-1 flex-col justify-center gap-3 p-4">
         <div className="flex items-center gap-3 rounded-lg bg-accent/60 px-3 py-3">
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border/60 bg-card text-success-ink">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border/60 bg-card text-primary">
             <CheckCircle2 aria-hidden="true" className="size-4" />
           </span>
           <div className="min-w-0">
