@@ -2657,17 +2657,39 @@ html[data-reload-loading="fade-out"] #app-root-content {
   .marketing-hero-frame {
     position: relative;
     overflow: hidden;
-    border: 1px solid var(--marketing-hairline-strong);
+    border: 1px solid transparent;
     border-radius: 1.125rem;
-    background: var(--background);
-    box-shadow: var(--marketing-shadow-raised);
+    /* A top-lit gradient edge gives the window a defined bezel without a
+       second ring or a heavier stroke. The inset highlight is the inner lip;
+       the outer hairline keeps the corner crisp against the page. */
+    background:
+      linear-gradient(var(--background), var(--background)) padding-box,
+      linear-gradient(
+        to bottom,
+        color-mix(in srgb, var(--foreground) 24%, transparent) 0%,
+        color-mix(in srgb, var(--foreground) 10%, transparent) 30%,
+        color-mix(in srgb, var(--foreground) 16%, transparent) 100%
+      ) border-box;
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.7),
+      0 0 0 1px rgb(29 29 31 / 0.03),
+      var(--marketing-shadow-raised);
   }
 
-  /* Dark raises the window one surface above the page; the border and the
-     lighter fill carry the edge, with no shadow. */
+  /* Dark raises the window one surface above the page; the lighter fill and
+     the lit top edge carry the bezel, with no raised shadow. */
   .dark .marketing-hero-frame {
-    background: var(--card);
-    box-shadow: none;
+    background:
+      linear-gradient(var(--card), var(--card)) padding-box,
+      linear-gradient(
+        to bottom,
+        rgb(255 255 255 / 0.26) 0%,
+        rgb(255 255 255 / 0.09) 26%,
+        rgb(255 255 255 / 0.14) 100%
+      ) border-box;
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.08),
+      0 0 0 1px rgb(0 0 0 / 0.35);
   }
 
   /*

@@ -33,7 +33,8 @@
  * The landing page plays the recorded walkthrough in its hero, so the take
  * pauses that video on its poster frame — the same frame the hero shows before
  * playback starts. A screenshot of a running video would otherwise be a
- * different (and video-encoded, so softer) picture on every run.
+ * different (and video-encoded, so softer) picture on every run. The capture
+ * pins the light theme, so the light take and poster are the ones on screen.
  */
 
 import { spawnSync } from "node:child_process";
@@ -61,12 +62,12 @@ const DEFAULTS = {
 };
 
 /**
- * Where the hero's walkthrough poster frame sits in the shipped clip. The
- * poster PNG is extracted from this exact timestamp
- * (public/marketing/requo-walkthrough-poster.png), so pausing the video here
- * reproduces the frame the visitor sees before playback starts.
+ * Where the hero's walkthrough poster frame sits in the shipped light clip.
+ * The poster PNG is extracted from this exact timestamp
+ * (public/marketing/requo-walkthrough-light-poster.png), so pausing the video
+ * here reproduces the frame the visitor sees before playback starts.
  */
-const POSTER_SECONDS = 29.5;
+const POSTER_SECONDS = 0;
 
 function parseArgs(argv) {
   const options = { ...DEFAULTS, child: false, repoRoot: REPO_ROOT };

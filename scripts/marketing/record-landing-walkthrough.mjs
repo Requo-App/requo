@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Records the landing hero walkthrough — the WebM behind
- * `public/marketing/requo-walkthrough.webm`.
+ * `public/marketing/requo-walkthrough-<theme>.webm`.
  *
  * The driver runs inside the Playwright Docker image because this host has no
  * Chromium system dependencies. `playwright-core` is mounted read-only from the
@@ -50,9 +50,13 @@
  *   node scripts/marketing/extract-windows-cursors.mjs --out .walkthrough/cursors
  *
  * Preconditions:
- *   - fresh demo data: `npm run db:seed-demo` (the take creates a draft quote)
- *   - the dev app serving the base URL (the compose app container publishes
- *     http://localhost:3000): `docker compose up -d app`
+ *   - fresh demo data: `npm run db:seed-demo` (the take creates a draft quote,
+ *     so reseed before recording the second theme)
+ *   - a production build serving the base URL, so the quote editor does not
+ *     sit on its cold "Creating draft…" state: `npm run build`, then
+ *     `npm run start:app -- -H 0.0.0.0 -p 3000`. The port must match
+ *     `BETTER_AUTH_URL` (http://localhost:3000 in `.env.local`), or Better Auth
+ *     rejects the sign-in origin.
  *
  * Record (from the repo root):
  *   docker run --rm --network=host \
@@ -60,41 +64,32 @@
  *     -v "$PWD/scripts/marketing/record-landing-walkthrough.mjs:/work/record.mjs:ro" \
  *     -v "$PWD/.walkthrough:/out" \
  *     -w /work mcr.microsoft.com/playwright:v1.64.1-noble \
- *     node /work/record.mjs --base http://localhost:3000 --out /out
+ *     node /work/record.mjs --base http://localhost:3000 --out /out --theme light
  *
  * The walk ends back on the dashboard, with the pointer parked where the take
  * opens so the loop seam is quiet. Sending stays out of frame: the demo
  * business's scope recipe requires deliverable sections that the editor cannot
  * add yet, so a send click would surface the send-gate error.
  *
- * After recording, the shipped asset trims the app's "Creating draft…" wait —
- * on a cold local stack that progress state sits on camera for ~13s — and then
- * runs 1.5x faster. Both steps need a full ffmpeg build: the Playwright
- * container's is filtered down to what its own recorder needs. Get one from
- * your package manager, or `npm i ffmpeg-static` and use
- * `node -p "require('ffmpeg-static')"` as the binary.
+ * A production take needs no trim or speed pass — the draft quote is created
+ * in well under a second, and the walk fits in about 34s. Copy it straight to
+ * the shipped asset and take the poster from the opening frame, so the frame
+ * the hero shows before playback is the first frame of the loop:
  *
- *   1. keyframe-aligned stream copy around the wait (no re-encode). List the
- *      take's keyframes with `-vf showinfo` + `type:I` and pick two that sit
- *      inside the wait; the numbers below are one take's:
- *        ffmpeg -ss 0 -to 34.133333 -i requo-walkthrough.webm -c copy \
- *          -avoid_negative_ts make_zero a.webm
- *        ffmpeg -ss 44.8 -i requo-walkthrough.webm -c copy \
- *          -avoid_negative_ts make_zero b.webm
- *        printf "file 'a.webm'\nfile 'b.webm'\n" > list.txt
- *        ffmpeg -f concat -safe 0 -i list.txt -c copy cut.webm
- *      Verify the seam decodes to identical pixels on both sides.
- *   2. speed it up and write the shipped asset:
- *        ffmpeg -i cut.webm -filter:v "setpts=PTS/1.5" -r 60 -c:v libvpx-vp9 \
- *          -crf 18 -b:v 0 -row-mt 1 -cpu-used 3 -pix_fmt yuv420p \
- *          -tune-content screen -an public/marketing/requo-walkthrough.webm
- *   3. refresh the poster from the parked-pointer dashboard near the loop point:
- *        ffmpeg -ss 29.5 -i public/marketing/requo-walkthrough.webm -frames:v 1 \
- *          -update 1 public/marketing/requo-walkthrough-poster.png
+ *   cp .walkthrough/requo-walkthrough-<theme>.webm \
+ *     public/marketing/requo-walkthrough-<theme>.webm
+ *   ffmpeg -ss 0 -i public/marketing/requo-walkthrough-<theme>.webm \
+ *     -frames:v 1 -update 1 \
+ *     public/marketing/requo-walkthrough-<theme>-poster.png
  *
  * The pointer art comes from `--cursor-dir`, filled by
  * `extract-windows-cursors.mjs` so the arrow and hand are the machine's real
  * Windows Default scheme cursors (aero_arrow.cur / aero_link.cur).
+ *
+ * The hero ships one take per theme. Reseed, then run the same Docker command
+ * with `--theme light`; reseed again and run it with `--theme dark`. Each run
+ * writes `requo-walkthrough-<theme>.webm`; extract the matching poster from
+ * the opening frame into `requo-walkthrough-<theme>-poster.png` (see above).
  */
 
 import { spawn } from "node:child_process";
@@ -129,6 +124,9 @@ const DEFAULTS = {
   password: process.env.WALKTHROUGH_PASSWORD ?? "12345678",
   width: 1440,
   height: 726,
+  // The hero ships a light and a dark take; the theme is pinned for the whole
+  // run so the recording matches the page the visitor is looking at.
+  theme: "light",
   // 60 fps because the renderers capture at ~60 during motion; slower output
   // judders the pointer and scroll beats.
   fps: 60,
@@ -228,6 +226,12 @@ function parseArgs(argv) {
     } else if (flag === "--password") {
       options.password = value;
       index += 1;
+    } else if (flag === "--theme") {
+      if (value !== "light" && value !== "dark") {
+        throw new Error(`--theme must be "light" or "dark" (received ${value})`);
+      }
+      options.theme = value;
+      index += 1;
     } else if (flag === "--fps") {
       options.fps = Number(value);
       index += 1;
@@ -250,7 +254,7 @@ function parseArgs(argv) {
       options.keepFrames = true;
     } else if (flag === "--help" || flag === "-h") {
       console.log(
-        "Usage: record.mjs [--base url] [--out dir] [--slug slug] [--inquiry id] [--crf n] [--fps n] [--cdp endpoint] [--cursor-dir dir]",
+        "Usage: record.mjs [--base url] [--out dir] [--theme light|dark] [--slug slug] [--inquiry id] [--crf n] [--fps n] [--cdp endpoint] [--cursor-dir dir]",
       );
       process.exit(0);
     }
@@ -727,7 +731,7 @@ async function startCapture({ page, session, sequencePath }) {
 async function main() {
   const outDir = path.resolve(options.out);
   mkdirSync(outDir, { recursive: true });
-  const videoPath = path.join(outDir, "requo-walkthrough.webm");
+  const videoPath = path.join(outDir, `requo-walkthrough-${options.theme}.webm`);
   const framesDir =
     options.framesDir || mkdtempSync(path.join(tmpdir(), "requo-walkthrough-"));
   mkdirSync(framesDir, { recursive: true });
@@ -759,7 +763,7 @@ async function main() {
       .send("Emulation.setEmulatedMedia", {
         media: "",
         features: [
-          { name: "prefers-color-scheme", value: "light" },
+          { name: "prefers-color-scheme", value: options.theme },
           { name: "prefers-reduced-motion", value: "no-preference" },
         ],
       })
@@ -774,12 +778,23 @@ async function main() {
     const context = await browser.newContext({
       viewport: { width: options.width, height: options.height },
       deviceScaleFactor: 1,
-      colorScheme: "light",
+      colorScheme: options.theme,
       locale: "en-US",
       reducedMotion: "no-preference",
     });
     page = await context.newPage();
   }
+
+  // The app's theme bootstrap reads this storage key before paint. Set it on
+  // every navigation so an attached browser profile left in the other theme
+  // cannot leak into the take.
+  await page.addInitScript((theme) => {
+    try {
+      localStorage.setItem("requo-theme", theme);
+      document.documentElement.classList.toggle("dark", theme === "dark");
+      document.documentElement.style.colorScheme = theme;
+    } catch {}
+  }, options.theme);
 
   // Page errors explain a scene that never renders; keep them in the take log.
   page.on("pageerror", (error) => log(`page error: ${String(error.message).slice(0, 200)}`));
@@ -994,11 +1009,12 @@ async function main() {
     page.getByRole("heading", { name: /^Good (morning|afternoon|evening)/ }),
     "dashboard greeting",
   );
-  await settle(page, { delay: 900 });
+  // Let the streamed cards finish so the closing frame matches the opening.
+  await settle(page, { delay: 2200 });
 
   // Park the pointer where the take opens so the loop seam is invisible.
   await moveCursorTo(page, { x: 720, y: 420 }, { duration: 700 });
-  await hold(page, 400);
+  await hold(page, 700);
 
   const stoppedAt = capture.stoppedAt();
   await capture.stop();
