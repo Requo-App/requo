@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { DashboardWalkthroughVideo } from "@/components/marketing/dashboard-walkthrough-video";
@@ -11,10 +11,10 @@ import { DashboardWalkthroughVideo } from "@/components/marketing/dashboard-walk
  * before the browser proves it can play the codec and the stage nears the
  * viewport, and it must stop decoding whenever the visitor cannot see it:
  * scrolled away or hidden tab. Manually pausing always wins over the
- * autoplay/auto-resume rules, and reduced motion keeps the static stage with
- * no clip and no control at all. Each theme has its own recording and poster,
- * so the dark theme swaps the media instead of falling back to the static
- * stage.
+ * autoplay/auto-resume rules, and reduced motion keeps the theme-matched
+ * poster with no clip and no control at all. Each theme has its own recording
+ * and poster, so the dark theme swaps both instead of falling back to the
+ * light still.
  */
 
 type ObserverCallback = (
@@ -112,11 +112,32 @@ async function setDocumentVisibility(value: DocumentVisibilityState) {
 }
 
 describe("DashboardWalkthroughVideo", () => {
+  it("shows the poster until the video can play and restores it on error", async () => {
+    const { container } = render(<DashboardWalkthroughVideo />);
+    const poster = container.querySelector(
+      '[class*="requo-walkthrough-light-poster"]',
+    );
+    await emitIntersection(1);
+
+    const video = container.querySelector("video")!;
+    expect(video).toHaveStyle({ opacity: "0" });
+
+    fireEvent.canPlay(video);
+    expect(video).toHaveStyle({ opacity: "1" });
+
+    fireEvent.error(video);
+    expect(video).toHaveStyle({ opacity: "0" });
+    expect(poster).toBeInTheDocument();
+  });
+
   it("holds the clip back until the stage nears the viewport", async () => {
     const { container } = render(<DashboardWalkthroughVideo />);
 
-    // Session start: the static recreation only, no media element, no fetch.
+    // Session start: the theme-matched poster only, no media element, no fetch.
     expect(container.querySelector("video")).toBeNull();
+    expect(
+      container.querySelector('[class*="requo-walkthrough-light-poster"]'),
+    ).not.toBeNull();
     expect(playSpy).not.toHaveBeenCalled();
 
     await emitIntersection(1);
@@ -188,7 +209,7 @@ describe("DashboardWalkthroughVideo", () => {
     expect(control.querySelector("svg")).not.toBeNull();
   });
 
-  it("keeps the static stage, with no clip and no control, under reduced motion", async () => {
+  it("keeps the theme-matched poster, with no clip and no control, under reduced motion", async () => {
     vi.stubGlobal("matchMedia", (query: string) => ({
       matches: true,
       media: query,
@@ -240,12 +261,8 @@ describe("DashboardWalkthroughVideo", () => {
     expect(lightVideo?.getAttribute("src")).toBe(
       "/marketing/requo-walkthrough-light.webm",
     );
-    expect(lightVideo?.className).toContain("opacity-0");
-
-    await act(async () => {
-      lightVideo?.dispatchEvent(new Event("canplay"));
-    });
-    expect(lightVideo?.className).toContain("opacity-100");
+    fireEvent.canPlay(lightVideo!);
+    expect(lightVideo).toHaveStyle({ opacity: "1" });
 
     playSpy.mockClear();
 
@@ -263,12 +280,10 @@ describe("DashboardWalkthroughVideo", () => {
     expect(darkVideo?.getAttribute("poster")).toBe(
       "/marketing/requo-walkthrough-dark-poster.png",
     );
-    expect(darkVideo?.className).toContain("opacity-0");
-
-    await act(async () => {
-      darkVideo?.dispatchEvent(new Event("canplay"));
-    });
-    expect(darkVideo?.className).toContain("opacity-100");
+    // Keep the matching still visible until the replacement recording is ready.
+    expect(darkVideo).toHaveStyle({ opacity: "0" });
+    fireEvent.canPlay(darkVideo!);
+    expect(darkVideo).toHaveStyle({ opacity: "1" });
     expect(playSpy).toHaveBeenCalled();
   });
 

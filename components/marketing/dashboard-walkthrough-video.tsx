@@ -9,11 +9,9 @@ import {
   useSyncExternalStore,
 } from "react";
 
-import { MarketingDashboardPreview } from "@/components/marketing/marketing-dashboard-preview";
 import { useIsDarkTheme } from "@/hooks/use-is-dark-theme";
 import { usePageVisible } from "@/hooks/use-page-visible";
 import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
-import { cn } from "@/lib/utils";
 
 // Recorded on the seeded local demo (see scripts/marketing/record-landing-walkthrough.mjs).
 const WALKTHROUGH_MEDIA = {
@@ -35,8 +33,8 @@ const IN_VIEW_THRESHOLD = 0.35;
 const MOUNT_ROOT_MARGIN = "320px";
 
 /**
- * Hero walkthrough stage: the static dashboard recreation with the recorded
- * product walkthrough layered on top.
+ * Hero walkthrough stage: the recorded product walkthrough over its matching
+ * poster still.
  *
  * Playback model:
  *
@@ -55,11 +53,11 @@ const MOUNT_ROOT_MARGIN = "320px";
  *
  * - Client capability and preferences come through `useSyncExternalStore`
  *   with static server snapshots, so the server render, the hydration render,
- *   and the first paint all agree on the static stage. Reduced motion, no
+ *   and the first paint all agree on the poster still. Reduced motion, no
  *   JavaScript, and unsupported codecs keep it that way.
  * - Each theme plays its own recording and poster, so the video always
- *   matches the page surface it sits on. The theme-aware static stage stays
- *   underneath as the poster and fallback.
+ *   matches the page surface it sits on. The video stays hidden until it can
+ *   play, leaving the matching still visible while each recording loads.
  * - The `<video>` element and its control mount only once the stage comes
  *   near the viewport, so layouts and scroll positions that never bring the
  *   art close do not pay for the clip at all.
@@ -78,8 +76,8 @@ export function DashboardWalkthroughVideo() {
   const motionAllowed = playable && !prefersReducedMotion;
   const [nearViewport, setNearViewport] = useState(false);
   const [inView, setInView] = useState(false);
-  const [canPlay, setCanPlay] = useState(false);
   const [playing, setPlaying] = useState(false);
+  const [canPlay, setCanPlay] = useState(false);
   const [userPaused, setUserPaused] = useState(false);
   const [previousMotionAllowed, setPreviousMotionAllowed] =
     useState(motionAllowed);
@@ -97,18 +95,19 @@ export function DashboardWalkthroughVideo() {
     if (!motionAllowed) {
       setNearViewport(false);
       setInView(false);
-      setCanPlay(false);
       setPlaying(false);
+      setCanPlay(false);
     }
   }
 
-  // A theme switch swaps the source. Drop the old element's readiness and
-  // playback flags so the new poster stays visible until its own `canplay`.
-  // A manual pause is the visitor's choice and survives the swap.
+  // A theme switch swaps the source. Reset playback and visibility while the new
+  // element loads; a manual pause is the visitor's choice and survives the
+  // swap. The video keeps its themed poster on screen throughout, so the old
+  // recording never shows through.
   if (previousWalkthroughTheme !== walkthroughTheme) {
     setPreviousWalkthroughTheme(walkthroughTheme);
-    setCanPlay(false);
     setPlaying(false);
+    setCanPlay(false);
   }
 
   useEffect(() => {
@@ -168,29 +167,29 @@ export function DashboardWalkthroughVideo() {
   return (
     <div className="group/walkthrough relative h-full w-full" ref={stageRef}>
       {/*
-        The recreation is a decorative mock: every control in it is drawn, not
-        wired. `inert` keeps its fake buttons out of the tab order now that the
-        stage carries a real one; the screen-reader description lives on the
-        hero's `figcaption`.
+        The exact first frame of each theme's recording. The theme bootstrap
+        writes the `dark` class before paint, so CSS picks the matching poster
+        on the first frame — no hydration round trip and no stale recreation
+        flashing through. It is also the still image for no-JS and
+        reduced-motion visitors, and the backdrop while the video buffers.
       */}
-      <div aria-hidden="true" inert>
-        <MarketingDashboardPreview />
-      </div>
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 bg-[url('/marketing/requo-walkthrough-light-poster.png')] bg-cover bg-top bg-no-repeat dark:bg-[url('/marketing/requo-walkthrough-dark-poster.png')]"
+      />
 
       {motionAllowed && nearViewport ? (
         <>
           <video
             aria-hidden="true"
-            className={cn(
-              "absolute inset-0 h-full w-full object-cover object-top [transition:opacity_var(--motion-duration-slow)_var(--motion-ease-standard)]",
-              canPlay ? "opacity-100" : "opacity-0",
-            )}
+            className="absolute inset-0 h-full w-full object-cover object-top"
             disablePictureInPicture
             disableRemotePlayback
             key={walkthroughTheme}
             loop
             muted
             onCanPlay={() => setCanPlay(true)}
+            onError={() => setCanPlay(false)}
             onPause={() => setPlaying(false)}
             onPlay={() => setPlaying(true)}
             playsInline
@@ -198,6 +197,7 @@ export function DashboardWalkthroughVideo() {
             preload="auto"
             ref={videoRef}
             src={media.src}
+            style={{ opacity: canPlay ? 1 : 0 }}
           />
 
           {/*

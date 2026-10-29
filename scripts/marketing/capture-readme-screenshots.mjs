@@ -18,8 +18,10 @@
  * writes straight into the repository.
  *
  * Preconditions:
- *   - the app serves --base (the compose app container publishes
- *     http://localhost:3000): `docker compose up -d app`
+ *   - a production build serving --base: `npm run build`, then
+ *     `npm run start:app -- -H 0.0.0.0 -p 3000`. README media is never captured
+ *     from `next dev`: the dev overlay, cold route compiles, and hydration
+ *     timing all leak into the frame.
  *   - demo data is seeded: `npm run db:seed-demo`
  *   - Windows Chrome and Windows Node are installed
  *

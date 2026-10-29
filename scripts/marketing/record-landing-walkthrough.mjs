@@ -14,6 +14,13 @@
  * visibly soft on UI text, and `--disable-lcd-text` keeps glyph edges grayscale
  * so 4:2:0 chroma subsampling does not smear colour fringes.
  *
+ * The VP9 encode pins TV-range BT.709 colour metadata. Without it, current
+ * Chrome (156) accepts the container but aborts the first decode with
+ * `PIPELINE_ERROR_DECODE`, which looks exactly like an autoplay bug: the hero
+ * flashes its poster and then sits paused. Keep the range/colour flags when
+ * changing this command, and play a take in the shipping browser before copying
+ * it into `public/marketing/`.
+ *
  * Two capture modes:
  *
  *  1. Local (default). Launches Chromium inside the Playwright image; glyphs are
@@ -308,6 +315,47 @@ async function dismissToasts(page) {
   }
 
   return dismissed;
+}
+
+/**
+ * Pins the signed-in account's Appearance preference to the take theme. The
+ * marketing page bootstrap can set the class before paint, but the shell syncs
+ * the authenticated profile preference on every business page; if the profile
+ * disagrees, an in-app navigation can flip the take back mid-recording.
+ */
+async function setAppearanceTheme(page, url, theme) {
+  await goto(page, url);
+
+  const label = theme === "dark" ? "Dark" : "Light";
+  const option = page
+    .getByRole("radio")
+    .filter({ hasText: label })
+    .first();
+  await mustSee(option, `${label} appearance option`);
+
+  if ((await option.getAttribute("aria-checked")) !== "true") {
+    await option.click();
+  }
+
+  // The card flips aria-checked immediately; wait for the server action's
+  // pending state to clear so the preference is saved before the camera rolls.
+  await page.waitForFunction(
+    (expectedLabel) => {
+      const radio = [...document.querySelectorAll('[role="radio"]')].find(
+        (node) => (node.textContent ?? "").includes(expectedLabel),
+      );
+
+      return Boolean(
+        radio &&
+          radio.getAttribute("aria-checked") === "true" &&
+          !radio.hasAttribute("disabled"),
+      );
+    },
+    label,
+    { timeout: 30_000 },
+  );
+
+  await settle(page, { delay: 700 });
 }
 
 /**
@@ -669,6 +717,17 @@ async function assembleVideo({ sequencePath, trace, stoppedAt, outputPath }) {
     "3",
     "-pix_fmt",
     "yuv420p",
+    // Chrome 156 fails the first VP9 decode when the stream says full-range
+    // BT.470BG, which is what ffmpeg otherwise writes here. Pin the SDR
+    // broadcast metadata the decoder expects.
+    "-color_range",
+    "tv",
+    "-colorspace",
+    "bt709",
+    "-color_primaries",
+    "bt709",
+    "-color_trc",
+    "bt709",
     "-tune-content",
     "screen",
     "-an",
@@ -789,7 +848,8 @@ async function main() {
   // The app's theme bootstrap reads this storage key before paint. Set it on
   // every navigation so an attached browser profile left in the other theme
   // cannot leak into the take. The authenticated profile marker makes
-  // ThemePreferenceSync restore the saved user preference, so clear it too.
+  // ThemePreferenceSync restore the saved user preference, so clear it too;
+  // setAppearanceTheme then pins that saved preference to the take theme.
   await page.addInitScript((theme) => {
     try {
       localStorage.setItem("requo-theme", theme);
@@ -798,7 +858,6 @@ async function main() {
       document.documentElement.style.colorScheme = theme;
     } catch {}
   }, options.theme);
-
   // Page errors explain a scene that never renders; keep them in the take log.
   page.on("pageerror", (error) => log(`page error: ${String(error.message).slice(0, 200)}`));
   page.on("console", (message) => {
@@ -864,6 +923,12 @@ async function main() {
     await page.waitForTimeout(1500);
   }
   log(`signed in; driving ${origin}`);
+  await setAppearanceTheme(
+    page,
+    `${origin}/${options.slug}/settings/appearance`,
+    options.theme,
+  );
+  log(`appearance pinned to ${options.theme}`);
 
   const inquiries = `${origin}/${options.slug}/inquiries`;
   const inquiry = `${origin}/${options.slug}/inquiries/${options.inquiryId}`;
