@@ -15,6 +15,7 @@ import {
 import Link from "next/link";
 
 import { authClient } from "@/lib/auth/client";
+import { isBillingCurrency } from "@/lib/billing/currencies";
 import { getDisplayFirstName } from "@/features/account/name";
 import { AppearanceMenuSubmenu } from "@/features/theme/components/appearance-menu";
 import { clearPersistedThemePreference } from "@/features/theme/persistence";
@@ -85,17 +86,20 @@ export function BusinessSwitcher({
   currentBusiness,
   memberships,
   businessQuota,
+  userId,
   compact = false,
 }: {
   currentBusiness: BusinessContext;
   memberships: BusinessContext[];
   businessQuota: BusinessQuotaSnapshot;
+  userId: string;
   /** Compact single-row trigger (avatar + name + chevron) for the BoardUI sidebar. */
   compact?: boolean;
 }) {
   const [isPending, startTransition] = useTransition();
   const { isMobile, setOpenMobile } = useSidebar();
   const businessCheckout = useBusinessCheckout();
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -123,6 +127,10 @@ export function BusinessSwitcher({
       )
     : memberships;
 
+  const upgradeCurrency = isBillingCurrency(business.defaultCurrency)
+    ? business.defaultCurrency
+    : "USD";
+
   function closeMobileSidebar() {
     if (isMobile) {
       setOpenMobile(false);
@@ -141,7 +149,7 @@ export function BusinessSwitcher({
 
   return (
     <>
-      <DropdownMenu>
+      <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
         <DropdownMenuTrigger asChild>
         {compact ? (
           <button
@@ -263,18 +271,17 @@ export function BusinessSwitcher({
                 <Plus data-icon="inline-start" className="size-4" />
                 Limit reached ({businessQuota.current}/{businessQuota.limit})
               </span>
-              <button
-                type="button"
-                className="inline-flex h-6 items-center justify-center rounded-md bg-primary px-2 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
-                onClick={() => {
-                  closeMobileSidebar();
-                  if (businessCheckout) {
-                    businessCheckout.openPlanSelection();
-                  }
-                }}
+              <UpgradeButton
+                businessId={business.id}
+                businessSlug={business.slug}
+                currency={upgradeCurrency}
+                currentPlan={business.plan}
+                onOpen={() => setMenuOpen(false)}
+                size="sm"
+                userId={userId}
               >
                 Upgrade
-              </button>
+              </UpgradeButton>
             </div>
           )}
         </DropdownMenuGroup>
@@ -357,6 +364,7 @@ export function DashboardUserMenu({
   businessSlug,
   plan,
   businessId,
+  currency,
 }: {
   user: {
     id: string;
@@ -368,9 +376,13 @@ export function DashboardUserMenu({
   businessSlug: string;
   plan: BusinessContext["business"]["plan"];
   businessId: string;
+  currency?: string;
 }) {
   const [isPending, startTransition] = useTransition();
   const { isMobile, setOpenMobile } = useSidebar();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const upgradeCurrency =
+    currency && isBillingCurrency(currency) ? currency : "USD";
   const displayName =
     getDisplayFirstName({ fullName: user.name }) || user.name;
 
@@ -405,7 +417,7 @@ export function DashboardUserMenu({
   return (
     <SidebarMenu>
       <SidebarMenuItem>
-        <DropdownMenu>
+        <DropdownMenu onOpenChange={setMenuOpen} open={menuOpen}>
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
               className="group/user-menu h-auto cursor-pointer justify-between rounded-xl border-2 border-transparent bg-sidebar-accent py-2 pr-3 pl-2.5 shell-sidebar-motion hover:border-sidebar-border hover:bg-sidebar-accent group-data-[collapsed=true]/sidebar:h-9 group-data-[collapsed=true]/sidebar:w-9 group-data-[collapsed=true]/sidebar:justify-center group-data-[collapsed=true]/sidebar:gap-0 group-data-[collapsed=true]/sidebar:rounded-full group-data-[collapsed=true]/sidebar:border-transparent group-data-[collapsed=true]/sidebar:bg-transparent group-data-[collapsed=true]/sidebar:p-0 data-[state=open]:border-sidebar-border data-[state=open]:bg-sidebar-accent"
@@ -464,7 +476,9 @@ export function DashboardUserMenu({
                 <div className="px-2 py-1.5">
                   <UpgradeButton
                     className="w-full whitespace-nowrap"
+                    currency={upgradeCurrency}
                     currentPlan={plan}
+                    onOpen={() => setMenuOpen(false)}
                     size="sm"
                     variant="outline"
                     userId={user.id}
@@ -548,13 +562,16 @@ export function MobileBusinessSwitcher({
   currentBusiness,
   memberships,
   businessQuota,
+  userId,
 }: {
   currentBusiness: BusinessContext;
   memberships: BusinessContext[];
   businessQuota: BusinessQuotaSnapshot;
+  userId: string;
 }) {
   const [isPending, startTransition] = useTransition();
   const businessCheckout = useBusinessCheckout();
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -582,6 +599,10 @@ export function MobileBusinessSwitcher({
       )
     : memberships;
 
+  const upgradeCurrency = isBillingCurrency(business.defaultCurrency)
+    ? business.defaultCurrency
+    : "USD";
+
   function handleSignOut() {
     startTransition(async () => {
       const result = await authClient.signOut();
@@ -594,7 +615,7 @@ export function MobileBusinessSwitcher({
 
   return (
     <>
-      <DropdownMenu>
+      <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
         <DropdownMenuTrigger asChild>
           <button
             className="motion-press control-surface flex size-8 shrink-0 items-center justify-center rounded-lg border hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
@@ -673,17 +694,17 @@ export function MobileBusinessSwitcher({
                   <Plus data-icon="inline-start" className="size-4" />
                   Limit reached ({businessQuota.current}/{businessQuota.limit})
                 </span>
-                <button
-                  type="button"
-                  className="inline-flex h-6 items-center justify-center rounded-md bg-primary px-2 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
-                  onClick={() => {
-                    if (businessCheckout) {
-                      businessCheckout.openPlanSelection();
-                    }
-                  }}
+                <UpgradeButton
+                  businessId={business.id}
+                  businessSlug={business.slug}
+                  currency={upgradeCurrency}
+                  currentPlan={business.plan}
+                  onOpen={() => setMenuOpen(false)}
+                  size="sm"
+                  userId={userId}
                 >
                   Upgrade
-                </button>
+                </UpgradeButton>
               </div>
             )}
           </DropdownMenuGroup>

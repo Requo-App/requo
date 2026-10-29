@@ -95,7 +95,10 @@ export function PlanSelectionSheet({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[780px] lg:max-w-[860px]">
+      <DialogContent
+        className="plan-selection-layer-content sm:max-w-[780px] lg:max-w-[860px]"
+        overlayClassName="plan-selection-layer-overlay"
+      >
         <DialogHeader className="border-b-0">
           <DialogTitle>{isTrialing ? "Choose a plan" : "Upgrade Plan"}</DialogTitle>
           <DialogDescription>

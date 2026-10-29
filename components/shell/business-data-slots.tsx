@@ -39,6 +39,7 @@ export async function BusinessSwitcherSlot({
       currentBusiness={businessContext}
       memberships={memberships}
       businessQuota={businessQuota}
+      userId={session.user.id}
       compact
     />
   );
@@ -68,6 +69,7 @@ export async function MobileBusinessSwitcherSlot({
       currentBusiness={businessContext}
       memberships={memberships}
       businessQuota={businessQuota}
+      userId={session.user.id}
     />
   );
 }
