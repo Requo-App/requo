@@ -1,30 +1,44 @@
 import type { PlanTier } from "@/lib/plans/plans";
 import { planMeta } from "@/lib/plans/plans";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 const planBadgeStyles: Record<PlanTier, string> = {
-  free: "border-border/80 bg-muted/60 text-muted-foreground shadow-[var(--control-shadow)] dark:bg-muted/40",
-  pro: "border-primary/30 bg-primary/10 text-primary-ink shadow-[var(--control-shadow)] dark:border-primary/25 dark:bg-primary/15",
+  free: "border-border bg-muted text-muted-foreground",
+  pro: "border-primary/30 bg-primary/15 text-primary-ink",
   business:
-    "border-[color:var(--status-highlight-border)] bg-[var(--status-highlight-bg)] text-[color:var(--status-highlight-fg)] shadow-[var(--control-shadow)]",
+    "border-[color:var(--status-highlight-border)] bg-[var(--status-highlight-bg)] text-[color:var(--status-highlight-fg)]",
 };
 
+/**
+ * Plan pill for the current business.
+ *
+ * Composes the same colourless `Badge` shell as `StatusBadge` so plan tiers
+ * share the status pills' geometry in both themes. The tier—not the colour—is
+ * always spelled out in the label.
+ */
 export function PlanBadge({
   plan,
+  size = "default",
   className,
 }: {
   plan: PlanTier;
+  /** `sm` matches the compact status pill used in dense rows (h-5). */
+  size?: "default" | "sm";
   className?: string;
 }) {
   return (
-    <span
+    <Badge
+      data-plan={plan}
+      variant="status"
       className={cn(
-        "inline-flex h-6 shrink-0 items-center rounded-full border px-2.5 text-xs font-semibold",
+        "shrink-0 rounded-full",
+        size === "sm" ? "h-5 px-2" : null,
         planBadgeStyles[plan],
         className,
       )}
     >
       {planMeta[plan].label}
-    </span>
+    </Badge>
   );
 }

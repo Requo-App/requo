@@ -430,6 +430,9 @@
      themes; sidebar row states keep their own tokens. */
   --shell-frame: #f5f5f7;
   --shell-card: #ffffff;
+  /* The one expanded sidebar width shared by the rail, its loading shell,
+     and the main content's flex sibling. */
+  --sidebar-rail-width: 16.5rem;
   /* One place to tune the sidebar/card resize. The card follows the rail
      purely through flex layout, so only the width transition needs these. */
   --shell-motion-duration: 280ms;
@@ -484,7 +487,8 @@
     0 1px 2px rgb(201 55 44 / 0.14),
     0 14px 24px -16px rgb(201 55 44 / 0.42);
   --overlay-surface-bg: var(--popover);
-  --overlay-surface-border: rgb(229 229 234 / 0.8);
+  /* Overlays separate with elevation, not an outline, in both themes. */
+  --overlay-surface-border: rgb(0 0 0 / 0);
   --overlay-divider: rgb(229 229 234 / 0.5);
   --overlay-surface-shadow: 0 24px 48px -12px rgb(0 0 0 / 0.12),
     0 1px 2px rgb(0 0 0 / 0.06);
@@ -772,10 +776,9 @@ html[data-reload-loading="fade-out"] #app-root-content {
     0 1px 2px rgb(201 55 44 / 0.14),
     0 14px 24px -16px rgb(201 55 44 / 0.42);
   --overlay-surface-bg: var(--popover);
-  --overlay-surface-border: rgb(255 255 255 / 0.06);
+  --overlay-surface-border: rgb(0 0 0 / 0);
   --overlay-divider: rgb(255 255 255 / 0.05);
   --overlay-surface-shadow:
-    0 0 0 1px rgb(0 0 0 / 0.45),
     0 16px 40px -12px rgb(0 0 0 / 0.65),
     0 3px 10px rgb(0 0 0 / 0.35);
   --modal-backdrop: rgb(0 0 0 / 0.58);
@@ -783,7 +786,6 @@ html[data-reload-loading="fade-out"] #app-root-content {
   --tooltip-surface-fg: var(--popover-foreground);
   --tooltip-surface-border: var(--overlay-surface-border);
   --tooltip-surface-shadow:
-    0 0 0 1px rgb(0 0 0 / 0.4),
     0 10px 24px -10px rgb(0 0 0 / 0.55),
     0 2px 6px rgb(0 0 0 / 0.3);
   --table-header-bg: transparent;

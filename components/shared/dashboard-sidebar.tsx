@@ -5,41 +5,41 @@ import {
   useEffect,
   useRef,
   useState,
+  useSyncExternalStore,
   type ComponentType,
   type ReactNode,
 } from "react";
 import {
-  RiAsterisk,
-  RiBankLine,
-  RiCalendarLine,
-  RiChatAiLine,
-  RiCloseLine,
-  RiCustomerServiceLine,
-  RiHomeLine,
-  RiImageAiLine,
-  RiMegaphoneLine,
-  RiSearchLine,
-  RiSettings4Line,
-  RiSideBarFill,
-  RiUserSmileLine,
-} from "@remixicon/react";
+  Asterisk,
+  Calendar,
+  Home,
+  Image as ImageIcon,
+  Landmark,
+  Megaphone,
+  MessageCircle,
+  PanelLeft,
+  Search,
+  Settings,
+  UserRound,
+  X,
+} from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { SettingsModal } from "./settings-modal";
-import { ThemeToggle } from "./theme-toggle";
 import { Badge } from "@/components/shared/badge";
 import { CloseButton } from "@/components/shared/close-button";
+import { Button } from "@/components/ui/button";
 import { DashboardTeamMenu } from "./dashboard-team-menu";
 import { DashboardUserMenu } from "./dashboard-user-menu";
 
 /**
  * Collapsible navigation panel with two presentations:
  *
- * - Panel (default): expanded 232px wide with p 12, radius/3xl (24px), a white
+ * - Panel (default): expanded 264px wide with p 12, radius/3xl (24px), a white
  *   1px border, elevation shadow, and secondary bg; collapsed 60px wide
  *   (36px icon items + 12px padding).
  * - Inset (`inset`): a seamless rail on the shell frame with a constant 8px
- *   padding. Expanded 232px, collapsed 52px (8px padding + a 36px icon
+ *   padding. Expanded 264px, collapsed 52px (8px padding + a 36px icon
  *   column). Rows stay left-anchored while the rail narrows, so icons hold
  *   their x instead of sliding.
  *
@@ -105,38 +105,37 @@ function NavItem({
     <>
       {/* Collapsed: drop the gap too — it still offsets the icon next to the
           zero-width (invisible) label, leaving the icon off-center. */}
-      <span className={cn("flex min-w-0 items-center gap-2", collapsed && "gap-0")}>
-        <Icon
-          className={cn("size-4.5 shrink-0", isSelected ? "text-sidebar-foreground" : "text-muted-foreground")}
-          aria-hidden
-        />
-        <Collapsible collapsed={collapsed}>
-          <span
-            className={cn(
-              "whitespace-nowrap text-sm leading-6 font-medium",
-              isSelected ? "text-sidebar-foreground" : "text-muted-foreground",
-            )}
-          >
-            {label}
-          </span>
+      <span
+        className={cn(
+          "flex min-w-0 items-center gap-2",
+          !collapsed && "flex-1",
+          collapsed && "gap-0",
+        )}
+      >
+        <Icon className="size-4 shrink-0" aria-hidden />
+        <Collapsible collapsed={collapsed} className="flex-1">
+          <span className="truncate text-sm font-medium">{label}</span>
         </Collapsible>
       </span>
-      {badge && <Collapsible collapsed={collapsed}>{badge}</Collapsible>}
+      {badge && (
+        <Collapsible collapsed={collapsed} className="shrink-0">
+          {badge}
+        </Collapsible>
+      )}
     </>
   );
   const className = cn(
-    "flex items-center justify-between gap-2 overflow-hidden rounded-md px-2 py-1.5",
-    "transition-[width,background-color] shell-sidebar-motion",
-    collapsed
-      ? inset
-        ? "w-full justify-start gap-0"
-        : "w-9 justify-center gap-0 px-0"
-      : "w-full",
-    // Selected state mirrors the previous Requo sidebar: muted text that
-    // turns sidebar-foreground on hover/select, with a quiet black/8
-    // (white/10 in dark mode) pill behind the active row.
-    "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground",
-    isSelected && "bg-sidebar-selected font-medium text-sidebar-foreground",
+    "flex h-8 w-full items-center justify-between gap-2 rounded-lg px-2",
+    "text-sm font-medium text-muted-foreground",
+    "transition-[background-color,color] shell-sidebar-motion",
+    !isSelected &&
+      "hover:bg-sidebar-accent/70 hover:text-sidebar-foreground",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring/60",
+    // Selected state: the row stays foreground-coloured over a slightly
+    // stronger fill than hover (8% light / 10% dark), and keeps that fill
+    // while hovered.
+    isSelected && "bg-sidebar-selected text-sidebar-foreground",
+    collapsed && (inset ? "justify-start gap-0" : "w-9 justify-center gap-0 px-0"),
   );
 
   if (onClick) {
@@ -203,25 +202,40 @@ export interface DashboardNavItem {
   badgeLabel?: string;
 }
 
-/** A labeled section of navigation rows (e.g. User / Business / Other). */
+/**
+ * A section of navigation rows. A missing/empty label renders the rows without
+ * a section header (e.g. the standalone Home row).
+ */
 export interface DashboardNavGroup {
-  label: string;
+  label?: string;
   items: DashboardNavItem[];
 }
 
 /** Kept as a name for callers that typed their `selected` prop; any key works. */
 export type DashboardNavKey = string;
 
+function subscribeToPlatform() {
+  return () => {};
+}
+
+function getShortcutHint() {
+  return /Mac|iPhone|iPad|iPod/.test(navigator.platform) ? "⌘ K" : "Ctrl K";
+}
+
+function getServerShortcutHint() {
+  return "Ctrl K";
+}
+
 /** The Pro dashboard's navigation, the default set. */
 export const DASHBOARD_NAV: DashboardNavItem[] = [
-  { key: "home", label: "Home", icon: RiHomeLine, href: "/templates/dashboard", badge: 152 },
-  { key: "marketing", label: "Marketing", icon: RiMegaphoneLine, href: "/templates/marketing" },
-  { key: "calendar", label: "Calendar", icon: RiCalendarLine, href: "/templates/calendar" },
-  { key: "finance", label: "Finance", icon: RiBankLine, href: "/templates/finance" },
-  { key: "medical", label: "Medical Report", icon: RiAsterisk, href: "/templates/medical-profile" },
-  { key: "ai-chat", label: "AI Chat", icon: RiChatAiLine, href: "/templates/ai-chat" },
-  { key: "ai-image", label: "AI Image Generation", icon: RiImageAiLine, href: "/templates/ai-image-generation" },
-  { key: "profile", label: "Profile", icon: RiUserSmileLine, href: "/templates/ai-profile" },
+  { key: "home", label: "Home", icon: Home, href: "/templates/dashboard", badge: 152 },
+  { key: "marketing", label: "Marketing", icon: Megaphone, href: "/templates/marketing" },
+  { key: "calendar", label: "Calendar", icon: Calendar, href: "/templates/calendar" },
+  { key: "finance", label: "Finance", icon: Landmark, href: "/templates/finance" },
+  { key: "medical", label: "Medical Report", icon: Asterisk, href: "/templates/medical-profile" },
+  { key: "ai-chat", label: "AI Chat", icon: MessageCircle, href: "/templates/ai-chat" },
+  { key: "ai-image", label: "AI Image Generation", icon: ImageIcon, href: "/templates/ai-image-generation" },
+  { key: "profile", label: "Profile", icon: UserRound, href: "/templates/ai-profile" },
 ];
 
 /**
@@ -243,7 +257,7 @@ function NavRows({
   selected: string;
   collapsed: boolean;
   inset: boolean;
-  /** Whether Support or Settings matches, so "No results" only shows when nothing does. */
+  /** Whether Settings matches, so "No results" only shows when nothing does. */
   secondaryMatch: boolean;
 }) {
   const shown = items.filter((item) => item.label.toLocaleLowerCase().includes(query));
@@ -285,7 +299,7 @@ function GroupedNavRows({
   selected: string;
   collapsed: boolean;
   inset: boolean;
-  /** Whether Support or Settings matches, so "No results" only shows when nothing does. */
+  /** Whether Settings matches, so "No results" only shows when nothing does. */
   secondaryMatch: boolean;
 }) {
   const filtered = groups
@@ -299,18 +313,16 @@ function GroupedNavRows({
   if (filtered.length === 0 && !secondaryMatch && !collapsed) {
     return <p className="px-2 py-3 text-body-regular text-muted-foreground">No results</p>;
   }
-  return filtered.map((group) => (
-    <div key={group.label} className={cn("flex w-full flex-col gap-1", collapsed && "items-start")}>
-      <div
-        className={cn(
-          "overflow-hidden whitespace-nowrap transition-[max-height,opacity] shell-sidebar-motion",
-          collapsed ? "max-h-0 opacity-0" : "max-h-8 opacity-100",
-        )}
-      >
-        <span className="block px-2 pt-2 text-body-2-medium text-muted-foreground/60">
-          {group.label}
-        </span>
-      </div>
+  return filtered.map((group, groupIndex) => (
+    <div
+      key={group.label ?? `group-${groupIndex}`}
+      className={cn("flex w-full flex-col gap-0.5", collapsed && "items-start")}
+    >
+      {group.label && !collapsed ? (
+        <div className="mt-0.5 flex h-8 w-full items-center px-2 text-xs font-medium text-muted-foreground/70">
+          <span className="truncate">{group.label}</span>
+        </div>
+      ) : null}
       {group.items.map((item) => {
         const isSelected = selected === item.key;
         return (
@@ -339,7 +351,6 @@ export function DashboardSidebar({
   mobile = false,
   onClose,
   fluid = false,
-  showThemeToggle = true,
   selected = "home",
   items = DASHBOARD_NAV,
   groups,
@@ -349,7 +360,6 @@ export function DashboardSidebar({
   topSlot,
   bottomSlot,
   settingsHref,
-  supportHref,
   hideSecondaryNav = false,
   onQuickSearch,
 }: {
@@ -357,14 +367,12 @@ export function DashboardSidebar({
   mobile?: boolean;
   onClose?: () => void;
   /** Expanded width fills its container below `lg` instead of the fixed
-   *  232px (e.g. the landing page, where the sidebar isn't in a drawer).
+   *  264px rail (e.g. the landing page, where the sidebar isn't in a drawer).
    *  Collapsed width stays the fixed rail at every breakpoint — the whole
    *  point of collapsing is to shrink, so it must never get overridden back
    *  to full width. */
   fluid?: boolean;
-  /** Hide the app-level theme control when the sidebar is used as marketing artwork. */
-  showThemeToggle?: boolean;
-  /** Which nav item shows the selected (filled blue) state. */
+  /** Which nav item shows the selected (filled) state. */
   selected?: DashboardNavKey;
   /** Primary navigation rows. The Pro dashboard's set unless a screen brings its own. */
   items?: DashboardNavItem[];
@@ -382,11 +390,9 @@ export function DashboardSidebar({
   topSlot?: ReactNode;
   /** Replaces the demo team card at the bottom (e.g. with the app user menu). */
   bottomSlot?: ReactNode;
-  /** When provided, the Settings secondary row links here instead of opening the demo SettingsModal. */
+  /** When provided, the Settings row links here instead of opening the demo SettingsModal. */
   settingsHref?: string;
-  /** When provided, the Support secondary row links here (otherwise it stays decorative). */
-  supportHref?: string;
-  /** Hides the demo Support/Settings secondary rows (e.g. inside the settings shell, which owns its own nav). */
+  /** Hides the Settings row (e.g. inside the settings shell, which owns its own nav). */
   hideSecondaryNav?: boolean;
   /**
    * When provided, the Search row opens the global record search dialog
@@ -399,6 +405,11 @@ export function DashboardSidebar({
   const [suppressUserHover, setSuppressUserHover] = useState(false);
   const [searchActive, setSearchActive] = useState(false);
   const [query, setQuery] = useState("");
+  const shortcutHint = useSyncExternalStore(
+    subscribeToPlatform,
+    getShortcutHint,
+    getServerShortcutHint,
+  );
   const searchTriggerRef = useRef<HTMLButtonElement>(null);
   const searchFieldRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -408,8 +419,7 @@ export function DashboardSidebar({
   const railInset = inset && !mobile;
   const normalizedQuery = query.trim().toLocaleLowerCase();
   const matches = (label: string) => label.toLocaleLowerCase().includes(normalizedQuery);
-  const secondaryLabels = ["Support", "Settings"];
-  const secondaryMatch = secondaryLabels.some(matches);
+  const secondaryMatch = matches("Settings");
 
   const activateSearch = useCallback(() => {
     if (onQuickSearch) {
@@ -448,8 +458,12 @@ export function DashboardSidebar({
   }, [deactivateSearch, searchActive]);
 
   useEffect(() => {
+    // The main shell mounts the global command menu, which owns ⌘/Ctrl+K.
+    // Settings and admin have no command menu, so their sidebar search takes it.
+    if (onQuickSearch) return;
+
     const onShortcut = (event: KeyboardEvent) => {
-      if (event.key.toLocaleLowerCase() === "l" && (event.metaKey || event.ctrlKey)) {
+      if (event.key.toLocaleLowerCase() === "k" && (event.metaKey || event.ctrlKey)) {
         event.preventDefault();
         activateSearch();
       }
@@ -457,7 +471,7 @@ export function DashboardSidebar({
 
     window.addEventListener("keydown", onShortcut);
     return () => window.removeEventListener("keydown", onShortcut);
-  }, [activateSearch]);
+  }, [activateSearch, onQuickSearch]);
 
   return (
     <aside
@@ -488,58 +502,32 @@ export function DashboardSidebar({
           : mobile || fluid
             ? railInset
               ? "w-full p-2"
-              : "w-full p-3 lg:w-[14.5rem]"
+              : // The fullscreen mobile drawer keeps the same 8px inset as the
+                // desktop rail so search, nav, and footer rows share one edge.
+                "w-full p-2 lg:w-(--sidebar-rail-width)"
             : railInset
-              ? "w-[14.5rem] p-2"
-              : "w-[14.5rem] p-3",
+              ? "w-(--sidebar-rail-width) p-2"
+              : "w-(--sidebar-rail-width) p-3",
         className,
       )}
     >
-      {/* Pinned header: the business switcher and search stay put while
-          only the primary nav below scrolls. Horizontal bleed (`-mx-2` +
-          `w-[calc(100%+1rem)]` + `px-2`) matches the nav scroller so all rows
-          align; no vertical negative margin here so it never overlaps the
-          scroller. */}
-      <div
-        className="-mx-2 flex w-[calc(100%+1rem)] shrink-0 flex-col gap-3 px-2 pt-2 pb-1"
-      >
-        {/* Business switcher / collapse control */}
+      {/* Pinned header: the business profile and search stay put while only
+          the primary nav below scrolls. The rail supplies the 8px outer inset;
+          the top slot owns its own inner 8px padding so its hover fill starts
+          at the rail edge while labels still line up with the nav rows. */}
+      <div className="flex w-full shrink-0 flex-col gap-1">
         <div
           className={cn(
-            "flex w-full transition-[gap] shell-sidebar-motion",
-            collapsed
-              ? "flex-col-reverse items-start justify-center gap-2.5"
-              : "flex-row items-center justify-between",
+            "flex w-full items-center gap-2",
+            collapsed ? "flex-col justify-center" : "h-14",
           )}
         >
-          {/* The clip is here to hide the label as `max-width` animates shut,
-              but it also cropped the trigger's hover pill down to four corner
-              arcs. Same trick as the scroller: pad the clip box out by the
-              pill's 8px reach and pull it back with a negative margin, so the
-              widths below are 16px larger than the footprint they produce. */}
           <div
             className={cn(
-              "min-w-0 transition-[max-width,opacity,transform,scale] shell-sidebar-motion",
-              // Collapsed: the slot stays mounted in a centered 36px column.
-              // Expanded-only rows hide themselves via
-              // `group-data-[collapsed=true]/sidebar` (the aside carries
-              // `group/sidebar` + `data-collapsed`); avatar-only collapsed
-              // triggers do the reverse. Never `hidden` here — that would
-              // remove the collapsed business avatar too.
-              collapsed
-                ? "flex w-9 items-center justify-center"
-                : // `flex-1` fixes the slot to the full header width so the
-                  // trigger never resizes with the business name length — long
-                  // names truncate instead. The desktop expanded rail caps it
-                  // to its rail footprint; the full-width mobile drawer keeps
-                  // the whole row, so the switcher matches search and nav.
-                  "-m-2 min-w-0 flex-1 overflow-hidden p-2",
-              !collapsed &&
-                (mobile && flat && searchActive
-                  ? "max-w-0 scale-95 opacity-0"
-                  : mobile
-                    ? "max-w-full scale-100 opacity-100"
-                    : "max-w-[12.875rem] scale-100 opacity-100"),
+              "min-w-0",
+              collapsed ? "flex w-full justify-center" : "flex-1",
+              // The built-in user menu has no inner padding of its own.
+              !collapsed && !topSlot && "px-2",
             )}
           >
             {topSlot ? (
@@ -549,79 +537,29 @@ export function DashboardSidebar({
                 collapsed={collapsed}
                 suppressHover={suppressUserHover}
                 onHoverSuppressionEnd={() => setSuppressUserHover(false)}
-                avatarClassName={
-                  flat
-                    ? "bg-sidebar-accent"
-                    : undefined
-                }
+                avatarClassName={flat ? "bg-sidebar-accent" : undefined}
               />
             )}
           </div>
-          {mobile && flat ? (
-            <div
-              ref={searchFieldRef}
-              className={cn(
-                "flex h-9 items-center overflow-hidden rounded-full bg-sidebar-accent transition-[width,box-shadow] shell-sidebar-motion",
-                searchActive
-                  ? "w-full gap-2 pr-2.5 pl-2 ring-2 ring-inset ring-sidebar-ring"
-                  : "w-9 gap-0 px-2",
-              )}
-            >
-              <button
-                ref={searchTriggerRef}
-                type="button"
-                aria-label="Search"
-                onClick={activateSearch}
-                className="flex size-5 shrink-0 cursor-pointer items-center justify-center text-muted-foreground"
-              >
-                <RiSearchLine className="size-5" aria-hidden />
-              </button>
-              <input
-                ref={searchInputRef}
-                type="search"
-                aria-label="Filter template navigation"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Escape") {
-                    event.preventDefault();
-                    deactivateSearch(true);
-                  }
-                }}
-                placeholder="Search..."
-                tabIndex={searchActive ? 0 : -1}
-                className={cn(
-                  "min-w-0 bg-transparent text-body-medium tracking-[-0.015em] text-foreground outline-none placeholder:text-muted-foreground",
-                  "transition-[width,opacity] [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)]",
-                  searchActive
-                    ? "w-full flex-1 opacity-100 delay-100"
-                    : "pointer-events-none w-0 flex-none opacity-0 delay-0",
-                )}
-              />
-              <CloseButton
-                size="2xs"
-                aria-label="Clear navigation search"
-                onClick={() => deactivateSearch(true)}
-                className={cn(
-                  "motion-transition shrink-0 bg-sidebar-accent",
-                  searchActive ? "opacity-100 delay-150" : "pointer-events-none opacity-0 delay-0",
-                )}
-              />
-            </div>
-          ) : mobile ? (
-            <button
+          {mobile ? (
+            <Button
               type="button"
+              variant="ghost"
+              size="icon-xs"
               aria-label="Close sidebar"
               onClick={onClose}
-              className="cursor-pointer text-muted-foreground"
+              className="shrink-0 text-muted-foreground hover:text-foreground"
             >
-              <RiCloseLine className="size-5" aria-hidden />
-            </button>
+              <X className="size-4" aria-hidden />
+            </Button>
           ) : (
-            <button
+            <Button
               type="button"
-              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              variant="ghost"
+              size="icon-xs"
+              aria-label="Toggle sidebar"
               aria-expanded={!collapsed}
+              title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
               onClick={() => {
                 const isExpanding = collapsedState;
                 if (!isExpanding) deactivateSearch(false);
@@ -629,30 +567,30 @@ export function DashboardSidebar({
                 setSuppressUserHover(isExpanding);
               }}
               className={cn(
-                "cursor-pointer text-muted-foreground",
-                collapsed && "flex w-9 items-center justify-center",
+                "shrink-0 text-muted-foreground hover:text-foreground",
+                collapsed && "size-9",
               )}
             >
-              <RiSideBarFill
-                className={cn("motion-icon-swap size-5", !collapsed && "-scale-x-100")}
-                aria-hidden
-              />
-            </button>
+              <PanelLeft className="size-4" aria-hidden />
+            </Button>
           )}
         </div>
 
-        <div className={cn("flex w-full flex-col gap-3", collapsed && "items-start")}>
-          {/* Quick search */}
-          {!flat && (searchActive && !collapsed ? (
+        {/* Quick search */}
+        {!flat &&
+          (searchActive && !collapsed ? (
             <div
               ref={searchFieldRef}
-              className="motion-transition flex w-full items-center gap-2 rounded-full bg-sidebar-accent py-2 pr-2.5 pl-2 ring-2 ring-inset ring-sidebar-ring"
+              className="flex h-8 w-full items-center gap-2 rounded-lg bg-sidebar-accent px-2 ring-2 ring-inset ring-sidebar-ring/40"
             >
-              <RiSearchLine className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+              <Search
+                className="size-4 shrink-0 text-muted-foreground"
+                aria-hidden
+              />
               <input
                 ref={searchInputRef}
                 type="search"
-                aria-label="Filter template navigation"
+                aria-label="Filter navigation"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 onKeyDown={(event) => {
@@ -662,7 +600,7 @@ export function DashboardSidebar({
                   }
                 }}
                 placeholder="Search navigation…"
-                className="min-w-0 flex-1 bg-transparent text-body-medium text-foreground outline-none placeholder:text-muted-foreground"
+                className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
               />
               <CloseButton
                 size="2xs"
@@ -679,105 +617,82 @@ export function DashboardSidebar({
               title={collapsed ? "Search" : undefined}
               onClick={activateSearch}
               className={cn(
-                "flex w-full cursor-pointer items-center gap-2 rounded-full bg-sidebar-accent px-2 py-1.5 hover:bg-sidebar-accent/70",
-                "transition-[width,border-radius,background-color] shell-sidebar-motion",
-                collapsed &&
-                  (railInset
-                    ? // Keep the same 8px inset so the icon does not slide as
-                      // the rail narrows; the parent supplies the 36px width.
-                      "justify-start gap-0 p-2"
-                    : "size-9 justify-center gap-0 p-0"),
+                "flex h-8 w-full cursor-pointer items-center gap-2 rounded-lg bg-sidebar-accent px-2 text-muted-foreground",
+                "transition-[background-color,color] shell-sidebar-motion hover:bg-sidebar-accent/70 hover:text-foreground",
+                collapsed && "gap-0",
               )}
             >
-              <span
-                className={cn(
-                  "flex min-w-0 items-center gap-2",
-                  collapsed ? "gap-0" : "flex-1",
-                )}
-              >
-                <RiSearchLine className="size-5 shrink-0 text-muted-foreground" aria-hidden />
-                <Collapsible collapsed={collapsed}>
-                  <span className="whitespace-nowrap text-sm leading-6 font-medium text-muted-foreground">
-                    Search
-                  </span>
-                </Collapsible>
-              </span>
+              <Search className="size-4 shrink-0" aria-hidden />
+              <Collapsible collapsed={collapsed} className="flex-1">
+                <span className="flex w-full min-w-0 items-center justify-between gap-2">
+                  <span className="truncate text-sm font-medium">Search</span>
+                  <span className="shrink-0 text-xs">{shortcutHint}</span>
+                </span>
+              </Collapsible>
             </button>
           ))}
-        </div>
       </div>
 
-        {/* Primary nav scroller — the only scroll region in the rail. The
-            header (switcher + search) above and the footer below stay pinned
-            while this scrolls. `overflow-y: auto` forces the x axis to clip
-            too, so padding moves the clip edge out and the matching negative
-            margin borrows that space back from the rail's own padding,
-            leaving every child exactly where it was (this keeps the selected
-            item's 1px ring and focus rings unclipped). */}
-        <div
-          className="-mx-2 flex min-h-0 w-[calc(100%+1rem)] flex-1 flex-col overflow-y-auto px-2 py-2 [scrollbar-width:none]"
+      {/* Primary nav scroller — the only scroll region in the rail. The
+          header (switcher + search) above and the footer below stay pinned
+          while this scrolls. `overflow-y: auto` forces the x axis to clip
+          too, so padding moves the clip edge out and the matching negative
+          margin borrows that space back from the rail's own padding,
+          leaving every child exactly where it was (this keeps the selected
+          item's 1px ring and focus rings unclipped). */}
+      <div
+        className="-mx-2 flex min-h-0 w-[calc(100%+1rem)] flex-1 flex-col overflow-y-auto px-2 py-2 [scrollbar-width:none]"
+      >
+        {/* Primary nav. Rows span the scroller width in every presentation,
+            so their icons line up with the search row above; collapsed rows
+            stay left-anchored instead of re-centering. */}
+        <nav
+          aria-label="Primary"
+          className={cn(
+            "flex w-full flex-col gap-0.5",
+            collapsed && "items-start",
+          )}
         >
-          {/* Primary nav. The 2px inset applies to the panel rail's expanded
-              state only: its collapsed column is exactly as wide as a 36px
-              item, so extra padding would push every item right and the panel
-              clip would shave the selected fill. The inset rail instead keeps
-              rows at `w-full` and left-anchors their content, so no per-state
-              padding is needed. */}
+          {groups && groups.length > 0 ? (
+            <GroupedNavRows
+              groups={groups}
+              query={normalizedQuery}
+              selected={selected}
+              collapsed={collapsed}
+              inset={railInset}
+              secondaryMatch={secondaryMatch}
+            />
+          ) : (
+            <NavRows
+              items={items}
+              query={normalizedQuery}
+              selected={selected}
+              collapsed={collapsed}
+              inset={railInset}
+              secondaryMatch={secondaryMatch}
+            />
+          )}
+        </nav>
+      </div>
+
+      <div
+        className={cn(
+          "mt-auto flex w-full shrink-0 flex-col gap-2",
+          collapsed && "items-start",
+        )}
+      >
+        {/* Settings stays pinned to the bottom of the nav column. */}
+        {hideSecondaryNav ? null : (
           <nav
-            aria-label="Primary"
             className={cn(
               "flex w-full flex-col gap-1",
-              collapsed ? "items-start" : !railInset && "px-0.5",
+              collapsed && "items-start",
             )}
           >
-            {groups && groups.length > 0 ? (
-              <GroupedNavRows
-                groups={groups}
-                query={normalizedQuery}
-                selected={selected}
-                collapsed={collapsed}
-                inset={railInset}
-                secondaryMatch={secondaryMatch}
-              />
-            ) : (
-              <NavRows
-                items={items}
-                query={normalizedQuery}
-                selected={selected}
-                collapsed={collapsed}
-                inset={railInset}
-                secondaryMatch={secondaryMatch}
-              />
-            )}
-          </nav>
-        </div>
-
-      <div className={cn("flex w-full shrink-0 flex-col gap-3", collapsed && "items-start")}>
-        {showThemeToggle &&
-          (collapsed ? (
-            <ThemeToggle collapsed />
-          ) : (
-            <ThemeToggle
-              appearance="sidebar-segmented"
-              className={flat ? "!bg-sidebar-accent" : undefined}
-            />
-          ))}
-        {/* Secondary nav */}
-        {hideSecondaryNav ? null : (
-          <nav className={cn("flex w-full flex-col gap-1", collapsed && "items-start")}>
-            {matches("Support") && (
-              <NavItem
-                icon={RiCustomerServiceLine}
-                label="Support"
-                collapsed={collapsed}
-                inset={railInset}
-                href={supportHref}
-              />
-            )}
             {matches("Settings") &&
               (settingsHref ? (
                 <NavItem
-                  icon={RiSettings4Line}
+                  icon={Settings}
                   label="Settings"
                   collapsed={collapsed}
                   inset={railInset}
@@ -785,7 +700,7 @@ export function DashboardSidebar({
                 />
               ) : (
                 <NavItem
-                  icon={RiSettings4Line}
+                  icon={Settings}
                   label="Settings"
                   collapsed={collapsed}
                   inset={railInset}
@@ -800,14 +715,25 @@ export function DashboardSidebar({
             `group-data-[collapsed=true]/sidebar`, avatar-only collapsed
             triggers do the reverse. */}
         {bottomSlot ? (
-          <div className={cn("w-full min-w-0", collapsed && "flex w-9 justify-center")}>
+          <div
+            className={cn(
+              "w-full min-w-0",
+              collapsed && "flex w-9 justify-center",
+            )}
+          >
             {bottomSlot}
           </div>
         ) : (
-          <DashboardTeamMenu
-            collapsed={collapsed}
-            className={flat ? "!bg-sidebar-accent" : undefined}
-          />
+          <div className="flex w-full flex-col gap-2">
+            <div
+              aria-hidden="true"
+              className="w-full border-t border-sidebar-border group-data-[collapsed=true]/sidebar:hidden"
+            />
+            <DashboardTeamMenu
+              collapsed={collapsed}
+              className={flat ? "!bg-sidebar-accent" : undefined}
+            />
+          </div>
         )}
       </div>
 

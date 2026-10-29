@@ -32,10 +32,10 @@ export type AdminSidebarProps = {
  * dashboard uses.
  *
  * Requo's product sidebar is not the shadcn `Sidebar` — it is `DashboardSidebar`
- * (mounted via `BoarduiMainSidebar`), which owns the 260px/60px morph, the
- * quick-search affordance, the theme toggle, and the selected-row pill. The
- * admin mounts that component unchanged and only swaps the navigation data, so
- * the console's rail is pixel-identical to the main app's.
+ * (mounted via `BoarduiMainSidebar`), which owns the 264px/60px morph, the
+ * quick-search affordance, and the selected-row pill. The admin mounts that
+ * component unchanged and only swaps the navigation data, so the console's
+ * rail is pixel-identical to the main app's.
  */
 export function AdminSidebar({
   userSlot,
@@ -60,7 +60,7 @@ export function AdminSidebar({
     // `BrandMark` collapses on the shadcn `data-collapsible=icon` attribute;
     // the BoardUI rail uses `data-collapsed` instead, so the wordmark is hidden
     // here through the sidebar group variant.
-    <div className="w-full min-w-0 overflow-hidden px-1">
+    <div className="w-full min-w-0 overflow-hidden px-3 group-data-[collapsed=true]/sidebar:px-0">
       <BrandMark
         className="group-data-[collapsed=true]/sidebar:gap-0 group-data-[collapsed=true]/sidebar:[&>span:last-child]:hidden"
         href={ADMIN_ROOT_PATH}
@@ -69,7 +69,15 @@ export function AdminSidebar({
     </div>
   );
 
-  const bottomSlot = userSlot;
+  const bottomSlot = (
+    <div className="flex w-full flex-col gap-2 group-data-[collapsed=true]/sidebar:items-center group-data-[collapsed=true]/sidebar:gap-0">
+      <div
+        aria-hidden="true"
+        className="w-full shrink-0 border-t border-sidebar-border group-data-[collapsed=true]/sidebar:hidden"
+      />
+      {userSlot}
+    </div>
+  );
 
   return (
     <DashboardSidebar
