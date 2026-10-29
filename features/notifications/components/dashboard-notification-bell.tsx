@@ -654,7 +654,14 @@ export function DashboardNotificationBell({
       <Separator />
       <div
         ref={scrollViewportRef}
-        className="max-h-[min(26rem,calc(100dvh-11rem))] overflow-y-auto overscroll-contain sm:max-h-[26rem]"
+        className={cn(
+          "overscroll-contain",
+          isMobile
+            ? // The sheet body owns the height; this is the only scroll
+              // container on mobile, so drop the nested max-height viewport.
+              "min-h-0 flex-1 overflow-y-auto"
+            : "max-h-[min(26rem,calc(100dvh-11rem))] overflow-y-auto sm:max-h-[26rem]",
+        )}
         onScroll={handleNotificationScroll}
       >
         {view.items.length ? (
@@ -690,16 +697,22 @@ export function DashboardNotificationBell({
                       >
                         {item.title}
                       </p>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span
-                            className="shrink-0 text-xs font-medium text-muted-foreground"
-                          >
-                            {formatRelativeNotificationTime(item.createdAt)}
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent>{formatNotificationDateTime(item.createdAt)}</TooltipContent>
-                      </Tooltip>
+                      {isMobile ? (
+                        <span className="shrink-0 text-xs font-medium text-muted-foreground">
+                          {formatRelativeNotificationTime(item.createdAt)}
+                        </span>
+                      ) : (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span
+                              className="shrink-0 text-xs font-medium text-muted-foreground"
+                            >
+                              {formatRelativeNotificationTime(item.createdAt)}
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>{formatNotificationDateTime(item.createdAt)}</TooltipContent>
+                        </Tooltip>
+                      )}
                     </div>
                     <p className="mt-1 break-words text-sm leading-5 text-muted-foreground">
                       {item.summary}
@@ -756,14 +769,14 @@ export function DashboardNotificationBell({
       <Sheet open={isOpen} onOpenChange={setIsOpen}>
         <SheetTrigger asChild>{trigger}</SheetTrigger>
         <SheetContent
-          className="h-[min(34rem,calc(100dvh-0.75rem))] rounded-t-2xl"
+          className="data-[side=bottom]:h-[min(34rem,calc(100dvh-0.75rem))] rounded-t-2xl"
           side="bottom"
           showCloseButton={false}
         >
           <SheetHeader className="sr-only">
             <SheetTitle>Notifications</SheetTitle>
           </SheetHeader>
-          <SheetBody className="gap-0 p-0">
+          <SheetBody className="gap-0 overflow-hidden p-0">
             {notificationContent}
           </SheetBody>
         </SheetContent>

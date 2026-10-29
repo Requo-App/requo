@@ -1,4 +1,5 @@
-import { render, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { channels, fakeSupabase, pendingRemovals } = vi.hoisted(() => {
@@ -71,8 +72,10 @@ vi.mock("@/features/notifications/actions", () => ({
   markBusinessNotificationsReadAction: vi.fn(),
 }));
 
+const mobileState = vi.hoisted(() => ({ isMobile: false }));
+
 vi.mock("@/hooks/use-mobile", () => ({
-  useIsMobile: () => false,
+  useIsMobile: () => mobileState.isMobile,
 }));
 
 vi.mock("next/navigation", () => ({
@@ -96,20 +99,21 @@ vi.mock("next/link", () => ({
 }));
 
 import { DashboardNotificationBell } from "@/features/notifications/components/dashboard-notification-bell";
+import type { BusinessNotificationBellView } from "@/features/notifications/types";
 
-const initialView = {
+const initialView: BusinessNotificationBellView = {
   items: [],
   unreadCount: 0,
   lastReadAt: null,
   hasMore: false,
 };
 
-function renderBell() {
+function renderBell(view: BusinessNotificationBellView = initialView) {
   return render(
     <DashboardNotificationBell
       businessId="biz_1"
       businessSlug="acme"
-      initialView={initialView}
+      initialView={view}
       userId="user_1"
     />,
   );
@@ -118,6 +122,7 @@ function renderBell() {
 beforeEach(() => {
   channels.clear();
   pendingRemovals.length = 0;
+  mobileState.isMobile = false;
 
   vi.stubGlobal("requestIdleCallback", (callback: IdleRequestCallback) => {
     callback({ didTimeout: false, timeRemaining: () => 0 });
@@ -164,5 +169,50 @@ describe("DashboardNotificationBell realtime", () => {
       (topic) => !firstTopics.includes(topic),
     );
     expect(newTopics).toHaveLength(3);
+  });
+});
+
+describe("DashboardNotificationBell mobile drawer", () => {
+  it("uses one scroll container and drops hover-only timestamps", async () => {
+    mobileState.isMobile = true;
+
+    const user = userEvent.setup();
+    renderBell({
+      items: [
+        {
+          id: "notification_1",
+          type: "public_inquiry_submitted",
+          title: "New inquiry",
+          summary: "A customer asked for a quote.",
+          href: "/acme/inquiries/inq_1",
+          createdAt: new Date().toISOString(),
+          unread: true,
+        },
+      ],
+      unreadCount: 1,
+      lastReadAt: null,
+      hasMore: false,
+    });
+
+    await user.click(
+      screen.getByRole("button", { name: "1 unread notifications" }),
+    );
+
+    const sheetBody = document.querySelector('[data-slot="sheet-body"]');
+    expect(sheetBody).toHaveClass("overflow-hidden");
+
+    // The base bottom sheet is height-auto; the notification drawer opts into
+    // a bounded height with the same variant so the override actually wins.
+    expect(sheetBody?.closest('[data-slot="sheet-content"]')).toHaveClass(
+      "data-[side=bottom]:h-[min(34rem,calc(100dvh-0.75rem))]",
+    );
+
+    const scrollViewport = sheetBody?.querySelector(".overscroll-contain");
+    expect(scrollViewport).toHaveClass("flex-1");
+    expect(scrollViewport?.className).not.toContain("max-h-");
+
+    // The desktop popover keeps the exact timestamp in a tooltip. Touch
+    // devices cannot hover, so the mobile drawer must not mount one.
+    expect(screen.getByText("Just now")).not.toHaveAttribute("data-state");
   });
 });
