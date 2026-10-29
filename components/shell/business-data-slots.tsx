@@ -2,6 +2,7 @@ import { getAppShellContext } from "@/lib/app-shell/context";
 import { requireSession } from "@/lib/auth/session";
 import { getBusinessMembershipsForUser } from "@/lib/db/business-access";
 import { getBusinessQuotaForUser } from "@/features/businesses/quota";
+import { getBusinessBillingShellOverview } from "@/features/billing/queries";
 import { getThemePreferenceForUser } from "@/features/theme/queries";
 import { ThemePreferenceSync } from "@/features/theme/components/theme-preference-sync";
 import { getUiScalePreferenceForUser } from "@/features/theme/ui-scale-queries";
@@ -34,11 +35,22 @@ export async function BusinessSwitcherSlot({
     ownerUserId: session.user.id,
   });
 
+  const billing = await getBusinessBillingShellOverview(
+    businessContext.business.id,
+  ).catch(() => null);
+  const isTrialing =
+    billing != null &&
+    billing.currentPlan === "pro" &&
+    billing.subscription?.status === "trialing";
+
   return (
     <BusinessSwitcher
       currentBusiness={businessContext}
       memberships={memberships}
       businessQuota={businessQuota}
+      userId={session.user.id}
+      billingCurrency={billing?.billingCurrency}
+      isTrialing={isTrialing}
       compact
     />
   );
@@ -63,11 +75,22 @@ export async function MobileBusinessSwitcherSlot({
     ownerUserId: session.user.id,
   });
 
+  const billing = await getBusinessBillingShellOverview(
+    businessContext.business.id,
+  ).catch(() => null);
+  const isTrialing =
+    billing != null &&
+    billing.currentPlan === "pro" &&
+    billing.subscription?.status === "trialing";
+
   return (
     <MobileBusinessSwitcher
       currentBusiness={businessContext}
       memberships={memberships}
       businessQuota={businessQuota}
+      userId={session.user.id}
+      billingCurrency={billing?.billingCurrency}
+      isTrialing={isTrialing}
     />
   );
 }

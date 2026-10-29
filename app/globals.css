@@ -3852,6 +3852,16 @@ html[data-reload-loading="fade-out"] #app-root-content {
     z-index: var(--z-popover-layer);
   }
 
+  /* The plan picker can open from inside a dropdown or mobile popover sheet.
+     Keep the modal above that layer while the menu finishes its exit. */
+  .plan-selection-layer-overlay {
+    z-index: calc(var(--z-popover-layer) + 1);
+  }
+
+  .plan-selection-layer-content {
+    z-index: calc(var(--z-popover-layer) + 2);
+  }
+
   [data-slot="dropdown-menu-mobile-overlay"] {
     display: none;
     pointer-events: none;

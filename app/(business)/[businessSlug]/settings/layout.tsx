@@ -15,6 +15,7 @@ import {
   ThemeSyncSlot,
 } from "@/components/shell/business-data-slots";
 import { BusinessCheckoutProvider } from "@/features/billing/components/business-checkout-provider";
+import { PlanSelectionProvider } from "@/features/billing/components/plan-selection-provider";
 import { getBusinessBillingShellOverview } from "@/features/billing/queries";
 import { getAppShellContext } from "@/lib/app-shell/context";
 import { requireSession } from "@/lib/auth/session";
@@ -62,6 +63,7 @@ async function SettingsShell({
       <Suspense fallback={null}>
         <ThemeSyncSlot businessSlug={businessSlug} />
       </Suspense>
+      <PlanSelectionProvider>
       <SettingsShellFrame
         businessSlug={businessSlug}
         groups={groups}
@@ -87,6 +89,7 @@ async function SettingsShell({
           </CheckoutProviderSlot>
         </Suspense>
       </SettingsShellFrame>
+      </PlanSelectionProvider>
     </>
   );
 }

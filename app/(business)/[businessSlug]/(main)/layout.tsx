@@ -16,6 +16,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { UpgradeButton } from "@/features/billing/components/upgrade-button";
 import { BusinessCheckoutProvider } from "@/features/billing/components/business-checkout-provider";
+import { PlanSelectionProvider } from "@/features/billing/components/plan-selection-provider";
 import { TrialBanner } from "@/features/billing/components/trial-banner";
 import { UpgradeSuccessModal } from "@/features/billing/components/upgrade-success-modal";
 import { LockedBusinessSurface } from "@/features/businesses/components/locked-business-surface";
@@ -77,6 +78,7 @@ async function BusinessMainShell({
 
   return (
     <>
+      <PlanSelectionProvider>
       <DashboardShellFrame
         businessSlug={businessSlug}
         businessSwitcherSlot={
@@ -132,6 +134,7 @@ async function BusinessMainShell({
           {children}
         </BillingBoundary>
       </DashboardShellFrame>
+      </PlanSelectionProvider>
     </>
   );
 }
@@ -142,13 +145,23 @@ async function BusinessMainShell({
 
 async function UserMenuSlot({ businessSlug }: { businessSlug: string }) {
   const { user, businessContext } = await getAppShellContext(businessSlug);
-  const profile = await getAccountProfileForUser(user.id);
+  const [profile, billing] = await Promise.all([
+    getAccountProfileForUser(user.id),
+    getBusinessBillingShellOverview(businessContext.business.id).catch(
+      () => null,
+    ),
+  ]);
 
   const avatarSrc = resolveUserAvatarSrc({
     avatarStoragePath: profile?.avatarStoragePath,
     profileUpdatedAt: profile?.updatedAt,
     oauthImage: user.image ?? null,
   });
+
+  const isTrialing =
+    billing != null &&
+    billing.currentPlan === "pro" &&
+    billing.subscription?.status === "trialing";
 
   return (
     <DashboardUserMenu
@@ -161,7 +174,11 @@ async function UserMenuSlot({ businessSlug }: { businessSlug: string }) {
       businessRole={businessContext.role}
       businessSlug={businessContext.business.slug}
       businessId={businessContext.business.id}
+      currency={
+        billing?.billingCurrency ?? businessContext.business.defaultCurrency
+      }
       plan={businessContext.business.plan}
+      isTrialing={isTrialing}
     />
   );
 }

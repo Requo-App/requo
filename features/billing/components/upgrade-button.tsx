@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useBusinessCheckout } from "@/features/billing/components/business-checkout-provider";
 import { PlanSelectionSheet } from "@/features/billing/components/plan-selection-sheet";
+import { usePlanSelection } from "@/features/billing/components/plan-selection-provider";
 import { startPolarCheckout } from "@/features/billing/start-checkout";
 import { getBusinessHomePath } from "@/features/businesses/routes";
 import type {
@@ -31,12 +32,23 @@ type UpgradeButtonProps = {
   variant?: "default" | "outline" | "ghost" | "secondary";
   size?: "default" | "sm" | "lg";
   className?: string;
+  /** Notify the host that the plan picker is opening (e.g. close its dropdown). */
+  onOpen?: () => void;
   children?: React.ReactNode;
 };
 
-function resolveTargetPlan(currentPlan: plan, targetPlan?: PaidPlan): PaidPlan {
+function resolveTargetPlan(
+  currentPlan: plan,
+  targetPlan?: PaidPlan,
+  isTrialing = false,
+): PaidPlan {
   if (targetPlan) {
     return targetPlan;
+  }
+  // A trial grants Pro without a paid subscription. The next paid action is
+  // subscribing to Pro, not upgrading past it.
+  if (isTrialing) {
+    return "pro";
   }
   return currentPlan === "pro" ? "business" : "pro";
 }
@@ -48,10 +60,9 @@ function resolveTargetPlan(currentPlan: plan, targetPlan?: PaidPlan): PaidPlan {
  * and checkout state to the provider so multiple UpgradeButtons on the same
  * page share a single sheet and a single in-flight checkout transition.
  *
- * When rendered outside the provider (settings routes, upgrade popovers in
- * deep layouts, etc.), it falls back to a self-contained PlanSelectionSheet
- * using the props it already receives. This guarantees every UpgradeButton
- * opens the plan sheet, regardless of where it's mounted.
+ * When rendered outside that provider, it hands the request to the shell's
+ * `PlanSelectionProvider` so the sheet survives its dropdown closing. A local
+ * self-contained sheet remains the last-resort fallback.
  */
 export function UpgradeButton({
   businessId,
@@ -63,11 +74,14 @@ export function UpgradeButton({
   variant = "default",
   size = "sm",
   className,
+  onOpen,
   children,
 }: UpgradeButtonProps) {
   const businessCheckout = useBusinessCheckout();
+  const planSelection = usePlanSelection();
   const usingProvider =
     businessCheckout != null && businessCheckout.businessId === businessId;
+  const usingShellProvider = !usingProvider && planSelection != null;
 
   // When attached to the provider, mirror its state. Otherwise own it locally.
   const [localOpen, setLocalOpen] = useState(false);
@@ -85,12 +99,28 @@ export function UpgradeButton({
     return null;
   }
 
-  const nextPlan = resolveTargetPlan(effectiveCurrentPlan, targetPlan);
+  const nextPlan = resolveTargetPlan(
+    effectiveCurrentPlan,
+    targetPlan,
+    isTrialing,
+  );
 
   function handleClick(event: React.MouseEvent<HTMLButtonElement>) {
     event.preventDefault();
+    onOpen?.();
     if (usingProvider) {
       businessCheckout.openPlanSelection(nextPlan);
+      return;
+    }
+    if (usingShellProvider) {
+      planSelection.openPlanSelection({
+        businessId,
+        businessSlug,
+        currency,
+        currentPlan: effectiveCurrentPlan,
+        isTrialing,
+        targetPlan: nextPlan,
+      });
       return;
     }
     setLocalTargetPlan(nextPlan);
@@ -129,7 +159,9 @@ export function UpgradeButton({
 
   const isPending = usingProvider
     ? !!businessCheckout.isStartingCheckout
-    : isLocalPending;
+    : usingShellProvider
+      ? planSelection.isStartingCheckout
+      : isLocalPending;
 
   return (
     <>
@@ -156,7 +188,7 @@ export function UpgradeButton({
         )}
       </Button>
 
-      {!usingProvider ? (
+      {!usingProvider && !usingShellProvider ? (
         <PlanSelectionSheet
           currentPlan={effectiveCurrentPlan}
           currency={currency}

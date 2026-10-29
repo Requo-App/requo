@@ -75,6 +75,34 @@ export function isTrialSubscription(
 }
 
 /**
+ * Whether an existing subscription keeps charging its stored billing currency.
+ *
+ * Active and past-due subscriptions are updated in place at Polar, and paused
+ * or still-canceled subscriptions are handled in the billing portal, so their
+ * stored currency is what the provider charges. A trial, free, expired, or
+ * ended-canceled row starts a fresh checkout, which Polar prices from the
+ * visitor's current market instead.
+ */
+export function usesStoredBillingCurrency(
+  subscription: Pick<SubscriptionLike, "status" | "currentPeriodEnd">,
+  now = new Date(),
+): boolean {
+  switch (subscription.status) {
+    case "active":
+    case "past_due":
+    case "paused":
+      return true;
+    case "canceled":
+      return (
+        subscription.currentPeriodEnd != null &&
+        subscription.currentPeriodEnd > now
+      );
+    default:
+      return false;
+  }
+}
+
+/**
  * Serializes subscription writes per business. `SELECT ... FOR UPDATE`
  * cannot lock a row that does not exist yet, so two first events could
  * otherwise both pass the stale check and race the unique insert.
