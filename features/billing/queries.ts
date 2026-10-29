@@ -13,6 +13,7 @@ import {
   getCachedBusinessSubscription,
   getBusinessSubscription,
   resolveEffectivePlanFromSubscription,
+  usesStoredBillingCurrency,
 } from "@/lib/billing/subscription-service";
 import {
   getBusinessBillingCacheTags,
@@ -66,16 +67,17 @@ function toBillingSubscriptionView(
 }
 
 /**
- * The subscription's billing currency is authoritative for an existing
- * subscription because that is what the provider charges. Without one, use
- * the visitor's detected pricing currency, matching the market the checkout
- * will open in. Header lookup failures fall back to USD so billing chrome
- * still renders in contexts without a request (for example, local builds).
+ * The subscription's billing currency is authoritative while that subscription
+ * is the one being charged. Trials, free rows, expired rows, and canceled rows
+ * past their period start a fresh checkout, which Polar prices from the
+ * visitor's current market — so display that market's currency instead.
+ * Header lookup failures fall back to USD so billing chrome still renders in
+ * contexts without a request (for example, local builds).
  */
 async function resolveBillingCurrency(
   subscription: Awaited<ReturnType<typeof getBusinessSubscription>>,
 ): Promise<BusinessBillingOverview["billingCurrency"]> {
-  if (subscription) {
+  if (subscription && usesStoredBillingCurrency(subscription)) {
     return subscription.billingCurrency;
   }
 
