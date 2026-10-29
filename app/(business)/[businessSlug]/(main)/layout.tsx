@@ -145,13 +145,23 @@ async function BusinessMainShell({
 
 async function UserMenuSlot({ businessSlug }: { businessSlug: string }) {
   const { user, businessContext } = await getAppShellContext(businessSlug);
-  const profile = await getAccountProfileForUser(user.id);
+  const [profile, billing] = await Promise.all([
+    getAccountProfileForUser(user.id),
+    getBusinessBillingShellOverview(businessContext.business.id).catch(
+      () => null,
+    ),
+  ]);
 
   const avatarSrc = resolveUserAvatarSrc({
     avatarStoragePath: profile?.avatarStoragePath,
     profileUpdatedAt: profile?.updatedAt,
     oauthImage: user.image ?? null,
   });
+
+  const isTrialing =
+    billing != null &&
+    billing.currentPlan === "pro" &&
+    billing.subscription?.status === "trialing";
 
   return (
     <DashboardUserMenu
@@ -164,8 +174,11 @@ async function UserMenuSlot({ businessSlug }: { businessSlug: string }) {
       businessRole={businessContext.role}
       businessSlug={businessContext.business.slug}
       businessId={businessContext.business.id}
-      currency={businessContext.business.defaultCurrency}
+      currency={
+        billing?.billingCurrency ?? businessContext.business.defaultCurrency
+      }
       plan={businessContext.business.plan}
+      isTrialing={isTrialing}
     />
   );
 }

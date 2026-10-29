@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -98,5 +98,75 @@ describe("BusinessSwitcher upgrade action", () => {
     await waitFor(() =>
       expect(screen.queryByText("Switch business")).not.toBeInTheDocument(),
     );
+  });
+
+  it("shows plan prices in the subscription billing currency", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <PlanSelectionProvider>
+        <BusinessSwitcher
+          billingCurrency="EUR"
+          businessQuota={{
+            allowed: false,
+            current: 1,
+            limit: 1,
+            ownerUserId: "user_1",
+            plan: "free",
+            upgradePlan: "pro",
+          }}
+          currentBusiness={currentBusiness}
+          memberships={[currentBusiness]}
+          userId="user_1"
+        />
+      </PlanSelectionProvider>,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: /brightside print studio/i }),
+    );
+    await user.click(await screen.findByRole("button", { name: "Upgrade" }));
+
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog).toHaveTextContent("€9/mo");
+  });
+
+  it("targets Pro while the business is inside its Pro trial", async () => {
+    const user = userEvent.setup();
+    const trialBusiness = { ...business, plan: "pro" as const };
+    const trialCurrentBusiness = {
+      ...currentBusiness,
+      business: trialBusiness,
+    };
+
+    render(
+      <PlanSelectionProvider>
+        <BusinessSwitcher
+          businessQuota={{
+            allowed: false,
+            current: 1,
+            limit: 1,
+            ownerUserId: "user_1",
+            plan: "pro",
+            upgradePlan: "business",
+          }}
+          currentBusiness={trialCurrentBusiness}
+          isTrialing
+          memberships={[trialCurrentBusiness]}
+          userId="user_1"
+        />
+      </PlanSelectionProvider>,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: /brightside print studio/i }),
+    );
+    await user.click(await screen.findByRole("button", { name: "Upgrade" }));
+
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog).toHaveTextContent("Choose a plan");
+    expect(
+      within(dialog).getByRole("button", { name: /subscribe to pro/i }),
+    ).toBeInTheDocument();
   });
 });

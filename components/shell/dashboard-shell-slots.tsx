@@ -16,6 +16,7 @@ import Link from "next/link";
 
 import { authClient } from "@/lib/auth/client";
 import { isBillingCurrency } from "@/lib/billing/currencies";
+import type { BillingCurrency } from "@/lib/billing/types";
 import { getDisplayFirstName } from "@/features/account/name";
 import { AppearanceMenuSubmenu } from "@/features/theme/components/appearance-menu";
 import { clearPersistedThemePreference } from "@/features/theme/persistence";
@@ -88,6 +89,8 @@ export function BusinessSwitcher({
   businessQuota,
   userId,
   compact = false,
+  billingCurrency,
+  isTrialing = false,
 }: {
   currentBusiness: BusinessContext;
   memberships: BusinessContext[];
@@ -95,6 +98,10 @@ export function BusinessSwitcher({
   userId: string;
   /** Compact single-row trigger (avatar + name + chevron) for the BoardUI sidebar. */
   compact?: boolean;
+  /** Subscription currency for plan prices; falls back to the quote currency. */
+  billingCurrency?: BillingCurrency;
+  /** The business is inside its Pro trial and still needs a subscription. */
+  isTrialing?: boolean;
 }) {
   const [isPending, startTransition] = useTransition();
   const { isMobile, setOpenMobile } = useSidebar();
@@ -127,9 +134,11 @@ export function BusinessSwitcher({
       )
     : memberships;
 
-  const upgradeCurrency = isBillingCurrency(business.defaultCurrency)
-    ? business.defaultCurrency
-    : "USD";
+  const upgradeCurrency =
+    billingCurrency ??
+    (isBillingCurrency(business.defaultCurrency)
+      ? business.defaultCurrency
+      : "USD");
 
   function closeMobileSidebar() {
     if (isMobile) {
@@ -276,6 +285,7 @@ export function BusinessSwitcher({
                 businessSlug={business.slug}
                 currency={upgradeCurrency}
                 currentPlan={business.plan}
+                isTrialing={isTrialing}
                 onOpen={() => setMenuOpen(false)}
                 size="sm"
                 userId={userId}
@@ -365,6 +375,7 @@ export function DashboardUserMenu({
   plan,
   businessId,
   currency,
+  isTrialing = false,
 }: {
   user: {
     id: string;
@@ -377,6 +388,8 @@ export function DashboardUserMenu({
   plan: BusinessContext["business"]["plan"];
   businessId: string;
   currency?: string;
+  /** The business is inside its Pro trial and still needs a subscription. */
+  isTrialing?: boolean;
 }) {
   const [isPending, startTransition] = useTransition();
   const { isMobile, setOpenMobile } = useSidebar();
@@ -478,6 +491,7 @@ export function DashboardUserMenu({
                     className="w-full whitespace-nowrap"
                     currency={upgradeCurrency}
                     currentPlan={plan}
+                    isTrialing={isTrialing}
                     onOpen={() => setMenuOpen(false)}
                     size="sm"
                     variant="outline"
@@ -563,11 +577,17 @@ export function MobileBusinessSwitcher({
   memberships,
   businessQuota,
   userId,
+  billingCurrency,
+  isTrialing = false,
 }: {
   currentBusiness: BusinessContext;
   memberships: BusinessContext[];
   businessQuota: BusinessQuotaSnapshot;
   userId: string;
+  /** Subscription currency for plan prices; falls back to the quote currency. */
+  billingCurrency?: BillingCurrency;
+  /** The business is inside its Pro trial and still needs a subscription. */
+  isTrialing?: boolean;
 }) {
   const [isPending, startTransition] = useTransition();
   const businessCheckout = useBusinessCheckout();
@@ -599,9 +619,11 @@ export function MobileBusinessSwitcher({
       )
     : memberships;
 
-  const upgradeCurrency = isBillingCurrency(business.defaultCurrency)
-    ? business.defaultCurrency
-    : "USD";
+  const upgradeCurrency =
+    billingCurrency ??
+    (isBillingCurrency(business.defaultCurrency)
+      ? business.defaultCurrency
+      : "USD");
 
   function handleSignOut() {
     startTransition(async () => {
@@ -699,6 +721,7 @@ export function MobileBusinessSwitcher({
                   businessSlug={business.slug}
                   currency={upgradeCurrency}
                   currentPlan={business.plan}
+                  isTrialing={isTrialing}
                   onOpen={() => setMenuOpen(false)}
                   size="sm"
                   userId={userId}

@@ -37,9 +37,18 @@ type UpgradeButtonProps = {
   children?: React.ReactNode;
 };
 
-function resolveTargetPlan(currentPlan: plan, targetPlan?: PaidPlan): PaidPlan {
+function resolveTargetPlan(
+  currentPlan: plan,
+  targetPlan?: PaidPlan,
+  isTrialing = false,
+): PaidPlan {
   if (targetPlan) {
     return targetPlan;
+  }
+  // A trial grants Pro without a paid subscription. The next paid action is
+  // subscribing to Pro, not upgrading past it.
+  if (isTrialing) {
+    return "pro";
   }
   return currentPlan === "pro" ? "business" : "pro";
 }
@@ -90,7 +99,11 @@ export function UpgradeButton({
     return null;
   }
 
-  const nextPlan = resolveTargetPlan(effectiveCurrentPlan, targetPlan);
+  const nextPlan = resolveTargetPlan(
+    effectiveCurrentPlan,
+    targetPlan,
+    isTrialing,
+  );
 
   function handleClick(event: React.MouseEvent<HTMLButtonElement>) {
     event.preventDefault();
