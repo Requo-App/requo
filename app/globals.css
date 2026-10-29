@@ -1836,8 +1836,8 @@ html[data-reload-loading="fade-out"] #app-root-content {
     @apply mx-auto flex min-w-0 w-full max-w-[92rem] flex-1 flex-col;
     /* Same backstop as dashboard-main below: contain an over-wide child so
        no page-level horizontal scrollbar can shrink the viewport below the
-       `h-svh` sticky sidebar rail. `clip` keeps sticky + inner
-       `overflow-x-auto` regions working. */
+       `h-dvh` shell frame. `clip` keeps sticky + inner `overflow-x-auto`
+       regions working. */
     overflow-x: clip;
   }
 
@@ -2014,8 +2014,8 @@ html[data-reload-loading="fade-out"] #app-root-content {
     @apply flex flex-1 flex-col px-3 py-4 sm:px-5 sm:py-5 xl:px-6 xl:py-6;
     /* Backstop against page-level horizontal scrollbars (e.g. an
        over-bleeding full-width section): a horizontal scrollbar shrinks the
-       layout viewport below the `h-svh` sticky sidebar rail, which then
-       visibly rides up over the last pixels of page scroll. `clip` (unlike
+       layout viewport below the `h-dvh` shell frame, which then visibly
+       rides up over the last pixels of page scroll. `clip` (unlike
        `hidden`) creates no scroll container, so sticky descendants and
        inner `overflow-x-auto` regions keep working. */
     overflow-x: clip;

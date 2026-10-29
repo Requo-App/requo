@@ -528,14 +528,18 @@ export function DashboardSidebar({
               // remove the collapsed business avatar too.
               collapsed
                 ? "flex w-9 items-center justify-center"
-                : // `flex-1` (capped by the `max-w` below) fixes the slot to
-                  // the full header width so the trigger never resizes with
-                  // the business name length — long names truncate instead.
+                : // `flex-1` fixes the slot to the full header width so the
+                  // trigger never resizes with the business name length — long
+                  // names truncate instead. The desktop expanded rail caps it
+                  // to its rail footprint; the full-width mobile drawer keeps
+                  // the whole row, so the switcher matches search and nav.
                   "-m-2 min-w-0 flex-1 overflow-hidden p-2",
               !collapsed &&
                 (mobile && flat && searchActive
                   ? "max-w-0 scale-95 opacity-0"
-                  : "max-w-[12.875rem] scale-100 opacity-100"),
+                  : mobile
+                    ? "max-w-full scale-100 opacity-100"
+                    : "max-w-[12.875rem] scale-100 opacity-100"),
             )}
           >
             {topSlot ? (

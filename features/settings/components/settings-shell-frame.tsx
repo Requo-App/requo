@@ -139,7 +139,7 @@ export function SettingsShellFrame({
   return (
     <SidebarProvider defaultOpen>
       <div
-        className="flex h-svh min-w-0 flex-1 overflow-hidden bg-shell-frame"
+        className="flex h-dvh min-w-0 flex-1 overflow-hidden bg-shell-frame"
         data-shell-root
       >
         {/* Desktop sidebar — a seamless rail in the shell frame (hidden below lg; mobile uses the top/bottom bars). */}
