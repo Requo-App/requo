@@ -56,9 +56,8 @@ const MOUNT_ROOT_MARGIN = "320px";
  *   and the first paint all agree on the poster still. Reduced motion, no
  *   JavaScript, and unsupported codecs keep it that way.
  * - Each theme plays its own recording and poster, so the video always
- *   matches the page surface it sits on. Once the video mounts, its poster
- *   covers the still immediately; a theme switch swaps both at the same time
- *   instead of flashing the old take.
+ *   matches the page surface it sits on. The video stays hidden until it can
+ *   play, leaving the matching still visible while each recording loads.
  * - The `<video>` element and its control mount only once the stage comes
  *   near the viewport, so layouts and scroll positions that never bring the
  *   art close do not pay for the clip at all.
@@ -78,6 +77,7 @@ export function DashboardWalkthroughVideo() {
   const [nearViewport, setNearViewport] = useState(false);
   const [inView, setInView] = useState(false);
   const [playing, setPlaying] = useState(false);
+  const [canPlay, setCanPlay] = useState(false);
   const [userPaused, setUserPaused] = useState(false);
   const [previousMotionAllowed, setPreviousMotionAllowed] =
     useState(motionAllowed);
@@ -96,16 +96,18 @@ export function DashboardWalkthroughVideo() {
       setNearViewport(false);
       setInView(false);
       setPlaying(false);
+      setCanPlay(false);
     }
   }
 
-  // A theme switch swaps the source. Reset the playback flag while the new
+  // A theme switch swaps the source. Reset playback and visibility while the new
   // element loads; a manual pause is the visitor's choice and survives the
   // swap. The video keeps its themed poster on screen throughout, so the old
   // recording never shows through.
   if (previousWalkthroughTheme !== walkthroughTheme) {
     setPreviousWalkthroughTheme(walkthroughTheme);
     setPlaying(false);
+    setCanPlay(false);
   }
 
   useEffect(() => {
@@ -186,6 +188,8 @@ export function DashboardWalkthroughVideo() {
             key={walkthroughTheme}
             loop
             muted
+            onCanPlay={() => setCanPlay(true)}
+            onError={() => setCanPlay(false)}
             onPause={() => setPlaying(false)}
             onPlay={() => setPlaying(true)}
             playsInline
@@ -193,6 +197,7 @@ export function DashboardWalkthroughVideo() {
             preload="auto"
             ref={videoRef}
             src={media.src}
+            style={{ opacity: canPlay ? 1 : 0 }}
           />
 
           {/*

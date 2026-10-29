@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { DashboardWalkthroughVideo } from "@/components/marketing/dashboard-walkthrough-video";
@@ -112,6 +112,24 @@ async function setDocumentVisibility(value: DocumentVisibilityState) {
 }
 
 describe("DashboardWalkthroughVideo", () => {
+  it("shows the poster until the video can play and restores it on error", async () => {
+    const { container } = render(<DashboardWalkthroughVideo />);
+    const poster = container.querySelector(
+      '[class*="requo-walkthrough-light-poster"]',
+    );
+    await emitIntersection(1);
+
+    const video = container.querySelector("video")!;
+    expect(video).toHaveStyle({ opacity: "0" });
+
+    fireEvent.canPlay(video);
+    expect(video).toHaveStyle({ opacity: "1" });
+
+    fireEvent.error(video);
+    expect(video).toHaveStyle({ opacity: "0" });
+    expect(poster).toBeInTheDocument();
+  });
+
   it("holds the clip back until the stage nears the viewport", async () => {
     const { container } = render(<DashboardWalkthroughVideo />);
 
@@ -243,6 +261,8 @@ describe("DashboardWalkthroughVideo", () => {
     expect(lightVideo?.getAttribute("src")).toBe(
       "/marketing/requo-walkthrough-light.webm",
     );
+    fireEvent.canPlay(lightVideo!);
+    expect(lightVideo).toHaveStyle({ opacity: "1" });
 
     playSpy.mockClear();
 
@@ -260,9 +280,10 @@ describe("DashboardWalkthroughVideo", () => {
     expect(darkVideo?.getAttribute("poster")).toBe(
       "/marketing/requo-walkthrough-dark-poster.png",
     );
-    // The poster is on screen from the moment the new element mounts, so the
-    // old recreation underneath never flashes through during the swap.
-    expect(darkVideo?.className).not.toContain("opacity-0");
+    // Keep the matching still visible until the replacement recording is ready.
+    expect(darkVideo).toHaveStyle({ opacity: "0" });
+    fireEvent.canPlay(darkVideo!);
+    expect(darkVideo).toHaveStyle({ opacity: "1" });
     expect(playSpy).toHaveBeenCalled();
   });
 
