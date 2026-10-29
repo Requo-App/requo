@@ -769,7 +769,7 @@ export function DashboardNotificationBell({
       <Sheet open={isOpen} onOpenChange={setIsOpen}>
         <SheetTrigger asChild>{trigger}</SheetTrigger>
         <SheetContent
-          className="h-[min(34rem,calc(100dvh-0.75rem))] rounded-t-2xl"
+          className="data-[side=bottom]:h-[min(34rem,calc(100dvh-0.75rem))] rounded-t-2xl"
           side="bottom"
           showCloseButton={false}
         >

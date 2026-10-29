@@ -201,6 +201,12 @@ describe("DashboardNotificationBell mobile drawer", () => {
     const sheetBody = document.querySelector('[data-slot="sheet-body"]');
     expect(sheetBody).toHaveClass("overflow-hidden");
 
+    // The base bottom sheet is height-auto; the notification drawer opts into
+    // a bounded height with the same variant so the override actually wins.
+    expect(sheetBody?.closest('[data-slot="sheet-content"]')).toHaveClass(
+      "data-[side=bottom]:h-[min(34rem,calc(100dvh-0.75rem))]",
+    );
+
     const scrollViewport = sheetBody?.querySelector(".overscroll-contain");
     expect(scrollViewport).toHaveClass("flex-1");
     expect(scrollViewport?.className).not.toContain("max-h-");
