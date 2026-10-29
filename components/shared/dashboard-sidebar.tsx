@@ -538,7 +538,7 @@ export function DashboardSidebar({
                 (mobile && flat && searchActive
                   ? "max-w-0 scale-95 opacity-0"
                   : mobile
-                    ? "max-w-none scale-100 opacity-100"
+                    ? "max-w-full scale-100 opacity-100"
                     : "max-w-[12.875rem] scale-100 opacity-100"),
             )}
           >
