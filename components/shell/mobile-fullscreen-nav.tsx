@@ -82,6 +82,13 @@ export function MobileFullscreenNav({
     }
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
+        // Dropdowns and popovers opened from the nav are portaled above it
+        // and dismiss from a capture listener first. Respect that dismissal
+        // so one Escape closes the top layer, not both it and the nav.
+        if (event.defaultPrevented) {
+          return;
+        }
+
         onOpenChange(false);
         return;
       }
@@ -166,7 +173,7 @@ export function MobileFullscreenNav({
         !visible && "pointer-events-none",
       )}
     >
-      <div className="h-dvh w-full">
+      <div className="h-dvh w-full pb-[env(safe-area-inset-bottom)]">
         {variant === "main" ? (
           <BoarduiMainSidebar
             businessSlug={businessSlug}

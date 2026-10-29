@@ -17,6 +17,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import type { ActivationChecklistItem } from "@/features/onboarding/activation-checklist";
 
@@ -29,6 +30,7 @@ type SidebarChecklistProps = {
 const CHECKLIST_DISMISSED_KEY = "requo:checklist:dismissed";
 
 export function SidebarChecklist({ items }: SidebarChecklistProps) {
+  const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
@@ -126,9 +128,18 @@ export function SidebarChecklist({ items }: SidebarChecklistProps) {
           </Button>
         </PopoverTrigger>
         <PopoverContent
-          align="start"
-          className="w-80 p-0"
-          side="right"
+          align={isMobile ? "center" : "start"}
+          className={cn(
+            "p-0",
+            isMobile
+              ? // The trigger sits at the bottom of the fullscreen drawer.
+                // Open upward inside the viewport instead of pushing a 320px
+                // panel off the right edge.
+                "w-[min(20rem,calc(100vw-1rem))]"
+              : "w-80",
+          )}
+          collisionPadding={isMobile ? 8 : 12}
+          side={isMobile ? "top" : "right"}
           sideOffset={8}
         >
           <div className="flex items-start justify-between border-b border-[var(--overlay-divider)] px-4 py-3">
