@@ -2721,7 +2721,7 @@ html[data-reload-loading="fade-out"] #app-root-content {
     position: relative;
     background: var(--marketing-solution-stage-fill);
     content-visibility: auto;
-    contain-intrinsic-size: auto 43rem;
+    contain-intrinsic-size: auto 30rem;
   }
 
   .dark .marketing-solution-stage {
