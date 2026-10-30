@@ -1,13 +1,18 @@
 import type { PlanTier } from "@/lib/plans/plans";
 import { planMeta } from "@/lib/plans/plans";
 import { Badge } from "@/components/ui/badge";
+import { statusToneClassNames } from "@/components/shared/status-badge";
 import { cn } from "@/lib/utils";
 
+/**
+ * Plan tiers borrow the neutral and highlight status tones, so a tone change
+ * reaches the plan pills instead of drifting into a second colour map. Pro is
+ * the one plan-specific tone; it has no status equivalent.
+ */
 const planBadgeStyles: Record<PlanTier, string> = {
-  free: "border-border bg-muted text-muted-foreground",
+  free: statusToneClassNames.neutral,
   pro: "border-primary/30 bg-primary/15 text-primary-ink",
-  business:
-    "border-[color:var(--status-highlight-border)] bg-[var(--status-highlight-bg)] text-[color:var(--status-highlight-fg)]",
+  business: statusToneClassNames.highlight,
 };
 
 /**
