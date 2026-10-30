@@ -6,6 +6,7 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ### Added
 
+- Added quote discussions: customers can ask questions on the existing public quote link without an account, and businesses answer from a dedicated Discussions inbox or the quote detail page, both reading and writing one thread per quote. New messages notify the business in-app, business replies email the customer, and a thread becomes read-only once its quote is accepted, declined, expired, or voided.
 - Added `npm run audit:color-system` (part of `npm run check`) to enforce the neutral `R = G`, `|B - R| <= 6` rule, the dark charcoal band, `color-scheme`, required ink/status/preview tokens, WCAG contrast on every primary surface plus warning ink on its 10%/15% tints, and the raw palette, black/white, ink-fill, and colour-literal boundary. Files that mix static artwork with live UI allow only their exact static literals.
 - Added a one-time 14-day Pro trial with no card required. New business owners start it automatically on their first active business, and eligible existing Free businesses can start it from Billing. When it ends, the business returns to Free with its data retained.
 - The full-local Docker stack now includes Redis behind an Upstash-compatible REST proxy. The app keeps using `@upstash/redis`, so cache, quota, cooldown, and rate-limit behavior can be exercised locally without a hosted Redis database.

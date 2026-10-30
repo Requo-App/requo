@@ -17,6 +17,8 @@ type PublicQuotePageRendererProps = {
   headerAction?: ReactNode;
   beforeContent?: ReactNode;
   interactiveColumn: ReactNode;
+  /** Customer discussion rendered below the quote details. */
+  discussion?: ReactNode;
   afterContent?: ReactNode;
   /**
    * When true, the public Requo top bar (brand + header action) is omitted.
@@ -35,13 +37,18 @@ export function PublicQuotePageRenderer({
   headerAction,
   beforeContent,
   interactiveColumn,
+  discussion,
   afterContent,
   hideHeader = false,
 }: PublicQuotePageRendererProps) {
   const showWatermark = !hasFeatureAccess(businessPlan, "removeWatermark");
 
   const content = (
-    <QuotePageContent quote={quote} interactiveColumn={interactiveColumn} />
+    <QuotePageContent
+      discussion={discussion}
+      interactiveColumn={interactiveColumn}
+      quote={quote}
+    />
   );
 
   if (hideHeader || !headerAction) {
@@ -83,13 +90,16 @@ export function PublicQuotePageRenderer({
 function QuotePageContent({
   quote,
   interactiveColumn,
+  discussion,
 }: {
   quote: PublicQuoteView;
   interactiveColumn: ReactNode;
+  discussion?: ReactNode;
 }) {
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_360px]">
-      {/* Left card — Quote content */}
+      {/* Left column — Quote content and its discussion */}
+      <div className="flex min-w-0 flex-col gap-6">
       <PublicHeroSurface className="py-6 sm:py-8 lg:py-10">
         <div className="px-4 sm:px-6 lg:px-8">
           {/* Header: Business + Quote title */}
@@ -203,6 +213,9 @@ function QuotePageContent({
           ) : null}
         </div>
       </PublicHeroSurface>
+
+      {discussion}
+      </div>
 
       {/* Right column — Interactive actions */}
       <aside className="lg:sticky lg:top-8 lg:self-start">

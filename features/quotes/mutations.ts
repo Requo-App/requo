@@ -33,6 +33,7 @@ import {
   getTodayUtcDateString,
 } from "@/features/quotes/utils";
 import { insertBusinessNotification } from "@/features/notifications/mutations";
+import { archiveQuoteDiscussionsForQuoteIds } from "@/features/quote-discussions/mutations";
 import {
   createStoredQuotePublicToken,
   getQuotePublicTokenLookupCondition,
@@ -334,6 +335,12 @@ async function expireQuoteRows(
       createdAt: now,
       updatedAt: now,
     })),
+  );
+
+  await archiveQuoteDiscussionsForQuoteIds(
+    tx,
+    expiredRows.map((row) => row.id),
+    now,
   );
 
   return { count: expiredRows.length, expired: expiredRows };
@@ -1187,6 +1194,8 @@ export async function voidQuoteForBusiness({
       },
       createdAt: now,
     });
+
+    await archiveQuoteDiscussionsForQuoteIds(tx, [quoteId], now);
 
     return {
       changed: true,
@@ -2059,6 +2068,8 @@ export async function respondToPublicQuoteByToken({
         now,
       });
     }
+
+    await archiveQuoteDiscussionsForQuoteIds(tx, [existingQuote.id], now);
 
     return {
       updated: true,
@@ -3059,6 +3070,12 @@ export async function bulkVoidQuotesForBusiness({
       });
 
     if (result.length > 0) {
+      await archiveQuoteDiscussionsForQuoteIds(
+        tx,
+        result.map((row) => row.id),
+        now,
+      );
+
       for (const row of result) {
         await insertQuoteActivity(tx, {
           businessId,

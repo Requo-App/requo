@@ -12,6 +12,7 @@ import { renderMagicLinkEmail } from "@/emails/templates/magic-link";
 import { renderPasswordResetEmail } from "@/emails/templates/password-reset";
 import { renderInvoiceEmail } from "@/emails/templates/invoice-email";
 import { renderQuoteEmail } from "@/emails/templates/quote-email";
+import { renderQuoteDiscussionReplyEmail } from "@/emails/templates/quote-discussion-reply";
 import { EmailSendError } from "@/lib/email/errors";
 import {
   getDefaultReplyToEmail,
@@ -424,6 +425,76 @@ export async function sendQuoteEmail({
       event: "quote_sent",
     },
   });
+}
+
+export async function sendQuoteDiscussionReplyEmail({
+  discussionId,
+  messageId,
+  businessId,
+  businessName,
+  customerName,
+  customerEmail,
+  quoteNumber,
+  replyPreview,
+  publicQuoteUrl,
+}: {
+  discussionId: string;
+  messageId: string;
+  businessId: string;
+  businessName: string;
+  customerName: string;
+  customerEmail: string | null;
+  quoteNumber: string;
+  replyPreview: string;
+  publicQuoteUrl: string;
+}): Promise<boolean> {
+  if (!customerEmail) {
+    return false;
+  }
+
+  if (!isEmailConfigured) {
+    logDeliverySkipped(
+      "Email is not configured yet. Quote discussion reply delivery was skipped.",
+      "quote",
+    );
+    return false;
+  }
+
+  const senderConfigurationError = getConfigurationError("quote");
+
+  if (senderConfigurationError) {
+    throw new Error(senderConfigurationError);
+  }
+
+  const template = renderQuoteDiscussionReplyEmail({
+    businessName,
+    customerName,
+    quoteNumber,
+    replyPreview,
+    publicQuoteUrl,
+  });
+
+  await sendBrandedEmail({
+    emailType: "quote",
+    to: customerEmail,
+    replyTo: getFallbackReplyTo(),
+    subject: template.subject,
+    html: template.html,
+    text: template.text,
+    idempotencyKey: `quote-discussion:${discussionId}:${messageId}:${getRecipientKey(customerEmail)}`,
+    businessId,
+    metadata: {
+      discussionId,
+      quoteNumber,
+      businessId,
+    },
+    tags: {
+      type: "quote",
+      event: "quote_discussion_reply",
+    },
+  });
+
+  return true;
 }
 
 export async function sendInvoiceEmail({

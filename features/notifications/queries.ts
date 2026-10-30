@@ -75,6 +75,7 @@ export async function getBusinessNotificationBellView({
         type: businessNotifications.type,
         title: businessNotifications.title,
         summary: businessNotifications.summary,
+        metadata: businessNotifications.metadata,
         createdAt: businessNotifications.createdAt,
       })
       .from(businessNotifications)
@@ -197,6 +198,7 @@ export async function fetchBusinessNotificationsBeforeCursor({
       type: businessNotifications.type,
       title: businessNotifications.title,
       summary: businessNotifications.summary,
+      metadata: businessNotifications.metadata,
       createdAt: businessNotifications.createdAt,
     })
     .from(businessNotifications)

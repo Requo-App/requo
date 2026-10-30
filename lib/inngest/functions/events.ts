@@ -6,7 +6,7 @@ import {
   enableAutoFollowUpForQuote,
   getQuoteBusinessIdForAutoFollowUp,
 } from "@/features/quotes/mutations";
-import { getBusinessInquiryPath, getBusinessInvoicePath, getBusinessQuotePath } from "@/features/businesses/routes";
+import { getBusinessDiscussionPath, getBusinessInquiryPath, getBusinessInvoicePath, getBusinessQuotePath } from "@/features/businesses/routes";
 import { getBusinessMessagingSettings } from "@/lib/db/business-access";
 import { getEffectivePlanForBusiness } from "@/lib/billing/subscription-service";
 import { db } from "@/lib/db/client";
@@ -21,6 +21,7 @@ import {
   type PushInvoiceOverdueEventData,
   type PushInvoicePaidEventData,
   type PushInvoiceSentEventData,
+  type PushQuoteDiscussionMessageEventData,
   type PushQuoteResponseEventData,
   type PushQuoteSentEventData,
 } from "@/lib/inngest/events";
@@ -172,6 +173,49 @@ export const pushQuoteResponse = inngest.createFunction(
       });
 
       return { sent: true };
+    });
+
+    return { ok: true };
+  },
+);
+
+export const pushQuoteDiscussionMessage = inngest.createFunction(
+  {
+    id: "push-quote-discussion-message",
+    name: "Push notification for a quote discussion message",
+    triggers: [{ event: inngestEvents.pushQuoteDiscussionMessage }],
+    retries: 2,
+  },
+  async ({ event, step }) => {
+    const eventData = event.data as
+      | PushQuoteDiscussionMessageEventData
+      | { recipients: BatchedRecipient<PushQuoteDiscussionMessageEventData>[] };
+
+    await step.run("send-push-notification", async () => {
+      const buildNotification = (data: PushQuoteDiscussionMessageEventData) => ({
+        title: `New message on ${data.quoteNumber}`,
+        body: `${data.customerName} asked a question about the quote.`,
+        url: getBusinessDiscussionPath(data.businessSlug, data.discussionId),
+      });
+
+      if ("recipients" in eventData && Array.isArray(eventData.recipients)) {
+        for (const recipient of eventData.recipients) {
+          await sendPushToUserSubscriptionsForBusiness(
+            recipient.payload.businessId,
+            recipient.userId,
+            buildNotification(recipient.payload),
+          );
+        }
+        return { sent: true };
+      }
+
+      const data = eventData as PushQuoteDiscussionMessageEventData;
+      const subscribers = await sendPushToBusinessSubscribers(
+        data.businessId,
+        buildNotification(data),
+      );
+
+      return { sent: subscribers };
     });
 
     return { ok: true };
@@ -443,6 +487,7 @@ export const eventFunctions = [
   pushInquiryReceived,
   pushQuoteSent,
   pushQuoteResponse,
+  pushQuoteDiscussionMessage,
   pushInvoiceSent,
   pushInvoicePaid,
   pushInvoiceOverdue,

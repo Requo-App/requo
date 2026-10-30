@@ -157,3 +157,21 @@ _Avoid_: Contract, certificate, legal guarantee
 **Accepted quote**:
 A quote in `accepted` status with an acceptance record pointing at the exact quote version accepted. Acceptance is not invoicing and not payment.
 _Avoid_: Paid, invoiced, revenue recognized
+
+### Quote discussions
+
+**Quote discussion**:
+One asynchronous conversation attached to exactly one quote, created lazily on its first message. Customers use it on the public quote page without an account; members use the dedicated Discussions inbox or the quote detail page. Both business surfaces open the same thread.
+_Avoid_: Chat, inbox (for the thread), ticket, customer portal
+
+**Discussion state**:
+The conversation's own state: `needs_reply` when the customer sent the latest message, `waiting_for_customer` when the business did, and `archived` when the quote is terminal. It is separate from the quote status.
+_Avoid_: Quote status, unread (that is per member)
+
+**Guest display name**:
+The unverified name a customer enters to participate in a public quote discussion. It is a label, not proof of identity.
+_Avoid_: Verified customer, customer account
+
+**Discussion inbox**:
+The business-side collection of quote discussions across authorized quotes. It is a navigation and reply surface over existing quote discussions, not a general-purpose messaging inbox.
+_Avoid_: CRM inbox, support inbox

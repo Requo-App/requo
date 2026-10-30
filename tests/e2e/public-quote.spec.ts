@@ -1,8 +1,12 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 import {
+  assignIsolatedTestClientIp,
+  demoBusinessSlug,
   demoExpiredQuotePublicToken,
   demoMessageLengthQuotePublicToken,
+  demoOwnerEmail,
+  demoOwnerPassword,
   demoQuotePublicToken,
   demoVoidedQuotePublicToken,
 } from "./fixtures";
@@ -11,6 +15,18 @@ import { registerSmokeGuard } from "./smoke-registry";
 registerSmokeGuard();
 
 test.describe.configure({ mode: "serial" });
+
+async function signInAsOwner(page: Page) {
+  await assignIsolatedTestClientIp(page);
+  await page.goto("/login");
+  await page.waitForLoadState("networkidle");
+
+  await page.getByLabel("Email address").fill(demoOwnerEmail);
+  await page.locator("#password").fill(demoOwnerPassword);
+  await page.getByRole("button", { name: "Sign in" }).click();
+
+  await expect(page).toHaveURL(/\/home$/, { timeout: 20_000 });
+}
 
 test("public quote page caps customer messages at 1,200 characters", async ({
   page,
@@ -96,5 +112,74 @@ test("invalid public quote links show the public not-found state", async ({
 
   await expect(
     page.getByText("This public page is unavailable."),
+  ).toBeVisible();
+});
+
+test("a customer and the business share one quote discussion across both business views", async ({
+  page,
+}) => {
+  test.setTimeout(240_000);
+  page.setDefaultNavigationTimeout(90_000);
+
+  const customerMessage = `E2E quote question ${Date.now()}`;
+  const businessReply = `E2E business reply ${Date.now()}`;
+
+  await assignIsolatedTestClientIp(page);
+  await page.goto(`/quote/${demoMessageLengthQuotePublicToken}`);
+  await page.waitForLoadState("networkidle");
+
+  await expect(
+    page.getByRole("heading", { name: "Questions about this quote?" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(/Anyone with this quote link can read this conversation/),
+  ).toBeVisible();
+
+  await page.getByLabel("Your name").fill("E2E Customer");
+  await page.getByLabel("Message", { exact: true }).fill(customerMessage);
+  await page.getByRole("button", { name: "Send question" }).click();
+
+  await expect(page.getByText(customerMessage)).toBeVisible({
+    timeout: 30_000,
+  });
+
+  await signInAsOwner(page);
+  await page.goto(`/${demoBusinessSlug}/discussions?view=needs_reply`, {
+    waitUntil: "domcontentloaded",
+  });
+
+  const discussionLink = page.getByRole("link", {
+    name: new RegExp(customerMessage),
+  });
+  await expect(discussionLink).toBeVisible({ timeout: 60_000 });
+  await discussionLink.click();
+
+  await expect(page).toHaveURL(/\/discussions\/[^/]+$/, { timeout: 20_000 });
+  await expect(page.getByText("Q-E2E-MESSAGE-LENGTH").first()).toBeVisible();
+  await expect(page.getByText(customerMessage)).toBeVisible();
+
+  await page.getByLabel("Message", { exact: true }).fill(businessReply);
+  await page.getByRole("button", { name: "Send reply" }).click();
+
+  await expect(page.getByText(businessReply)).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText("Waiting for customer").first()).toBeVisible();
+
+  await page.getByRole("link", { name: "View quote" }).click();
+  await expect(page).toHaveURL(
+    new RegExp(`/${demoBusinessSlug}/quotes/demo_quote_message_length$`),
+    { timeout: 20_000 },
+  );
+  await expect(
+    page.getByRole("heading", { name: "Discussion", exact: true }),
+  ).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByText(businessReply)).toBeVisible();
+
+  await page.goto(`/quote/${demoMessageLengthQuotePublicToken}`);
+  await page.waitForLoadState("networkidle");
+
+  await expect(page.getByText(businessReply)).toBeVisible();
+  await expect(page.getByLabel("Message", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Send question" }),
   ).toBeVisible();
 });

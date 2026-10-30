@@ -4,6 +4,7 @@ import type {
   BusinessNotificationType,
 } from "@/features/notifications/types";
 import {
+  getBusinessDiscussionPath,
   getBusinessHomePath,
   getBusinessInquiryPath,
   getBusinessInvoicePath,
@@ -19,8 +20,21 @@ const notificationDateTimeFormatter = new Intl.DateTimeFormat("en-US", {
 
 export function buildBusinessNotificationHref(
   businessSlug: string,
-  notification: Pick<BusinessNotificationRecord, "inquiryId" | "quoteId" | "invoiceId">,
+  notification: Pick<
+    BusinessNotificationRecord,
+    "inquiryId" | "quoteId" | "invoiceId" | "metadata"
+  >,
 ) {
+  const discussionId = notification.metadata?.discussionId;
+
+  if (
+    notification.quoteId &&
+    typeof discussionId === "string" &&
+    discussionId.length > 0
+  ) {
+    return getBusinessDiscussionPath(businessSlug, discussionId);
+  }
+
   if (notification.invoiceId) {
     return getBusinessInvoicePath(businessSlug, notification.invoiceId);
   }
@@ -80,6 +94,8 @@ export function getBusinessNotificationTypeLabel(type: BusinessNotificationType)
       return "Quote declined";
     case "quote_revision_requested":
       return "Revision requested";
+    case "quote_discussion_message":
+      return "Quote message";
     case "business_member_invite_accepted":
       return "Invite accepted";
     case "business_member_invite_declined":

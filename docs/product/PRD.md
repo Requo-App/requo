@@ -45,7 +45,9 @@ market research metrics.
    quote-library data.
 3. The owner reviews and shares the quote by public link or email. The customer
    views, accepts, rejects, or requests a revision; the owner can follow up
-   manually or configure supported automated follow-ups.
+   manually or configure supported automated follow-ups. The customer can also
+   ask questions in the discussion attached to that quote, and the business
+   answers from the dedicated Discussions inbox or the quote detail page.
 4. An accepted quote can continue into an invoice. The business records money
    received outside Requo as payment entries and can issue a record/receipt.
 5. Owners use analytics, notifications, audit history, members, and business
@@ -58,8 +60,11 @@ market research metrics.
   manual inquiry creation, attachments, duplicate signals, qualification, and
   inquiry status tracking.
 - **Quote work:** quote drafting and revisions, a reusable quote
-  library, version snapshots, public quote pages, customer responses, and
-  email templates.
+  library, version snapshots, public quote pages, customer responses, quote
+  discussions, and email templates. A quote discussion is one asynchronous
+  conversation attached to exactly one quote, available to customers on the
+  public quote page without an account and to business members through a
+  dedicated quote discussions inbox and the quote detail page.
 - **Follow-up and visibility:** owner reminder tasks, supported automatic
   follow-up emails, in-app notifications, web push, activity/audit records, and
   business membership.
@@ -97,7 +102,10 @@ market research metrics.
 - An **Inquiry** is a prospective customer's request. Customer details are
   snapshots on inquiries and quotes; there is no shared Customer entity.
 - A **Quote** is a commercial proposal. Acceptance is a recorded customer
-  response, not payment.
+  response, not payment. A **Quote discussion** is quote-specific
+  communication attached to one quote; its **discussion state** (needs reply,
+  waiting for customer, archived) is separate from the quote's lifecycle
+  status.
 - An **Invoice** requests payment. A **Payment** is an owner-entered record of
   funds received outside Requo, never a payment processed by Requo.
 - An owner **Follow-up** is a reminder task; a **Follow-up Email** is an
@@ -128,6 +136,11 @@ purpose chatbot. Customer details stay as snapshots on commercial records; the
 [technical reference](../architecture/TRD.md#customer-identity) records the
 criteria for revisiting a customer master. Payment schedules and approval
 workflows in the app are quote/work-order concepts, not a general calendar.
+
+Quote discussions are quote-specific communication, not a general-purpose
+messaging inbox, CRM, support-ticket system, or customer portal. There is no
+customer account, email verification requirement, or inbound email routing for
+them.
 
 The public Agent's proposed inquiry requires customer confirmation before
 creation. Its transcript is not a business-browsable conversation archive;
