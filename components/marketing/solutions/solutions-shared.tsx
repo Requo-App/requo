@@ -1,22 +1,21 @@
 import {
-  ArrowRight,
   CheckCircle2,
   Eye,
   Link2,
   type LucideIcon,
 } from "lucide-react";
-import Link from "next/link";
 import type { ReactNode } from "react";
 
 import {
-  getSolutionRelated,
-  solutionHref,
-  solutionLinks,
-  type SolutionCardData,
-  type SolutionFaq,
-  type SolutionFeature,
+  CtaPrimaryLink,
+  CtaSecondaryLink,
+  CtaSection,
+} from "@/components/marketing/cta-section";
+import type {
+  SolutionCardData,
+  SolutionFaq,
+  SolutionFeature,
 } from "@/components/marketing/solutions-data";
-import type { SolutionDetail } from "@/components/marketing/solutions-data";
 import {
   Accordion,
   AccordionContent,
@@ -26,7 +25,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { InvoiceStatusBadge } from "@/features/invoices/components/invoice-status-badge";
 import { QuoteStatusBadge } from "@/features/quotes/components/quote-status-badge";
-import { cn } from "@/lib/utils";
 
 /**
  * Single product-card shell used by the hero card, the demo tabs, and the
@@ -206,21 +204,21 @@ export function SolutionFaq({
 }) {
   return (
     <Accordion
-      className="w-full border-t border-border/40"
+      className="marketing-faq w-full border-t border-border/40"
       collapsible
       defaultValue={`${slug}-faq-0`}
       type="single"
     >
       {items.map((item, index) => (
         <AccordionItem
-          className="border-b border-border/40"
+          className="marketing-faq-item border-b border-border/40"
           key={item.question}
           value={`${slug}-faq-${index}`}
         >
-          <AccordionTrigger className="py-3.5 text-left text-sm font-medium tracking-tight text-foreground transition-colors hover:text-foreground/80 sm:py-4 sm:text-base">
+          <AccordionTrigger className="marketing-faq-trigger py-3.5 text-left text-sm font-medium tracking-tight text-foreground sm:py-4 sm:text-base lg:text-lg">
             {item.question}
           </AccordionTrigger>
-          <AccordionContent className="pb-4 text-xs leading-snug text-muted-foreground sm:pb-5 sm:text-sm sm:leading-5">
+          <AccordionContent className="marketing-faq-content pb-4 text-xs leading-snug text-muted-foreground sm:pb-5 sm:text-sm sm:leading-5 lg:text-base lg:leading-6">
             {item.answer}
           </AccordionContent>
         </AccordionItem>
@@ -239,185 +237,13 @@ export function SolutionsFinalCta({
   workflowHref: string;
 }) {
   return (
-    <section
-      aria-labelledby="solutions-final-cta"
-      className="relative flex flex-col items-center gap-6 py-10 text-center sm:gap-7 sm:py-14"
+    <CtaSection
+      headline={headline}
+      headingId="solutions-final-cta"
+      sub={sub}
     >
-      <h2
-        className="max-w-3xl font-heading text-3xl font-bold tracking-tighter text-foreground sm:text-4xl lg:text-5xl"
-        id="solutions-final-cta"
-      >
-        {headline}
-      </h2>
-      <p className="max-w-xl text-sm leading-5 text-muted-foreground sm:text-base sm:leading-7">
-        {sub}
-      </p>
-      <div className="flex flex-row flex-wrap items-center justify-center gap-3">
-        <Button
-          asChild
-          className="rounded-full px-6 font-mono text-xs font-semibold uppercase tracking-wider"
-          size="lg"
-        >
-          <Link href="/signup">
-            Start free
-            <ArrowRight data-icon="inline-end" />
-          </Link>
-        </Button>
-        <Button
-          asChild
-          className="rounded-full px-6 font-mono text-xs font-semibold uppercase tracking-wider"
-          size="lg"
-          variant="outline"
-        >
-          <Link href={workflowHref}>See the workflow</Link>
-        </Button>
-      </div>
-      <p className="text-xs text-muted-foreground sm:text-sm">
-        No complicated setup. Start with the workflow your business already
-        has.
-      </p>
-    </section>
-  );
-}
-
-export function RelatedSolutions({ detail }: { detail: SolutionDetail }) {
-  const items = getSolutionRelated(detail);
-  return (
-    <ul
-      aria-label="Related service business solutions"
-      className="grid gap-3 sm:grid-cols-2 sm:gap-4"
-    >
-      {items.map(({ link, blurb }) => {
-        const Icon = link.icon;
-        return (
-          <li key={link.slug}>
-            <Link
-              className="soft-panel motion-lift group flex h-full flex-col gap-2.5 hover:shadow-md"
-              href={solutionHref(link.slug)}
-            >
-              <span className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary-ink">
-                <Icon aria-hidden="true" className="size-4" />
-              </span>
-              <span className="font-heading text-base font-semibold tracking-tight">
-                {link.title}
-              </span>
-              <span className="text-sm leading-5 text-muted-foreground">
-                {blurb}
-              </span>
-              <span className="mt-auto inline-flex items-center gap-1.5 pt-1 text-sm font-medium text-primary-ink">
-                Explore solution
-                <ArrowRight
-                  aria-hidden="true"
-                  className="size-4 transition-transform [transition-duration:var(--motion-duration-base)] [transition-timing-function:var(--motion-ease-standard)] group-hover:translate-x-0.5"
-                />
-              </span>
-            </Link>
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
-
-/** The shared "same six features" line linking each feature page. */
-export function SolutionsFeatureLine({ className }: { className?: string }) {
-  return (
-    <p
-      className={
-        className ??
-        "text-sm leading-5 text-muted-foreground sm:text-base sm:leading-6"
-      }
-    >
-      Every solution runs on the same six features —{" "}
-      <Link
-        className="font-medium text-primary-ink hover:underline"
-        href="/features/inquiries"
-      >
-        inquiries
-      </Link>
-      {", "}
-      <Link
-        className="font-medium text-primary-ink hover:underline"
-        href="/features/quotes"
-      >
-        quotes
-      </Link>
-      {", "}
-      <Link
-        className="font-medium text-primary-ink hover:underline"
-        href="/features/follow-ups"
-      >
-        follow-ups
-      </Link>
-      {", "}
-      <Link
-        className="font-medium text-primary-ink hover:underline"
-        href="/features/ai"
-      >
-        AI drafting
-      </Link>
-      {", "}
-      <Link
-        className="font-medium text-primary-ink hover:underline"
-        href="/features/invoices"
-      >
-        invoices
-      </Link>
-      {", and "}
-      <Link
-        className="font-medium text-primary-ink hover:underline"
-        href="/features/analytics"
-      >
-        analytics
-      </Link>{" "}
-      (Pro and Business).
-    </p>
-  );
-}
-
-/** All other solutions as compact cards, excluding the current page. */
-export function ExploreSolutions({
-  currentSlug,
-  className,
-}: {
-  currentSlug: string;
-  className?: string;
-}) {
-  return (
-    <ul
-      aria-label="Other service business solutions"
-      className={cn("grid gap-3 sm:grid-cols-2 lg:grid-cols-3 sm:gap-4", className)}
-    >
-      {solutionLinks
-        .filter((solution) => solution.slug !== currentSlug)
-        .map((link) => {
-          const Icon = link.icon;
-          return (
-            <li key={link.slug}>
-              <Link
-                className="soft-panel motion-lift group flex h-full flex-col gap-2.5 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:[outline-style:solid]"
-                href={solutionHref(link.slug)}
-              >
-                <span className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary-ink">
-                  <Icon aria-hidden="true" className="size-4" />
-                </span>
-                <span className="font-heading text-base font-semibold tracking-tight">
-                  {link.title}
-                </span>
-                <span className="text-sm leading-5 text-muted-foreground">
-                  {link.description}
-                </span>
-                <span className="mt-auto inline-flex items-center gap-1.5 pt-1 text-sm font-medium text-primary-ink">
-                  Explore solution
-                  <ArrowRight
-                    aria-hidden="true"
-                    className="size-4 transition-transform [transition-duration:var(--motion-duration-base)] [transition-timing-function:var(--motion-ease-standard)] group-hover:translate-x-0.5"
-                  />
-                </span>
-              </Link>
-            </li>
-          );
-        })}
-    </ul>
+      <CtaPrimaryLink href="/signup" />
+      <CtaSecondaryLink href={workflowHref}>See the workflow</CtaSecondaryLink>
+    </CtaSection>
   );
 }

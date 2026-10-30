@@ -1,3 +1,4 @@
+import Image from "next/image";
 import {
   Camera,
   Clock3,
@@ -22,9 +23,12 @@ import {
   mockTitleClassName,
 } from "@/components/marketing/marketing-mock-primitives";
 import type {
+  SolutionLandingAttachmentImage,
+  SolutionLandingLineItem,
   SolutionLandingSample,
   SolutionLandingWorkflowMock,
 } from "@/components/marketing/solutions-data";
+import { InquiryStatusBadge } from "@/features/inquiries/components/inquiry-status-badge";
 import { InvoiceStatusBadge } from "@/features/invoices/components/invoice-status-badge";
 import { QuoteStatusBadge } from "@/features/quotes/components/quote-status-badge";
 import { cn } from "@/lib/utils";
@@ -41,13 +45,36 @@ function AttachmentTiles({
     <div className="grid grid-cols-3 gap-1.5">
       {labels.map((label) => (
         <div
-          className="flex aspect-[4/3] min-w-0 flex-col items-center justify-center gap-0.5 rounded-md border border-dashed border-border/80 bg-muted/40 text-muted-foreground"
+          className="flex aspect-[4/3] min-w-0 items-center justify-center rounded-md border border-dashed border-border/80 bg-muted/40 text-muted-foreground"
           key={label}
         >
           <Icon aria-hidden="true" className="size-3.5" />
-          <span className="max-w-full truncate px-1 text-[0.5625rem] leading-3">
-            {label}
-          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function AttachmentImages({
+  images,
+}: {
+  images: readonly SolutionLandingAttachmentImage[];
+}) {
+  return (
+    <div className="grid grid-cols-3 gap-1.5">
+      {images.map((image) => (
+        <div
+          className="relative aspect-[4/3] overflow-hidden rounded-md bg-muted"
+          key={image.src}
+        >
+          <Image
+            alt=""
+            className="h-full w-full object-cover"
+            height={image.height}
+            sizes="(min-width: 1024px) 135px, (min-width: 640px) 210px, 100px"
+            src={image.src}
+            width={image.width}
+          />
         </div>
       ))}
     </div>
@@ -58,47 +85,179 @@ function MockField({ label, value }: { label: string; value: string }) {
   return (
     <div className="min-w-0">
       <dt className="meta-label">{label}</dt>
-      <dd className="mt-0.5 truncate text-xs leading-4 font-medium text-foreground">
+      <dd className="mt-0.5 line-clamp-2 text-xs leading-4 font-medium text-foreground">
         {value}
       </dd>
     </div>
   );
 }
 
+function HeroLineItem({ item }: { item: SolutionLandingLineItem }) {
+  return (
+    <div className="flex min-h-9 flex-1 items-center justify-between gap-3 px-4 py-1.5">
+      <div className="min-w-0">
+        <p className="truncate text-xs leading-4 font-medium text-foreground">
+          {item.label}
+        </p>
+        {item.spec ? (
+          <p className="truncate text-xs leading-4 text-muted-foreground">
+            {item.spec}
+          </p>
+        ) : null}
+      </div>
+      <p className="shrink-0 font-mono text-xs leading-4 font-semibold tabular-nums text-foreground">
+        {item.value}
+      </p>
+    </div>
+  );
+}
+
+function WorkflowLineItem({ item }: { item: SolutionLandingLineItem }) {
+  return (
+    <div className="flex min-w-0 items-center justify-between gap-3 px-4 py-2">
+      <div className="min-w-0">
+        <p className={cn(mockTitleClassName, "text-xs")}>{item.label}</p>
+        {item.spec ? (
+          <p className="mt-0.5 truncate text-xs leading-4 text-muted-foreground">
+            {item.spec}
+          </p>
+        ) : null}
+      </div>
+      <p
+        className={cn(
+          mockMonoClassName,
+          "shrink-0 text-xs font-semibold text-foreground",
+        )}
+      >
+        {item.value}
+      </p>
+    </div>
+  );
+}
+
 /**
- * Small overlapping inquiry card used in the hero. Three dashed tiles stand in
- * for the files attached to the sample inquiry; no stock imagery is loaded.
+ * The hero illustration: one quote record with the inquiry it was built from.
+ *
+ * The quote sits top-right and carries the line items, total, and activity. The
+ * inquiry sits front-left, offset by the same 16px step on both axes, and holds
+ * the site facts and photos. On narrow stages the pair stacks with a small
+ * vertical overlap; the front card keeps a stage-coloured outline so it reads
+ * as cut out of the quote behind it.
  */
-export function SolutionInquiryMiniMock({
+export function SolutionHeroMock({
   sample,
 }: {
   sample: SolutionLandingSample;
 }) {
+  const kind = /photo/i.test(sample.attachmentLabel) ? "photo" : "file";
+
   return (
-    <MockCard className="bg-card">
-      <div className="flex items-center justify-between gap-2 border-b border-border/60 px-3 py-2">
-        <span className="meta-label">Inquiry</span>
-        <MockBadge label="New" tone="info" />
-      </div>
-      <div className="flex flex-col gap-2 p-3">
-        <div className="flex min-w-0 items-center gap-2">
-          <MockAvatar initials={sample.initials} />
-          <div className="min-w-0">
-            <p className={cn(mockTitleClassName, "text-xs")}>{sample.customer}</p>
-            <p className={cn(mockSecondaryClassName, "text-[0.6875rem]")}>
-              {sample.project}
+    <div className="flex h-full flex-col">
+      <div className="flex min-h-0 flex-1 flex-col @[26rem]:ml-4">
+        <MockCard className="flex-1 pb-6">
+          <div className="flex shrink-0 items-center gap-2.5 border-b border-border/60 px-4 py-2.5">
+            <MockAvatar initials={sample.initials} size="md" />
+            <div className="min-w-0 flex-1">
+              <p className="text-[0.6875rem] leading-3 text-muted-foreground">
+                Prepared for
+              </p>
+              <p className={cn(mockTitleClassName, "mt-0.5")}>
+                {sample.customer}
+              </p>
+              <p className={mockSecondaryClassName}>
+                {sample.project}
+                <span className="hidden @[22rem]:inline">
+                  {" "}
+                  · {sample.quoteNumber}
+                </span>
+              </p>
+            </div>
+            <QuoteStatusBadge size="sm" status="sent" />
+          </div>
+
+          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border/60 bg-muted/40 px-4 py-1.5">
+            <span className="meta-label">Scope</span>
+            <span className="meta-label">Amount</span>
+          </div>
+
+          <div className="flex min-h-0 flex-1 flex-col divide-y divide-border/60">
+            {sample.lineItems.map((item) => (
+              <HeroLineItem item={item} key={item.label} />
+            ))}
+          </div>
+
+          <div className="flex shrink-0 items-baseline justify-between gap-3 border-t border-border/60 px-4 py-2.5">
+            <p className="text-xs leading-4 font-medium text-muted-foreground">
+              Total
+            </p>
+            <p className="font-mono text-lg leading-6 font-semibold tabular-nums tracking-tight text-foreground">
+              {sample.total}
             </p>
           </div>
-        </div>
-        <AttachmentTiles
-          kind={/photo/i.test(sample.attachmentLabel) ? "photo" : "file"}
-          labels={sample.attachmentTiles}
-        />
-        <p className="text-[0.6875rem] leading-4 text-muted-foreground">
-          {sample.attachmentSummary}
-        </p>
+
+          <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-t border-border/60 px-4 py-2 text-xs leading-4 text-muted-foreground">
+            <span className="inline-flex items-center gap-1">
+              <Send aria-hidden="true" className="size-3.5" />
+              Sent
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <Eye aria-hidden="true" className="size-3.5 text-primary-ink" />
+              Viewed 3 days ago
+            </span>
+            <span className="inline-flex items-center gap-1 font-medium text-warning-ink">
+              <Clock3 aria-hidden="true" className="size-3.5" />
+              Follow-up due
+            </span>
+          </div>
+        </MockCard>
       </div>
-    </MockCard>
+
+      <div className="relative z-10 -mt-4 w-full max-w-[22rem] @[26rem]:w-[78%]">
+        <MockCard className="marketing-solution-front-card">
+          <div className="flex min-w-0 items-center gap-2.5 border-b border-border/60 px-4 py-2.5">
+            <MockAvatar initials={sample.initials} />
+            <div className="min-w-0 flex-1">
+              <p className={mockTitleClassName}>{sample.customer}</p>
+              <p className={mockSecondaryClassName}>{sample.project}</p>
+            </div>
+            <InquiryStatusBadge size="sm" status="quoted" />
+          </div>
+
+          <dl className="grid shrink-0 grid-cols-2 gap-x-4 gap-y-1 border-b border-border/60 px-4 py-2">
+            {sample.inquiryFields.slice(0, 2).map((field) => (
+              <div className="min-w-0" key={field.label}>
+                <dt className="truncate text-[0.6875rem] leading-3 text-muted-foreground">
+                  {field.label}
+                </dt>
+                <dd className="mt-0.5 truncate text-xs leading-4 font-medium text-foreground">
+                  {field.value}
+                </dd>
+              </div>
+            ))}
+          </dl>
+
+          <div className="p-2">
+            <div className="flex items-center justify-between gap-2 px-1 pb-1.5">
+              <span className="inline-flex min-w-0 items-center gap-1.5 text-xs leading-4 font-medium text-foreground">
+                <Camera
+                  aria-hidden="true"
+                  className="size-3.5 shrink-0 text-primary-ink"
+                />
+                <span className="truncate">{sample.attachmentLabel}</span>
+              </span>
+              <span className="shrink-0 text-xs leading-4 text-muted-foreground">
+                {sample.attachmentCount}
+              </span>
+            </div>
+            {sample.attachmentImages?.length ? (
+              <AttachmentImages images={sample.attachmentImages} />
+            ) : (
+              <AttachmentTiles kind={kind} labels={sample.attachmentTiles} />
+            )}
+          </div>
+        </MockCard>
+      </div>
+    </div>
   );
 }
 
@@ -129,14 +288,21 @@ function SolutionInquiryMock({ sample }: { sample: SolutionLandingSample }) {
           </span>
         </div>
         <div className="mt-2">
-          <AttachmentTiles
-            kind={/photo/i.test(sample.attachmentLabel) ? "photo" : "file"}
-            labels={sample.attachmentTiles}
-          />
+          {sample.attachmentImages?.length ? (
+            <AttachmentImages images={sample.attachmentImages} />
+          ) : (
+            <AttachmentTiles
+              kind={/photo/i.test(sample.attachmentLabel) ? "photo" : "file"}
+              labels={sample.attachmentTiles}
+            />
+          )}
         </div>
       </div>
       <div className="flex items-center gap-2 border-t border-border/60 px-4 py-2.5 text-[0.6875rem] leading-4 text-muted-foreground">
-        <ShieldCheck aria-hidden="true" className="size-3.5 shrink-0 text-primary-ink" />
+        <ShieldCheck
+          aria-hidden="true"
+          className="size-3.5 shrink-0 text-primary-ink"
+        />
         Details and files stay on the inquiry
       </div>
     </MockCard>
@@ -147,7 +313,7 @@ function SolutionQuoteMock({ sample }: { sample: SolutionLandingSample }) {
   return (
     <MockCard>
       <MockCardHeader
-        action={<MockBadge label="Sent" tone="info" />}
+        action={<QuoteStatusBadge size="sm" status="sent" />}
         title={`Quote ${sample.quoteNumber}`}
       />
       <div className="flex min-w-0 items-center gap-2.5 border-b border-border/60 px-4 py-3">
@@ -157,17 +323,13 @@ function SolutionQuoteMock({ sample }: { sample: SolutionLandingSample }) {
           <p className={mockSecondaryClassName}>{sample.project}</p>
         </div>
       </div>
+      <div className="grid grid-cols-[1fr_auto] gap-3 border-b border-border/60 bg-muted/30 px-4 py-2">
+        <span className="meta-label">Line item</span>
+        <span className="meta-label">Total</span>
+      </div>
       <MockList>
         {sample.lineItems.map((item) => (
-          <div
-            className="flex min-w-0 items-start justify-between gap-3 px-4 py-2.5"
-            key={item.label}
-          >
-            <p className={cn(mockTitleClassName, "text-xs")}>{item.label}</p>
-            <p className={cn(mockMonoClassName, "shrink-0 font-semibold text-foreground")}>
-              {item.value}
-            </p>
-          </div>
+          <WorkflowLineItem item={item} key={item.label} />
         ))}
       </MockList>
       <div className="flex shrink-0 items-baseline justify-between gap-3 border-t border-border/60 px-4 py-3">
@@ -178,8 +340,12 @@ function SolutionQuoteMock({ sample }: { sample: SolutionLandingSample }) {
           {sample.total}
         </p>
       </div>
-      <div className="border-t border-border/60 px-4 py-2.5 text-[0.6875rem] leading-4 text-muted-foreground">
-        {sample.quoteFooter}
+      <div className="flex items-center justify-between gap-3 border-t border-border/60 px-4 py-2.5 text-[0.6875rem] leading-4 text-muted-foreground">
+        <span className="truncate">{sample.quoteFooter}</span>
+        <span className="inline-flex shrink-0 items-center gap-1.5">
+          <Eye aria-hidden="true" className="size-3.5 text-primary-ink" />
+          Viewed
+        </span>
       </div>
     </MockCard>
   );
@@ -190,18 +356,25 @@ function SolutionSendMock({ sample }: { sample: SolutionLandingSample }) {
     <MockCard>
       <MockCardHeader
         action={<QuoteStatusBadge size="sm" status="sent" />}
-        title={`Quote ${sample.quoteNumber}`}
+        title={sample.project}
       />
       <div className="flex min-w-0 items-baseline justify-between gap-3 border-b border-border/60 px-4 py-3">
         <div className="min-w-0">
-          <p className={mockTitleClassName}>{sample.customer}</p>
-          <p className={mockSecondaryClassName}>{sample.project}</p>
+          <p className={mockTitleClassName}>For {sample.customer}</p>
+          <p className={mockSecondaryClassName}>
+            {sample.quoteNumber} · Valid for 30 days
+          </p>
         </div>
         <p className="shrink-0 font-mono text-lg leading-6 font-semibold tabular-nums tracking-tight text-foreground">
           {sample.total}
         </p>
       </div>
-      <div className="flex flex-wrap items-center gap-2 border-b border-border/60 px-4 py-3">
+      <MockList>
+        {sample.lineItems.map((item) => (
+          <WorkflowLineItem item={item} key={item.label} />
+        ))}
+      </MockList>
+      <div className="flex flex-wrap items-center gap-2 border-b border-t border-border/60 px-4 py-3">
         <MockButton>Accept quote</MockButton>
         <MockButton variant="outline">Request changes</MockButton>
       </div>
@@ -323,7 +496,10 @@ function SolutionPaymentMock({ sample }: { sample: SolutionLandingSample }) {
         </MockRow>
       </MockList>
       <div className="flex items-center gap-2 border-t border-border/60 px-4 py-2.5 text-[0.6875rem] leading-4 text-muted-foreground">
-        <ReceiptText aria-hidden="true" className="size-3.5 shrink-0 text-primary-ink" />
+        <ReceiptText
+          aria-hidden="true"
+          className="size-3.5 shrink-0 text-primary-ink"
+        />
         Manual payment · no card processing
       </div>
     </MockCard>

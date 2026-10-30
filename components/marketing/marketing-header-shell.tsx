@@ -198,7 +198,9 @@ export function MarketingHeaderShell({
                   </div>
                 </SheetBody>
 
-                <SheetFooter className="flex-col gap-2.5 border-t border-[var(--overlay-divider)]">
+                {/* The sheet stays narrow at every breakpoint, so keep the
+                    CTA stack full-width instead of the shared footer's row. */}
+                <SheetFooter className="flex-col gap-2.5 border-t border-[var(--overlay-divider)] sm:flex-col sm:[&>*]:w-full">
                   {mobileActions}
                 </SheetFooter>
               </SheetContent>

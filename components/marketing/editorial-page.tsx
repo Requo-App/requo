@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { ArrowRight } from "lucide-react";
 
 import { InViewReveal } from "@/components/marketing/in-view-reveal";
 import { MarketingFooter } from "@/components/marketing/marketing-footer";
@@ -10,7 +11,6 @@ import {
 } from "@/components/marketing/solutions/solutions-shared";
 import { PublicPageShell } from "@/components/shared/public-page-shell";
 import { Button } from "@/components/ui/button";
-import { ArrowRight } from "lucide-react";
 
 export type EditorialBreadcrumb = {
   name: string;
@@ -40,7 +40,7 @@ export function EditorialPage({
   children,
 }: {
   breadcrumbs?: readonly EditorialBreadcrumb[];
-  eyebrow: string;
+  eyebrow?: string;
   title: string;
   definition: string;
   secondaryCta?: { label: string; href: string };
@@ -87,7 +87,9 @@ export function EditorialPage({
                   </ol>
                 </nav>
               ) : null}
-              <p className="meta-label-plain text-primary-ink">{eyebrow}</p>
+              {eyebrow ? (
+                <p className="meta-label-plain text-primary-ink">{eyebrow}</p>
+              ) : null}
               <h1 className="max-w-3xl font-sans text-[2.5rem] font-normal leading-[1.08] tracking-[-0.035em] text-foreground sm:text-6xl sm:leading-[1.05] lg:text-[4.25rem]">
                 {title}
               </h1>
@@ -112,9 +114,7 @@ export function EditorialPage({
                     size="lg"
                     variant="outline"
                   >
-                    <Link href={secondaryCta.href}>
-                      {secondaryCta.label}
-                    </Link>
+                    <Link href={secondaryCta.href}>{secondaryCta.label}</Link>
                   </Button>
                 ) : null}
               </div>
@@ -144,7 +144,7 @@ export function EditorialPage({
           </InViewReveal>
         </section>
 
-        <InViewReveal className="mx-auto mt-20 w-full max-w-4xl px-4 sm:mt-28 sm:px-6 lg:px-8 xl:px-0">
+        <InViewReveal className="mt-20 sm:mt-28">
           <SolutionsFinalCta
             headline={ctaHeadline}
             sub={ctaSub}

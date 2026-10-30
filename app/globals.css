@@ -333,6 +333,8 @@
      product window; the illustrations stay flat. */
   --marketing-surface-raised: #ffffff;
   --marketing-surface-muted: #f5f5f7;
+  /* The stage base doubles as the cutout colour around the front card. */
+  --marketing-solution-stage-fill: var(--marketing-surface-muted);
   --marketing-hairline: rgb(29 29 31 / 0.1);
   --marketing-hairline-strong: rgb(29 29 31 / 0.16);
   --marketing-muted: #6e6e73;
@@ -524,19 +526,11 @@
   --switch-thumb-shadow:
     0 3px 3px 0 rgb(0 0 0 / 0.03),
     0 0.75px 0 0 rgb(0 0 0 / 0.05);
-  /* Inverse panels: the landing closing CTA and auth story. The light theme
-     uses the same charcoal ink family as dark surfaces so the block never
-     turns into a second, green-tinted palette. */
-  --inverse-surface: #1d1d1f;
+  /* Inverse auth story. The light theme uses the same charcoal ink family as
+     dark surfaces so the block never turns into a second, green-tinted
+     palette. */
   --inverse-foreground: #f5f5f7;
   --inverse-muted: rgb(245 245 247 / 0.68);
-  --inverse-subtle: rgb(245 245 247 / 0.76);
-  --inverse-skeleton: rgb(245 245 247 / 0.2);
-  --inverse-button-bg: #ffffff;
-  --inverse-button-bg-hover: #e5e5ea;
-  --inverse-button-fg: #1d1d1f;
-  --inverse-button-fg-hover: #1d1d1f;
-  --inverse-ring: #f5f5f7;
   /* Static previews in Appearance. They must depict the theme they name, not
      inherit the theme that is currently active. */
   --theme-preview-light-bg: #f5f5f7;
@@ -698,6 +692,8 @@ html[data-reload-loading="fade-out"] #app-root-content {
   /* Marketing surfaces use the app's original neutral dark palette. */
   --marketing-surface-raised: var(--card);
   --marketing-surface-muted: var(--muted);
+  /* The stage steps down to the page fill so raised cards read one step up. */
+  --marketing-solution-stage-fill: var(--background);
   --marketing-hairline: var(--border);
   --marketing-hairline-strong: rgb(255 255 255 / 0.16);
   --marketing-muted: var(--muted-foreground);
@@ -805,16 +801,8 @@ html[data-reload-loading="fade-out"] #app-root-content {
   --switch-thumb-shadow:
     0 3px 3px 0 rgb(0 0 0 / 0.18),
     0 0.75px 0 0 rgb(0 0 0 / 0.24);
-  --inverse-surface: #242426;
   --inverse-foreground: #f5f5f7;
   --inverse-muted: rgb(245 245 247 / 0.68);
-  --inverse-subtle: rgb(245 245 247 / 0.76);
-  --inverse-skeleton: rgb(245 245 247 / 0.2);
-  --inverse-button-bg: #f5f5f7;
-  --inverse-button-bg-hover: #e5e5ea;
-  --inverse-button-fg: #1d1d1f;
-  --inverse-button-fg-hover: #1d1d1f;
-  --inverse-ring: #f5f5f7;
   --theme-preview-light-bg: #f5f5f7;
   --theme-preview-light-card: #ffffff;
   --theme-preview-light-fg: #1d1d1f;
@@ -2401,12 +2389,10 @@ html[data-reload-loading="fade-out"] #app-root-content {
 
   @keyframes marketing-nav-panel-in {
     from {
-      opacity: 0;
       transform: translate3d(0, 6px, 0) scale(0.98);
     }
 
     to {
-      opacity: 1;
       transform: translate3d(0, 0, 0) scale(1);
     }
   }
@@ -2439,21 +2425,12 @@ html[data-reload-loading="fade-out"] #app-root-content {
     height: 0.375rem;
   }
 
-  /* Switching triggers swaps the mounted content; a quiet fade carries it. */
-  .marketing-nav-content {
-    animation: marketing-nav-content-in var(--motion-duration-fast)
-      var(--motion-ease-standard) both;
-  }
-
-  @keyframes marketing-nav-content-in {
-    from {
-      opacity: 0;
-    }
-
-    to {
-      opacity: 1;
-    }
-  }
+  /*
+   * The panel carries the open/close motion; the mounted content swaps in
+   * place. Do not start the content at opacity 0: a delayed animation frame
+   * (busy main thread) would leave the open card visibly empty until the
+   * animation begins.
+   */
 
   .marketing-nav-item {
     outline: none;
@@ -2531,12 +2508,9 @@ html[data-reload-loading="fade-out"] #app-root-content {
       transition: none;
     }
 
-    .marketing-header .marketing-nav-panel[data-state="open"] {
-      animation-name: marketing-nav-panel-fade-in;
-    }
-
+    .marketing-header .marketing-nav-panel[data-state="open"],
     .marketing-header .marketing-nav-panel[data-state="closed"] {
-      animation-name: marketing-nav-panel-fade-out;
+      animation: none;
     }
 
     .marketing-nav-tile,
@@ -2555,26 +2529,6 @@ html[data-reload-loading="fade-out"] #app-root-content {
     .marketing-nav-item:hover .marketing-nav-arrow,
     .marketing-nav-item:focus-visible .marketing-nav-arrow {
       transform: none;
-    }
-  }
-
-  @keyframes marketing-nav-panel-fade-in {
-    from {
-      opacity: 0;
-    }
-
-    to {
-      opacity: 1;
-    }
-  }
-
-  @keyframes marketing-nav-panel-fade-out {
-    from {
-      opacity: 1;
-    }
-
-    to {
-      opacity: 0;
     }
   }
 
@@ -2757,49 +2711,30 @@ html[data-reload-loading="fade-out"] #app-root-content {
   }
 
   /*
-   * One tinted stage behind a solution landing illustration. Light gets a
-   * soft emerald wash over the muted surface; dark caps the glow and the dot
-   * grid at a 6% effective tint. `content-visibility` defers below-fold mock
+   * One flat stage behind a solution landing illustration. The stage steps one
+   * fill below the cards in both themes, so the illustration sits forward
+   * without a gradient or glow. Dark uses the page fill and a stronger card
+   * hairline instead of a shadow. `content-visibility` defers below-fold mock
    * painting while the intrinsic size keeps the row from shifting on approach.
    */
   .marketing-solution-stage {
     position: relative;
-    background:
-      radial-gradient(
-        120% 100% at 18% 0%,
-        color-mix(in srgb, var(--primary) 7%, transparent) 0%,
-        transparent 58%
-      ),
-      var(--marketing-surface-muted);
+    background: var(--marketing-solution-stage-fill);
     content-visibility: auto;
-    contain-intrinsic-size: auto 30rem;
+    contain-intrinsic-size: auto 43rem;
   }
 
   .dark .marketing-solution-stage {
-    background:
-      radial-gradient(
-        120% 100% at 18% 0%,
-        color-mix(in srgb, var(--primary) 6%, transparent) 0%,
-        transparent 58%
-      ),
-      var(--marketing-surface-muted);
+    background: var(--marketing-solution-stage-fill);
   }
 
-  .marketing-solution-stage::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    background-image: radial-gradient(
-      color-mix(in srgb, var(--primary) 12%, transparent) 1px,
-      transparent 1px
-    );
-    background-size: 18px 18px;
-    opacity: 0;
+  .dark .marketing-solution-stage .marketing-mock-card {
+    border-color: var(--marketing-hairline-strong);
   }
 
-  .dark .marketing-solution-stage::before {
-    opacity: 0.5;
+  /* The front card is cut out of the quote behind it by a ring of stage fill. */
+  .marketing-solution-front-card {
+    outline: 6px solid var(--marketing-solution-stage-fill);
   }
 
   .marketing-solution-stage > * {
@@ -3239,46 +3174,98 @@ html[data-reload-loading="fade-out"] #app-root-content {
   }
 
   /*
-   * Inverse closing panel: a flat ink block with no border, glow, texture, or
-   * shadow. Light theme uses the headline ink; dark theme steps one surface
-   * lighter than the page so the block still reads as a panel.
+   * Closing CTA: one flat panel everywhere. The surface steps one card above
+   * the page in dark, keeps the same page fill in light, and separates with a
+   * single hairline. No shadow, gradient, glow, texture, kicker, checklist, or
+   * reassurance line.
    */
+  .marketing-cta-shell {
+    width: 100%;
+    max-width: 72rem;
+    margin-inline: auto;
+    padding-inline: 1rem;
+  }
+
+  @media (min-width: 640px) {
+    .marketing-cta-shell {
+      padding-inline: 1.5rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .marketing-cta-shell {
+      padding-inline: 2rem;
+    }
+  }
+
+  @media (min-width: 1280px) {
+    .marketing-cta-shell {
+      padding-inline: 0;
+    }
+  }
+
   .marketing-cta-panel {
-    padding: 4rem 1.5rem;
+    padding: 4rem 1.25rem;
+    border: 1px solid var(--border);
     border-radius: var(--marketing-radius-lg);
-    background: var(--inverse-surface);
+    background: var(--card);
     text-align: center;
-  }
-
-  .marketing-cta-panel h2 {
-    color: var(--inverse-foreground);
-  }
-
-  .marketing-cta-lead {
-    color: var(--inverse-muted);
-  }
-
-  .marketing-cta-emphasis {
-    color: var(--inverse-foreground);
-  }
-
-  .marketing-cta-panel p {
-    color: var(--inverse-subtle);
-  }
-
-  .marketing-cta-panel .marketing-cta-note {
-    color: var(--inverse-muted);
   }
 
   @media (min-width: 640px) {
     .marketing-cta-panel {
-      padding: 5rem 3rem;
+      padding: 5rem 2rem;
     }
   }
 
   @media (min-width: 1024px) {
     .marketing-cta-panel {
-      padding: 5rem 4.5rem;
+      padding: 6rem 2rem;
+    }
+  }
+
+  .marketing-cta-headline {
+    max-width: 40rem;
+    margin-inline: auto;
+    color: var(--foreground);
+    font-size: clamp(2rem, calc(3.2vw + 1rem), 3rem);
+    font-weight: 600;
+    line-height: 1.08;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+  }
+
+  .marketing-cta-sub {
+    max-width: 32.5rem;
+    margin: 1rem auto 0;
+    color: var(--muted-foreground);
+    font-size: 1rem;
+    line-height: 1.6;
+    text-wrap: balance;
+  }
+
+  @media (min-width: 640px) {
+    .marketing-cta-sub {
+      font-size: 1.125rem;
+      line-height: 1.55;
+    }
+  }
+
+  .marketing-cta-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+    width: 100%;
+    margin-top: 2rem;
+  }
+
+  @media (min-width: 640px) {
+    .marketing-cta-actions {
+      flex-direction: row;
+      align-items: center;
+      justify-content: center;
+      width: auto;
     }
   }
 
@@ -3639,14 +3626,12 @@ html[data-reload-loading="fade-out"] #app-root-content {
   }
 
   /*
-   * Marketing header and menu actions that opt into the flat treatment: a
-   * 10px radius with no inset highlight, coloured shadow, or hover lift. The
-   * pressed state moves down 1px; the arrow nudges 2px. Start free uses the
-   * shared primary Button, so only the secondary and ghost treatments are
-   * overridden here.
+   * Marketing secondary and ghost actions. The secondary is a filled card
+   * with a strong hairline and a one-step muted hover; the ghost stays
+   * transparent and only picks up a muted wash on hover. Both keep the
+   * shared 10px marketing radius, a 1px press, and a 2px arrow nudge.
    */
-  .marketing-landing .marketing-button-secondary,
-  .marketing-header .marketing-button-secondary {
+  .marketing-button-secondary {
     border: 1px solid var(--marketing-hairline-strong);
     border-radius: 10px;
     background: var(--card);
@@ -3655,127 +3640,52 @@ html[data-reload-loading="fade-out"] #app-root-content {
     translate: 0 0;
   }
 
-  .marketing-landing .marketing-button-secondary:hover,
-  .marketing-header .marketing-button-secondary:hover {
+  .marketing-button-secondary:hover {
     border-color: var(--border);
     background: var(--muted);
     color: var(--foreground);
     box-shadow: none;
   }
 
-  .marketing-landing .marketing-button-secondary:active,
-  .marketing-header .marketing-button-secondary:active {
+  .marketing-button-secondary:active {
     translate: 0 1px;
   }
 
-  .marketing-landing .marketing-button-secondary:focus-visible,
-  .marketing-header .marketing-button-secondary:focus-visible {
+  .marketing-button-secondary:focus-visible {
     outline: 2px solid var(--ring);
     outline-offset: 2px;
     box-shadow: none;
   }
 
-  .marketing-landing .marketing-button-secondary [data-icon="inline-end"],
-  .marketing-header .marketing-button-secondary [data-icon="inline-end"] {
+  .marketing-button-secondary [data-icon="inline-end"] {
     transition: translate var(--motion-duration-fast)
       var(--motion-ease-standard);
   }
 
-  .marketing-landing .marketing-button-secondary:hover [data-icon="inline-end"],
-  .marketing-header .marketing-button-secondary:hover [data-icon="inline-end"] {
+  .marketing-button-secondary:hover [data-icon="inline-end"] {
     translate: 2px 0;
   }
 
-  .marketing-landing .marketing-button-ghost,
-  .marketing-header .marketing-button-ghost {
+  .marketing-button-ghost {
     border-color: transparent;
     background: transparent;
     box-shadow: none;
     translate: 0 0;
   }
 
-  .marketing-landing .marketing-button-ghost:hover,
-  .marketing-header .marketing-button-ghost:hover {
+  .marketing-button-ghost:hover {
     border-color: transparent;
     background: var(--muted);
     color: var(--foreground);
     box-shadow: none;
   }
 
-  .marketing-landing .marketing-button-ghost:active,
-  .marketing-header .marketing-button-ghost:active {
+  .marketing-button-ghost:active {
     translate: 0 1px;
   }
 
-  .marketing-landing .marketing-button-ghost:focus-visible,
-  .marketing-header .marketing-button-ghost:focus-visible {
+  .marketing-button-ghost:focus-visible {
     outline: 2px solid var(--ring);
-    outline-offset: 2px;
-    box-shadow: none;
-  }
-
-  /* Closing CTA: solid white primary, quiet underlined secondary. */
-  .marketing-cta-panel .marketing-cta-button-primary {
-    border: 1px solid var(--inverse-button-bg);
-    border-radius: 10px;
-    background: var(--inverse-button-bg);
-    color: var(--inverse-button-fg);
-    box-shadow: none;
-    translate: 0 0;
-  }
-
-  .marketing-cta-panel .marketing-cta-button-primary:hover {
-    border-color: var(--inverse-button-bg-hover);
-    background: var(--inverse-button-bg-hover);
-    color: var(--inverse-button-fg-hover);
-    box-shadow: none;
-  }
-
-  .marketing-cta-panel .marketing-cta-button-primary:active {
-    translate: 0 1px;
-  }
-
-  .marketing-cta-panel .marketing-cta-button-primary:focus-visible {
-    outline: 2px solid var(--inverse-ring);
-    outline-offset: 2px;
-    box-shadow: none;
-  }
-
-  .marketing-cta-panel .marketing-cta-button-primary [data-icon="inline-end"] {
-    transition: translate var(--motion-duration-fast)
-      var(--motion-ease-standard);
-  }
-
-  .marketing-cta-panel
-    .marketing-cta-button-primary:hover
-    [data-icon="inline-end"] {
-    translate: 2px 0;
-  }
-
-  .marketing-cta-panel .marketing-cta-button-secondary {
-    border-color: transparent;
-    border-radius: 10px;
-    background: transparent;
-    color: var(--inverse-subtle);
-    box-shadow: none;
-    translate: 0 0;
-  }
-
-  .marketing-cta-panel .marketing-cta-button-secondary:hover {
-    border-color: transparent;
-    background: transparent;
-    color: var(--inverse-foreground);
-    box-shadow: none;
-    text-decoration: underline;
-    text-underline-offset: 4px;
-  }
-
-  .marketing-cta-panel .marketing-cta-button-secondary:active {
-    translate: 0 1px;
-  }
-
-  .marketing-cta-panel .marketing-cta-button-secondary:focus-visible {
-    outline: 2px solid var(--inverse-ring);
     outline-offset: 2px;
     box-shadow: none;
   }

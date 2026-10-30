@@ -24,12 +24,9 @@ export default function MarketingHomeLoading() {
             <Skeleton className="h-5 w-full max-w-[36ch] rounded-md" />
             <Skeleton className="h-5 w-4/5 max-w-[30ch] rounded-md" />
           </div>
-          <div className="mt-6 flex w-full flex-col gap-4">
-            <div className="flex w-full flex-col gap-4 sm:w-auto sm:flex-row sm:items-center">
-              <Skeleton className="h-11 w-full rounded-lg sm:h-12 sm:w-36" />
-              <Skeleton className="h-11 w-full rounded-lg sm:h-12 sm:w-36" />
-            </div>
-            <Skeleton className="h-4 w-44 rounded-md" />
+          <div className="mt-6 flex w-full flex-col gap-4 sm:w-auto sm:flex-row sm:items-center">
+            <Skeleton className="h-11 w-full rounded-lg sm:h-12 sm:w-36" />
+            <Skeleton className="h-11 w-full rounded-lg sm:h-12 sm:w-36" />
           </div>
 
           {/* Product window */}
@@ -207,15 +204,14 @@ export default function MarketingHomeLoading() {
       </section>
 
       {/* Final CTA section */}
-      <section className="mx-auto mt-24 w-full max-w-6xl px-4 sm:mt-32 sm:px-6 lg:mt-40 lg:px-8 xl:px-0">
-        <div className="marketing-cta-panel flex flex-col items-center gap-5 sm:gap-6">
-          <Skeleton className="h-12 w-full max-w-xl rounded-lg bg-[var(--inverse-skeleton)] sm:h-16" />
-          <Skeleton className="h-5 w-80 max-w-full rounded-md bg-[var(--inverse-skeleton)]" />
-          <div className="flex w-full flex-col justify-center gap-3 sm:w-auto sm:flex-row">
-            <Skeleton className="h-11 w-full rounded-lg bg-[var(--inverse-skeleton)] sm:h-12 sm:w-32" />
-            <Skeleton className="h-11 w-full rounded-lg bg-[var(--inverse-skeleton)] sm:h-12 sm:w-32" />
+      <section className="marketing-cta-shell mt-24 sm:mt-32 lg:mt-40">
+        <div className="marketing-cta-panel flex flex-col items-center">
+          <Skeleton className="h-9 w-full max-w-xl rounded-lg sm:h-12" />
+          <Skeleton className="mt-4 h-5 w-80 max-w-full rounded-md" />
+          <div className="marketing-cta-actions">
+            <Skeleton className="h-11 w-full rounded-lg sm:w-32" />
+            <Skeleton className="h-11 w-full rounded-lg sm:w-32" />
           </div>
-          <Skeleton className="h-4 w-44 rounded-md bg-[var(--inverse-skeleton)]" />
         </div>
       </section>
 
