@@ -152,8 +152,14 @@ export async function sendQuoteDiscussionReplyAction(
     return { error: "That discussion could not be found." };
   }
 
+  const submittedSenderName = formData.get("senderName");
+  const senderName =
+    typeof submittedSenderName === "string" && submittedSenderName.trim()
+      ? submittedSenderName
+      : access.businessContext.business.name;
+
   const parsed = quoteDiscussionMessageSchema.safeParse({
-    senderName: formData.get("senderName") ?? access.user.name ?? access.user.email,
+    senderName,
     body: formData.get("body"),
   });
 

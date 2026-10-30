@@ -19,9 +19,12 @@ import {
   getQuoteDiscussionInboxForBusiness,
 } from "@/features/quote-discussions/queries";
 import {
+  archiveQuoteForBusiness,
+  archiveQuoteVersionAndRevise,
   createQuoteForBusiness,
   markQuoteSentForBusiness,
   respondToPublicQuoteByToken,
+  restoreArchivedQuoteForBusiness,
 } from "@/features/quotes/mutations";
 import type { QuoteEditorInput } from "@/features/quotes/schemas";
 import {
@@ -278,6 +281,128 @@ describe("quote discussions", () => {
     expect(publicView?.closed).toBe(true);
     expect(publicView?.messages).toHaveLength(1);
   }, 20_000);
+
+  it("reopens a thread after an archived quote is restored", async () => {
+    const sent = await createSentQuote();
+    const customerMessage = await sendPublicQuoteDiscussionMessage({
+      token: sent.token,
+      senderName: "Maria Santos",
+      body: "Question before the quote was archived",
+      guestSessionHash: null,
+    });
+    if (!customerMessage.ok) throw new Error("Expected the message to send.");
+
+    const archived = await archiveQuoteForBusiness({
+      businessId: ids.businessId,
+      quoteId: sent.quoteId,
+      actorUserId: ids.ownerUserId,
+    });
+    expect(archived?.changed).toBe(true);
+
+    const denied = await sendBusinessQuoteDiscussionMessage({
+      businessId: ids.businessId,
+      discussionId: customerMessage.discussionId,
+      actorUserId: ids.ownerUserId,
+      senderName: "Workflow Owner",
+      body: "Reply while archived",
+    });
+    expect(denied).toEqual({ ok: false, reason: "closed" });
+
+    // Archiving the quote already derives the archived state, so a failed
+    // reply must not leave a marker that survives the restore.
+    const [archivedRow] = await testDb
+      .select()
+      .from(quoteDiscussions)
+      .where(eq(quoteDiscussions.id, customerMessage.discussionId));
+    expect(archivedRow?.archivedAt).toBeNull();
+
+    const restored = await restoreArchivedQuoteForBusiness({
+      businessId: ids.businessId,
+      quoteId: sent.quoteId,
+      actorUserId: ids.ownerUserId,
+    });
+    expect(restored?.changed).toBe(true);
+
+    const summary = await getQuoteDiscussionForQuoteForBusiness({
+      businessId: ids.businessId,
+      quoteId: sent.quoteId,
+      userId: ids.ownerUserId,
+    });
+    expect(summary?.state).toBe("needs_reply");
+
+    const reply = await sendBusinessQuoteDiscussionMessage({
+      businessId: ids.businessId,
+      discussionId: customerMessage.discussionId,
+      actorUserId: ids.ownerUserId,
+      senderName: "Workflow Owner",
+      body: "Reply after the quote was restored",
+    });
+    expect(reply.ok).toBe(true);
+  }, 25_000);
+
+  it("keeps a thread replyable after a revised quote is sent again", async () => {
+    const sent = await createSentQuote();
+    const customerMessage = await sendPublicQuoteDiscussionMessage({
+      token: sent.token,
+      senderName: "Maria Santos",
+      body: "Question before the revision",
+      guestSessionHash: null,
+    });
+    if (!customerMessage.ok) throw new Error("Expected the message to send.");
+
+    const revised = await archiveQuoteVersionAndRevise({
+      businessId: ids.businessId,
+      quoteId: sent.quoteId,
+      actorUserId: ids.ownerUserId,
+    });
+    expect(revised?.revised).toBe(true);
+
+    const denied = await sendBusinessQuoteDiscussionMessage({
+      businessId: ids.businessId,
+      discussionId: customerMessage.discussionId,
+      actorUserId: ids.ownerUserId,
+      senderName: "Workflow Owner",
+      body: "Reply while the quote is a draft",
+    });
+    expect(denied).toEqual({ ok: false, reason: "closed" });
+
+    const [draftRow] = await testDb
+      .select()
+      .from(quoteDiscussions)
+      .where(eq(quoteDiscussions.id, customerMessage.discussionId));
+    expect(draftRow?.archivedAt).toBeNull();
+
+    const draftSummary = await getQuoteDiscussionForQuoteForBusiness({
+      businessId: ids.businessId,
+      quoteId: sent.quoteId,
+      userId: ids.ownerUserId,
+    });
+    expect(draftSummary?.state).toBe("archived");
+
+    const resent = await markQuoteSentForBusiness({
+      businessId: ids.businessId,
+      quoteId: sent.quoteId,
+      actorUserId: ids.ownerUserId,
+      sendMethod: "manual",
+    });
+    expect(resent?.changed).toBe(true);
+
+    const reopenedSummary = await getQuoteDiscussionForQuoteForBusiness({
+      businessId: ids.businessId,
+      quoteId: sent.quoteId,
+      userId: ids.ownerUserId,
+    });
+    expect(reopenedSummary?.state).toBe("needs_reply");
+
+    const reply = await sendBusinessQuoteDiscussionMessage({
+      businessId: ids.businessId,
+      discussionId: customerMessage.discussionId,
+      actorUserId: ids.ownerUserId,
+      senderName: "Workflow Owner",
+      body: "Reply after the revision was sent",
+    });
+    expect(reply.ok).toBe(true);
+  }, 25_000);
 
   it("scopes inbox reads and read state by business and user", async () => {
     const quoteA = await createSentQuote();

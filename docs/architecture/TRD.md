@@ -156,9 +156,9 @@ verifies the discussion belongs to the acting business, and every read-state
 join filters on `business_id`.
 Discussion state is derived, not stored: a customer-latest thread is needs
 reply, a business-latest thread is waiting for customer, and a thread whose
-quote is accepted, rejected, expired, voided, or archived is archived. Archival is also
-written on those terminal transitions, and every send re-checks the quote
-status under its row lock, so a stale client cannot post after closure. A
+quote is a draft, accepted, rejected, expired, voided, or archived is archived.
+Archival is also written on terminal transitions, and every send re-checks the
+quote status under its row lock, so a stale client cannot post after closure. A
 reopened quote clears the archive marker on its next message. The message body
 is plain text with a server-enforced 4,000-character limit; customer and
 business text is escaped in email templates and never rendered as HTML.

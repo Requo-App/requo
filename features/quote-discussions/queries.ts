@@ -53,7 +53,9 @@ const latestMessageSenderName = sql<
 
 const latestMessageCreatedAt = sql<
   Date | null
->`(select m.created_at from quote_discussion_messages m where m.discussion_id = ${quoteDiscussions.id} order by m.created_at desc, m.id desc limit 1)`;
+>`(select m.created_at from quote_discussion_messages m where m.discussion_id = ${quoteDiscussions.id} order by m.created_at desc, m.id desc limit 1)`.mapWith(
+  quoteDiscussionMessages.createdAt,
+);
 
 const unreadCustomerMessages = sql<number>`(
   select count(*)::int from quote_discussion_messages m
@@ -72,6 +74,9 @@ const archivedDiscussionCondition = or(
   // Archiving a quote makes its thread read-only even though the quote status
   // itself is not terminal; restoring the quote opens it again.
   isNotNull(quotes.archivedAt),
+  // A draft quote is not publicly available, so an existing thread stays
+  // read-only until the quote is sent again.
+  sql`${quotes.status} = 'draft'`,
   terminalQuoteCondition,
 )!;
 

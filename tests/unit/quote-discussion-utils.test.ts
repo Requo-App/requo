@@ -96,10 +96,16 @@ describe("quote discussion state", () => {
     ).toBe("waiting_for_customer");
   });
 
-  it("archives terminal quotes even when no archive marker is set", () => {
+  it("archives terminal and draft quotes even when no archive marker is set", () => {
     expect(
       deriveQuoteDiscussionState({
         quoteStatus: "accepted",
+        latestSenderType: "customer",
+      }),
+    ).toBe("archived");
+    expect(
+      deriveQuoteDiscussionState({
+        quoteStatus: "draft",
         latestSenderType: "customer",
       }),
     ).toBe("archived");

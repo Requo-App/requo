@@ -68,6 +68,22 @@ function isQuoteClosedForDiscussion(quote: {
   );
 }
 
+/**
+ * Only terminal states need the persisted archive marker. Draft, archived,
+ * and deleted quotes already derive closure from the quote row, and writing a
+ * marker there would leave the thread archived after the quote reopens.
+ */
+function shouldPersistDiscussionArchive(quote: {
+  status: string;
+  validUntil: string;
+}) {
+  return (
+    isTerminalQuoteStatus(quote.status) ||
+    (quote.status === "sent" &&
+      quote.validUntil < getUtcDateString())
+  );
+}
+
 export type PublicQuoteDiscussionSendResult =
   | {
       ok: true;
@@ -148,7 +164,9 @@ export async function sendPublicQuoteDiscussionMessage({
     }
 
     if (isQuoteClosedForDiscussion(quote)) {
-      await archiveQuoteDiscussionsForQuoteIds(tx, [quote.id], now);
+      if (shouldPersistDiscussionArchive(quote)) {
+        await archiveQuoteDiscussionsForQuoteIds(tx, [quote.id], now);
+      }
       return { ok: false, reason: "closed" } as const;
     }
 
@@ -281,7 +299,6 @@ export async function sendBusinessQuoteDiscussionMessage({
         id: quoteDiscussions.id,
         quoteId: quoteDiscussions.quoteId,
         businessId: quoteDiscussions.businessId,
-        archivedAt: quoteDiscussions.archivedAt,
       })
       .from(quoteDiscussions)
       .where(
@@ -330,8 +347,10 @@ export async function sendBusinessQuoteDiscussionMessage({
       return { ok: false, reason: "not_found" } as const;
     }
 
-    if (discussionRow.archivedAt || isQuoteClosedForDiscussion(quote)) {
-      await archiveQuoteDiscussionsForQuoteIds(tx, [quote.id], now);
+    if (isQuoteClosedForDiscussion(quote)) {
+      if (shouldPersistDiscussionArchive(quote)) {
+        await archiveQuoteDiscussionsForQuoteIds(tx, [quote.id], now);
+      }
       return { ok: false, reason: "closed" } as const;
     }
 
@@ -366,7 +385,7 @@ export async function sendBusinessQuoteDiscussionMessage({
 
     await tx
       .update(quoteDiscussions)
-      .set({ lastMessageAt: now, updatedAt: now })
+      .set({ archivedAt: null, lastMessageAt: now, updatedAt: now })
       .where(
         and(
           eq(quoteDiscussions.id, discussionId),

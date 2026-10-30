@@ -165,7 +165,7 @@ One asynchronous conversation attached to exactly one quote, created lazily on i
 _Avoid_: Chat, inbox (for the thread), ticket, customer portal
 
 **Discussion state**:
-The conversation's own state: `needs_reply` when the customer sent the latest message, `waiting_for_customer` when the business did, and `archived` when the quote is terminal. It is separate from the quote status.
+The conversation's own state: `needs_reply` when the customer sent the latest message, `waiting_for_customer` when the business did, and `archived` when the quote is not open for customer messages (draft, terminal, or archived). It is separate from the quote status.
 _Avoid_: Quote status, unread (that is per member)
 
 **Guest display name**:

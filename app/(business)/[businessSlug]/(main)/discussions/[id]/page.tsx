@@ -66,7 +66,7 @@ async function DiscussionDetailRegion({ params }: DiscussionDetailPageProps) {
     <BusinessDiscussionDetail
       discussion={discussion}
       replyAction={replyAction}
-      senderName={user.name?.trim() || user.email}
+      senderName={user.name?.trim() || businessContext.business.name}
     />
   );
 }

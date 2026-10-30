@@ -81,7 +81,7 @@ describe("quote discussion composer", () => {
       />,
     );
 
-    expect(screen.getByLabelText("Your name")).toHaveValue("Maria Santos");
+    expect(screen.getByLabelText("Display name")).toHaveValue("Maria Santos");
     expect(
       screen.getByText("This name is a display label, not a verified identity."),
     ).toBeTruthy();

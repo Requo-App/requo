@@ -56,7 +56,11 @@ export function deriveQuoteDiscussionState({
   quoteStatus: string;
   latestSenderType?: "customer" | "business" | null;
 }): QuoteDiscussionState {
-  if (archivedAt || isTerminalQuoteStatus(quoteStatus)) {
+  if (
+    archivedAt ||
+    quoteStatus === "draft" ||
+    isTerminalQuoteStatus(quoteStatus)
+  ) {
     return "archived";
   }
 

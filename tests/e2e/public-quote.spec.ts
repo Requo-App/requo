@@ -135,7 +135,7 @@ test("a customer and the business share one quote discussion across both busines
     page.getByText(/Anyone with this quote link can read this conversation/),
   ).toBeVisible();
 
-  await page.getByLabel("Your name").fill("E2E Customer");
+  await page.getByLabel("Display name").fill("E2E Customer");
   await page.getByLabel("Message", { exact: true }).fill(customerMessage);
   await page.getByRole("button", { name: "Send question" }).click();
 

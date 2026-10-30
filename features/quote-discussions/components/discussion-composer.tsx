@@ -79,7 +79,7 @@ export function DiscussionComposer({
             className="text-sm font-medium"
             htmlFor="discussion-sender-name"
           >
-            Your name
+            Display name
           </label>
           <Input
             aria-describedby={
