@@ -167,7 +167,6 @@ const DESIGN_SYSTEM_SHARED_FILES = new Set([
   "stat-cards.tsx",
   "switch.tsx",
   "tabs.tsx",
-  "theme-toggle.tsx",
   "tooltip.tsx",
 ]);
 

@@ -129,11 +129,6 @@ export const UI_ALLOWLIST: Readonly<
     reason:
       "The combobox reuses the business feature's country/locale option list.",
   },
-  "components/shared/theme-toggle.tsx": {
-    imports: ["features/theme/actions", "features/theme/types"],
-    reason:
-      "The shared theme control calls the theme feature's server action and storage key.",
-  },
 };
 
 /** Async orchestration lives with Inngest and intentionally calls features. */
