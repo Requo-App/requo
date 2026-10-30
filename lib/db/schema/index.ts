@@ -16,6 +16,7 @@ export * from "./public-actions";
 export * from "./quote-library";
 export * from "./quotes";
 export * from "./quote-acceptances";
+export * from "./quote-discussions";
 export * from "./reply-snippets";
 export * from "./services";
 export * from "./business-packs";

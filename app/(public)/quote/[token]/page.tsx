@@ -4,6 +4,9 @@ import { notFound } from "next/navigation";
 import { PublicQuotePageRenderer } from "@/features/quotes/components/public-quote-page-renderer";
 import { PublicQuoteViewTracker } from "@/features/analytics/components/public-page-analytics-tracker";
 import { PublicQuoteInteractiveColumn } from "@/features/quotes/components/public-quote-interactive-column";
+import { PublicQuoteDiscussion } from "@/features/quote-discussions/components/public-quote-discussion";
+import { postPublicQuoteDiscussionMessageAction } from "@/features/quote-discussions/actions";
+import { getPublicQuoteDiscussionByToken } from "@/features/quote-discussions/queries";
 import { respondToPublicQuoteAction, requestQuoteRevisionAction } from "@/features/quotes/actions";
 import {
   getMissingPublicQuoteMetadata,
@@ -68,6 +71,11 @@ export default async function PublicQuotePage({
 
   const respondAction = respondToPublicQuoteAction.bind(null, quote.token);
   const revisionAction = requestQuoteRevisionAction.bind(null, quote.token);
+  const discussion = await getPublicQuoteDiscussionByToken(quote.token);
+  const discussionAction = postPublicQuoteDiscussionMessageAction.bind(
+    null,
+    quote.token,
+  );
 
   // Only what the interactive column renders crosses the server/client
   // boundary — the full quote carries internal ids and the business plan.
@@ -100,6 +108,14 @@ export default async function PublicQuotePage({
           respondAction={respondAction}
           revisionAction={revisionAction}
         />
+      }
+      discussion={
+        discussion ? (
+          <PublicQuoteDiscussion
+            action={discussionAction}
+            discussion={discussion}
+          />
+        ) : null
       }
       afterContent={
         <PublicQuoteViewTracker

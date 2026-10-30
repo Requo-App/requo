@@ -21,7 +21,8 @@ export type PublicActionType =
   | "inquiry-attachment-download"
   | "public-inquiry-submit"
   | "public-quote-respond"
-  | "public-quote-revision";
+  | "public-quote-revision"
+  | "public-quote-discussion";
 
 export type RateLimitConfig = {
   action: PublicActionType;

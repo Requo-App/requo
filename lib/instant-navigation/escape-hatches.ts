@@ -38,7 +38,8 @@ export type EscapeHatchValidationResult =
  *
  * Includes all authenticated dashboard pages under:
  * - app/(business)/[businessSlug]/(main)/ (home, inquiries, quotes, follow-ups,
- *   services, invoices, payments, quote library, notifications, analytics, assistant)
+ *   discussions, services, invoices, payments, quote library, notifications,
+ *   analytics, assistant)
  * - app/(business)/[businessSlug]/settings/ (including members)
  * - app/admin/
  * - app/onboarding/
@@ -54,6 +55,8 @@ export type EscapeHatchValidationResult =
 export const IN_SCOPE_ROUTES: ReadonlySet<string> = new Set([
   // (main) dashboard routes
   "app/(business)/[businessSlug]/(main)/home/page.tsx",
+  "app/(business)/[businessSlug]/(main)/discussions/page.tsx",
+  "app/(business)/[businessSlug]/(main)/discussions/[id]/page.tsx",
   "app/(business)/[businessSlug]/(main)/inquiries/page.tsx",
   "app/(business)/[businessSlug]/(main)/inquiries/[id]/page.tsx",
   "app/(business)/[businessSlug]/(main)/inquiries/new/page.tsx",

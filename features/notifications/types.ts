@@ -3,6 +3,7 @@ export const businessNotificationTypes = [
   "quote_customer_accepted",
   "quote_customer_rejected",
   "quote_revision_requested",
+  "quote_discussion_message",
   "quote_viewed",
   "quote_expiring",
   "follow_up_due",
@@ -31,6 +32,7 @@ export type BusinessNotificationRecord = {
   type: BusinessNotificationType;
   title: string;
   summary: string;
+  metadata: Record<string, unknown>;
   createdAt: Date;
 };
 

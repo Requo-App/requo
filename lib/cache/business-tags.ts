@@ -140,6 +140,21 @@ export function getBusinessQuoteListCacheTags(businessId: string) {
   ]);
 }
 
+export function getBusinessQuoteDiscussionCacheTags(
+  businessId: string,
+  discussionId?: string | null,
+) {
+  const scopeTag = getBusinessScopeTag(businessId);
+
+  return uniqueCacheTags([
+    scopeTag,
+    `${scopeTag}:dashboard`,
+    `${scopeTag}:quotes`,
+    `${scopeTag}:discussions`,
+    discussionId ? `${scopeTag}:discussion:${discussionId}` : null,
+  ]);
+}
+
 export function getBusinessQuoteDetailCacheTags(
   businessId: string,
   quoteId: string,

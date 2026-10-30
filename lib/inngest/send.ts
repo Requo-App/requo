@@ -14,6 +14,7 @@ import {
   type PushInvoiceOverdueEventData,
   type PushInvoicePaidEventData,
   type PushInvoiceSentEventData,
+  type PushQuoteDiscussionMessageEventData,
   type PushQuoteResponseEventData,
   type PushQuoteSentEventData,
 } from "@/lib/inngest/events";
@@ -83,6 +84,22 @@ export async function sendPushQuoteResponseEvent(
 
   await sendBatchedNotification(
     inngestEvents.pushQuoteResponse,
+    recipients,
+  );
+}
+
+export async function sendPushQuoteDiscussionMessageEvent(
+  data: PushQuoteDiscussionMessageEventData,
+): Promise<void> {
+  const recipients = await resolveBusinessPushRecipients(
+    data.businessId,
+    data,
+  );
+
+  if (recipients.length === 0) return;
+
+  await sendBatchedNotification(
+    inngestEvents.pushQuoteDiscussionMessage,
     recipients,
   );
 }

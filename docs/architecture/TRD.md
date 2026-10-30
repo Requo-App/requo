@@ -104,7 +104,12 @@ Quotes are business-scoped records with line items and version snapshots. The
 schema is maintained under [`lib/db/schema/`](../../lib/db/schema/) and
 feature behavior under [`features/quotes/`](../../features/quotes/).
 Sending creates a public token and may send email; public quote responses
-record acceptance/rejection/revision. Accepted quotes can continue to
+record acceptance/rejection/revision. Quote discussion tables are defined in
+[`lib/db/schema/quote-discussions.ts`](../../lib/db/schema/quote-discussions.ts)
+and their reads/writes in
+[`features/quote-discussions/`](../../features/quote-discussions/); the inbox
+query reads only the latest message and per-user unread count, never every
+message. Accepted quotes can continue to
 invoicing. Sent invoices snapshot customer-facing values. Payment entries are
 manually recorded and voided rather than edited/deleted; non-void entries
 determine invoice balances. See [`features/`](../../features/), the schema
@@ -132,6 +137,31 @@ is a conditional transition on a locked row, so an acceptance record and the
 quote status can never disagree. Public tokens are bearer capabilities: they
 are validated for scope, expiry, business, and record state on every use, and
 the rate-limit ledger stores a hash of the token rather than the token.
+
+Quote discussions are one lazily created thread per quote, stored in
+`quote_discussions` with messages in `quote_discussion_messages`. The row is
+created on the first customer or business message, never on quote creation,
+sending, viewing, or response; a unique index on `quote_id` is the duplicate
+guard, and the quote row lock serializes concurrent first messages. The public
+quote token remains the only access credential, so anyone holding the link can
+read and post to that quote's discussion. The business-side inbox and the
+quote detail section are two interfaces over the same row and message history;
+neither keeps independent conversation state. Per-member unread state lives in
+`quote_discussion_reads` as a `(discussion_id, user_id)` watermark, so one
+teammate reading a thread does not mark it read for the whole business. The
+watermark only advances to the last message timestamp the member's view
+rendered, clamped to the server clock, and the marker only runs in a visible
+tab; a message that arrives after the render stays unread. The write also
+verifies the discussion belongs to the acting business, and every read-state
+join filters on `business_id`.
+Discussion state is derived, not stored: a customer-latest thread is needs
+reply, a business-latest thread is waiting for customer, and a thread whose
+quote is a draft, accepted, rejected, expired, voided, or archived is archived.
+Archival is also written on terminal transitions, and every send re-checks the
+quote status under its row lock, so a stale client cannot post after closure. A
+reopened quote clears the archive marker on its next message. The message body
+is plain text with a server-enforced 4,000-character limit; customer and
+business text is escaped in email templates and never rendered as HTML.
 
 Business analytics aggregations live in
 [`features/analytics/queries.ts`](../../features/analytics/queries.ts). Each
@@ -245,7 +275,11 @@ otherwise keep the deleted session usable until the payload lapses. See
 [`features/admin/access.ts`](../../features/admin/access.ts),
 [`lib/auth/admin-identity.ts`](../../lib/auth/admin-identity.ts), and
 [`proxy.ts`](../../proxy.ts). Public tokens and Agent session tokens are
-separate capabilities with narrower scopes. Detailed invariants are in the
+separate capabilities with narrower scopes. A quote discussion guest cookie is
+only a browser-session convenience for grouping messages: the quote token
+grants access, the cookie is scoped to the public quote path with an HMAC hash
+stored on messages, and no customer identity is inferred from the display
+name. Detailed invariants are in the
 [Security guide](../security/SECURITY.md), `lib/auth/`, and
 `lib/db/business-access.ts`.
 
@@ -289,6 +323,16 @@ Additional scheduled tasks are exposed as Vercel Cron routes in
 scheduler owner; the [scheduler ownership inventory](../operations/SCHEDULER-OWNERSHIP.md)
 records the owner, schedule, re-run safety, and failure visibility for every
 task. Check registrations and provider dashboards for operational state.
+
+A customer message inserts an in-app `quote_discussion_message` notification
+for the business and dispatches the existing push path to subscribed members;
+the notification target is the discussion. A business reply emails the quote's
+customer email snapshot through the transactional provider fallback when one
+exists, and still succeeds when it does not. Discussion threads are not
+published to a realtime channel: open inbox and public views refresh on a
+short client interval, and every write still goes through an authorized
+server action with the quote's public token or the member's business context. Public writes use the same three-ceiling rate limiter as
+quote responses and revisions.
 
 Unattended customer emails are a paid capability. Both automatic follow-up
 paths — the quote sequence in

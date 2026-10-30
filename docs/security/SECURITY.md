@@ -85,6 +85,16 @@ root [`SECURITY.md`](../../SECURITY.md).
   User-Agent; the per-IP bucket is what actually bounds a sender, and the
   scope-wide bucket is a high backstop so one sender cannot lock a form for
   every other customer.
+- Public quote discussions are gated by the quote's existing bearer token.
+  Anyone with the link can read that quote's thread and post; the guest display
+  name is unverified, and the guest cookie only groups a browser's messages
+  (its HMAC hash is persisted, never the token). Every post re-validates the
+  token's quote and business and checks the quote lifecycle under a row lock,
+  so a closed quote cannot receive messages even from a stale client. Public
+  writes use the per-fingerprint, per-IP, and quote-wide rate limits; message
+  bodies are plain text, length-limited server-side, and escaped in email
+  templates. Business reads and replies are scoped by `businessId` and checked
+  through the member context; unread state is per member, not global.
 - Public intake output is untrusted. Escape visitor-supplied text before it
   reaches an email body or a spreadsheet cell: the inquiry acknowledgment
   template escapes it, and `lib/csv.ts` neutralizes leading formula

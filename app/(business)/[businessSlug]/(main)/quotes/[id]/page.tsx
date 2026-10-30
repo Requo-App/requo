@@ -59,6 +59,7 @@ import { DismissibleQuoteAlert } from "@/features/quotes/components/dismissible-
 import { SendQuoteDialog } from "@/features/quotes/components/send-quote-dialog";
 import { AutoFollowUpStatus } from "@/features/quotes/components/auto-follow-up-status";
 import { QuoteStatusBadge } from "@/features/quotes/components/quote-status-badge";
+import { QuoteDetailDiscussionSection } from "@/features/quote-discussions/components/quote-detail-discussion-section";
 import { getFollowUpsForQuote } from "@/features/follow-ups/queries";
 import { getQuoteLibraryForBusiness } from "@/features/quotes/quote-library-queries";
 import {
@@ -432,6 +433,13 @@ async function QuoteDetailRegion({ params }: QuoteDetailPageProps) {
             </Suspense>
 
             <QuoteLinkedInquirySection businessSlug={businessSlug} quote={quote} />
+            <Suspense fallback={<DetailSectionFallback rows={3} />}>
+              <QuoteDetailDiscussionSection
+                businessId={businessId}
+                businessSlug={businessSlug}
+                quoteId={quote.id}
+              />
+            </Suspense>
             <Suspense fallback={<DetailSectionFallback rows={2} />}>
               <QuoteActivityRegion businessId={businessId} quoteId={quote.id} />
             </Suspense>

@@ -84,6 +84,14 @@ export function getBusinessQuotesPath(slug: string) {
   return `${getBusinessPath(slug)}/quotes`;
 }
 
+export function getBusinessDiscussionsPath(slug: string) {
+  return `${getBusinessPath(slug)}/discussions`;
+}
+
+export function getBusinessDiscussionPath(slug: string, discussionId: string) {
+  return `${getBusinessDiscussionsPath(slug)}/${discussionId}`;
+}
+
 
 export function getBusinessFollowUpsPath(slug: string) {
   return `${getBusinessPath(slug)}/follow-ups`;

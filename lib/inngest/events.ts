@@ -3,6 +3,7 @@ export const inngestEvents = {
   pushInquiryReceived: "requo/push.inquiry-received",
   pushQuoteSent: "requo/push.quote-sent",
   pushQuoteResponse: "requo/push.quote-response",
+  pushQuoteDiscussionMessage: "requo/push.quote-discussion-message",
   pushInvoiceSent: "requo/push.invoice-sent",
   pushInvoicePaid: "requo/push.invoice-paid",
   pushInvoiceOverdue: "requo/push.invoice-overdue",
@@ -41,6 +42,15 @@ export type PushQuoteResponseEventData = {
   quoteNumber: string;
   customerName: string;
   responseLabel: "accepted" | "declined" | "revision requested";
+};
+
+export type PushQuoteDiscussionMessageEventData = {
+  businessId: string;
+  businessSlug: string;
+  quoteId: string;
+  quoteNumber: string;
+  discussionId: string;
+  customerName: string;
 };
 
 export type PushInvoiceSentEventData = {
