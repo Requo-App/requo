@@ -28,6 +28,7 @@ import {
 } from "@/features/quotes/mutations";
 import type { QuoteEditorInput } from "@/features/quotes/schemas";
 import {
+  businesses,
   businessNotifications,
   quoteDiscussionMessages,
   quoteDiscussionReads,
@@ -471,6 +472,48 @@ describe("quote discussions", () => {
       filters: { view: "needs_reply", page: 1 },
     });
     expect(managerInbox.items[0]?.unreadCount).toBe(1);
+  }, 25_000);
+
+  it("hides discussions once the business is soft-deleted", async () => {
+    const sent = await createSentQuote();
+    const customerMessage = await sendPublicQuoteDiscussionMessage({
+      token: sent.token,
+      senderName: "Maria Santos",
+      body: "Question before the business was deleted",
+      guestSessionHash: null,
+    });
+    if (!customerMessage.ok) {
+      throw new Error("Expected the discussion message to send.");
+    }
+
+    await testDb
+      .update(businesses)
+      .set({ deletedAt: new Date() })
+      .where(eq(businesses.id, ids.businessId));
+
+    const inbox = await getQuoteDiscussionInboxForBusiness({
+      businessId: ids.businessId,
+      userId: ids.ownerUserId,
+      filters: { view: "needs_reply", page: 1 },
+    });
+    expect(inbox.items).toEqual([]);
+    expect(inbox.totalCount).toBe(0);
+
+    expect(
+      await getQuoteDiscussionDetailForBusiness({
+        businessId: ids.businessId,
+        discussionId: customerMessage.discussionId,
+        userId: ids.ownerUserId,
+      }),
+    ).toBeNull();
+
+    expect(
+      await getQuoteDiscussionForQuoteForBusiness({
+        businessId: ids.businessId,
+        quoteId: sent.quoteId,
+        userId: ids.ownerUserId,
+      }),
+    ).toBeNull();
   }, 25_000);
 
   it("rejects a read marker for a discussion in another business", async () => {

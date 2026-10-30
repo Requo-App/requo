@@ -197,6 +197,7 @@ export async function getQuoteDiscussionInboxForBusiness({
   const conditions = [
     eq(quoteDiscussions.businessId, businessId),
     isNull(quotes.deletedAt),
+    isNull(businesses.deletedAt),
     isNotNull(latestMessageCreatedAt),
     getInboxStateCondition(filters.view),
   ];
@@ -207,6 +208,7 @@ export async function getQuoteDiscussionInboxForBusiness({
       .select(getSummarySelection())
       .from(quoteDiscussions)
       .innerJoin(quotes, eq(quoteDiscussions.quoteId, quotes.id))
+      .innerJoin(businesses, eq(quoteDiscussions.businessId, businesses.id))
       .leftJoin(
         quoteDiscussionReads,
         and(
@@ -223,6 +225,7 @@ export async function getQuoteDiscussionInboxForBusiness({
       .select({ count: count() })
       .from(quoteDiscussions)
       .innerJoin(quotes, eq(quoteDiscussions.quoteId, quotes.id))
+      .innerJoin(businesses, eq(quoteDiscussions.businessId, businesses.id))
       .leftJoin(
         quoteDiscussionReads,
         and(
@@ -276,6 +279,7 @@ export async function getQuoteDiscussionDetailForBusiness({
         eq(quoteDiscussions.id, discussionId),
         eq(quoteDiscussions.businessId, businessId),
         isNull(quotes.deletedAt),
+        isNull(businesses.deletedAt),
       ),
     )
     .limit(1);
@@ -328,6 +332,7 @@ export async function getQuoteDiscussionForQuoteForBusiness({
     .select(getSummarySelection())
     .from(quoteDiscussions)
     .innerJoin(quotes, eq(quoteDiscussions.quoteId, quotes.id))
+    .innerJoin(businesses, eq(quoteDiscussions.businessId, businesses.id))
     .leftJoin(
       quoteDiscussionReads,
       and(
@@ -341,6 +346,7 @@ export async function getQuoteDiscussionForQuoteForBusiness({
         eq(quoteDiscussions.businessId, businessId),
         eq(quoteDiscussions.quoteId, quoteId),
         isNull(quotes.deletedAt),
+        isNull(businesses.deletedAt),
       ),
     )
     .limit(1);
