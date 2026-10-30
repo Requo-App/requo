@@ -1,9 +1,10 @@
-import { ArrowRight } from "lucide-react";
-import Link from "next/link";
 import type { CSSProperties } from "react";
 
-import { BookDemoDialog } from "@/components/marketing/book-demo-dialog";
-
+import {
+  CtaDemoButton,
+  CtaPrimaryLink,
+  CtaSection,
+} from "@/components/marketing/cta-section";
 import {
   faqItems,
   landingFeatureItems,
@@ -34,7 +35,6 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Button } from "@/components/ui/button";
 
 const whyRequoPoints = [
   {
@@ -86,7 +86,7 @@ export function MarketingHero() {
       <section className="relative overflow-hidden pb-16 pt-8 sm:pb-24 sm:pt-10 lg:pb-32 lg:pt-12">
         <div className="marketing-shell-container marketing-hero-enter relative z-10 flex flex-col items-start">
           <div className="flex flex-col gap-3">
-            <MarketingEyebrow>Quote software for service businesses</MarketingEyebrow>
+            <MarketingEyebrow>Built for service businesses</MarketingEyebrow>
 
             <h1 className="max-w-4xl text-balance font-sans text-[clamp(2.75rem,calc(4vw+1.5rem),4.75rem)] font-semibold leading-[1.05] tracking-[-0.03em] text-foreground">
               Manage every inquiry.
@@ -100,29 +100,9 @@ export function MarketingHero() {
             slips through.
           </p>
 
-          <div className="mt-6 flex w-full flex-col items-start gap-4">
-            <div className="flex w-full flex-col gap-4 sm:w-auto sm:flex-row sm:items-center">
-              <Button
-                asChild
-                size="lg"
-                className="h-11 w-full px-6 text-sm font-medium sm:h-12 sm:w-auto"
-              >
-                <Link href="/signup">
-                  Start free
-                  <ArrowRight data-icon="inline-end" />
-                </Link>
-              </Button>
-              <BookDemoDialog
-                size="lg"
-                variant="outline"
-                className="marketing-button-secondary h-11 w-full px-6 text-sm font-medium sm:h-12 sm:w-auto"
-              >
-                Book a demo
-              </BookDemoDialog>
-            </div>
-            <p className="text-sm leading-5 text-muted-foreground">
-              Free to start. No card required.
-            </p>
+          <div className="mt-6 flex w-full flex-col gap-4 sm:w-auto sm:flex-row sm:items-center">
+            <CtaPrimaryLink className="w-full sm:w-auto" href="/signup" />
+            <CtaDemoButton className="w-full sm:w-auto" />
           </div>
 
           <MarketingHeroParallax className="marketing-hero-visual mt-6 w-full sm:mt-8 lg:mt-12">
@@ -308,44 +288,15 @@ export function MarketingHero() {
         </div>
       </section>
 
-      <InViewReveal
-        className="mx-auto mt-24 w-full max-w-6xl px-4 sm:mt-32 sm:px-6 lg:mt-40 lg:px-8 xl:px-0"
-        delay={120}
-      >
-        <section className="marketing-cta-panel flex flex-col items-center gap-5 text-center sm:gap-6">
-          <h2 className="max-w-3xl font-heading text-marketing-section-title text-balance">
-            <span className="marketing-cta-lead">Stop losing track of</span>{" "}
-            <span className="marketing-cta-emphasis">customer requests.</span>
-          </h2>
-
-          <p className="max-w-2xl text-pretty text-marketing-intro">
-            Manage inquiries, send quotes, and follow up from one place.
-          </p>
-
-          <div className="flex w-full flex-col items-stretch justify-center gap-3 sm:w-auto sm:flex-row sm:items-center">
-            <Button
-              asChild
-              size="lg"
-              className="marketing-cta-button-primary h-11 px-6 text-sm font-medium sm:h-12"
-            >
-              <Link href="/signup">
-                Start free
-                <ArrowRight data-icon="inline-end" />
-              </Link>
-            </Button>
-            <BookDemoDialog
-              size="lg"
-              variant="ghost"
-              className="marketing-cta-button-secondary h-11 px-6 text-sm font-medium sm:h-12"
-            >
-              Book a demo
-            </BookDemoDialog>
-          </div>
-
-          <p className="marketing-cta-note text-sm leading-5">
-            Free to start. No card required.
-          </p>
-        </section>
+      <InViewReveal className="mt-24 sm:mt-32 lg:mt-40" delay={120}>
+        <CtaSection
+          headline="Stop losing track of customer requests."
+          headingId="home-final-cta"
+          sub="Manage inquiries, send quotes, and follow up from one place."
+        >
+          <CtaPrimaryLink href="/signup" />
+          <CtaDemoButton />
+        </CtaSection>
       </InViewReveal>
 
       </PublicPageShell>

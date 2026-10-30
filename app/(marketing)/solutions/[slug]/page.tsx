@@ -57,8 +57,9 @@ export default async function SolutionSlugPage({
   const faqStructuredData = getFaqPageStructuredData({
     items: [...solution.faqs],
   });
-  const solutionLink = solutionLinks.find((item) => item.slug === solution.slug);
-  const breadcrumbLabel = solutionLink?.title ?? solution.shortTitle;
+  const breadcrumbLabel =
+    solutionLinks.find((item) => item.slug === solution.slug)?.title ??
+    solution.shortTitle;
   const breadcrumbStructuredData = getBreadcrumbListStructuredData({
     items: [
       { name: "Home", url: absoluteUrl("/") },
@@ -80,10 +81,7 @@ export default async function SolutionSlugPage({
         data={faqStructuredData}
         id="solution-faq-structured-data"
       />
-      <SolutionDetailPage
-        breadcrumbLabel={breadcrumbLabel}
-        detail={solution}
-      />
+      <SolutionDetailPage detail={solution} />
     </>
   );
 }

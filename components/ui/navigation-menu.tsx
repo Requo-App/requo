@@ -100,6 +100,71 @@ function NavigationMenuContent({
 }
 
 /**
+ * Radix measures the active panel with a ResizeObserver + rAF, so the shared
+ * viewport can paint at its border-only fallback size for a frame — or much
+ * longer when the main thread is busy. Measure the open item's panel
+ * synchronously instead, before paint, and keep it in sync as it resizes.
+ */
+const panelWidthVar = "--navigation-menu-panel-width";
+const panelHeightVar = "--navigation-menu-panel-height";
+
+function usePanelSize(containerRef: React.RefObject<HTMLDivElement | null>) {
+  React.useLayoutEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    let contentObserver: ResizeObserver | null = null;
+    let observedContent: HTMLElement | null = null;
+
+    const measure = () => {
+      const root = container.closest<HTMLElement>(
+        '[data-slot="navigation-menu"]',
+      );
+      const viewport = container.querySelector<HTMLElement>(
+        '[data-slot="navigation-menu-viewport"]',
+      );
+      if (!root || !viewport) return;
+
+      const activeTrigger = root.querySelector<HTMLElement>(
+        '[data-slot="navigation-menu-item"] [data-state="open"]',
+      );
+      const contentId = activeTrigger?.getAttribute("aria-controls");
+      const content = contentId ? document.getElementById(contentId) : null;
+      if (!content || !viewport.contains(content)) return;
+
+      const width = content.offsetWidth;
+      const height = content.offsetHeight;
+      if (!width || !height) return;
+
+      container.style.setProperty(panelWidthVar, `${width}px`);
+      container.style.setProperty(panelHeightVar, `${height}px`);
+
+      if (content !== observedContent) {
+        contentObserver?.disconnect();
+        observedContent = content;
+        contentObserver = new ResizeObserver(measure);
+        contentObserver.observe(content);
+      }
+    };
+
+    measure();
+
+    const mutationObserver = new MutationObserver(measure);
+    mutationObserver.observe(container, {
+      attributes: true,
+      attributeFilter: ["data-state"],
+      childList: true,
+      subtree: true,
+    });
+
+    return () => {
+      mutationObserver.disconnect();
+      contentObserver?.disconnect();
+    };
+  }, [containerRef]);
+}
+
+/**
  * Shared viewport card. Opens with a 100ms fade + settle, morphs its
  * width/height when moving between triggers, and shifts horizontally so its
  * left edge sits on the active trigger — the content swaps in place, so no
@@ -111,6 +176,8 @@ function NavigationMenuViewport({
 }: React.ComponentProps<typeof NavigationMenuPrimitive.Viewport>) {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const [offsetX, setOffsetX] = React.useState(0);
+
+  usePanelSize(containerRef);
 
   React.useLayoutEffect(() => {
     const root = containerRef.current?.closest<HTMLElement>(
@@ -158,7 +225,7 @@ function NavigationMenuViewport({
       <NavigationMenuPrimitive.Viewport
         data-slot="navigation-menu-viewport"
         className={cn(
-          "overlay-surface motion-popover origin-top relative mt-1.5 h-(--radix-navigation-menu-viewport-height) w-full overflow-hidden rounded-lg border text-popover-foreground transition-[width,height] [transition-duration:var(--motion-duration-base)] [transition-timing-function:var(--motion-ease-standard)] md:w-(--radix-navigation-menu-viewport-width)",
+          "overlay-surface motion-popover origin-top relative mt-1.5 h-(--navigation-menu-panel-height) w-full overflow-hidden rounded-lg border text-popover-foreground transition-[width,height] [transition-duration:var(--motion-duration-base)] [transition-timing-function:var(--motion-ease-standard)] md:w-(--navigation-menu-panel-width)",
           className
         )}
         {...props}

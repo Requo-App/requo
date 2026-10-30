@@ -1,12 +1,16 @@
-import { ArrowRight, CheckCircle2, Eye } from "lucide-react";
+import { ArrowRight, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import type { CSSProperties } from "react";
 
 import { BookDemoDialog } from "@/components/marketing/book-demo-dialog";
+import {
+  CtaDemoButton,
+  CtaPrimaryLink,
+  CtaSection,
+} from "@/components/marketing/cta-section";
 import { InViewReveal } from "@/components/marketing/in-view-reveal";
 import { MarketingFooter } from "@/components/marketing/marketing-footer";
 import { MarketingHeader } from "@/components/marketing/marketing-header";
-import { MockBadge } from "@/components/marketing/marketing-mock-primitives";
 import type {
   SolutionDetail,
   SolutionLandingContent,
@@ -14,15 +18,10 @@ import type {
   SolutionTestimonial,
 } from "@/components/marketing/solutions-data";
 import {
-  SolutionInquiryMiniMock,
+  SolutionHeroMock,
   SolutionWorkflowMock,
 } from "@/components/marketing/solutions/solution-landing-mocks";
-import {
-  ExploreSolutions,
-  SolutionCardShell,
-  SolutionFaq,
-  SolutionsFeatureLine,
-} from "@/components/marketing/solutions/solutions-shared";
+import { SolutionFaq } from "@/components/marketing/solutions/solutions-shared";
 import { PublicPageShell } from "@/components/shared/public-page-shell";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -95,11 +94,10 @@ function SolutionTestimonialSection({
       className={cn(sectionShell, sectionSpacing)}
     >
       <InViewReveal style={revealStyle}>
-        <p className="meta-label">From a Requo customer</p>
         <h2 className="sr-only" id="solution-testimonial-heading">
           Customer testimonial
         </h2>
-        <blockquote className="mt-4 max-w-4xl">
+        <blockquote className="max-w-4xl">
           <p className="font-heading text-2xl leading-snug font-semibold tracking-tight text-balance sm:text-3xl">
             “{testimonial.quote}”
           </p>
@@ -141,11 +139,9 @@ function StepBody({ step }: { step: SolutionLandingWorkflowStep }) {
 export function SolutionLandingPage({
   detail,
   landing,
-  breadcrumbLabel,
 }: {
   detail: SolutionDetail;
   landing: SolutionLandingContent;
-  breadcrumbLabel?: string;
 }) {
   return (
     <div className="marketing-landing overflow-x-clip">
@@ -158,91 +154,35 @@ export function SolutionLandingPage({
         <section
           className={cn(
             sectionShell,
-            "grid items-center gap-10 pb-14 pt-12 sm:gap-12 sm:pb-20 sm:pt-16 lg:grid-cols-[1.05fr_1fr] lg:gap-14 lg:pb-24 lg:pt-24",
+            "grid grid-cols-[minmax(0,1fr)] items-center gap-10 pb-14 pt-12 sm:gap-12 sm:pb-20 sm:pt-16 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:gap-14 lg:pb-24 lg:pt-24",
           )}
         >
           <InViewReveal
             className="flex w-full flex-col items-start gap-5 sm:gap-6"
             style={revealStyle}
           >
-            <nav aria-label="Breadcrumb">
-              <ol className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-                <li className="flex items-center gap-1.5">
-                  <Link
-                    className="inline-flex min-h-11 items-center transition-colors hover:text-foreground"
-                    href="/"
-                  >
-                    Home
-                  </Link>
-                  <span aria-hidden="true">/</span>
-                </li>
-                <li className="flex items-center gap-1.5">
-                  <Link
-                    className="inline-flex min-h-11 items-center transition-colors hover:text-foreground"
-                    href="/solutions"
-                  >
-                    Solutions
-                  </Link>
-                  <span aria-hidden="true">/</span>
-                </li>
-                <li>
-                  <span aria-current="page">
-                    {breadcrumbLabel ?? detail.shortTitle}
-                  </span>
-                </li>
-              </ol>
-            </nav>
-            <p className="meta-label">{landing.eyebrow}</p>
             <h1 className="max-w-[17ch] font-heading text-[2.5rem] leading-[1.06] font-semibold tracking-[-0.04em] text-balance text-foreground sm:text-6xl sm:leading-[1.03] lg:text-[4.25rem]">
               {detail.headline}
             </h1>
-            <p className={cn("max-w-[65ch]", bodyClassName)}>
-              {landing.subhead}
-            </p>
+            <p className={cn("max-w-[58ch]", bodyClassName)}>{landing.subhead}</p>
             <div className="flex w-full flex-col gap-3 pt-1 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
               <StartFreeButton className="w-full sm:w-auto" />
               <DemoButton className="w-full sm:w-auto" />
             </div>
-            <ul className="flex flex-col gap-2 pt-1 sm:flex-row sm:flex-wrap sm:gap-x-5">
-              {landing.trustPoints.map((point) => (
-                <li
-                  className="flex items-center gap-2 text-xs leading-5 text-muted-foreground sm:text-sm"
-                  key={point}
-                >
-                  <CheckCircle2
-                    aria-hidden="true"
-                    className="size-3.5 shrink-0 text-primary-ink"
-                  />
-                  {point}
-                </li>
-              ))}
-            </ul>
           </InViewReveal>
 
           <InViewReveal className="w-full" delay={80} style={revealStyle}>
-            <div className="marketing-solution-stage relative overflow-hidden rounded-xl border border-border/70 p-4 pb-10 sm:p-6 sm:pb-8 lg:p-7 lg:pb-10">
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <span className="meta-label">Sample data</span>
-                <span className="meta-label">{landing.sample.label}</span>
-              </div>
-              <div
-                aria-hidden="true"
-                className="pointer-events-none relative select-none"
-                inert
-              >
-                <div className="relative z-10 ml-auto w-[92%] sm:w-[88%]">
-                  <SolutionCardShell card={detail.heroCard} />
-                  <div className="absolute -top-3 right-3 z-20">
-                    <MockBadge
-                      className="shadow-[var(--marketing-mock-shadow)]"
-                      icon={Eye}
-                      label="Viewed"
-                      tone="info"
-                    />
-                  </div>
+            <div className="marketing-solution-stage @container relative h-[41.5rem] overflow-hidden rounded-xl border border-border/70 p-4 sm:h-[43rem] sm:p-6 lg:h-[43rem] lg:p-7">
+              <div className="flex h-full flex-col">
+                <div className="mb-4 flex shrink-0 items-center justify-between gap-3">
+                  <span className="meta-label">Sample data</span>
                 </div>
-                <div className="relative z-20 -mt-5 w-[84%] sm:absolute sm:bottom-0 sm:left-0 sm:mt-0 sm:w-[55%]">
-                  <SolutionInquiryMiniMock sample={landing.sample} />
+                <div
+                  aria-hidden="true"
+                  className="pointer-events-none min-h-0 flex-1 select-none"
+                  inert
+                >
+                  <SolutionHeroMock sample={landing.sample} />
                 </div>
               </div>
             </div>
@@ -257,7 +197,6 @@ export function SolutionLandingPage({
             className="flex max-w-[65ch] flex-col items-start gap-3"
             style={revealStyle}
           >
-            <p className="meta-label">{landing.linkCardsEyebrow}</p>
             <h2 className={headingClassName} id="solution-moves-heading">
               {landing.linkCardsHeading}
             </h2>
@@ -309,7 +248,6 @@ export function SolutionLandingPage({
             className="flex max-w-[65ch] flex-col items-start gap-3"
             style={revealStyle}
           >
-            <p className="meta-label">The workflow</p>
             <h2 className={headingClassName} id="solution-workflow-heading">
               {landing.workflowHeading}
             </h2>
@@ -326,7 +264,6 @@ export function SolutionLandingPage({
                       index % 2 === 1 && "lg:order-2",
                     )}
                   >
-                    <p className="meta-label">{step.label}</p>
                     <h3 className="font-heading text-2xl font-semibold tracking-tight text-balance sm:text-3xl">
                       {step.title}
                     </h3>
@@ -361,10 +298,6 @@ export function SolutionLandingPage({
                     )}
                   >
                     <div className="marketing-solution-stage relative overflow-hidden rounded-xl border border-border/70 p-4 sm:p-6 lg:p-7">
-                      <div className="mb-3 flex items-center justify-between gap-3">
-                        <span className="meta-label">Sample data</span>
-                        <span className="meta-label">{landing.sample.label}</span>
-                      </div>
                       <div
                         aria-hidden="true"
                         className="pointer-events-none select-none"
@@ -391,7 +324,6 @@ export function SolutionLandingPage({
             className="flex max-w-[65ch] flex-col items-start gap-3"
             style={revealStyle}
           >
-            <p className="meta-label">{landing.proofEyebrow}</p>
             <h2 className={headingClassName} id="solution-proof-heading">
               {landing.proofHeading}
             </h2>
@@ -433,7 +365,6 @@ export function SolutionLandingPage({
             className="flex max-w-[65ch] flex-col items-start gap-3"
             style={revealStyle}
           >
-            <p className="meta-label">Questions</p>
             <h2 className={headingClassName} id="solution-faq-heading">
               Frequently asked questions.
             </h2>
@@ -443,63 +374,16 @@ export function SolutionLandingPage({
           </InViewReveal>
         </section>
 
-        <section
-          aria-labelledby="solution-more-heading"
-          className={cn(sectionShell, sectionSpacing)}
-        >
-          <InViewReveal
-            className="flex max-w-[65ch] flex-col items-start gap-3"
-            style={revealStyle}
+        <InViewReveal className="mt-16 sm:mt-20 lg:mt-24" style={revealStyle}>
+          <CtaSection
+            headline={detail.ctaHeadline}
+            headingId="solutions-final-cta"
+            sub={detail.ctaSub}
           >
-            <p className="meta-label">More workflows</p>
-            <h2 className={headingClassName} id="solution-more-heading">
-              Explore another workflow.
-            </h2>
-            <SolutionsFeatureLine className={bodyClassName} />
-          </InViewReveal>
-          <InViewReveal className="mt-8 lg:mt-10" delay={80} style={revealStyle}>
-            <ExploreSolutions currentSlug={detail.slug} />
-          </InViewReveal>
-        </section>
-
-        <div className={cn(sectionShell, sectionSpacing)}>
-          <InViewReveal style={revealStyle}>
-            <section
-              aria-labelledby="solutions-final-cta"
-              className="relative overflow-hidden rounded-xl border border-border/80 bg-card px-6 py-12 text-center shadow-[var(--surface-card-shadow)] sm:px-10 sm:py-14 lg:px-16 lg:py-16"
-            >
-              <p className="meta-label">Next step</p>
-              <h2
-                className="mx-auto mt-3 max-w-3xl font-heading text-3xl font-semibold tracking-tighter text-balance text-foreground sm:text-4xl lg:text-5xl"
-                id="solutions-final-cta"
-              >
-                {detail.ctaHeadline}
-              </h2>
-              <p className="mx-auto mt-4 max-w-xl text-sm leading-6 text-muted-foreground sm:text-base sm:leading-7">
-                {detail.ctaSub}
-              </p>
-              <div className="mt-7 flex flex-col items-center justify-center gap-3 sm:flex-row">
-                <StartFreeButton className="w-full sm:w-auto" />
-                <DemoButton className="w-full sm:w-auto" />
-              </div>
-              <ul className="mx-auto mt-5 flex max-w-2xl flex-col items-center justify-center gap-2 text-xs text-muted-foreground sm:flex-row sm:flex-wrap sm:gap-x-6 sm:text-sm">
-                {[
-                  "Free plan, no time limit",
-                  "No card required",
-                  "Start with the workflow your business already has",
-                ].map((item) => (
-                  <li className="flex items-center gap-2" key={item}>
-                    <CheckCircle2
-                      aria-hidden="true"
-                      className="size-3.5 shrink-0 text-primary-ink"
-                    />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </section>
-          </InViewReveal>
-        </div>
+            <CtaPrimaryLink href="/signup" />
+            <CtaDemoButton />
+          </CtaSection>
+        </InViewReveal>
       </PublicPageShell>
       <MarketingFooter />
     </div>

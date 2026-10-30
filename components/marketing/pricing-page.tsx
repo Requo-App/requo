@@ -5,12 +5,10 @@ import { ArrowRight, Check, Minus } from "lucide-react";
 import { Fragment } from "react";
 
 import { BrandMark } from "@/components/shared/brand-mark";
-import {
-  PublicPageShell,
-} from "@/components/shared/public-page-shell";
-import { MarketingHeader } from "@/components/marketing/marketing-header";
+import { CtaSection } from "@/components/marketing/cta-section";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
+import { PublicPageShell } from "@/components/shared/public-page-shell";
+import { MarketingHeader } from "@/components/marketing/marketing-header";
 import { cn } from "@/lib/utils";
 import type { BillingCurrency } from "@/lib/billing/types";
 import { PricingIntervalToggle } from "@/components/marketing/pricing-interval-toggle";
@@ -207,26 +205,18 @@ export function PricingPage({
       </section>
 
       {/* CTA */}
-      <section className="mx-auto mt-10 w-full max-w-[76rem] rounded-xl border border-border bg-card overflow-hidden lg:mt-14">
-        <div className="flex flex-col gap-6 px-6 py-8 sm:px-8 sm:py-10 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex max-w-xl flex-col gap-3">
-            <h2 className="font-heading text-2xl font-semibold tracking-tight text-balance sm:text-3xl">
-              Stop losing leads to slow follow-up.
-            </h2>
-            <p className="text-sm leading-relaxed text-muted-foreground sm:text-base sm:leading-7">
-              Every inquiry gets a response. Every quote gets a follow-up. Start
-              capturing the revenue you&apos;re already generating interest for.
-            </p>
-          </div>
+      <CtaSection
+        className="mt-10 lg:mt-14"
+        headline="Stop losing leads to slow follow-up."
+        headingId="pricing-cta-heading"
+        sub="Every inquiry gets a response. Every quote gets a follow-up. Start capturing the revenue you're already generating interest for."
+      >
+        <PricingCtaActions />
+      </CtaSection>
 
-          <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
-            <PricingCtaActions />
-          </div>
-        </div>
-
-        <Separator className="bg-border" />
-
-        <div className="flex flex-col gap-4 px-6 py-4 sm:px-8 lg:flex-row lg:items-center lg:justify-between">
+      {/* Brand and legal */}
+      <div className="mx-auto mt-12 w-full max-w-[76rem] px-5 sm:px-6 lg:px-8 xl:px-0">
+        <div className="flex flex-col gap-4 border-t border-border pt-6 lg:flex-row lg:items-center lg:justify-between">
           <BrandMark subtitle="Never lose a job to a slow response" />
           <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
             <Link className="transition-colors hover:text-foreground" href="/">
@@ -243,7 +233,7 @@ export function PricingPage({
             </Link>
           </div>
         </div>
-      </section>
+      </div>
     </PublicPageShell>
   );
 }

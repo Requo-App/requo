@@ -9,31 +9,17 @@ import { SolutionDemo } from "@/components/marketing/solutions/solution-demo";
 import { SolutionLandingPage } from "@/components/marketing/solutions/solution-landing";
 import {
   CustomerViewSection,
-  RelatedSolutions,
   SolutionFaq,
   SolutionFeatures,
   SolutionHeroCard,
-  SolutionsFeatureLine,
   SolutionsFinalCta,
 } from "@/components/marketing/solutions/solutions-shared";
 import { PublicPageShell } from "@/components/shared/public-page-shell";
 import { Button } from "@/components/ui/button";
 
-export function SolutionDetailPage({
-  detail,
-  breadcrumbLabel,
-}: {
-  detail: SolutionDetail;
-  breadcrumbLabel?: string;
-}) {
+export function SolutionDetailPage({ detail }: { detail: SolutionDetail }) {
   if (detail.landing) {
-    return (
-      <SolutionLandingPage
-        breadcrumbLabel={breadcrumbLabel}
-        detail={detail}
-        landing={detail.landing}
-      />
-    );
+    return <SolutionLandingPage detail={detail} landing={detail.landing} />;
   }
 
   const workflowHref = `/solutions/${detail.slug}#workflow`;
@@ -107,7 +93,6 @@ export function SolutionDetailPage({
           id="workflow"
         >
           <InViewReveal className="relative z-10 flex max-w-2xl flex-col items-start gap-3">
-            <p className="meta-label">Same record</p>
             <h2
               className="font-heading text-3xl font-semibold tracking-tight text-balance sm:text-4xl"
               id="solution-demo-heading"
@@ -161,25 +146,7 @@ export function SolutionDetailPage({
           </InViewReveal>
         </section>
 
-        <section
-          aria-labelledby="solution-more-heading"
-          className="relative z-10 mx-auto mt-20 w-full max-w-6xl px-4 sm:mt-28 sm:px-6 lg:px-8 xl:px-0"
-        >
-          <InViewReveal className="relative z-10 flex max-w-2xl flex-col items-start gap-3">
-            <h2
-              className="font-heading text-3xl font-semibold tracking-tight text-balance sm:text-4xl"
-              id="solution-more-heading"
-            >
-              Explore another workflow.
-            </h2>
-            <SolutionsFeatureLine />
-          </InViewReveal>
-          <InViewReveal className="relative z-10 mt-8 sm:mt-10" delay={80}>
-            <RelatedSolutions detail={detail} />
-          </InViewReveal>
-        </section>
-
-        <InViewReveal className="mx-auto mt-20 w-full max-w-4xl px-4 sm:mt-28 sm:px-6 lg:px-8 xl:px-0">
+        <InViewReveal className="mt-20 sm:mt-28">
           <SolutionsFinalCta
             headline={detail.ctaHeadline}
             sub={detail.ctaSub}
