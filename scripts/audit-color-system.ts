@@ -233,16 +233,6 @@ const EXEMPT_LITERALS: Readonly<Record<string, readonly string[]>> = {
     "bg-neutral-950",
     "text-white",
   ],
-  "components/shared/theme-toggle.tsx": [
-    // Glass control over a fixed transparent surface; these labels stay black
-    // or white rather than following the theme.
-    "text-black",
-    "text-black/45",
-    "text-black/70",
-    "text-white",
-    "text-white/45",
-    "text-white/70",
-  ],
   "features/follow-ups/jobs/reminders.ts": [
     // HTML email body; mail clients do not resolve CSS custom properties.
     "#374151",

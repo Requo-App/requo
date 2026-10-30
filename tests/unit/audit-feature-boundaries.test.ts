@@ -94,7 +94,7 @@ describe("feature boundary audit", () => {
 
   it("blocks unlisted feature imports from allowlisted shared UI", () => {
     const found = violations(
-      "components/shared/theme-toggle.tsx",
+      "components/shared/country-combobox.tsx",
       'import { formatMoney } from "@/features/analytics/format";\n',
     );
 
@@ -118,8 +118,8 @@ describe("feature boundary audit", () => {
     ).toEqual([]);
     expect(
       violations(
-        "components/shared/theme-toggle.tsx",
-        'import { updateThemePreferenceAction } from "@/features/theme/actions";\n',
+        "components/shared/country-combobox.tsx",
+        'import { countryOptions } from "@/features/businesses/locale";\n',
       ),
     ).toEqual([]);
   });
