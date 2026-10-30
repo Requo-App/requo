@@ -9,7 +9,10 @@ import {
   faqItems,
   landingFeatureItems,
 } from "@/components/marketing/marketing-data";
-import { DashboardWalkthroughVideo } from "@/components/marketing/dashboard-walkthrough-video";
+import {
+  DashboardWalkthroughVideo,
+  WalkthroughStageBackdrop,
+} from "@/components/marketing/dashboard-walkthrough-video";
 import { ScaledDashboardStage } from "@/components/marketing/scaled-dashboard-stage";
 import { InViewReveal } from "@/components/marketing/in-view-reveal";
 import { MarketingEyebrow } from "@/components/marketing/marketing-eyebrow";
@@ -116,7 +119,9 @@ export function MarketingHero() {
                 assistant, quote stats, and priority queue
               </figcaption>
               <div className="bg-card">
-                <ScaledDashboardStage>
+                <ScaledDashboardStage
+                  backdrop={<WalkthroughStageBackdrop />}
+                >
                   <DashboardWalkthroughVideo />
                 </ScaledDashboardStage>
               </div>

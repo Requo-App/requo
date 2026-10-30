@@ -75,6 +75,8 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ### Fixed
 
+- A fresh document navigation into a business dashboard now shows the same full-screen Requo loading screen as a browser refresh instead of the dashboard skeleton. In-app sidebar navigation keeps its instant shell and region skeletons.
+- The landing hero paints its theme-matched walkthrough poster immediately instead of an empty stage, including the narrow-width crop. Walkthrough recording and poster URLs are versioned so a cached take cannot appear before the current one.
 - Re-encoded both marketing hero walkthroughs with TV-range BT.709 colour metadata. Current Chrome aborted the first VP9 decode with `PIPELINE_ERROR_DECODE`, which looked like blocked autoplay: the poster painted and the clip stayed paused. The recorder now pins those colour flags and pins the signed-in demo account's Appearance preference to the take theme, so the shell's preference sync cannot flip the recording mid-take.
 - Warning copy on tinted surfaces now clears WCAG AA in light mode. `--warning-ink` is `#92400e`, and the in-app-browser notice and billing cancel alert no longer reduce their warning body text with alpha.
 - The Docker Compose app no longer enables Turbopack filesystem polling by default. On native Linux the poll watched Turbopack's own `.next` writes and reloaded the page roughly twice per second. Docker Desktop users can still opt in with `NEXT_DEV_WATCH_POLL_MS=1000` in `.env.local`.

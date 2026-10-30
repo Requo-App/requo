@@ -557,35 +557,35 @@
   --auth-panel-border: rgb(255 255 255 / 0.1);
 }
 
-[data-reload-loading-overlay] {
+[data-app-loading-overlay] {
   display: none;
 }
 
-html[data-reload-loading="true"] body {
+html[data-app-loading="true"] body {
   overflow: hidden;
 }
 
-html[data-reload-loading="true"] #app-root-content {
+html[data-app-loading="true"] #app-root-content {
   visibility: hidden;
 }
 
-html[data-reload-loading="true"] [data-reload-loading-overlay] {
+html[data-app-loading="true"] [data-app-loading-overlay] {
   display: flex;
 }
 
-html[data-reload-loading="fade-out"] [data-reload-loading-overlay] {
+html[data-app-loading="fade-out"] [data-app-loading-overlay] {
   display: flex;
-  animation: reload-overlay-fade-out var(--motion-duration-base)
+  animation: app-loading-fade-out var(--motion-duration-base)
     var(--motion-ease-standard) forwards;
 }
 
-html[data-reload-loading="fade-out"] #app-root-content {
+html[data-app-loading="fade-out"] #app-root-content {
   visibility: visible;
-  animation: reload-content-fade-in var(--motion-duration-base)
+  animation: app-loading-content-fade-in var(--motion-duration-base)
     var(--motion-ease-standard) forwards;
 }
 
-@keyframes reload-overlay-fade-out {
+@keyframes app-loading-fade-out {
   from {
     opacity: 1;
   }
@@ -595,7 +595,7 @@ html[data-reload-loading="fade-out"] #app-root-content {
   }
 }
 
-@keyframes reload-content-fade-in {
+@keyframes app-loading-content-fade-in {
   from {
     opacity: 0;
   }
@@ -2955,6 +2955,23 @@ html[data-reload-loading="fade-out"] #app-root-content {
     container-type: inline-size;
   }
 
+  /*
+   * Pre-hydration poster for the hero stage. The measured stage content stays
+   * invisible until its crop resolves, so this backdrop fills the reserved
+   * aspect-ratio box with the matching theme's first frame and crop. It also
+   * keeps the poster visible when JavaScript is disabled.
+   */
+  .dashboard-stage-poster {
+    background-image: url("/marketing/requo-walkthrough-light-poster.png?v=2");
+    background-position: 40.417% top;
+    background-repeat: no-repeat;
+    background-size: auto 100%;
+  }
+
+  .dark .dashboard-stage-poster {
+    background-image: url("/marketing/requo-walkthrough-dark-poster.png?v=2");
+  }
+
   .dashboard-stage-aspect {
     aspect-ratio: 864 / 725;
   }
@@ -2962,6 +2979,11 @@ html[data-reload-loading="fade-out"] #app-root-content {
   @container (min-width: 864px) {
     .dashboard-stage-aspect {
       aspect-ratio: 1440 / 725;
+    }
+
+    .dashboard-stage-poster {
+      background-position: left top;
+      background-size: 100% 100%;
     }
   }
 

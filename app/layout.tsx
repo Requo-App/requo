@@ -10,9 +10,9 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { MotionProvider } from "@/components/providers/motion-provider";
 import {
-  getReloadLoadingInitScript,
-  ReloadLoadingOverlay,
-} from "@/components/shared/reload-loading-overlay";
+  AppLoadingOverlay,
+  getAppLoadingInitScript,
+} from "@/components/shared/app-loading-overlay";
 import { ScrollToTop } from "@/components/shared/scroll-to-top";
 import { WebMCPProvider } from "@/components/providers/webmcp-provider";
 import { StructuredData } from "@/components/seo/structured-data";
@@ -169,15 +169,15 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} ${brandFont.variable} ${mittelFont.variable} ${inter.variable} h-full antialiased`}
     >
       <body suppressHydrationWarning className="min-h-screen bg-background text-foreground selection:bg-primary selection:text-primary-foreground">
-        <ReloadLoadingOverlay />
+        <AppLoadingOverlay />
         <Script id="requo-theme-init" strategy="beforeInteractive">
           {getThemeInitScript({
             cookieKey: themeCookieKey,
             storageKey: themeStorageKey,
           })}
         </Script>
-        <Script id="requo-reload-loading-init" strategy="beforeInteractive">
-          {getReloadLoadingInitScript()}
+        <Script id="requo-app-loading-init" strategy="beforeInteractive">
+          {getAppLoadingInitScript()}
         </Script>
         <div id="app-root-content">
           <StructuredData

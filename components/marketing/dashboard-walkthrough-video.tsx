@@ -14,18 +14,43 @@ import { usePageVisible } from "@/hooks/use-page-visible";
 import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
 
 // Recorded on the seeded local demo (see scripts/marketing/record-landing-walkthrough.mjs).
+// Bump the version query when either take or poster changes so browsers that
+// cached the previous recording fetch the replacement instead of showing it
+// until the video element swaps in. The poster is also referenced by the
+// pre-hydration class below and `.dashboard-stage-poster` in app/globals.css,
+// so bump all three together.
+const WALKTHROUGH_ASSET_VERSION = "2";
+
 const WALKTHROUGH_MEDIA = {
   light: {
-    src: "/marketing/requo-walkthrough-light.webm",
-    poster: "/marketing/requo-walkthrough-light-poster.png",
+    src: `/marketing/requo-walkthrough-light.webm?v=${WALKTHROUGH_ASSET_VERSION}`,
+    poster: `/marketing/requo-walkthrough-light-poster.png?v=${WALKTHROUGH_ASSET_VERSION}`,
   },
   dark: {
-    src: "/marketing/requo-walkthrough-dark.webm",
-    poster: "/marketing/requo-walkthrough-dark-poster.png",
+    src: `/marketing/requo-walkthrough-dark.webm?v=${WALKTHROUGH_ASSET_VERSION}`,
+    poster: `/marketing/requo-walkthrough-dark-poster.png?v=${WALKTHROUGH_ASSET_VERSION}`,
   },
 } as const;
 
 type WalkthroughTheme = keyof typeof WALKTHROUGH_MEDIA;
+
+/**
+ * The theme-matched poster for the reserved stage box.
+ *
+ * `ScaledDashboardStage` cannot measure the crop until hydration, so its
+ * measured content stays invisible during the first paint. This backdrop fills
+ * the same aspect-ratio box with the poster and the matching narrow-width crop,
+ * keeping the hero from painting an empty window (and making the poster the
+ * real no-JS fallback).
+ */
+export function WalkthroughStageBackdrop() {
+  return (
+    <div
+      aria-hidden="true"
+      className="dashboard-stage-poster absolute inset-0"
+    />
+  );
+}
 
 /** Fraction of the stage that must be visible before the loop plays. */
 const IN_VIEW_THRESHOLD = 0.35;
@@ -175,7 +200,7 @@ export function DashboardWalkthroughVideo() {
       */}
       <div
         aria-hidden="true"
-        className="absolute inset-0 bg-[url('/marketing/requo-walkthrough-light-poster.png')] bg-cover bg-top bg-no-repeat dark:bg-[url('/marketing/requo-walkthrough-dark-poster.png')]"
+        className="absolute inset-0 bg-[url('/marketing/requo-walkthrough-light-poster.png?v=2')] bg-cover bg-top bg-no-repeat dark:bg-[url('/marketing/requo-walkthrough-dark-poster.png?v=2')]"
       />
 
       {motionAllowed && nearViewport ? (
