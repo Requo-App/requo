@@ -65,8 +65,9 @@ contrast table (`--foreground` ≥ 7:1 and `--muted-foreground` ≥ 4.5:1 on
 background/card/popover/sidebar/muted; semantic inks ≥ 4.5:1; warning ink on
 warning/10 and warning/15 ≥ 4.5:1), and the raw-colour boundary. It also
 requires `popover`, `overlay-surface-bg`, and `tooltip-surface-bg` to resolve
-to one dark surface and caps the overlay edge and divider at 1.22:1 and
-1.20:1 in both themes. That boundary rejects raw palette and black/white
+to one dark surface and caps the overlay divider at 1.20:1 in both themes.
+The overlay edge token is transparent, so the edge carries no contrast of its
+own. That boundary rejects raw palette and black/white
 utilities, ink tokens used as fills, and colour literals. Files that mix
 static artwork with live UI allow only the
 exact static literals listed in the audit; everything else in those files is
@@ -122,12 +123,13 @@ Rules:
   shadow. Light overlays use a tight, low shadow. Large soft shadows belong to
   overlays and the landing hero preview only.
 - Dark neutral borders are capped against the surface they sit on: cards and
-  dividers ≤ 1.3:1, controls ≤ 1.4:1, hover ≤ 1.6:1; overlay edges ≤ 1.22:1
-  and overlay dividers ≤ 1.20:1. The brand-green focus
+  dividers ≤ 1.3:1, controls ≤ 1.4:1, hover ≤ 1.6:1, and overlay dividers
+  ≤ 1.20:1. Overlay edges are borderless in both themes, so an edge value
+  cannot drift into a visible ring. The brand-green focus
   ring and green focus border are a deliberate accent outside that neutral
   cap and must maintain at least 3:1 contrast against the adjacent surface.
-  Light borders keep their strength apart from the overlay edge and divider
-  values above.
+  Light borders keep their strength apart from the overlay divider value
+  above.
 - Controls share one visual language on the page and inside cards. Dark
   outline/secondary buttons, inputs, selects, and chips use the same
   `--control-*` fill and border; light controls are white with a hairline.
