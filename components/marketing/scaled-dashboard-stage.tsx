@@ -24,7 +24,13 @@ type StageLayout = {
   scale: number;
 };
 
-export function ScaledDashboardStage({ children }: { children: ReactNode }) {
+export function ScaledDashboardStage({
+  children,
+  backdrop,
+}: {
+  children: ReactNode;
+  backdrop?: ReactNode;
+}) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [layout, setLayout] = useState<StageLayout | null>(null);
 
@@ -71,11 +77,12 @@ export function ScaledDashboardStage({ children }: { children: ReactNode }) {
     <div className="dashboard-stage-container w-full" ref={containerRef}>
       <div
         className={cn(
-          "w-full overflow-hidden",
+          "relative w-full overflow-hidden",
           !measured && "dashboard-stage-aspect",
         )}
         style={measured ? { height: layout.height } : undefined}
       >
+        {backdrop}
         <div
           className={cn("relative origin-top-left", !measured && "invisible")}
           style={{

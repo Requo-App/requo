@@ -111,6 +111,20 @@ async function setDocumentVisibility(value: DocumentVisibilityState) {
   });
 }
 
+function expectVersionedAsset(
+  element: Element | null | undefined,
+  attribute: "poster" | "src",
+  pathname: string,
+) {
+  const value = element?.getAttribute(attribute);
+  expect(value).toBeTruthy();
+
+  const url = new URL(value!, "https://requo.test");
+  expect(url.pathname).toBe(pathname);
+  // The query keeps a replaced recording from being served from cache.
+  expect(url.searchParams.get("v")).toBeTruthy();
+}
+
 describe("DashboardWalkthroughVideo", () => {
   it("shows the poster until the video can play and restores it on error", async () => {
     const { container } = render(<DashboardWalkthroughVideo />);
@@ -238,10 +252,14 @@ describe("DashboardWalkthroughVideo", () => {
       await waitFor(() => expect(playSpy).toHaveBeenCalled());
 
       const video = container.querySelector("video");
-      expect(video?.getAttribute("src")).toBe(
+      expectVersionedAsset(
+        video,
+        "src",
         "/marketing/requo-walkthrough-dark.webm",
       );
-      expect(video?.getAttribute("poster")).toBe(
+      expectVersionedAsset(
+        video,
+        "poster",
         "/marketing/requo-walkthrough-dark-poster.png",
       );
       expect(
@@ -258,7 +276,9 @@ describe("DashboardWalkthroughVideo", () => {
     await waitFor(() => expect(playSpy).toHaveBeenCalled());
 
     const lightVideo = container.querySelector("video");
-    expect(lightVideo?.getAttribute("src")).toBe(
+    expectVersionedAsset(
+      lightVideo,
+      "src",
       "/marketing/requo-walkthrough-light.webm",
     );
     fireEvent.canPlay(lightVideo!);
@@ -271,13 +291,17 @@ describe("DashboardWalkthroughVideo", () => {
     });
 
     await waitFor(() => {
-      expect(container.querySelector("video")?.getAttribute("src")).toBe(
+      expectVersionedAsset(
+        container.querySelector("video"),
+        "src",
         "/marketing/requo-walkthrough-dark.webm",
       );
     });
 
     const darkVideo = container.querySelector("video");
-    expect(darkVideo?.getAttribute("poster")).toBe(
+    expectVersionedAsset(
+      darkVideo,
+      "poster",
       "/marketing/requo-walkthrough-dark-poster.png",
     );
     // Keep the matching still visible until the replacement recording is ready.
@@ -304,7 +328,9 @@ describe("DashboardWalkthroughVideo", () => {
     });
 
     await waitFor(() => {
-      expect(container.querySelector("video")?.getAttribute("src")).toBe(
+      expectVersionedAsset(
+        container.querySelector("video"),
+        "src",
         "/marketing/requo-walkthrough-dark.webm",
       );
     });
