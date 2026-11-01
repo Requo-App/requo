@@ -44,6 +44,16 @@ afterEach(() => {
   document.documentElement.removeAttribute("data-app-loading");
 });
 
+describe("AppLoadingOverlay", () => {
+  it("stays hidden until the entry script reveals it", () => {
+    const { container } = render(<AppLoadingOverlay />);
+    const overlay = container.querySelector("[data-app-loading-overlay]");
+
+    expect(overlay).not.toBeNull();
+    expect(getComputedStyle(overlay!).display).toBe("none");
+  });
+});
+
 describe("getAppLoadingInitScript", () => {
   it("covers a refresh from any route", () => {
     runInitScript({ navigationType: "reload", pathname: "/pricing" });
@@ -95,5 +105,26 @@ describe("getAppLoadingInitScript", () => {
 
     fireEvent.animationEnd(overlay!);
     expect(document.documentElement).not.toHaveAttribute("data-app-loading");
+  });
+
+  it("clears the loading state when the fade animation never runs", () => {
+    vi.useFakeTimers();
+
+    try {
+      render(<AppLoadingOverlay />);
+      runInitScript({ navigationType: "navigate", pathname: "/acme/home" });
+      fireEvent.load(window);
+
+      expect(document.documentElement).toHaveAttribute(
+        "data-app-loading",
+        "fade-out",
+      );
+
+      vi.advanceTimersByTime(500);
+
+      expect(document.documentElement).not.toHaveAttribute("data-app-loading");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

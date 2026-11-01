@@ -75,7 +75,7 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ### Fixed
 
-- A fresh document navigation into a business dashboard now shows the same full-screen Requo loading screen as a browser refresh instead of the dashboard skeleton. In-app sidebar navigation keeps its instant shell and region skeletons.
+- Entering a business dashboard now shows the full-screen Requo loading screen instead of the dashboard shell skeleton, including a fresh document navigation after sign-in or onboarding and a browser refresh. In-app sidebar navigation keeps its instant shell and region skeletons.
 - The landing hero paints its theme-matched walkthrough poster immediately instead of an empty stage, including the narrow-width crop. Walkthrough recording and poster URLs are versioned so a cached take cannot appear before the current one.
 - Re-encoded both marketing hero walkthroughs with TV-range BT.709 colour metadata. Current Chrome aborted the first VP9 decode with `PIPELINE_ERROR_DECODE`, which looked like blocked autoplay: the poster painted and the clip stayed paused. The recorder now pins those colour flags and pins the signed-in demo account's Appearance preference to the take theme, so the shell's preference sync cannot flip the recording mid-take.
 - Warning copy on tinted surfaces now clears WCAG AA in light mode. `--warning-ink` is `#92400e`, and the in-app-browser notice and billing cancel alert no longer reduce their warning body text with alpha.
