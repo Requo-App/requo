@@ -174,9 +174,11 @@ test("dashboard shows a branded not-found state for unknown records", async ({
   });
 
   await expect(
-    page.getByText("That dashboard record could not be found."),
+    page.getByRole("heading", { name: "Page not found" }),
   ).toBeVisible({ timeout: 60_000 });
-  await expect(page.getByRole("link", { name: "Back to overview" })).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Go to dashboard" }),
+  ).toBeVisible();
 });
 
 for (const record of ["invoices", "payments"] as const) {
@@ -191,10 +193,10 @@ for (const record of ["invoices", "payments"] as const) {
     });
 
     await expect(
-      page.getByText("That dashboard record could not be found."),
+      page.getByRole("heading", { name: "Page not found" }),
     ).toBeVisible({ timeout: 60_000 });
     await expect(
-      page.getByRole("link", { name: "Back to overview" }),
+      page.getByRole("link", { name: "Go to dashboard" }),
     ).toBeVisible();
   });
 }

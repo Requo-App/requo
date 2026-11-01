@@ -11,7 +11,7 @@ test("invalid public inquiry links show the public not-found state", async ({
   await page.goto("/inquire/not-a-real-business");
 
   await expect(
-    page.getByText("This public page is unavailable."),
+    page.getByText("This page is no longer available"),
   ).toBeVisible();
 });
 

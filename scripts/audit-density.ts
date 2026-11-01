@@ -100,13 +100,13 @@ function isOutOfScope(rel: string): boolean {
   return false;
 }
 
-/** Brand, avatar, auth-chrome, and state-page display type live outside roles. */
+/** Brand, avatar, auth-chrome, and error-state display type live outside roles. */
 function isTypographyExempt(normalizedRel: string): boolean {
   return (
     normalizedRel.endsWith("components/shared/brand-mark.tsx") ||
     normalizedRel.endsWith("components/shared/brand-wordmark.tsx") ||
     normalizedRel.endsWith("components/shared/business-avatar.tsx") ||
-    normalizedRel.endsWith("components/shared/state-page-card.tsx") ||
+    normalizedRel.endsWith("components/shared/error-state.tsx") ||
     normalizedRel.endsWith("components/shell/auth-shell.tsx")
   );
 }

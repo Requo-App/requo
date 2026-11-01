@@ -463,6 +463,11 @@ state is local to feature needs; there is no general global state store. The
 Assistant has a tab-local live chat store.
 
 Errors are handled at route/feature boundaries and streamed UI boundaries.
+Client boundaries report through `lib/observability/client.ts`: errors are
+logged locally and, when `NEXT_PUBLIC_SENTRY_DSN` is configured, captured by a
+lazily loaded Sentry browser SDK using Next's error digest as the reference ID.
+Without a DSN the SDK is never downloaded and logging stays on the console. See
+[Observability and correlation IDs](../operations/OBSERVABILITY.md#client-error-boundaries).
 The root layout wires Vercel Analytics and Speed Insights. Server diagnostics
 use the structured JSON logger and correlation IDs described in
 [Observability and correlation IDs](../operations/OBSERVABILITY.md): request

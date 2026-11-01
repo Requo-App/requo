@@ -1487,6 +1487,12 @@ html[data-app-loading="fade-out"] #app-root-content {
       var(--motion-ease-emphasized) both;
   }
 
+  /* Error and status pages: one short settle-in on mount, nothing looping.
+     The reduced-motion base rule collapses the duration. */
+  .error-state-enter {
+    animation: motion-fade-up 180ms var(--motion-ease-emphasized) both;
+  }
+
   .motion-check-pop[data-state="checked"] {
     animation: motion-check-pop var(--motion-duration-base)
       var(--motion-ease-spring) both;
@@ -3366,17 +3372,6 @@ html[data-app-loading="fade-out"] #app-root-content {
     background: var(--surface-elevated-bg);
     border-color: var(--surface-stroke);
     box-shadow: var(--surface-shadow-lg);
-  }
-
-  .state-page {
-    @apply mx-auto flex min-h-screen w-full max-w-[96rem] items-center px-4 py-10 sm:px-6 lg:px-8;
-  }
-
-  .state-card-note {
-    @apply rounded-lg border border-border/80 px-4 py-3.5 text-sm leading-5 text-muted-foreground;
-    background: var(--surface-muted-bg);
-    border-color: color-mix(in srgb, var(--surface-stroke) 88%, transparent);
-    box-shadow: var(--surface-shadow-sm);
   }
 
   .form-stack {

@@ -32,6 +32,7 @@ const envSchema = z.object({
   RESEND_FROM_EMAIL: emptyToUndefined(z.string().trim().min(1)),
   RESEND_REPLY_TO_EMAIL: emptyToUndefined(z.email()),
   CRISP_WEBSITE_ID: emptyToUndefined(z.string().min(1)),
+  NEXT_PUBLIC_SENTRY_DSN: emptyToUndefined(z.url()),
   MAILTRAP_API_TOKEN: emptyToUndefined(z.string().min(1)),
   BREVO_API_KEY: emptyToUndefined(z.string().min(1)),
   EMAIL_DOMAIN: emptyToUndefined(z.string().trim().min(1)).default("test.requo.app"),
