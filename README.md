@@ -72,7 +72,7 @@ No dispatch/job management, general calendar or crew scheduling, mobile app, mar
 ## Quick Start
 
 Prerequisites: Node.js 24+ and npm, plus either a cloud Supabase project or
-Docker for the full-local stack. Copy `.env.example` to `.env.local` first.
+Docker for local services. Copy `.env.example` to `.env.local` first.
 
 ### Cloud Supabase
 
@@ -86,21 +86,25 @@ npm run dev                  # app + Inngest
 Need inbound webhooks? Set `NGROK_AUTHTOKEN` in `.env.local` (and optionally
 `NGROK_DOMAIN` so the public URL stays stable), then run `npm run dev:tunnel`.
 
-### Full local (Docker)
+### Local services (Docker)
+
+The app and Inngest run on the host; Supabase, Redis, and the
+Upstash-compatible Redis proxy run in Docker.
 
 ```bash
 cp .env.example .env.local   # local Supabase values
-npx supabase start           # one-time: local Postgres, Storage, realtime (data persists)
+npm install
+npm run services:up          # start Supabase + Redis, then exit
 npm run db:local:setup       # migrate + demo seed + local realtime setup
-docker compose up --build    # app, Inngest, Redis (see Local ports)
+npm run dev:local            # start services (if needed) + app + Inngest
 ```
 
-Compose also starts Redis (`6379`) and an Upstash-compatible REST proxy
-(`8079`); the app uses the proxy so the existing `@upstash/redis` client and
-cache code run unchanged. For webhook testing, set `NGROK_AUTHTOKEN` in
-`.env.local` and run `npm run dev:docker:tunnel` (or
-`docker compose --profile tunnel up --build`). Set `NGROK_DOMAIN` if you have a
-reserved domain and want a stable webhook URL.
+`npm run dev:local` starts the Supabase CLI stack and the Compose Redis
+services, then runs the normal `npm run dev`. The app uses the Redis proxy on
+`8079`, so the existing `@upstash/redis` client and cache code run unchanged.
+For webhook testing, set `NGROK_AUTHTOKEN` in `.env.local` and run
+`npm run dev:local:tunnel`. Set `NGROK_DOMAIN` if you have a reserved domain
+and want a stable webhook URL. Stop the services with `npm run services:down`.
 
 `npm run db:local:setup` resets application data and creates deterministic
 local accounts and businesses — development only, and it refuses non-local
@@ -114,8 +118,10 @@ use those credentials outside a local environment. See
 | --- | --- |
 | `npm run dev` | Start the Next.js server and Inngest Dev Server |
 | `npm run dev:tunnel` | `npm run dev` plus the ngrok tunnel |
-| `npm run dev:docker` | Start the full-local Docker stack without ngrok |
-| `npm run dev:docker:tunnel` | Start the full-local Docker stack plus ngrok |
+| `npm run dev:local` | Start local Docker services, then `npm run dev` |
+| `npm run dev:local:tunnel` | Start local Docker services, then `npm run dev:tunnel` |
+| `npm run services:up` | Start Supabase + Redis services only |
+| `npm run services:down` | Stop Supabase + Redis services |
 | `npm run dev:app` | Start only the Next.js development server |
 | `npm run check` | Lint, typecheck, and repository audits |
 | `npm run test` | Unit and component tests |
@@ -124,7 +130,7 @@ use those credentials outside a local environment. See
 | `npm run build` | Production build |
 | `npm run screenshots` | Recapture the README screenshots in native Windows Chrome |
 | `npm run db:migrate` | Apply Drizzle migrations |
-| `npm run db:local:setup` | Full-local: migrations + demo seed + realtime setup |
+| `npm run db:local:setup` | Local services: migrations + demo seed + realtime setup |
 | `npm run db:seed` | Reset and seed local demo data (refuses non-local databases) |
 | `npm run db:studio` | Open Drizzle Studio |
 

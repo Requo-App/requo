@@ -1,20 +1,21 @@
 # Requo Local Setup
 
-Requo supports two development setups. Both run the same code — only the
-values in `.env.local` differ:
+Requo supports two development setups. Both run the same code on the host —
+only the values in `.env.local` and where the backing services run differ:
 
 1. **Cloud Supabase (default)** — point env values at a hosted Supabase
    project, then `npm run dev`. No Docker required.
-2. **Full local (Docker)** — the Supabase CLI stack (database, storage,
-   realtime, Studio) plus `docker compose` for the app, Inngest, and Redis.
-   Fully offline by default; `npm run dev:docker:tunnel` adds an ngrok tunnel
-   when you need a public webhook URL.
+2. **Local services** — the Supabase CLI stack (database, storage, realtime,
+   Studio), Redis, and the Upstash-compatible Redis proxy run in Docker; the
+   Next.js app and Inngest still run on the host. `npm run dev:local` starts
+   the services and then runs `npm run dev`. `npm run dev:local:tunnel` adds
+   an ngrok tunnel when you need a public webhook URL.
 
 ## Prerequisites
 
 - Node.js 24 or newer and npm
 - Cloud Supabase: a Supabase project
-- Full local: a container runtime (Docker Desktop with WSL integration on
+- Local services: a container runtime (Docker Desktop with WSL integration on
   Windows, Docker Engine on Linux); `docker ps` must work from your shell
 
 ## Mode 1: Cloud Supabase
@@ -37,8 +38,8 @@ Fill `.env.local` with at least:
 Notes:
 
 - This talks to the real project — reads and writes are real. The demo seeder
-  (`npm run db:seed`) refuses non-local databases, so demo data is a
-  full-local step only.
+  (`npm run db:seed`) refuses non-local databases, so demo data is a local
+  services step only.
 - Storage uploads (logos, avatars, inquiry attachments, knowledge files) need
   the real project. Leave email, AI, and billing keys blank to skip those
   flows locally.
@@ -50,19 +51,13 @@ Notes:
   webhooks (for example Polar webhooks). Set `NGROK_AUTHTOKEN` in `.env.local`,
   or use an authtoken already saved by `npx ngrok config add-authtoken`.
 
-## Mode 2: Full local (Docker)
+## Mode 2: Local services (Docker)
 
-Why full local: `next dev` does not prefetch, so every click pays a network
-round trip per query against a remote pooler. A local database removes that
-cost and gives you storage and realtime without touching a hosted project.
-
-Start the Supabase CLI stack (first run pulls images):
-
-```bash
-npx supabase start    # prints URLs and keys
-npx supabase status   # re-print URLs and keys at any time
-npx supabase stop     # stop; database volumes are kept
-```
+Why local services: `next dev` does not prefetch, so every click pays a
+network round trip per query against a remote pooler. A local database removes
+that cost and gives you storage and realtime without touching a hosted project.
+The app still runs on the host, so hot reload uses the host's native file
+watchers and there are no container-specific polling or cache workarounds.
 
 Point `.env.local` at the local stack (defaults):
 
@@ -79,19 +74,27 @@ BETTER_AUTH_URL=http://localhost:3000
 NGROK_AUTHTOKEN=<token from https://dashboard.ngrok.com/get-started/your-authtoken>
 # Optional reserved domain. Use the hostname or the full tunnel URL.
 # NGROK_DOMAIN=requo-dev.ngrok.app
-# Host `npm run dev`: use the compose Redis proxy on the host port.
-# The compose `app` service overrides this to http://redis-http:80.
 UPSTASH_REDIS_REST_URL=http://127.0.0.1:8079
 UPSTASH_REDIS_REST_TOKEN=local-dev-token
 ```
 
-Prepare the database and start the app:
+Start the services, prepare the database, then run the app:
 
 ```bash
 npm install
+npm run services:up      # Supabase + Redis + Redis proxy, then exit
 npm run db:local:setup   # migrations + demo data + local realtime setup
-npm run dev:docker       # docker compose up --build
+npm run dev:local        # services (if needed) + app + Inngest
 ```
+
+`npm run dev:local` runs `npx supabase start`, starts the Compose Redis
+services, then executes the normal `npm run dev` on the host. The Supabase CLI
+is idempotent: if its stack is already running it reports that and returns.
+Redis data persists in the `requo_redis-data` volume. After `supabase start`,
+`dev:local` probes the local API, Studio, and email-catcher URLs. If Docker
+Desktop left stale port forwarding behind — the containers are healthy but
+connections are reset — it restarts the affected containers and waits for
+them to come back.
 
 `db:local:setup` applies pending migrations, resets and re-seeds demo data,
 then configures the `supabase_realtime` publication and the subscription
@@ -99,61 +102,59 @@ policies the notification bell needs. It refuses non-local hosts and is safe
 to re-run (for example after `npm run db:reset`, a fresh `npx supabase start`,
 or new migrations).
 
-`npm run dev:docker` (or `docker compose up --build`) starts:
+`npm run dev:local` starts:
 
-- `app` — Next.js dev server with hot reload on http://localhost:3000
-- `inngest` — Inngest Dev Server on http://localhost:8288
+- `supabase` — local Postgres, Storage, realtime, Studio, and the auth email
+  catcher (ports `54321`–`54324`)
 - `redis` — Redis 7 with append-only persistence on `localhost:6379`
 - `redis-http` — Upstash-compatible REST proxy on http://localhost:8079
+- `npm run dev` — Next.js on http://localhost:3000 and the Inngest Dev Server
+  on http://localhost:8288, both on the host
 
-For inbound webhooks, run `npm run dev:docker:tunnel` (or
-`docker compose --profile tunnel up --build`). That adds the `ngrok` service,
-which reads `NGROK_AUTHTOKEN` from `.env.local`. With a reserved domain, set
+The app keeps using `@upstash/redis`; the proxy exposes the same REST API as
+Upstash. Postgres and the Supabase API are reached over `127.0.0.1`, so the
+same env values work in the app and in migration scripts.
+
+For inbound webhooks, run `npm run dev:local:tunnel` (or `npm run dev:tunnel`
+when the services are already running). It adds the host ngrok tunnel and
+reads `NGROK_AUTHTOKEN` from `.env.local`. With a reserved domain, set
 `NGROK_DOMAIN` and use `https://<domain>/api/billing/polar/webhook` as the
 Polar endpoint. Without a reserved domain, copy the assigned URL from the ngrok
-inspector (`http://localhost:4040`) or its container logs into the endpoint.
+inspector (`http://localhost:4040`).
 
-Inside the app container, Postgres is reached over the Supabase CLI Docker
-network by container hostname (`supabase_db_requo:5432`, with
-`sslmode=disable`), browser-facing storage/realtime use
-`host.docker.internal:54321`, and Redis is reached through the
-`redis-http` service. The app keeps using `@upstash/redis`; the proxy exposes
-the same REST API as Upstash.
-
-If you run the app on the host instead of the Compose `app` container, start
-only the Redis services and use the `127.0.0.1` values from the env block
-above:
+Stop the services when you are finished:
 
 ```bash
-docker compose up -d redis redis-http
-npm run dev          # or `npm run dev:tunnel` for ngrok
-docker compose stop redis redis-http   # when finished
+npm run services:down   # docker compose down + npx supabase stop
+```
+
+The Supabase database and Redis volume are kept. To stop only one layer:
+
+```bash
+docker compose stop redis redis-http
+npx supabase stop
 ```
 
 Notes:
 
-- Docker Desktop (Windows/macOS) resolves `host.docker.internal`
-  automatically. On Linux, add `127.0.0.1 host.docker.internal` to
-  `/etc/hosts` once — otherwise the browser cannot connect to realtime (and
-  the bell falls back to polling).
-- Rebuild the app image after dependency changes (`docker compose up
-  --build`); code edits hot-reload without a rebuild.
-- Native Linux uses the normal file watchers and needs no polling. On Docker
-  Desktop, bind mounts do not forward filesystem events; set
-  `NEXT_DEV_WATCH_POLL_MS=1000` in `.env.local` to enable Turbopack polling
-  (`WATCHPACK_POLLING` only affects webpack). Leave it unset on native Linux,
-  where polling Turbopack's own `.next` writes can cause a reload loop.
-- The default `npm run dev:docker` leaves ngrok out. If you already run ngrok
-  on the host, stop one of the two before using the reserved domain or port
-  `4040`.
+- `npm run dev` on its own does not start Docker services; it uses whatever
+  `.env.local` points at. Use it for cloud Supabase, and `npm run dev:local`
+  when you want the local stack.
+- `dev:local` does not rewrite `.env.local`. Make sure the database and
+  Supabase URLs use `127.0.0.1` (or `localhost`) for local mode.
+- Supabase CLI first-run pulls images, so `services:up` can take a while.
+  `dev:local` hides the CLI's key dump; `npx supabase status` shows the
+  resolved URLs and keys at any time.
+- Docker Desktop must be running before `npm run dev:local`; on Windows,
+  enable WSL integration for the distro you develop in.
 
 ### Local ports
 
 | Port | Service |
 | --- | --- |
-| 3000 | Requo (compose `app`) |
-| 4040 | ngrok inspector (optional `tunnel` profile, loopback only) |
-| 8288 | Inngest Dev Server (compose `inngest`) |
+| 3000 | Requo (`npm run dev`, host) |
+| 4040 | ngrok inspector (optional tunnel, loopback only) |
+| 8288 | Inngest Dev Server (`npm run dev:inngest`, host) |
 | 6379 | Redis (compose `redis`, loopback only, for `redis-cli`) |
 | 8079 | Upstash-compatible Redis REST proxy (compose `redis-http`, loopback only) |
 | 54321 | Supabase API gateway — storage + realtime |
@@ -243,7 +244,7 @@ openssl rand -hex 32
     3. Copy the pooler connection string.
     4. Use that string as `DATABASE_URL`.
     5. Copy it again and change only the port from `6543` to `5432` for `DATABASE_MIGRATION_URL`.
-- Full local: use the values printed by `npx supabase status` (see Mode 2).
+- Local services: use the values printed by `npx supabase status` (see Mode 2).
   Bucket definitions come from migration `0034`; no extra storage setup is
   needed.
 - Supabase-backed uploads and asset downloads need a reachable Supabase

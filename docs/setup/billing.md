@@ -147,7 +147,7 @@ Always wire sandbox first. Production cutover is documented below; do not skip s
    The endpoint URL must include `/api/billing/polar/webhook`; pointing the
    dashboard at the tunnel root returns 404/405 for every delivery. Use the
    ngrok URL printed by `npm run dev:tunnel` or
-   `npm run dev:docker:tunnel` (or any HTTPS tunnel). Set `NGROK_DOMAIN` to a
+   `npm run dev:local:tunnel` (or any HTTPS tunnel). Set `NGROK_DOMAIN` to a
    reserved domain if you want the endpoint URL to survive restarts.
 
    Set the endpoint's API version to **`2026-10`**, which is the versioned SDK
@@ -254,9 +254,9 @@ If a production cutover fails, set `POLAR_SERVER=sandbox` plus the sandbox `POLA
 - Confirm the Polar endpoint URL includes `/api/billing/polar/webhook`. A tunnel
   root URL is not a valid webhook endpoint.
 - Check the tunnel is running: open http://localhost:4040 for the ngrok
-  inspector, or inspect the `ngrok` compose service logs when using the
-  `tunnel` profile. Confirm the Polar endpoint uses the tunnel URL plus
-  `/api/billing/polar/webhook`.
+  inspector, or read the ngrok output from `npm run dev:tunnel` /
+  `npm run dev:local:tunnel`. Confirm the Polar endpoint uses the tunnel URL
+  plus `/api/billing/polar/webhook`.
 
 ### Webhook returns 400 or stops after a Polar API upgrade
 

@@ -7,9 +7,9 @@ import { NextResponse } from "next/server";
  * shown in the bundled Next docs): `request.url` is built from the server's
  * configured hostname, not from the browser's address bar (see `initURL` in
  * `next/dist/server/route-modules/route-module.js`). Under
- * `next dev --hostname 0.0.0.0` — the Docker setup in `docker-compose.yml` —
- * every such redirect sends the browser to `http://0.0.0.0:3000`, dropping
- * `localhost` along with its host-only session cookie.
+ * `next dev --hostname 0.0.0.0` — for example when exposing the dev server on
+ * the LAN — every such redirect sends the browser to `http://0.0.0.0:3000`,
+ * dropping `localhost` along with its host-only session cookie.
  *
  * Next already normalizes middleware redirects to a relative `Location`
  * (`getRelativeURL` in `next/dist/server/lib/router-utils/resolve-routes.js`).

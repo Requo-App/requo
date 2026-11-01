@@ -503,7 +503,7 @@ async function checkRedis(): Promise<AdminHealthCheckResult> {
       name: "Redis",
       status: "warn",
       message: "Not configured — in-memory fallback",
-      hint: "Set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN. The Docker Compose stack exposes a local Upstash-compatible proxy at http://127.0.0.1:8079. Caches fall back to per-instance memory, so on serverless the 24h embedding cache never hits and identical text re-embeds on every cold start.",
+      hint: "Set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN. The local services stack (`npm run dev:local`) exposes an Upstash-compatible proxy at http://127.0.0.1:8079. Caches fall back to per-instance memory, so on serverless the 24h embedding cache never hits and identical text re-embeds on every cold start.",
       category: "cache",
     };
   }
