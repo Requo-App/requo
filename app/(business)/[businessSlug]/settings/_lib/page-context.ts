@@ -1,13 +1,14 @@
 import "server-only";
 
 import { cache } from "react";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import {
   getBusinessHomePath,
 } from "@/features/businesses/routes";
 import { homePath } from "@/features/businesses/routes";
 import {
+  businessSlugExists,
   getBusinessContextForMembershipSlug,
   hasOperationalBusinessAccess,
   requireCurrentBusinessContext,
@@ -17,6 +18,10 @@ import { requireUser } from "@/lib/auth/session";
 async function getScopedBusinessSettingsContext(businessSlug?: string | null) {
   if (!businessSlug) {
     return requireCurrentBusinessContext();
+  }
+
+  if (!(await businessSlugExists(businessSlug))) {
+    notFound();
   }
 
   const user = await requireUser();

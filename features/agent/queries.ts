@@ -13,6 +13,7 @@ import {
   services,
   inquiries,
 } from "@/lib/db/schema";
+import { hasFeatureAccess } from "@/lib/plans/entitlements";
 import type { PlanTier } from "@/lib/plans/plans";
 
 export type PublicAgentBusiness = {
@@ -60,6 +61,29 @@ export const getPublicAgentBusiness = cache(
         ? `/api/public/businesses/${row.slug}/logo?v=${updatedAt.getTime()}`
         : null,
     };
+  },
+);
+
+/**
+ * Business that may serve the public Agent chat: operational, agent enabled,
+ * and on a plan that includes the Agent feature.
+ *
+ * Shared by the chat layout's pre-stream gate and the page itself so both
+ * apply exactly the same condition.
+ */
+export const getPublicAgentChatBusiness = cache(
+  async (slug: string): Promise<PublicAgentBusiness | null> => {
+    const business = await getPublicAgentBusiness(slug);
+
+    if (
+      !business ||
+      !business.agentEnabled ||
+      !hasFeatureAccess(business.plan, "agent")
+    ) {
+      return null;
+    }
+
+    return business;
   },
 );
 

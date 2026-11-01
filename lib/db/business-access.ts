@@ -1,10 +1,14 @@
 import "server-only";
 
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
 import { cookies } from "next/headers";
 import { cache } from "react";
 
+import {
+  getPublicBusinessProfileCacheTags,
+  hotBusinessCacheLife,
+} from "@/lib/cache/business-tags";
 import {
   getUserBusinessContextCacheTags,
   getUserMembershipsCacheTags,
@@ -36,7 +40,10 @@ import {
   requireUser,
   type AuthUser,
 } from "@/lib/auth/session";
-import { activeBusinessSlugCookieName } from "@/features/businesses/routes";
+import {
+  activeBusinessSlugCookieName,
+  isValidActiveBusinessSlug,
+} from "@/features/businesses/routes";
 import { db } from "@/lib/db/client";
 import {
   user,
@@ -303,6 +310,37 @@ export const getBusinessContextForMembershipSlug = cache(async (
 
   return applyEffectivePlanTier(context);
 });
+
+/**
+ * Whether the slug belongs to a live business, independent of the current
+ * session. Dashboard routes check this before authentication so an unknown
+ * business URL renders the normal 404 instead of redirecting to /login or
+ * /home. Archived and locked businesses still exist; soft-deleted ones do not.
+ */
+export async function businessSlugExists(businessSlug: string) {
+  "use cache";
+
+  cacheLife(hotBusinessCacheLife);
+  cacheTag(...getPublicBusinessProfileCacheTags(businessSlug));
+
+  if (!isValidActiveBusinessSlug(businessSlug)) {
+    return false;
+  }
+
+  const [business] = await withCircuitBreaker(
+    `shell:business-slug:${businessSlug}`,
+    () =>
+      db
+        .select({ id: businesses.id })
+        .from(businesses)
+        .where(
+          and(eq(businesses.slug, businessSlug), isNull(businesses.deletedAt)),
+        )
+        .limit(1),
+  );
+
+  return Boolean(business);
+}
 
 /**
  * Resolve the effective plan for each unique business. Subscriptions and

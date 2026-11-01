@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { ChatInterface } from "@/features/agent/components/chat-interface";
 import {
   buildAgentRecommendations,
-  getPublicAgentBusiness,
+  getPublicAgentChatBusiness,
   getPublicAgentStarterServices,
 } from "@/features/agent/queries";
 import { getBusinessPublicInquiryUrl } from "@/features/settings/utils";
@@ -16,16 +16,9 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const business = await getPublicAgentBusiness(slug);
+  const business = await getPublicAgentChatBusiness(slug);
 
-  // The Agent needs Pro+. A downgrade leaves `ai_agent_enabled` set, so the
-  // plan gate is the other half of the condition: without it the route
-  // stays discoverable and the visitor gets a chat whose first send fails.
-  if (
-    !business ||
-    !business.agentEnabled ||
-    !hasFeatureAccess(business.plan, "agent")
-  ) {
+  if (!business) {
     return { title: "Chat" };
   }
 
@@ -50,16 +43,12 @@ export default async function AgentChatPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const business = await getPublicAgentBusiness(slug);
+  const business = await getPublicAgentChatBusiness(slug);
 
   // The Agent needs Pro+. A downgrade leaves `ai_agent_enabled` set, so the
   // plan gate is the other half of the condition: without it the route
   // stays discoverable and the visitor gets a chat whose first send fails.
-  if (
-    !business ||
-    !business.agentEnabled ||
-    !hasFeatureAccess(business.plan, "agent")
-  ) {
+  if (!business) {
     notFound();
   }
 
