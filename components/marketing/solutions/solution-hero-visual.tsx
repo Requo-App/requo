@@ -33,7 +33,7 @@ export function SolutionHeroVisual({
         height={image.height}
         preload
         quality={95}
-        sizes="(min-width: 1280px) 48rem, (min-width: 1024px) 44rem, (min-width: 640px) 95vw, 100vw"
+        sizes="(min-width: 1280px) 48rem, (min-width: 1024px) 44rem, (min-width: 640px) 95vw, 36rem"
         src={image.src}
         style={{ objectPosition: image.objectPosition }}
         width={image.width}
