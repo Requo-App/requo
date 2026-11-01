@@ -279,6 +279,7 @@ describe("quote discussions", () => {
     expect(discussion?.archivedAt).not.toBeNull();
 
     const publicView = await getPublicQuoteDiscussionByToken(sent.token);
+    expect(publicView?.quoteId).toBe(sent.quoteId);
     expect(publicView?.closed).toBe(true);
     expect(publicView?.messages).toHaveLength(1);
   }, 20_000);

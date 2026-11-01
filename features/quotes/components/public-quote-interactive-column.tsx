@@ -15,6 +15,11 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { AnimatedResponseIcon } from "@/components/feedback/animated-response-icon";
+import { PublicQuoteDiscussion } from "@/features/quote-discussions/components/public-quote-discussion";
+import type {
+  PublicQuoteDiscussionView,
+  QuoteDiscussionActionState,
+} from "@/features/quote-discussions/types";
 import { PublicQuoteResponseForm } from "@/features/quotes/components/public-quote-response-form";
 import { PublicQuoteRevisionForm } from "@/features/quotes/components/public-quote-revision-form";
 import type {
@@ -38,12 +43,19 @@ type PublicQuoteInteractiveColumnProps = {
     state: PublicQuoteRevisionRequestActionState,
     formData: FormData,
   ) => Promise<PublicQuoteRevisionRequestActionState>;
+  discussion?: PublicQuoteDiscussionView;
+  discussionAction?: (
+    state: QuoteDiscussionActionState,
+    formData: FormData,
+  ) => Promise<QuoteDiscussionActionState>;
 };
 
 export function PublicQuoteInteractiveColumn({
   quote,
   respondAction,
   revisionAction,
+  discussion,
+  discussionAction,
 }: PublicQuoteInteractiveColumnProps) {
   const router = useRouter();
   const [resolved, setResolved] = useState<PublicQuoteResolvedSnapshot | null>(
@@ -151,6 +163,7 @@ export function PublicQuoteInteractiveColumn({
             </p>
             <PublicQuoteResponseForm
               action={respondAction}
+              customerName={quote.customerName}
               onResolved={handleResolved}
               expectedVersion={quote.version}
             />
@@ -164,7 +177,7 @@ export function PublicQuoteInteractiveColumn({
                       Request revision
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+                  <DialogContent className="sm:max-w-lg">
                     <DialogHeader>
                       <DialogTitle>Request revision</DialogTitle>
                       <DialogDescription>
@@ -223,7 +236,18 @@ export function PublicQuoteInteractiveColumn({
         </div>
       ) : null}
 
-      {quote.businessContactEmail ? (
+      {discussion && discussionAction ? (
+        <div className="flex flex-col gap-3 rounded-xl border border-border/50 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+          <p className="text-sm text-muted-foreground">
+            Have questions? Reach out to {quote.businessName}.
+          </p>
+          <PublicQuoteDiscussion
+            action={discussionAction}
+            businessContactEmail={quote.businessContactEmail}
+            discussion={discussion}
+          />
+        </div>
+      ) : quote.businessContactEmail ? (
         <div className="flex flex-col gap-3 rounded-xl border border-border/50 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
           <p className="text-sm text-muted-foreground">
             Have questions? Reach out to {quote.businessName}.

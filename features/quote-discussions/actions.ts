@@ -191,7 +191,7 @@ export async function sendQuoteDiscussionReplyAction(
 
     if (result.customerEmail && result.publicToken) {
       const publicQuoteUrl = new URL(
-        getPublicQuoteUrl(result.publicToken),
+        `${getPublicQuoteUrl(result.publicToken)}#discussion`,
         env.BETTER_AUTH_URL,
       ).toString();
 

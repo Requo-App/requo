@@ -427,6 +427,7 @@ export async function getPublicQuoteDiscussionByToken(
   });
 
   return {
+    quoteId: row.quoteId,
     messages,
     closed: !open,
     archived: archived || !open,

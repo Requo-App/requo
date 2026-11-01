@@ -2200,6 +2200,29 @@ html[data-app-loading="fade-out"] #app-root-content {
     padding-inline: 0;
   }
 
+  /*
+   * The public quote page is the whole destination, so center it in the
+   * viewport. Equal block padding keeps the visual center on the true midpoint.
+   */
+  .public-page--centered {
+    display: flex;
+    flex-direction: column;
+    min-height: 100dvh;
+    padding-block: 0.75rem;
+  }
+
+  @media (min-width: 40rem) {
+    .public-page--centered {
+      padding-block: 2rem;
+    }
+  }
+
+  @media (min-width: 64rem) {
+    .public-page--centered {
+      padding-block: 2.5rem;
+    }
+  }
+
   .public-page-stack {
     @apply flex flex-col gap-6 lg:gap-8;
   }

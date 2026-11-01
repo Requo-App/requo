@@ -10,6 +10,7 @@ import { hasFeatureAccess } from "@/lib/plans/entitlements";
 import { formatQuoteDate, formatQuoteMoney } from "@/features/quotes/utils";
 import type { PublicQuoteView } from "@/features/quotes/types";
 import type { PlanTier } from "@/lib/plans/plans";
+import { cn } from "@/lib/utils";
 
 type PublicQuotePageRendererProps = {
   quote: PublicQuoteView;
@@ -17,14 +18,17 @@ type PublicQuotePageRendererProps = {
   headerAction?: ReactNode;
   beforeContent?: ReactNode;
   interactiveColumn: ReactNode;
-  /** Customer discussion rendered below the quote details. */
-  discussion?: ReactNode;
   afterContent?: ReactNode;
   /**
    * When true, the public Requo top bar (brand + header action) is omitted.
    * The free-tier "Made with Requo" watermark still renders below the content.
    */
   hideHeader?: boolean;
+  /**
+   * Centers the quote and sidebar in the viewport. Used by the public quote
+   * page, whose content is the whole page; previews keep their own shell.
+   */
+  centerContent?: boolean;
 };
 
 /**
@@ -37,15 +41,14 @@ export function PublicQuotePageRenderer({
   headerAction,
   beforeContent,
   interactiveColumn,
-  discussion,
   afterContent,
   hideHeader = false,
+  centerContent = false,
 }: PublicQuotePageRendererProps) {
   const showWatermark = !hasFeatureAccess(businessPlan, "removeWatermark");
 
   const content = (
     <QuotePageContent
-      discussion={discussion}
       interactiveColumn={interactiveColumn}
       quote={quote}
     />
@@ -56,8 +59,18 @@ export function PublicQuotePageRenderer({
       <>
         {beforeContent}
 
-        <div className="public-page">
-          <div className="public-page-stack">
+        <div
+          className={cn(
+            "public-page",
+            centerContent && "public-page--centered",
+          )}
+        >
+          <div
+            className={cn(
+              "public-page-stack",
+              centerContent && "my-auto",
+            )}
+          >
             <main className="contents">{content}</main>
           </div>
         </div>
@@ -90,15 +103,13 @@ export function PublicQuotePageRenderer({
 function QuotePageContent({
   quote,
   interactiveColumn,
-  discussion,
 }: {
   quote: PublicQuoteView;
   interactiveColumn: ReactNode;
-  discussion?: ReactNode;
 }) {
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_360px]">
-      {/* Left column — Quote content and its discussion */}
+      {/* Left column — Quote content */}
       <div className="flex min-w-0 flex-col gap-6">
       <PublicHeroSurface className="py-6 sm:py-8 lg:py-10">
         <div className="px-4 sm:px-6 lg:px-8">
@@ -213,8 +224,6 @@ function QuotePageContent({
           ) : null}
         </div>
       </PublicHeroSurface>
-
-      {discussion}
       </div>
 
       {/* Right column — Interactive actions */}

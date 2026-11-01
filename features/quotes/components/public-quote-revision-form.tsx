@@ -3,7 +3,13 @@
 import { useEffect, useState } from "react";
 
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
+import { getFieldError } from "@/lib/action-state";
 import { Button } from "@/components/ui/button";
+import {
+  DialogBody,
+  DialogClose,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import type { PublicQuoteRevisionRequestActionState } from "@/features/quotes/types";
@@ -27,6 +33,7 @@ export function PublicQuoteRevisionForm({
     initialState,
   );
   const [message, setMessage] = useState("");
+  const messageError = getFieldError(state.fieldErrors, "message");
 
   useEffect(() => {
     if (state.success) {
@@ -35,8 +42,8 @@ export function PublicQuoteRevisionForm({
   }, [state.success, onSuccess]);
 
   return (
-    <form action={formAction} className="flex flex-col gap-4">
-      <div className="flex flex-col gap-1.5">
+    <form action={formAction} className="flex min-h-0 flex-1 flex-col">
+      <DialogBody className="flex flex-col gap-1.5">
         <label
           htmlFor="revision-message"
           className="text-sm font-medium text-foreground"
@@ -52,20 +59,32 @@ export function PublicQuoteRevisionForm({
           onChange={(e) => setMessage(e.currentTarget.value)}
           placeholder="Describe the changes you'd like..."
           disabled={isPending}
+          aria-invalid={Boolean(messageError) || undefined}
+          aria-describedby={messageError ? "revision-message-error" : undefined}
           className="text-sm"
         />
-      </div>
-
-      {state.error ? (
-        <p className="text-sm text-destructive-ink">{state.error}</p>
-      ) : null}
-
-      <Button type="submit" disabled={isPending || !message.trim()} size="lg">
-        {isPending ? (
-          <Spinner data-icon="inline-start" aria-hidden="true" />
+        {messageError ? (
+          <p className="text-xs text-destructive-ink" id="revision-message-error">
+            {messageError}
+          </p>
+        ) : state.error ? (
+          <p className="text-xs text-destructive-ink">{state.error}</p>
         ) : null}
-        Submit revision request
-      </Button>
+      </DialogBody>
+
+      <DialogFooter>
+        <DialogClose asChild>
+          <Button disabled={isPending} type="button" variant="outline">
+            Cancel
+          </Button>
+        </DialogClose>
+        <Button type="submit" disabled={isPending || !message.trim()}>
+          {isPending ? (
+            <Spinner data-icon="inline-start" aria-hidden="true" />
+          ) : null}
+          Submit revision request
+        </Button>
+      </DialogFooter>
     </form>
   );
 }

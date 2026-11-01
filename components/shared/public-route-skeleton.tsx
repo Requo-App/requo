@@ -194,6 +194,12 @@ function QuoteInteractiveColumnSkeleton() {
           <Skeleton className="h-9 w-full rounded-md" />
         </div>
       </div>
+
+      {/* Questions trigger card */}
+      <div className="flex flex-col gap-3 rounded-xl border border-border/50 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+        <Skeleton className="h-4 w-44 rounded-md" />
+        <Skeleton className="h-8 w-24 rounded-md" />
+      </div>
     </div>
   );
 }
