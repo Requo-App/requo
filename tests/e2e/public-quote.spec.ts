@@ -62,6 +62,10 @@ test("customer can accept a sent quote from the public quote page @smoke", async
   await expect(acceptButton.or(acceptedNotice)).toBeVisible();
 
   if (await acceptButton.isVisible()) {
+    await expect(page.getByLabel("Your name")).toHaveAttribute(
+      "placeholder",
+      "Taylor Nguyen",
+    );
     await page.getByLabel("Your name").fill("Maria Santos");
     await page.getByRole("checkbox").check();
     await page
@@ -111,7 +115,7 @@ test("invalid public quote links show the public not-found state", async ({
   await page.goto("/quote/not-a-real-public-token");
 
   await expect(
-    page.getByText("This public page is unavailable."),
+    page.getByText("This page is no longer available"),
   ).toBeVisible();
 });
 
@@ -128,18 +132,24 @@ test("a customer and the business share one quote discussion across both busines
   await page.goto(`/quote/${demoMessageLengthQuotePublicToken}`);
   await page.waitForLoadState("networkidle");
 
+  await page.getByRole("button", { name: /Questions/ }).click();
   await expect(
-    page.getByRole("heading", { name: "Questions about this quote?" }),
+    page.getByRole("heading", { name: "Questions", exact: true }),
   ).toBeVisible();
   await expect(
     page.getByText(/Anyone with this quote link can read this conversation/),
   ).toBeVisible();
 
+  await page.getByRole("button", { name: "Change" }).click();
   await page.getByLabel("Display name").fill("E2E Customer");
   await page.getByLabel("Message", { exact: true }).fill(customerMessage);
-  await page.getByRole("button", { name: "Send question" }).click();
+  await page.getByRole("button", { name: "Send" }).click();
 
-  await expect(page.getByText(customerMessage)).toBeVisible({
+  await expect(
+    page
+      .getByRole("list", { name: "Discussion messages" })
+      .getByText(customerMessage),
+  ).toBeVisible({
     timeout: 30_000,
   });
 
@@ -156,12 +166,17 @@ test("a customer and the business share one quote discussion across both busines
 
   await expect(page).toHaveURL(/\/discussions\/[^/]+$/, { timeout: 20_000 });
   await expect(page.getByText("Q-E2E-MESSAGE-LENGTH").first()).toBeVisible();
-  await expect(page.getByText(customerMessage)).toBeVisible();
+  const businessThread = page.getByRole("list", {
+    name: "Discussion messages",
+  });
+  await expect(businessThread.getByText(customerMessage)).toBeVisible();
 
   await page.getByLabel("Message", { exact: true }).fill(businessReply);
   await page.getByRole("button", { name: "Send reply" }).click();
 
-  await expect(page.getByText(businessReply)).toBeVisible({ timeout: 30_000 });
+  await expect(businessThread.getByText(businessReply)).toBeVisible({
+    timeout: 30_000,
+  });
   await expect(page.getByText("Waiting for customer").first()).toBeVisible();
 
   await page.getByRole("link", { name: "View quote" }).click();
@@ -169,17 +184,28 @@ test("a customer and the business share one quote discussion across both busines
     new RegExp(`/${demoBusinessSlug}/quotes/demo_quote_message_length$`),
     { timeout: 20_000 },
   );
+  const quoteDiscussionSection = page
+    .locator('[data-slot="card"]')
+    .filter({ hasText: "Questions and replies attached to this quote." });
   await expect(
-    page.getByRole("heading", { name: "Discussion", exact: true }),
-  ).toBeVisible({ timeout: 60_000 });
-  await expect(page.getByText(businessReply)).toBeVisible();
+    quoteDiscussionSection.getByText("Discussion", { exact: true }),
+  ).toBeVisible({
+    timeout: 60_000,
+  });
+  await expect(
+    quoteDiscussionSection.getByText(businessReply),
+  ).toBeVisible();
 
   await page.goto(`/quote/${demoMessageLengthQuotePublicToken}`);
   await page.waitForLoadState("networkidle");
 
-  await expect(page.getByText(businessReply)).toBeVisible();
-  await expect(page.getByLabel("Message", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: /Questions/ }).click();
   await expect(
-    page.getByRole("button", { name: "Send question" }),
+    page
+      .getByRole("dialog")
+      .getByRole("list", { name: "Discussion messages" })
+      .getByText(businessReply),
   ).toBeVisible();
+  await expect(page.getByLabel("Message", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Send" })).toBeVisible();
 });

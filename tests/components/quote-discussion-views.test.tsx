@@ -1,16 +1,23 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { BusinessDiscussionList } from "@/features/quote-discussions/components/business-discussion-list";
 import { DiscussionComposer } from "@/features/quote-discussions/components/discussion-composer";
 import { DiscussionMessages } from "@/features/quote-discussions/components/discussion-messages";
+import { PublicQuoteDiscussion } from "@/features/quote-discussions/components/public-quote-discussion";
 import type {
+  PublicQuoteDiscussionView,
   QuoteDiscussionMessageView,
   QuoteDiscussionSummary,
 } from "@/features/quote-discussions/types";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: vi.fn() }),
+}));
+
+vi.mock("@/components/shared/notify", () => ({
+  toast: { success: vi.fn(), error: vi.fn() },
 }));
 
 const messages: QuoteDiscussionMessageView[] = [
@@ -29,6 +36,28 @@ const messages: QuoteDiscussionMessageView[] = [
     createdAt: "2026-05-01T11:00:00.000Z",
   },
 ];
+
+const publicDiscussion: PublicQuoteDiscussionView = {
+  messages,
+  closed: false,
+  archived: false,
+  suggestedName: "Maria Santos",
+  businessName: "Studio",
+  quoteNumber: "Q-2002",
+};
+
+afterEach(() => {
+  cleanup();
+  window.localStorage.clear();
+  window.location.hash = "";
+  document.body.style.overflow = "";
+});
+
+beforeEach(() => {
+  window.localStorage.clear();
+  window.location.hash = "";
+  document.body.style.overflow = "";
+});
 
 describe("quote discussion messages", () => {
   it("shows the empty state when no messages exist", () => {
@@ -66,6 +95,26 @@ describe("quote discussion messages", () => {
     expect(screen.getAllByText("Customer")).toHaveLength(1);
     expect(screen.getAllByText("Business")).toHaveLength(1);
   });
+
+  it("renders relative timestamps with the absolute time in the title", () => {
+    render(
+      <DiscussionMessages
+        businessName="Studio"
+        messages={messages}
+        showAvatars
+        timestampFormat="relative"
+        viewer="customer"
+      />,
+    );
+
+    const time = document.querySelector("time");
+    expect(time).not.toBeNull();
+    expect(time).toHaveTextContent(/ago/);
+    expect(time).toHaveAttribute(
+      "title",
+      expect.stringContaining("May 1, 2026"),
+    );
+  });
 });
 
 describe("quote discussion composer", () => {
@@ -95,6 +144,161 @@ describe("quote discussion composer", () => {
     expect(screen.getByText("This discussion is read-only")).toBeTruthy();
     expect(screen.queryByLabelText("Message")).toBeNull();
     expect(screen.queryByRole("button")).toBeNull();
+  });
+});
+
+describe("public quote discussion panel", () => {
+  it("opens from the sidebar trigger, focuses the composer, and returns focus", async () => {
+    const user = userEvent.setup();
+    render(
+      <PublicQuoteDiscussion
+        action={async () => ({ success: "Message sent." })}
+        businessContactEmail="hello@studio.test"
+        discussion={publicDiscussion}
+      />,
+    );
+
+    const trigger = screen.getByRole("button", { name: /Questions/ });
+    expect(trigger).toHaveAttribute("aria-haspopup", "dialog");
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    document.body.style.overflow = "scroll";
+
+    await user.click(trigger);
+
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog).toHaveAccessibleName("Questions");
+    expect(dialog).toHaveAttribute("aria-modal", "true");
+    expect(screen.getByText("Quote Q-2002 · Studio")).toBeTruthy();
+    expect(
+      screen.getByText(/Anyone with this quote link can read this conversation/),
+    ).toBeTruthy();
+    expect(screen.getByText("This is not an acceptance of the quote.")).toBeTruthy();
+    expect(screen.getByLabelText("Message")).toHaveFocus();
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+    expect(document.body.style.overflow).toBe("hidden");
+
+    await user.keyboard("{Escape}");
+
+    await waitFor(() => expect(trigger).toHaveFocus());
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    expect(document.body.style.overflow).toBe("scroll");
+  });
+
+  it("shows the empty state and keeps a draft when the panel closes", async () => {
+    const user = userEvent.setup();
+    render(
+      <PublicQuoteDiscussion
+        action={async () => ({ success: "Message sent." })}
+        discussion={{ ...publicDiscussion, messages: [] }}
+      />,
+    );
+
+    const trigger = screen.getByRole("button", { name: "Questions" });
+    await user.click(trigger);
+
+    expect(screen.getByText("Start the conversation")).toBeTruthy();
+    expect(screen.queryByLabelText("Display name")).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "Change" }));
+    const name = screen.getByLabelText("Display name");
+    await user.clear(name);
+    await user.type(name, "E2E Customer");
+    const message = screen.getByLabelText("Message");
+    await user.type(message, "Can we adjust the timeline?");
+
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(trigger).toHaveFocus());
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+
+    await user.click(trigger);
+
+    expect(await screen.findByLabelText("Message")).toHaveValue(
+      "Can we adjust the timeline?",
+    );
+    await user.click(screen.getByRole("button", { name: "Change" }));
+    expect(screen.getByLabelText("Display name")).toHaveValue("E2E Customer");
+  });
+
+  it("shows an optimistic bubble while sending and preserves text on failure", async () => {
+    const user = userEvent.setup();
+    let resolveAction:
+      | ((state: { error: string }) => void)
+      | undefined;
+    const action = vi.fn(
+      () =>
+        new Promise<{ error: string }>((resolve) => {
+          resolveAction = resolve;
+        }),
+    );
+
+    render(
+      <PublicQuoteDiscussion
+        action={action}
+        discussion={{ ...publicDiscussion, messages: [] }}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Questions" }));
+    const message = screen.getByLabelText("Message");
+    await user.type(message, "Can we adjust the timeline?");
+    const sendButton = screen.getByRole("button", { name: "Send" });
+    await user.click(sendButton);
+
+    expect(
+      screen.getByRole("list", { name: "Discussion messages" }),
+    ).toHaveTextContent("Can we adjust the timeline?");
+    expect(sendButton).toBeDisabled();
+
+    await act(async () => {
+      resolveAction?.({ error: "Try again." });
+    });
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Try again.");
+    expect(screen.getByRole("button", { name: "Retry" })).toBeTruthy();
+    expect(screen.getByLabelText("Message")).toHaveValue(
+      "Can we adjust the timeline?",
+    );
+  });
+
+  it("marks a new business reply until the panel is opened", async () => {
+    const user = userEvent.setup();
+    render(
+      <PublicQuoteDiscussion
+        action={async () => ({ success: "Message sent." })}
+        discussion={publicDiscussion}
+      />,
+    );
+
+    const trigger = screen.getByRole("button", { name: /Questions/ });
+
+    await waitFor(() =>
+      expect(trigger).toHaveAttribute(
+        "aria-label",
+        "Questions, 2 messages, new reply from business",
+      ),
+    );
+
+    await user.click(trigger);
+
+    await waitFor(() =>
+      expect(trigger).toHaveAttribute(
+        "aria-label",
+        "Questions, 2 messages",
+      ),
+    );
+  });
+
+  it("opens automatically for #discussion links", async () => {
+    window.location.hash = "#discussion";
+
+    render(
+      <PublicQuoteDiscussion
+        action={async () => ({ success: "Message sent." })}
+        discussion={publicDiscussion}
+      />,
+    );
+
+    expect(await screen.findByRole("dialog")).toBeTruthy();
   });
 });
 

@@ -299,6 +299,7 @@ export type PublicQuoteInteractiveQuote = {
   quoteNumber: string;
   businessName: string;
   businessContactEmail: string | null;
+  customerName: string;
   status: QuoteStatus;
   version: number;
   validUntil: string;

@@ -1,8 +1,12 @@
 import { MessageSquare } from "lucide-react";
 
+import { BusinessAvatar } from "@/components/shared/business-avatar";
 import { DashboardEmptyState } from "@/components/shared/dashboard-layout";
 import type { QuoteDiscussionMessageView } from "@/features/quote-discussions/types";
-import { formatQuoteDiscussionTimestamp } from "@/features/quote-discussions/utils";
+import {
+  formatQuoteDiscussionRelativeTimestamp,
+  formatQuoteDiscussionTimestamp,
+} from "@/features/quote-discussions/utils";
 import { cn } from "@/lib/utils";
 
 /**
@@ -16,12 +20,17 @@ export function DiscussionMessages({
   businessName,
   emptyTitle = "No messages yet",
   emptyDescription = "Questions and replies will appear here.",
+  showAvatars = false,
+  timestampFormat = "absolute",
 }: {
   messages: readonly QuoteDiscussionMessageView[];
   viewer: "customer" | "business";
   businessName: string;
   emptyTitle?: string;
   emptyDescription?: string;
+  /** Chat-panel presentation: business replies carry the business avatar. */
+  showAvatars?: boolean;
+  timestampFormat?: "absolute" | "relative";
 }) {
   if (messages.length === 0) {
     return (
@@ -44,39 +53,67 @@ export function DiscussionMessages({
           viewer === "customer"
             ? message.senderType === "customer"
             : message.senderType === "business";
+        const timestamp =
+          timestampFormat === "relative"
+            ? formatQuoteDiscussionRelativeTimestamp(message.createdAt)
+            : formatQuoteDiscussionTimestamp(message.createdAt);
 
         return (
           <li
             className={cn(
-              "flex flex-col gap-1.5",
+              "flex w-full flex-col gap-1.5",
               isOwnMessage ? "items-end" : "items-start",
             )}
             key={message.id}
           >
-            <div className="flex flex-wrap items-baseline gap-2 text-xs text-muted-foreground">
-              <span className="font-medium text-foreground">
-                {message.senderType === "business"
-                  ? message.senderName || businessName
-                  : message.senderName}
-              </span>
-              {message.senderType === "business" ? (
-                <span className="meta-label">Business</span>
-              ) : (
-                <span className="meta-label">Customer</span>
-              )}
-              <time dateTime={message.createdAt}>
-                {formatQuoteDiscussionTimestamp(message.createdAt)}
-              </time>
-            </div>
             <div
               className={cn(
-                "max-w-[85%] rounded-xl border px-4 py-3 text-sm leading-6 whitespace-pre-wrap",
-                isOwnMessage
-                  ? "border-primary/20 bg-primary/5 text-foreground"
-                  : "border-border/60 bg-muted/40 text-foreground",
+                "flex w-full gap-2",
+                isOwnMessage ? "justify-end" : "justify-start",
               )}
             >
-              {message.body}
+              {!isOwnMessage && showAvatars ? (
+                <BusinessAvatar
+                  className="mt-0.5 shrink-0"
+                  name={businessName}
+                  size="sm"
+                />
+              ) : null}
+              <div
+                className={cn(
+                  "flex max-w-[85%] flex-col gap-1.5",
+                  isOwnMessage ? "items-end" : "items-start",
+                )}
+              >
+                <div className="flex flex-wrap items-baseline gap-2 text-xs text-muted-foreground">
+                  <span className="font-medium text-foreground">
+                    {message.senderType === "business"
+                      ? message.senderName || businessName
+                      : message.senderName}
+                  </span>
+                  {message.senderType === "business" ? (
+                    <span className="meta-label">Business</span>
+                  ) : (
+                    <span className="meta-label">Customer</span>
+                  )}
+                  <time
+                    dateTime={message.createdAt}
+                    title={formatQuoteDiscussionTimestamp(message.createdAt)}
+                  >
+                    {timestamp}
+                  </time>
+                </div>
+                <div
+                  className={cn(
+                    "max-w-full rounded-xl border px-4 py-3 text-sm leading-6 whitespace-pre-wrap",
+                    isOwnMessage
+                      ? "border-primary/20 bg-primary/5 text-foreground"
+                      : "border-border/60 bg-muted/40 text-foreground",
+                  )}
+                >
+                  {message.body}
+                </div>
+              </div>
             </div>
           </li>
         );

@@ -1,3 +1,5 @@
+import { formatDistanceToNowStrict } from "date-fns";
+
 import type {
   QuoteDiscussionMessageView,
   QuoteDiscussionState,
@@ -147,6 +149,16 @@ export function formatQuoteDiscussionTimestamp(value: string) {
     hour: "numeric",
     minute: "2-digit",
   }).format(date);
+}
+
+export function formatQuoteDiscussionRelativeTimestamp(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "Unknown time";
+  }
+
+  return formatDistanceToNowStrict(date, { addSuffix: true });
 }
 
 export function getLatestCustomerMessageName(

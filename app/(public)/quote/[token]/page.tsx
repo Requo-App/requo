@@ -4,7 +4,6 @@ import { notFound } from "next/navigation";
 import { PublicQuotePageRenderer } from "@/features/quotes/components/public-quote-page-renderer";
 import { PublicQuoteViewTracker } from "@/features/analytics/components/public-page-analytics-tracker";
 import { PublicQuoteInteractiveColumn } from "@/features/quotes/components/public-quote-interactive-column";
-import { PublicQuoteDiscussion } from "@/features/quote-discussions/components/public-quote-discussion";
 import { postPublicQuoteDiscussionMessageAction } from "@/features/quote-discussions/actions";
 import { getPublicQuoteDiscussionByToken } from "@/features/quote-discussions/queries";
 import { respondToPublicQuoteAction, requestQuoteRevisionAction } from "@/features/quotes/actions";
@@ -83,6 +82,7 @@ export default async function PublicQuotePage({
     quoteNumber: quote.quoteNumber,
     businessName: quote.businessName,
     businessContactEmail: quote.businessContactEmail,
+    customerName: quote.customerName,
     status: quote.status,
     version: quote.version,
     validUntil: quote.validUntil,
@@ -101,21 +101,16 @@ export default async function PublicQuotePage({
     <PublicQuotePageRenderer
       quote={quote}
       businessPlan={quote.businessPlan}
+      centerContent
       hideHeader
       interactiveColumn={
         <PublicQuoteInteractiveColumn
           quote={interactiveQuote}
           respondAction={respondAction}
           revisionAction={revisionAction}
+          discussion={discussion ?? undefined}
+          discussionAction={discussionAction}
         />
-      }
-      discussion={
-        discussion ? (
-          <PublicQuoteDiscussion
-            action={discussionAction}
-            discussion={discussion}
-          />
-        ) : null
       }
       afterContent={
         <PublicQuoteViewTracker
