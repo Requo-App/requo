@@ -54,6 +54,8 @@ function buildPricingMarkdown(): string {
     "",
     "Taxes are calculated by Polar at checkout based on the billing country. Polar's default tax behavior is tax-exclusive in the United States, Canada, and India, and tax-inclusive elsewhere. The checkout total is the final amount charged.",
     "",
+    "Businesses paying from the Philippines can also pay once with QR Ph through PayMongo instead of a card subscription. QR Ph does not renew automatically, the PHP price shown is the final amount, and access runs to the end of the prepaid term.",
+    "",
     "## Plans",
     "",
   ];

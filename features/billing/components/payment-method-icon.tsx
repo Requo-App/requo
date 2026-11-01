@@ -6,7 +6,7 @@
  * to a generic card icon when the method is unrecognized.
  */
 
-import { CreditCard } from "lucide-react";
+import { CreditCard, QrCode } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type PaymentMethodIconProps = {
@@ -31,6 +31,9 @@ export function PaymentMethodIcon({ method, className }: PaymentMethodIconProps)
   }
   if (normalized.includes("paypal")) {
     return <PayPalLogo className={className} />;
+  }
+  if (normalized.includes("qrph") || normalized.includes("qr")) {
+    return <QrCode className={cn("size-5 text-muted-foreground", className)} />;
   }
   if (normalized.includes("amex") || normalized.includes("american")) {
     return <AmexLogo className={className} />;

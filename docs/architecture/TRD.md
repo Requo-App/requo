@@ -15,7 +15,7 @@ tests define exact behavior.
 | Identity | Better Auth 1.7.4 with the Drizzle adapter | [`lib/auth/`](../../lib/auth/), [`auth route`](../../app/api/auth/%5B...all%5D/route.ts) |
 | Async work | Inngest 4.4.0, exposed through `/api/inngest`; Vercel Cron invokes selected route handlers | [`lib/inngest/`](../../lib/inngest/), [`Inngest route`](../../app/api/inngest/route.ts), [`vercel.json`](../../vercel.json) |
 | Storage/realtime | Supabase Storage and authenticated Realtime notification plumbing; Postgres application data uses Drizzle | [`lib/supabase/`](../../lib/supabase/), [`lib/db/`](../../lib/db/) |
-| Billing/email/AI | Polar, provider-fallback transactional email, Vercel AI SDK 6.0.276 with a shared model router | [`lib/billing/`](../../lib/billing/), [`lib/email/`](../../lib/email/), [`lib/ai/`](../../lib/ai/) |
+| Billing/email/AI | Polar subscriptions plus PayMongo one-time QR Ph (Philippines), provider-fallback transactional email, Vercel AI SDK 6.0.276 with a shared model router | [`lib/billing/`](../../lib/billing/), [`lib/email/`](../../lib/email/), [`lib/ai/`](../../lib/ai/) |
 | Tests | Vitest, Testing Library, PostgreSQL integration tests, Playwright | [`Vitest config`](../../config/vitest.config.ts), [`Playwright config`](../../config/playwright.config.ts), [`tests/`](../../tests/) |
 
 The lockfile is `package-lock.json`; the repository is a single application,
@@ -31,7 +31,7 @@ flowchart LR
   Features --> Lib[lib: shared infrastructure]
   Lib --> DB[(PostgreSQL via Drizzle)]
   Lib --> Storage[Supabase Storage / Realtime]
-  Lib --> Providers[Email, AI, Polar]
+  Lib --> Providers[Email, AI, Polar, PayMongo]
   Features --> Jobs[Inngest events and scheduled functions]
   Jobs --> Features
 ```
@@ -304,12 +304,15 @@ enabling RLS alone must not be treated as protection for application queries.
 ## APIs, integrations, and asynchronous work
 
 Route handlers cover Better Auth, AI chat, business/public APIs, file access,
-Polar checkout/webhooks, push subscription/realtime tokens, exports, Inngest,
-and selected cron endpoints. `lib/email/` implements transactional provider
-fallback (Resend, Mailtrap, Brevo); `lib/billing/` owns Polar mapping,
-subscription writes, webhook idempotency, and plan resolution. Subscriptions
-are business-scoped; `business_subscriptions` is authoritative and
-`businesses.plan` is a denormalized cache. The one-time Pro trial uses
+Polar and PayMongo checkout/webhooks, push subscription/realtime tokens,
+exports, Inngest, and selected cron endpoints. `lib/email/` implements
+transactional provider fallback (Resend, Mailtrap, Brevo); `lib/billing/` owns
+Polar mapping, PayMongo QR Ph checkout intents and signature verification,
+subscription writes, webhook idempotency, and plan resolution. Polar manages
+recurring card/wallet subscriptions; PayMongo QR Ph is a Philippines-only,
+one-time prepaid term that never auto-renews and locks plan changes until the
+term ends. Subscriptions are business-scoped; `business_subscriptions` is
+authoritative and `businesses.plan` is a denormalized cache. The one-time Pro trial uses
 `business_subscriptions.status = "trialing"` plus `trial_ends_at`, and
 `business_trial_claims` records the owner-level claim independently of the
 business so deletion cannot reset eligibility.

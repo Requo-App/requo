@@ -1,11 +1,15 @@
 "use client";
 
-import type { BillingInterval, PaidPlan } from "@/lib/billing/types";
+import type {
+  BillingInterval,
+  BillingProvider,
+  PaidPlan,
+} from "@/lib/billing/types";
 
 /**
- * Posts to `/api/billing/checkout` to create a Polar hosted
- * checkout session, then opens the hosted checkout URL in a new
- * browser tab.
+ * Posts to `/api/billing/checkout` to create a hosted checkout session
+ * (Polar by default, PayMongo QR Ph when requested), then opens the
+ * hosted checkout URL in a new browser tab.
  *
  * A fresh checkout session is created on every call — we never reuse
  * a prior link. Hosted checkout sessions are ephemeral by design and
@@ -27,8 +31,13 @@ export type StartCheckoutParams = {
   plan: PaidPlan;
   interval: BillingInterval;
   /**
+   * `polar` uses the recurring card/wallet subscription. `paymongo` is the
+   * one-time QR Ph option and is only offered to Philippine visitors.
+   */
+  provider?: Extract<BillingProvider, "polar" | "paymongo">;
+  /**
    * Same-origin path the user should land on after returning from
-   * Polar's hosted checkout. Default behavior (no value sent) routes
+   * the hosted checkout. Default behavior (no value sent) routes
    * them to the businesses hub. Inside a business, pass the dashboard
    * path so the user lands back where they were.
    */
@@ -93,7 +102,7 @@ function navigateNewTab(target: Window, url: string): void {
   target.location.replace(url);
 }
 
-export async function startPolarCheckout(
+export async function startCheckout(
   params: StartCheckoutParams,
 ): Promise<StartCheckoutResult> {
   const newTab = openBlankTab();
@@ -111,6 +120,7 @@ export async function startPolarCheckout(
         businessId: params.businessId,
         plan: params.plan,
         interval: params.interval,
+        provider: params.provider ?? "polar",
         ...(params.returnTo ? { returnTo: params.returnTo } : {}),
       }),
     });

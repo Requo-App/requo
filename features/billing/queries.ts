@@ -4,7 +4,9 @@ import { eq } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
 import { cache } from "react";
 
-import { detectDisplayCurrency } from "@/lib/billing/region";
+import { detectDisplayCurrency, detectVisitorCountry } from "@/lib/billing/region";
+import { resolvePaymongoEligibility } from "@/lib/billing/paymongo-eligibility";
+import { isPaymongoConfigured } from "@/lib/env";
 import { db } from "@/lib/db/client";
 import { listLockCandidatesForDowngrade } from "@/features/businesses/plan-enforcement";
 import { businesses } from "@/lib/db/schema/businesses";
@@ -118,12 +120,13 @@ export const getBusinessBillingShellOverview = cache(
       const currentPlan = subscription
         ? resolveEffectivePlanFromSubscription(subscription)
         : (businessData.plan as PlanTier);
-      const [canStartTrial, billingCurrency] = await Promise.all([
+      const [canStartTrial, billingCurrency, countryCode] = await Promise.all([
         canStartBusinessTrial({
           userId: businessData.ownerUserId,
           businessId,
         }),
         resolveBillingCurrency(subscription),
+        detectVisitorCountry().catch(() => null),
       ]);
 
       return {
@@ -133,6 +136,11 @@ export const getBusinessBillingShellOverview = cache(
         businessSlug: businessData.slug,
         currentPlan,
         billingCurrency,
+        qrPh: resolvePaymongoEligibility({
+          countryCode,
+          configured: isPaymongoConfigured,
+          subscription,
+        }),
         canStartTrial,
         downgradePreview: createEmptyDowngradePreview(),
         subscription: toBillingSubscriptionView(subscription),
@@ -167,23 +175,25 @@ export async function getBusinessBillingOverview(
     const currentPlan = subscription
       ? resolveEffectivePlanFromSubscription(subscription)
       : (businessData.plan as PlanTier);
-    const [downgradePreview, canStartTrial, billingCurrency] = await Promise.all([
-      currentPlan === "free"
-        ? listLockCandidatesForDowngrade({
-            ownerUserId: businessData.ownerUserId,
-            targetPlan: "free",
-          })
-        : Promise.resolve({
-            activeBusinessLimit: null,
-            activeBusinesses: [],
-            requiresSelection: false,
-          }),
-      canStartBusinessTrial({
-        userId: businessData.ownerUserId,
-        businessId,
-      }),
-      resolveBillingCurrency(subscription),
-    ]);
+    const [downgradePreview, canStartTrial, billingCurrency, countryCode] =
+      await Promise.all([
+        currentPlan === "free"
+          ? listLockCandidatesForDowngrade({
+              ownerUserId: businessData.ownerUserId,
+              targetPlan: "free",
+            })
+          : Promise.resolve({
+              activeBusinessLimit: null,
+              activeBusinesses: [],
+              requiresSelection: false,
+            }),
+        canStartBusinessTrial({
+          userId: businessData.ownerUserId,
+          businessId,
+        }),
+        resolveBillingCurrency(subscription),
+        detectVisitorCountry().catch(() => null),
+      ]);
 
     return {
       userId: businessData.ownerUserId,
@@ -192,6 +202,11 @@ export async function getBusinessBillingOverview(
       businessSlug: businessData.slug,
       currentPlan,
       billingCurrency,
+      qrPh: resolvePaymongoEligibility({
+        countryCode,
+        configured: isPaymongoConfigured,
+        subscription,
+      }),
       canStartTrial,
       downgradePreview: {
         targetPlan: "free",

@@ -1,7 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowUpRight, Check, CreditCard } from "lucide-react";
+import {
+  ArrowUpRight,
+  Check,
+  CreditCard,
+  QrCode,
+  type LucideIcon,
+} from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,15 +18,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   formatPrice,
   getMonthlyEquivalentLabel,
   getPlanPriceLabel,
   getYearlySavingsPercent,
 } from "@/lib/billing/plans";
+import type { PaymongoEligibility } from "@/lib/billing/paymongo-eligibility";
 import type {
   BillingCurrency,
   BillingInterval,
+  BillingProvider,
   PaidPlan,
 } from "@/lib/billing/types";
 import { planMeta, planTiers } from "@/lib/plans";
@@ -49,11 +58,21 @@ type PlanSelectionSheetProps = {
   /** Current business is inside its Pro trial and still needs to subscribe. */
   isTrialing?: boolean;
   targetPlan?: PaidPlan;
-  onSelectPlan: (plan: PaidPlan, interval: BillingInterval) => void;
+  onSelectPlan: (
+    plan: PaidPlan,
+    interval: BillingInterval,
+    provider: BillingProvider,
+  ) => void;
   /** Billing currency for the business; defaults to USD for a new business. */
   currency?: BillingCurrency;
   businessId?: string;
   businessSlug?: string;
+  /**
+   * QR Ph availability. When QR Ph is unavailable the sheet offers Polar
+   * only; when a prepaid term is active the sheet forces QR Ph and locks plan
+   * changes until that term ends.
+   */
+  qrPh?: PaymongoEligibility;
 };
 
 export function PlanSelectionSheet({
@@ -66,24 +85,37 @@ export function PlanSelectionSheet({
   currency = "USD",
   businessId,
   businessSlug,
+  qrPh,
 }: PlanSelectionSheetProps) {
   const [interval, setInterval] = useState<BillingInterval>("monthly");
   const [confirmingPlan, setConfirmingPlan] = useState<PaidPlan | null>(null);
+  const [paymentProvider, setPaymentProvider] =
+    useState<BillingProvider>("polar");
 
-  const isUpgrade = currentPlan !== "free" && !isTrialing;
+  const prepaidRenewalPlan = qrPh?.available ? qrPh.renewablePlan : null;
+  const activeProvider: BillingProvider = prepaidRenewalPlan
+    ? "paymongo"
+    : paymentProvider;
+  // QR Ph is priced and charged in PHP regardless of any other display
+  // currency. PayMongo never converts.
+  const priceCurrency: BillingCurrency =
+    activeProvider === "paymongo" ? "PHP" : currency;
+
+  const isUpgrade = currentPlan !== "free" && !isTrialing && !prepaidRenewalPlan;
 
   function handleSelectPlan(plan: PaidPlan) {
-    if (isUpgrade) {
-      // Show inline confirmation for paid→paid upgrades
+    if (isUpgrade && activeProvider === "polar") {
+      // Show inline confirmation for paid→paid upgrades. QR Ph renewals are
+      // direct: they extend the prepaid term instead of prorating a cycle.
       setConfirmingPlan(plan);
     } else {
-      onSelectPlan(plan, interval);
+      onSelectPlan(plan, interval, activeProvider);
     }
   }
 
   function handleConfirmUpgrade() {
     if (confirmingPlan) {
-      onSelectPlan(confirmingPlan, interval);
+      onSelectPlan(confirmingPlan, interval, "polar");
       setConfirmingPlan(null);
     }
   }
@@ -104,7 +136,9 @@ export function PlanSelectionSheet({
           <DialogDescription>
             {isTrialing
               ? "Choose a paid plan to keep Pro features, or let the trial end and continue on Free."
-              : "Choose the plan that fits your workflow."}
+              : qrPh?.available
+                ? "Choose a plan and how you'd like to pay."
+                : "Choose the plan that fits your workflow."}
           </DialogDescription>
         </DialogHeader>
 
@@ -158,6 +192,54 @@ export function PlanSelectionSheet({
             </div>
           ) : (
             <>
+          {/* Payment method */}
+          {qrPh?.available ? (
+            <div className="flex flex-col gap-2">
+              <p className="text-xs font-medium text-muted-foreground">
+                Payment method
+              </p>
+              <RadioGroup
+                className="grid gap-2 sm:grid-cols-2"
+                disabled={Boolean(prepaidRenewalPlan)}
+                onValueChange={(value) =>
+                  setPaymentProvider(value as BillingProvider)
+                }
+                value={activeProvider}
+              >
+                <PaymentMethodOption
+                  description="Renews automatically. Cancel anytime."
+                  disabled={Boolean(prepaidRenewalPlan)}
+                  icon={CreditCard}
+                  label="Card, Google Pay, or Apple Pay"
+                  selected={activeProvider === "polar"}
+                  value="polar"
+                />
+                <PaymentMethodOption
+                  description="One-time payment. Doesn't renew automatically."
+                  disabled={Boolean(prepaidRenewalPlan)}
+                  icon={QrCode}
+                  label="QR Ph"
+                  selected={activeProvider === "paymongo"}
+                  value="paymongo"
+                />
+              </RadioGroup>
+              {activeProvider === "paymongo" ? (
+                <p className="text-xs text-muted-foreground">
+                  QR Ph doesn&apos;t auto-renew. Pay again before the term ends
+                  to keep your plan.
+                </p>
+              ) : null}
+              {qrPh.renewablePlan && qrPh.lockedUntil ? (
+                <p className="text-xs text-muted-foreground">
+                  Your prepaid term ends{" "}
+                  {formatRenewalDate(qrPh.lockedUntil)}. Renew{" "}
+                  {planMeta[qrPh.renewablePlan].label} with QR Ph, or switch
+                  plans after it ends.
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+
           {/* Billing interval toggle */}
           <div className="flex justify-center">
             <div className="inline-flex items-center rounded-lg border border-border/70 bg-muted/50 p-0.5">
@@ -173,7 +255,7 @@ export function PlanSelectionSheet({
               >
                 Annual
                 <Badge variant="secondary" className="px-1 font-medium text-xs">
-                  -{getYearlySavingsPercent("pro", currency)}%
+                  -{getYearlySavingsPercent("pro", priceCurrency)}%
                 </Badge>
               </button>
               <button
@@ -195,8 +277,12 @@ export function PlanSelectionSheet({
           <div className="grid gap-4 sm:grid-cols-3">
             {planCards.map((card) => {
               const isCurrentPlan = currentPlan === card.id && !isTrialing;
+              const isRenewalPlan = prepaidRenewalPlan === card.id;
+              const isPlanChangeLocked =
+                prepaidRenewalPlan !== null && !isRenewalPlan;
               const isPreferredPlan =
                 !isCurrentPlan &&
+                !isPlanChangeLocked &&
                 (targetPlan === card.id ||
                   (!targetPlan &&
                     card.id === "pro" &&
@@ -228,11 +314,11 @@ export function PlanSelectionSheet({
                     {isPaidPlan ? (
                       <>
                         <p className="font-heading text-xl font-semibold tracking-tight text-foreground">
-                          {getPlanPriceLabel(card.id as PaidPlan, currency, interval)}
+                          {getPlanPriceLabel(card.id as PaidPlan, priceCurrency, interval)}
                         </p>
                         {interval === "yearly" ? (
                           <p className="mt-0.5 text-xs text-muted-foreground">
-                            {getMonthlyEquivalentLabel(card.id as PaidPlan, currency)} billed yearly
+                            {getMonthlyEquivalentLabel(card.id as PaidPlan, priceCurrency)} billed yearly
                           </p>
                         ) : (
                           <p className="mt-0.5 text-xs text-muted-foreground">
@@ -254,7 +340,7 @@ export function PlanSelectionSheet({
 
                   {/* CTA */}
                   <div className="mt-3">
-                    {isCurrentPlan ? (
+                    {isCurrentPlan && !isRenewalPlan ? (
                       <Button
                         className="w-full"
                         disabled
@@ -264,6 +350,26 @@ export function PlanSelectionSheet({
                       >
                         Current plan
                       </Button>
+                    ) : isRenewalPlan ? (
+                      <Button
+                        className="w-full"
+                        onClick={() => handleSelectPlan(card.id as PaidPlan)}
+                        size="sm"
+                        type="button"
+                      >
+                        <QrCode data-icon="inline-start" />
+                        Renew with QR Ph
+                      </Button>
+                    ) : isPaidPlan && isPlanChangeLocked ? (
+                      <Button
+                        className="w-full"
+                        disabled
+                        variant="outline"
+                        size="sm"
+                        type="button"
+                      >
+                        Plan change locked
+                      </Button>
                     ) : isPaidPlan && !isDowngrade ? (
                       <Button
                         className="w-full"
@@ -272,12 +378,21 @@ export function PlanSelectionSheet({
                         size="sm"
                         type="button"
                       >
-                        <ArrowUpRight data-icon="inline-start" />
-                        {card.id === "pro"
-                          ? isTrialing
-                            ? "Subscribe to Pro"
-                            : "Upgrade to Pro"
-                          : "Upgrade to Business"}
+                        {activeProvider === "paymongo" ? (
+                          <>
+                            <QrCode data-icon="inline-start" />
+                            Pay with QR Ph
+                          </>
+                        ) : (
+                          <>
+                            <ArrowUpRight data-icon="inline-start" />
+                            {card.id === "pro"
+                              ? isTrialing
+                                ? "Subscribe to Pro"
+                                : "Upgrade to Pro"
+                              : "Upgrade to Business"}
+                          </>
+                        )}
                       </Button>
                     ) : isPaidPlan && isDowngrade ? (
                       <Button
@@ -326,4 +441,57 @@ export function PlanSelectionSheet({
       </DialogContent>
     </Dialog>
   );
+}
+
+function PaymentMethodOption({
+  value,
+  label,
+  description,
+  icon: Icon,
+  selected,
+  disabled,
+}: {
+  value: BillingProvider;
+  label: string;
+  description: string;
+  icon: LucideIcon;
+  selected: boolean;
+  disabled?: boolean;
+}) {
+  return (
+    <label
+      className={cn(
+        "flex cursor-pointer items-start gap-3 rounded-xl border border-border/70 bg-card/80 p-3 transition-colors",
+        "hover:border-border",
+        selected && "border-primary/40 bg-accent/20",
+        disabled && "cursor-not-allowed opacity-60",
+      )}
+      htmlFor={`payment-provider-${value}`}
+    >
+      <RadioGroupItem
+        className="mt-0.5"
+        disabled={disabled}
+        id={`payment-provider-${value}`}
+        value={value}
+      />
+      <span className="flex min-w-0 flex-col gap-0.5">
+        <span className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+          <Icon
+            aria-hidden="true"
+            className="size-4 shrink-0 text-muted-foreground"
+          />
+          {label}
+        </span>
+        <span className="text-xs text-muted-foreground">{description}</span>
+      </span>
+    </label>
+  );
+}
+
+function formatRenewalDate(date: Date): string {
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 }

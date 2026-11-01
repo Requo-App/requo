@@ -3,7 +3,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { BillingStatusCard } from "@/features/billing/components/billing-status-card";
-import { startPolarCheckout } from "@/features/billing/start-checkout";
+import { startCheckout } from "@/features/billing/start-checkout";
 import type { BusinessBillingOverview } from "@/features/billing/types";
 
 vi.mock("@/features/billing/actions", () => ({
@@ -11,7 +11,7 @@ vi.mock("@/features/billing/actions", () => ({
 }));
 
 vi.mock("@/features/billing/start-checkout", () => ({
-  startPolarCheckout: vi.fn(),
+  startCheckout: vi.fn(),
 }));
 
 const billing: BusinessBillingOverview = {
@@ -21,6 +21,12 @@ const billing: BusinessBillingOverview = {
   businessSlug: "trial-business",
   currentPlan: "pro",
   billingCurrency: "EUR",
+  qrPh: {
+    available: false,
+    reason: "country",
+    renewablePlan: null,
+    lockedUntil: null,
+  },
   canStartTrial: false,
   subscription: {
     status: "trialing",
@@ -42,10 +48,70 @@ const billing: BusinessBillingOverview = {
   },
 };
 
+describe("expired prepaid billing summary", () => {
+  it.each([
+    [true, null, true, false],
+    [false, "country", false, true],
+    [false, null, false, false],
+  ] as const)("shows the prepaid renewal action only when eligible", (available, reason, showButton, showReason) => {
+    render(
+      <BillingStatusCard
+        billing={{
+          ...billing,
+          qrPh: { available, reason, renewablePlan: "pro", lockedUntil: null },
+          subscription: { ...billing.subscription!, provider: "paymongo" },
+        }}
+        canManageBilling
+        planUsage={{ aiCredits: { used: 0, limit: 50 }, emailsSent: 0, autoFollowUpEmailsSent: 0 }}
+      />,
+    );
+    expect(Boolean(screen.queryByRole("button", { name: "Renew with QR Ph" }))).toBe(showButton);
+    expect(Boolean(screen.queryByText("QR Ph is available only to businesses paying from the Philippines."))).toBe(showReason);
+  });
+
+  it("names the paid plan a QR Ph renewal restores", () => {
+    render(
+      <BillingStatusCard
+        billing={{
+          ...billing,
+          currentPlan: "free",
+          canStartTrial: false,
+          subscription: {
+            status: "expired",
+            plan: "pro",
+            provider: "paymongo",
+            currency: "PHP",
+            paymentMethod: "QR Ph",
+            currentPeriodStart: new Date("2019-12-15"),
+            currentPeriodEnd: new Date("2020-01-15"),
+            trialEndsAt: null,
+            canceledAt: null,
+            providerSubscriptionId: null,
+            providerCustomerId: null,
+          },
+        }}
+        canManageBilling
+        planUsage={{
+          aiCredits: { used: 0, limit: 50 },
+          emailsSent: 0,
+          autoFollowUpEmailsSent: 0,
+        }}
+      />,
+    );
+
+    expect(
+      screen.getByText(/Renew with QR Ph to restore Pro features/),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/Renew with QR Ph to restore Free features/),
+    ).not.toBeInTheDocument();
+  });
+});
+
 describe("trial billing plan selection without a checkout provider", () => {
   beforeEach(() => {
-    vi.mocked(startPolarCheckout).mockReset();
-    vi.mocked(startPolarCheckout).mockResolvedValue({
+    vi.mocked(startCheckout).mockReset();
+    vi.mocked(startCheckout).mockResolvedValue({
       ok: true,
       openedInNewTab: true,
     });
@@ -83,10 +149,11 @@ describe("trial billing plan selection without a checkout provider", () => {
       }
 
       await user.click(dialog.getByRole("button", { name: "Subscribe to Pro" }));
-      expect(startPolarCheckout).toHaveBeenCalledWith({
+      expect(startCheckout).toHaveBeenCalledWith({
         businessId: "trial-business",
         plan: "pro",
         interval: "monthly",
+        provider: "polar",
         returnTo: "/trial-business/home",
       });
     },

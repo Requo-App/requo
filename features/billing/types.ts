@@ -6,6 +6,7 @@ import type {
   PaidPlan,
   SubscriptionStatus,
 } from "@/lib/billing/types";
+import type { PaymongoEligibility } from "@/lib/billing/paymongo-eligibility";
 
 /** Billing overview for the business billing UI. */
 export type BusinessBillingOverview = {
@@ -20,6 +21,8 @@ export type BusinessBillingOverview = {
    * when one exists, otherwise the visitor's detected pricing currency.
    */
   billingCurrency: BillingCurrency;
+  /** Whether this visitor can start a one-time QR Ph checkout. */
+  qrPh: PaymongoEligibility;
   subscription: {
     status: SubscriptionStatus;
     plan: string;

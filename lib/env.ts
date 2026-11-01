@@ -74,6 +74,15 @@ const envSchema = z.object({
   POLAR_LEGACY_BUSINESS_YEARLY_PRODUCT_ID: emptyToUndefined(z.string().min(1)),
   NEXT_PUBLIC_APP_URL: emptyToUndefined(z.url()),
 
+  /**
+   * PayMongo QR Ph (Philippines only). PayMongo is a payment gateway, not a
+   * merchant of record. Secret keys are `sk_test_...` or `sk_live_...`; the
+   * prefix selects test vs live webhook signatures. The webhook secret comes
+   * from the endpoint registered in Developer Tools → Webhooks.
+   */
+  PAYMONGO_SECRET_KEY: emptyToUndefined(z.string().min(1)),
+  PAYMONGO_WEBHOOK_SECRET: emptyToUndefined(z.string().min(1)),
+
   INNGEST_DEV: emptyToUndefined(z.enum(["0", "1"]).or(z.literal("true"))),
   INNGEST_EVENT_KEY: emptyToUndefined(z.string().min(1)),
   INNGEST_SIGNING_KEY: emptyToUndefined(z.string().min(1)),
@@ -204,6 +213,32 @@ export const isPolarConfigured = Boolean(
       env.POLAR_PRO_YEARLY_PRODUCT_ID ||
       env.POLAR_BUSINESS_YEARLY_PRODUCT_ID),
 );
+
+/**
+ * Whether QR Ph checkout and webhook verification are fully configured. A key
+ * whose prefix does not resolve to test or live mode is treated as
+ * unconfigured so the option never appears for a half-wired provider.
+ */
+export const isPaymongoConfigured = Boolean(
+  env.PAYMONGO_SECRET_KEY &&
+    env.PAYMONGO_WEBHOOK_SECRET &&
+    getPaymongoMode(),
+);
+
+/**
+ * Test vs live mode is encoded in the secret key prefix. QR Ph checkout and
+ * webhook verification must agree on it so a test webhook can never activate a
+ * live subscription (or vice versa).
+ */
+export function getPaymongoMode(): "test" | "live" | null {
+  const key = env.PAYMONGO_SECRET_KEY;
+
+  if (!key) return null;
+  if (key.startsWith("sk_test_")) return "test";
+  if (key.startsWith("sk_live_")) return "live";
+
+  return null;
+}
 
 export const isInngestDevMode = Boolean(
   env.INNGEST_DEV === "1" || env.INNGEST_DEV === "true",

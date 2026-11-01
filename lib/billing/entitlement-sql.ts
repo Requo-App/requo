@@ -21,7 +21,16 @@ export function hasPaidBusinessSubscriptionSql(): SQL {
   );
 
   return sql`(
-    ${businessSubscriptions.status} = 'active'
+    (
+      ${businessSubscriptions.status} = 'active'
+      and (
+        ${businessSubscriptions.billingProvider} <> 'paymongo'
+        or (
+          ${businessSubscriptions.currentPeriodEnd} is not null
+          and ${businessSubscriptions.currentPeriodEnd} > now()
+        )
+      )
+    )
     or (
       ${businessSubscriptions.status} = 'past_due'
       and ${businessSubscriptions.currentPeriodEnd} is not null

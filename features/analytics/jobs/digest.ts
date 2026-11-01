@@ -172,6 +172,7 @@ export async function sendAnalyticsDigestEmails(): Promise<AnalyticsDigestSummar
       ownerUserId: businesses.ownerUserId,
       subscriptionStatus: businessSubscriptions.status,
       subscriptionPlan: businessSubscriptions.plan,
+      subscriptionBillingProvider: businessSubscriptions.billingProvider,
       subscriptionCurrentPeriodEnd: businessSubscriptions.currentPeriodEnd,
       subscriptionTrialEndsAt: businessSubscriptions.trialEndsAt,
     })
@@ -192,6 +193,7 @@ export async function sendAnalyticsDigestEmails(): Promise<AnalyticsDigestSummar
       resolveEffectivePlanFromSubscriptionFields({
         status: business.subscriptionStatus,
         plan: business.subscriptionPlan,
+        billingProvider: business.subscriptionBillingProvider,
         currentPeriodEnd: business.subscriptionCurrentPeriodEnd,
         trialEndsAt: business.subscriptionTrialEndsAt,
       }),

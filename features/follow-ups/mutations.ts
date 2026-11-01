@@ -176,6 +176,7 @@ async function getPlanTier(
     .select({
       status: businessSubscriptions.status,
       plan: businessSubscriptions.plan,
+      billingProvider: businessSubscriptions.billingProvider,
       currentPeriodEnd: businessSubscriptions.currentPeriodEnd,
       trialEndsAt: businessSubscriptions.trialEndsAt,
     })

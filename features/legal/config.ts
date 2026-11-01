@@ -10,6 +10,8 @@ export const legalConfig = {
   hostingProvider: "Vercel",
   storageProvider: "Supabase",
   paymentProvider: "Polar",
+  qrPaymentProvider: "PayMongo",
+  qrPaymentCountry: "the Philippines",
   governingLaw: "The laws of the Republic of the Philippines",
   venue: "the proper courts of Lucena City, Quezon, Philippines",
 } as const;
