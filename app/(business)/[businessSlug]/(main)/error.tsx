@@ -1,11 +1,9 @@
 "use client";
 
-import Link from "next/link";
-import { AlertTriangle, RotateCcw } from "lucide-react";
 import { usePathname } from "next/navigation";
 
-import { StatePageCard } from "@/components/shared/state-page-card";
-import { Button } from "@/components/ui/button";
+import { ErrorState } from "@/components/shared/error-state";
+import { useErrorReport } from "@/components/shared/error-state-client";
 import {
   homePath,
   getBusinessHomePath,
@@ -21,6 +19,8 @@ export default function DashboardError({
   error,
   reset,
 }: DashboardErrorProps) {
+  useErrorReport("dashboard-error", error);
+
   const pathname = usePathname();
   const businessSlug = getBusinessSlugFromPathname(pathname);
   const overviewHref = businessSlug
@@ -28,34 +28,20 @@ export default function DashboardError({
     : homePath;
 
   return (
-    <StatePageCard
-      actions={
-        <>
-          <Button onClick={reset} type="button" variant="outline">
-            <RotateCcw data-icon="inline-start" />
-            Try again
-          </Button>
-          <Button asChild>
-            <Link href={overviewHref}>Back to overview</Link>
-          </Button>
-        </>
-      }
-      eyebrow="Dashboard error"
-      media={
-        <div className="flex size-12 items-center justify-center rounded-full border bg-destructive/10 text-destructive-ink">
-          <AlertTriangle />
-        </div>
-      }
-      title="This view did not load."
+    <ErrorState
+      focusOnMount
+      homeHref={overviewHref}
+      homeLabel="Go to dashboard"
+      layout="inline"
+      onRetry={reset}
+      referenceId={error.digest}
+      variant="error"
     >
-      <div className="state-card-note">
-        Try again or go back to the overview.
-      </div>
       {process.env.NODE_ENV === "development" ? (
-        <div className="rounded-xl border border-border/80 bg-muted/35 px-4 py-3 font-mono text-xs leading-6 text-muted-foreground">
+        <p className="rounded-lg border border-border/80 bg-muted/35 px-4 py-3 text-left font-mono text-xs leading-6 break-words text-muted-foreground">
           {error.message}
-        </div>
+        </p>
       ) : null}
-    </StatePageCard>
+    </ErrorState>
   );
 }

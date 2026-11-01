@@ -1,12 +1,10 @@
-import { AlertTriangle } from "lucide-react";
-
 import {
   DashboardDetailHeader,
   DashboardSection,
 } from "@/components/shared/dashboard-layout";
+import { ErrorStateNotice } from "@/components/shared/error-state";
 import { PageHeader } from "@/components/shared/page-header";
 import { RegionErrorRetryButton } from "@/components/shared/region-error-boundary";
-import { cn } from "@/lib/utils";
 
 type RegionErrorStateProps = {
   message?: string;
@@ -16,30 +14,20 @@ type RegionErrorStateProps = {
 /**
  * Inline error notice for a failed page region.
  *
- * Renders `role="alert"` immediately and, when mounted by
- * `RegionErrorBoundary`, a retry button that calls Next's `retry()`.
+ * Shares the error-state notice with lazy-chunk failures, renders
+ * `role="alert"` immediately and, when mounted by `RegionErrorBoundary`, a
+ * retry button that calls Next's `retry()`.
  */
 export function RegionErrorState({
   message = "Something went wrong while loading this content.",
   className,
 }: RegionErrorStateProps) {
   return (
-    <div
-      className={cn(
-        "flex flex-col gap-3 rounded-lg border border-border/70 bg-muted/20 px-4 py-3 sm:flex-row sm:items-center sm:justify-between",
-        className,
-      )}
-      role="alert"
-    >
-      <div className="flex min-w-0 items-start gap-2.5">
-        <AlertTriangle
-          aria-hidden="true"
-          className="mt-0.5 size-4 shrink-0 text-destructive-ink"
-        />
-        <p className="text-sm leading-5 text-foreground">{message}</p>
-      </div>
-      <RegionErrorRetryButton />
-    </div>
+    <ErrorStateNotice
+      actions={<RegionErrorRetryButton />}
+      className={className}
+      description={message}
+    />
   );
 }
 
@@ -74,7 +62,7 @@ export function DetailPageHeaderErrorFallback() {
       <DashboardDetailHeader
         actions={<RegionErrorRetryButton />}
         description="Something went wrong while loading this record."
-        eyebrow="Unavailable"
+        eyebrow="Error"
         title="This record couldn't be loaded"
       />
     </div>
@@ -90,7 +78,7 @@ export function PageHeaderErrorFallback() {
       <PageHeader
         actions={<RegionErrorRetryButton />}
         description="Something went wrong while loading this page."
-        eyebrow="Unavailable"
+        eyebrow="Error"
         title="This page couldn't be loaded"
       />
     </div>

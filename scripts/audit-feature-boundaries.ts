@@ -124,6 +124,11 @@ export const INFRASTRUCTURE_ALLOWLIST: Readonly<
 export const UI_ALLOWLIST: Readonly<
   Record<string, FeatureImportException>
 > = {
+  "components/shared/error-state.tsx": {
+    imports: ["features/legal/config"],
+    reason:
+      "Every error surface shares one support address; importing the canonical config keeps that copy from drifting.",
+  },
   "components/shared/country-combobox.tsx": {
     imports: ["features/businesses/locale"],
     reason:

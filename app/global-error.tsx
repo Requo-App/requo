@@ -1,16 +1,21 @@
 "use client";
 
-import { useEffect } from "react";
 import Link from "next/link";
+import { useEffect, useState } from "react";
+
+import { errorStateDocumentCss } from "@/components/shared/error-state-document";
+import { reportClientError } from "@/lib/observability/client";
 
 /**
  * Global error boundary. Replaces the root layout when an uncaught error
  * propagates through it, so it must include its own `<html>` and `<body>`
  * elements per Next.js docs.
  *
- * Kept intentionally minimal and free of providers/context so it never
- * fails to render — its job is to recover gracefully when the rest of
- * the tree has already failed.
+ * Deliberately self-contained: no providers, theme context, stylesheet or data
+ * fetching, because the rest of the tree has already failed. It inlines the
+ * shared error-document CSS and follows the system colour scheme, which is the
+ * only theme signal available without the app's theme script. The design
+ * matches `ErrorState` (the in-app version) and the proxy 403 document.
  */
 export default function GlobalError({
   error,
@@ -19,100 +24,87 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const [copied, setCopied] = useState(false);
+
   useEffect(() => {
-    // Send to your error tracker here if you wire one up.
-    console.error("[global-error]", error);
+    void reportClientError(error, {
+      scope: "global-error",
+      referenceId: error.digest,
+    });
   }, [error]);
+
+  useEffect(() => {
+    if (!copied) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => setCopied(false), 2_000);
+
+    return () => window.clearTimeout(timeout);
+  }, [copied]);
+
+  async function copyReference() {
+    if (!error.digest) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(error.digest);
+      setCopied(true);
+    } catch {
+      // Clipboard access can be denied; the digest stays selectable text.
+    }
+  }
 
   return (
     <html lang="en">
-      <body
-        style={{
-          margin: 0,
-          fontFamily:
-            "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-          background: "#ffffff",
-          color: "#1d1d1f",
-          minHeight: "100svh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: "1.5rem",
-        }}
-      >
-        <div
-          style={{
-            maxWidth: "32rem",
-            display: "flex",
-            flexDirection: "column",
-            gap: "1rem",
-            textAlign: "center",
-          }}
-        >
-          <h1
-            style={{
-              fontSize: "1.5rem",
-              fontWeight: 600,
-              margin: 0,
-            }}
-          >
-            Something went wrong
-          </h1>
-          <p style={{ color: "#6e6e73", margin: 0, lineHeight: 1.6 }}>
-            We hit an unexpected error. You can try again, and if it keeps
-            happening, please reload the page.
-          </p>
-          {error.digest ? (
-            <p
-              style={{
-                color: "#a1a1a6",
-                fontSize: "0.75rem",
-                margin: 0,
-                fontFamily:
-                  "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-              }}
-            >
-              Reference: {error.digest}
+      <head>
+        <title>Something went wrong · Requo</title>
+        <meta content="noindex, nofollow" name="robots" />
+        <style>{errorStateDocumentCss}</style>
+      </head>
+      <body>
+        <main className="error-doc">
+          <div className="error-doc-column">
+            <p aria-hidden="true" className="error-doc-numeral">
+              500
             </p>
-          ) : null}
-          <div
-            style={{
-              display: "flex",
-              gap: "0.75rem",
-              justifyContent: "center",
-              marginTop: "0.5rem",
-            }}
-          >
-            <button
-              type="button"
-              onClick={reset}
-              style={{
-                padding: "0.5rem 1rem",
-                borderRadius: "0.5rem",
-                border: "1px solid #e5e5ea",
-                background: "#fff",
-                fontSize: "0.875rem",
-                cursor: "pointer",
-              }}
-            >
-              Try again
-            </button>
-            <Link
-              href="/"
-              style={{
-                padding: "0.5rem 1rem",
-                borderRadius: "0.5rem",
-                border: "1px solid transparent",
-                background: "#1d1d1f",
-                color: "#f5f5f7",
-                fontSize: "0.875rem",
-                textDecoration: "none",
-              }}
-            >
-              Go home
-            </Link>
+
+            <h1 className="error-doc-title">Something went wrong</h1>
+            <p className="error-doc-description">
+              We hit a problem on our side. Try again, and if it keeps
+              happening, let us know.
+            </p>
+
+            {error.digest ? (
+              <div className="error-doc-reference">
+                <span>
+                  Reference: <code>{error.digest}</code>
+                </span>
+                <button
+                  className="error-doc-copy"
+                  onClick={copyReference}
+                  type="button"
+                >
+                  {copied ? "Copied" : "Copy"}
+                </button>
+              </div>
+            ) : null}
+
+            <div className="error-doc-actions">
+              <button
+                className="error-doc-primary"
+                onClick={reset}
+                type="button"
+              >
+                Try again
+              </button>
+              <Link className="error-doc-secondary" href="/">
+                Go to Requo
+              </Link>
+            </div>
           </div>
-        </div>
+        </main>
       </body>
     </html>
   );

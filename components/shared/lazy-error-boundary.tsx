@@ -1,9 +1,11 @@
 "use client";
 
 import { RotateCcw } from "lucide-react";
-import { Component, type ReactNode } from "react";
+import { Component, type ErrorInfo, type ReactNode } from "react";
 
+import { ErrorStateNotice } from "@/components/shared/error-state";
 import { Button } from "@/components/ui/button";
+import { reportClientError } from "@/lib/observability/client";
 
 type LazyErrorBoundaryState = {
   hasError: boolean;
@@ -34,9 +36,8 @@ export class LazyErrorBoundary extends Component<
     return { hasError: true };
   }
 
-  componentDidCatch() {
-    // No-op — the error is typically a chunk load failure.
-    // Next.js surfaces underlying errors in its own logging pipeline.
+  componentDidCatch(error: Error, _errorInfo: ErrorInfo) {
+    void reportClientError(error, { scope: "lazy-chunk" });
   }
 
   private handleRetry = () => {
@@ -54,21 +55,20 @@ export class LazyErrorBoundary extends Component<
 
 /**
  * Inline error fallback shown when a lazy-loaded chunk fails to download.
- * Matches the calm, minimal style used by other error states in the app.
+ * Uses the same notice as a failed data region.
  */
 function LazyLoadError({ onRetry }: { onRetry: () => void }) {
   return (
-    <div
-      className="flex min-h-[120px] w-full flex-col items-center justify-center gap-3 rounded-lg border border-border/50 bg-muted/10 p-6 text-center"
-      role="alert"
-    >
-      <p className="text-sm text-muted-foreground">
-        Failed to load component. Check your connection and try again.
-      </p>
-      <Button onClick={onRetry} size="sm" type="button" variant="outline">
-        <RotateCcw data-icon="inline-start" />
-        Retry
-      </Button>
-    </div>
+    <ErrorStateNotice
+      actions={
+        <Button onClick={onRetry} size="sm" type="button" variant="outline">
+          <RotateCcw data-icon="inline-start" />
+          Retry
+        </Button>
+      }
+      className="min-h-[120px] justify-center"
+      description="Check your connection and try again."
+      title="This content didn't load"
+    />
   );
 }

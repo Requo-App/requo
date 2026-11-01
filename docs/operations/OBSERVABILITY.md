@@ -35,6 +35,25 @@ cookies, passwords, API keys, client/webhook secrets, and tokens), truncates
 long strings, caps arrays, bounds nesting depth, and marks circular references.
 Redaction is a backstop, not permission to pass sensitive values.
 
+## Client error boundaries
+
+React error boundaries cannot use the server logger — `lib/observability/logger.ts`
+is `server-only`, so importing it would break the client bundle. They call
+`reportClientError` (class components) or `useErrorReport` (error components)
+from `lib/observability/client.ts` instead. It logs the error locally, then
+lazily imports the Sentry browser SDK and captures the exception with two tags:
+`scope` (which boundary caught it) and `reference_id` (Next's error digest). The
+digest is the same value rendered as "Reference" in the error page, so an event
+and a user report can be matched without exposing raw errors in production.
+
+Without `NEXT_PUBLIC_SENTRY_DSN`, reporting stops at the console and the SDK is
+never downloaded. The browser DSN is public by design. To keep quote and inquiry
+tokens out of Sentry, the SDK disables breadcrumbs and `beforeSend` strips
+`event.request` (URL, headers) and any breadcrumbs before the event leaves the
+browser. No request body, identity, or query string is sent from this path.
+Source maps are not uploaded by this integration, so client frames may be
+minified.
+
 ## Correlation sources
 
 | Boundary | Correlation ID | Returned to caller |
@@ -73,6 +92,9 @@ calls.
   `lib/observability/request.ts`.
 - Background entry points: wrap the work in `ensureCorrelationId` so a nested
   call reuses an existing ID instead of forking the trail.
+- Client error boundaries: call `useErrorReport(scope, error)` or
+  `reportClientError(error, { scope, referenceId })`; do not import the server
+  logger into a client component.
 - New logs: use the helpers in `lib/observability/logger.ts` rather than
   `console.*`, so fields and redaction stay consistent.
 - Cron routes created through `makeCronRoute` inherit the wrapper; do not add a
@@ -85,6 +107,9 @@ calls.
   boundaries to remain unstructured until they are migrated.
 - Completion is logged when the handler returns the response. For streamed AI
   responses, `durationMs` measures setup and headers, not the full stream.
+- Client error reporting is best-effort: the Sentry browser SDK loads only on
+  the first boundary failure, is disabled without `NEXT_PUBLIC_SENTRY_DSN`, and
+  does not upload source maps.
 - There is no OpenTelemetry/distributed-trace export, log drain, alert route, or
   dashboard checked into this repository. Provider dashboards (Vercel, Inngest,
   Polar, email, AI) remain authoritative for external health and quotas.

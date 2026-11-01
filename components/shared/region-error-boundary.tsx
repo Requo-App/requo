@@ -5,6 +5,7 @@ import { catchError, type ErrorInfo } from "next/error";
 import { createContext, useContext, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
+import { useErrorReport } from "@/components/shared/error-state-client";
 
 type RegionErrorBoundaryProps = {
   /** Fallback UI shown when the child region throws. */
@@ -20,8 +21,10 @@ const RegionErrorRetryContext = createContext<(() => void) | null>(null);
 
 function RegionErrorFallback(
   { fallback }: RegionErrorFallbackProps,
-  { retry }: ErrorInfo,
+  { retry, error }: ErrorInfo,
 ) {
+  useErrorReport("region-error", error);
+
   return (
     <RegionErrorRetryContext.Provider value={retry}>
       {fallback}

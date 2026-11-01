@@ -114,7 +114,7 @@ test("chat page shows the public not-found state for agent-disabled businesses",
   // "demo-business" (Santos Print Shop) is not seeded with the Agent.
   await page.goto("/b/demo-business/chat");
 
-  await expect(page.getByText("This public page is unavailable.")).toBeVisible();
+  await expect(page.getByText("This page is no longer available")).toBeVisible();
 });
 
 test("chat API rejects payloads without a session token", async ({ request }) => {
