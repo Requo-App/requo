@@ -93,7 +93,7 @@ export function Combobox<TOption extends ComboboxOption>({
           autoFocus={autoFocus}
           className={cn(
             "w-full justify-between",
-            "aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20",
+            "aria-invalid:border-destructive aria-invalid:ring-2 aria-invalid:ring-destructive/20",
             buttonClassName,
           )}
           disabled={disabled}

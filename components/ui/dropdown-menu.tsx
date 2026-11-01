@@ -330,13 +330,18 @@ function DropdownMenuSubContent({
   const mobileSheet = menuState?.mobileSheet ?? true
 
   return (
-    <DropdownMenuPrimitive.SubContent
-      data-slot="dropdown-menu-sub-content"
-      data-mobile-sheet={mobileSheet ? "true" : undefined}
-      collisionPadding={collisionPadding}
-      className={cn("overlay-surface popover-layer motion-popover max-h-[min(var(--radix-dropdown-menu-content-available-height),calc(100dvh-1rem))] max-w-[calc(100vw-1rem)] min-w-[96px] origin-(--radix-dropdown-menu-content-transform-origin) overflow-y-auto overscroll-contain rounded-md border p-1 text-popover-foreground", className )}
-      {...props}
-    />
+    // Portaled so a scrolling parent content (max-height + overflow-y-auto)
+    // cannot clip the submenu or turn it into extra scroll space. Radix's
+    // SubContent is not portaled by default.
+    <DropdownMenuPrimitive.Portal>
+      <DropdownMenuPrimitive.SubContent
+        data-slot="dropdown-menu-sub-content"
+        data-mobile-sheet={mobileSheet ? "true" : undefined}
+        collisionPadding={collisionPadding}
+        className={cn("overlay-surface popover-layer motion-popover max-h-[min(var(--radix-dropdown-menu-content-available-height),calc(100dvh-1rem))] max-w-[calc(100vw-1rem)] min-w-[96px] origin-(--radix-dropdown-menu-content-transform-origin) overflow-y-auto overscroll-contain rounded-md border p-1 text-popover-foreground", className )}
+        {...props}
+      />
+    </DropdownMenuPrimitive.Portal>
   )
 }
 

@@ -437,7 +437,7 @@
   --sidebar-rail-width: 16.5rem;
   /* One place to tune the sidebar/card resize. The card follows the rail
      purely through flex layout, so only the width transition needs these. */
-  --shell-motion-duration: 280ms;
+  --shell-motion-duration: var(--motion-duration-base);
   --shell-motion-easing: var(--motion-ease-standard);
   /* One fill per surface. Cards use the elevated fill; nested panels use the
      flat inset fill and never re-tint from the page background. */

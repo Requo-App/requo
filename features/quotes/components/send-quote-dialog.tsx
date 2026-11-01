@@ -555,7 +555,7 @@ export function SendQuoteDialog({
                 </div>
                 <textarea
                   aria-label="Message"
-                  className="control-surface w-full resize-none rounded-lg border px-3.5 py-3 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground outline-none focus-visible:border-ring/60 focus-visible:ring-4 focus-visible:ring-ring/40"
+                  className="control-surface w-full resize-none rounded-lg border px-3.5 py-3 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground outline-none focus-visible:border-ring/60 focus-visible:ring-2 focus-visible:ring-ring/40"
                   onChange={(e) => setEditedMessage(e.target.value)}
                   rows={3}
                   value={editedMessage}
