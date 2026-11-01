@@ -27,17 +27,24 @@ export function UpgradeSuccessModal() {
   const router = useRouter();
   const firedRef = useRef(false);
   const [open, setOpen] = useState(false);
+  const [outcome, setOutcome] = useState<"success" | "processing" | "failed">(
+    "success",
+  );
   const [plan, setPlan] = useState<PlanTier>("pro");
 
   useEffect(() => {
     if (firedRef.current) return;
-    if (searchParams.get("upgrade") !== "success") return;
+    const upgrade = searchParams.get("upgrade");
+    if (upgrade !== "success" && upgrade !== "processing" && upgrade !== "failed") {
+      return;
+    }
 
     firedRef.current = true;
 
     // Defer state updates to avoid synchronous setState in effect body.
     const planParam = searchParams.get("plan");
     queueMicrotask(() => {
+      setOutcome(upgrade);
       if (planParam === "pro" || planParam === "business") {
         setPlan(planParam);
       }
@@ -66,33 +73,45 @@ export function UpgradeSuccessModal() {
     <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-full bg-success/10">
-            <Sparkles className="size-6 text-success-ink" />
-          </div>
+          {outcome === "success" ? (
+            <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-full bg-success/10">
+              <Sparkles className="size-6 text-success-ink" />
+            </div>
+          ) : null}
           <DialogTitle className="text-center">
-            Welcome to {label}
+            {outcome === "success"
+              ? `Welcome to ${label}`
+              : outcome === "processing"
+                ? "Activation pending"
+                : "Upgrade failed"}
           </DialogTitle>
           <DialogDescription className="text-center">
-            Your upgrade is active. Here&apos;s what&apos;s now unlocked:
+            {outcome === "success"
+              ? "Your upgrade is active. Here's what's now unlocked:"
+              : outcome === "processing"
+                ? "Your payment is being processed. Your plan will activate once payment is confirmed."
+                : "We couldn't confirm your upgrade. Please check your billing settings or contact support."}
           </DialogDescription>
         </DialogHeader>
-        <DialogBody>
-          <ul className="grid gap-2">
-            {features.map((feature) => (
-              <li key={feature} className="flex items-start gap-3">
-                <Check className="mt-0.5 size-4 shrink-0 text-success-ink" />
-                <div className="min-w-0">
-                  <p className="text-sm font-medium leading-tight">
-                    {feature}
-                  </p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </DialogBody>
+        {outcome === "success" ? (
+          <DialogBody>
+            <ul className="grid gap-2">
+              {features.map((feature) => (
+                <li key={feature} className="flex items-start gap-3">
+                  <Check className="mt-0.5 size-4 shrink-0 text-success-ink" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium leading-tight">
+                      {feature}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </DialogBody>
+        ) : null}
         <DialogFooter>
           <Button className="w-full" onClick={handleClose}>
-            Get started
+            {outcome === "success" ? "Get started" : "Done"}
           </Button>
         </DialogFooter>
       </DialogContent>

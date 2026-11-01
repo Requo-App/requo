@@ -49,6 +49,26 @@ const billing: BusinessBillingOverview = {
 };
 
 describe("expired prepaid billing summary", () => {
+  it.each([
+    [true, null, true, false],
+    [false, "country", false, true],
+    [false, null, false, false],
+  ] as const)("shows the prepaid renewal action only when eligible", (available, reason, showButton, showReason) => {
+    render(
+      <BillingStatusCard
+        billing={{
+          ...billing,
+          qrPh: { available, reason, renewablePlan: "pro", lockedUntil: null },
+          subscription: { ...billing.subscription!, provider: "paymongo" },
+        }}
+        canManageBilling
+        planUsage={{ aiCredits: { used: 0, limit: 50 }, emailsSent: 0, autoFollowUpEmailsSent: 0 }}
+      />,
+    );
+    expect(Boolean(screen.queryByRole("button", { name: "Renew with QR Ph" }))).toBe(showButton);
+    expect(Boolean(screen.queryByText("QR Ph is available only to businesses paying from the Philippines."))).toBe(showReason);
+  });
+
   it("names the paid plan a QR Ph renewal restores", () => {
     render(
       <BillingStatusCard

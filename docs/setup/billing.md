@@ -224,6 +224,11 @@ configuration, owner role, Polar subscription state, and prepaid plan locks.
    {NEXT_PUBLIC_APP_URL}/api/billing/paymongo/webhook
    ```
 
+   For local sandbox validation, replace `NEXT_PUBLIC_APP_URL` in the endpoint
+   with your public HTTPS tunnel URL, such as the ngrok URL from
+   `npm run dev:tunnel`. Do not use `http://localhost:3000` as the dashboard
+   endpoint.
+
    Subscribe it to `checkout_session.payment.paid`. Copy the endpoint's signing
    secret into `PAYMONGO_WEBHOOK_SECRET`. Other events are acknowledged and
    recorded in `billing_events` with status `ignored`.
@@ -231,8 +236,8 @@ configuration, owner role, Polar subscription state, and prepaid plan locks.
 4. Checkout uses PayMongo Hosted Checkout v2 (`POST /v2/checkout_sessions`) with
    `payment_method_types: ["qrph"]`, a PHP line item in centavos, the intent id
    as `reference_number`, and an `Idempotency-Key`. The return page
-   (`/billing/paymongo/return`) reads the session back so a fast redirect
-   activates before the webhook lands; both paths call the same idempotent
+   (`/billing/paymongo/return`) sends pending intents to a Route Handler that
+   reads the session back so a fast redirect activates before the webhook lands; both paths call the same idempotent
    activation, which validates the paid amount and currency against the stored
    intent. The webhook remains authoritative.
 

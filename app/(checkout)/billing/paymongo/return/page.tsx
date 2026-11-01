@@ -1,6 +1,5 @@
 import "server-only";
 
-import { updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { homePath } from "@/features/businesses/routes";
@@ -9,15 +8,7 @@ import {
   getSafeAuthRedirectPath,
 } from "@/lib/auth/redirects";
 import { requireSession } from "@/lib/auth/session";
-import {
-  activatePaymongoCheckoutIntent,
-  getPaymongoCheckoutIntentForUser,
-} from "@/lib/billing/paymongo-checkout";
-import {
-  getPaidCheckoutPayment,
-  retrievePaymongoCheckoutSession,
-} from "@/lib/billing/paymongo-client";
-import { getBusinessBillingCacheTags } from "@/lib/cache/shell-tags";
+import { getPaymongoCheckoutIntentForUser } from "@/lib/billing/paymongo-checkout";
 
 type SearchParamsRecord = Record<string, string | string[] | undefined>;
 
@@ -50,9 +41,8 @@ function withCheckoutState(
  * PayMongo QR Ph return page.
  *
  * PayMongo redirects here after the hosted checkout. The webhook is the
- * authoritative activation path, but this page eagerly reads the session so a
- * fast redirect does not leave the owner on Free until the webhook lands.
- * Activation is idempotent per checkout intent, so both paths can run.
+ * authoritative activation path. A Route Handler checks the session and
+ * activates a paid intent before this page redirects back to the dashboard.
  */
 export default async function PaymongoReturnPage({
   searchParams,
@@ -78,48 +68,17 @@ export default async function PaymongoReturnPage({
     redirect(withCheckoutState(returnTo, "failed", null));
   }
 
-  let activePlan: string | null =
-    intent.status === "succeeded" ? intent.plan : null;
-
-  if (!activePlan && intent.status === "pending" && intent.providerSessionId) {
-    try {
-      const paymongoSession = await retrievePaymongoCheckoutSession(
-        intent.providerSessionId,
-      );
-      const payment = getPaidCheckoutPayment(paymongoSession);
-
-      if (payment) {
-        const result = await activatePaymongoCheckoutIntent({
-          intentId: intent.id,
-          payment: {
-            providerPaymentId: payment.id,
-            amount: payment.amount,
-            currency: payment.currency,
-            paidAt: payment.paidAt,
-          },
-          invalidateCache: false,
-        });
-
-        if (result.status === "activated" || result.status === "already_active") {
-          activePlan = result.plan;
-
-          for (const tag of getBusinessBillingCacheTags(result.businessId)) {
-            try {
-              updateTag(tag);
-            } catch {
-              // Cache invalidation is best-effort during render; the webhook
-              // and the next cache lifetime converge the view.
-            }
-          }
-        }
-      }
-    } catch (error) {
-      console.error("[billing] PayMongo return sync failed:", error);
-    }
+  if (intent.status === "succeeded") {
+    redirect(buildCheckoutSuccessPath(returnTo, intent.plan));
   }
 
-  if (activePlan) {
-    redirect(buildCheckoutSuccessPath(returnTo, activePlan));
+  if (
+    intent.status === "pending" &&
+    intent.providerSessionId &&
+    readParam(resolvedSearchParams.checked) !== "1"
+  ) {
+    const params = new URLSearchParams({ intent: intent.id, returnTo });
+    redirect(`/billing/paymongo/return/sync?${params}`);
   }
 
   redirect(withCheckoutState(returnTo, "processing", intent.plan));

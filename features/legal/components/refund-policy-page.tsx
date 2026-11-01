@@ -58,10 +58,10 @@ const refundSections: LegalDocumentSection[] = [
         <LegalParagraph>
           When a refund is granted, it is issued through{" "}
           {legalConfig.paymentProvider} for card, Google Pay, and Apple Pay
-          payments, or through {legalConfig.qrPaymentProvider} for QR Ph
-          payments, to the original payment method used for the purchase. The
-          time it takes to appear in your account depends on your payment
-          provider, bank, or card issuer.
+          payments to the original payment method used for the purchase.
+          Granted QR Ph refunds are sent through a transfer link you must claim
+          within three days before it expires. The time it takes to appear in
+          your account depends on your payment provider, bank, or card issuer.
         </LegalParagraph>
       </>
     ),
@@ -93,6 +93,8 @@ const refundSections: LegalDocumentSection[] = [
             {legalConfig.supportEmail}
           </a>{" "}
           with the email address on your account and the date of the payment.
+          If the refund is granted, claim it using the transfer link within
+          three days before the link expires.
         </LegalParagraph>
         <LegalParagraph>
           {legalConfig.paymentProvider} reviews each request. Processing times
@@ -146,8 +148,8 @@ const refundSections: LegalDocumentSection[] = [
           QR Ph payments are processed by {legalConfig.qrPaymentProvider} as a
           payment gateway. {legalConfig.companyName} remains the merchant for
           those one-time payments, the PHP amount shown at checkout is the final
-          amount, and refunds are issued through{" "}
-          {legalConfig.qrPaymentProvider} to the original payment method.
+          amount, and granted refunds are sent through a transfer link you
+          must claim within three days before it expires.
         </LegalParagraph>
         <LegalParagraph>
           We will help with {legalConfig.paymentProvider} and{" "}

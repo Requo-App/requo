@@ -46,7 +46,7 @@ import { PaymentMethodIcon } from "@/features/billing/components/payment-method-
 import type { BusinessBillingOverview } from "@/features/billing/types";
 import { getBusinessAnalyticsPath } from "@/features/businesses/routes";
 import { getPlanPriceLabel } from "@/lib/billing/plans";
-import { isPaidPlan } from "@/lib/billing/paymongo-eligibility";
+import { getPaymongoIneligibilityMessage, isPaidPlan } from "@/lib/billing/paymongo-eligibility";
 import type { PaidPlan } from "@/lib/billing/types";
 import { planMeta } from "@/lib/plans";
 import { getUsageLimit } from "@/lib/plans/usage-limits";
@@ -527,25 +527,31 @@ export function BillingStatusCard({
               ? `Your prepaid term ended ${formatBillingDate(renewalDate)}. Renew with QR Ph to restore access.`
               : `QR Ph payments are one-time and don't renew automatically. Renew any time to extend your access from ${formatBillingDate(renewalDate)}.`}
           </p>
-          <div>
-            <UpgradeButton
-              allowHighestPlan
-              currency={currency}
-              currentPlan={currentPlan}
-              qrPh={billing.qrPh}
-              targetPlan={
-                prepaidRenewalPlan ??
-                (isPaidPlan(subscription?.plan) ? subscription.plan : undefined)
-              }
-              userId={userId}
-              businessId={businessId}
-              businessSlug={businessSlug}
-              variant="outline"
-            >
-              <QrCode data-icon="inline-start" />
-              Renew with QR Ph
-            </UpgradeButton>
-          </div>
+          {billing.qrPh.available ? (
+            <div>
+              <UpgradeButton
+                allowHighestPlan
+                currency={currency}
+                currentPlan={currentPlan}
+                qrPh={billing.qrPh}
+                targetPlan={
+                  prepaidRenewalPlan ??
+                  (isPaidPlan(subscription?.plan) ? subscription.plan : undefined)
+                }
+                userId={userId}
+                businessId={businessId}
+                businessSlug={businessSlug}
+                variant="outline"
+              >
+                <QrCode data-icon="inline-start" />
+                Renew with QR Ph
+              </UpgradeButton>
+            </div>
+          ) : billing.qrPh.reason ? (
+            <p className="text-sm text-muted-foreground">
+              {getPaymongoIneligibilityMessage(billing.qrPh.reason)}
+            </p>
+          ) : null}
         </section>
       ) : null}
 

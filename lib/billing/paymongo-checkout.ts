@@ -217,9 +217,8 @@ export async function activatePaymongoCheckoutIntent({
   intentId: string;
   payment: PaymongoActivationPayment;
   /**
-   * Route Handlers and other non-render contexts should leave this on. The
-   * checkout return page sets it off and invalidates with `updateTag` after
-   * activation, because `revalidateTag` cannot run during a render.
+   * Leave on for automatic invalidation in a Route Handler. The checkout
+   * return handler disables it and invalidates the billing tags itself.
    */
   invalidateCache?: boolean;
 }): Promise<PaymongoActivationResult> {
@@ -436,10 +435,8 @@ export async function activatePaymongoCheckoutIntent({
     } as const;
   });
 
-  // The webhook may arrive after the success page already activated the
-  // intent. Invalidate on `already_active` too: the eager path runs during a
-  // render, where Next rejects cache invalidation, so this may be the only
-  // chance to clear the pre-payment subscription read.
+  // The webhook may arrive after the return handler activated the intent.
+  // Invalidate on `already_active` too, so either path refreshes cached reads.
   if (
     invalidateCache &&
     (result.status === "activated" || result.status === "already_active")
