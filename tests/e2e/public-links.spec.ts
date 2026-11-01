@@ -22,8 +22,6 @@ test("dead public links answer HTTP 404 with the public not-found state", async 
     const response = await page.goto(path);
 
     expect(response?.status(), path).toBe(404);
-    await expect(
-      page.getByRole("heading", { name: "This page is no longer available" }),
-    ).toBeVisible();
+    await expect(page.getByText("This public page is unavailable.")).toBeVisible();
   }
 });

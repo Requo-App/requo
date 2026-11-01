@@ -3,10 +3,10 @@ import { notFound } from "next/navigation";
 import { getPublicInquiryBusinessBySlug } from "@/features/inquiries/queries";
 
 /**
- * Existence gate for the public inquiry pages under `/inquire/[slug]`.
+ * Availability gate for the default service at `/inquire/[slug]`.
  *
- * Runs above the segment's `loading.tsx` boundary so an unknown business
- * answers `404`; the page reuses the same cached inquiry business lookup.
+ * Checks availability above this route's `loading.tsx` boundary; the page
+ * reuses the same cached lookup. Other service routes have their own gate.
  */
 export const instant = false;
 
