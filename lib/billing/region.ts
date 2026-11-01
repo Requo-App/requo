@@ -107,3 +107,21 @@ export async function detectDisplayCurrency(): Promise<BillingCurrency> {
     headerStore.get("x-vercel-ip-country"),
   );
 }
+
+/**
+ * Reads the visitor's ISO country from the Vercel geo header.
+ *
+ * Returns `null` when the header is absent or set to Vercel's `XX` fallback.
+ * Callers that gate a payment method must treat `null` as "not in the
+ * Philippines".
+ */
+export async function detectVisitorCountry(): Promise<string | null> {
+  const headerStore = await headers();
+  const value = headerStore.get("x-vercel-ip-country")?.trim().toUpperCase();
+
+  if (!value || value === "XX") {
+    return null;
+  }
+
+  return value;
+}

@@ -9,11 +9,13 @@ import { Spinner } from "@/components/ui/spinner";
 import { useBusinessCheckout } from "@/features/billing/components/business-checkout-provider";
 import { PlanSelectionSheet } from "@/features/billing/components/plan-selection-sheet";
 import { usePlanSelection } from "@/features/billing/components/plan-selection-provider";
-import { startPolarCheckout } from "@/features/billing/start-checkout";
+import { startCheckout } from "@/features/billing/start-checkout";
 import { getBusinessHomePath } from "@/features/businesses/routes";
+import type { PaymongoEligibility } from "@/lib/billing/paymongo-eligibility";
 import type {
   BillingCurrency,
   BillingInterval,
+  BillingProvider,
   PaidPlan,
 } from "@/lib/billing/types";
 import type { PlanTier as plan } from "@/lib/plans/plans";
@@ -28,7 +30,14 @@ type UpgradeButtonProps = {
   isTrialing?: boolean;
   /** Billing currency to show in the self-contained plan sheet. */
   currency?: BillingCurrency;
+  /** QR Ph availability for the self-contained and shell plan sheets. */
+  qrPh?: PaymongoEligibility;
   targetPlan?: "pro" | "business";
+  /**
+   * Render even when the business is on Business. Used by the prepaid renewal
+   * action, where the same plan is repurchased instead of upgraded.
+   */
+  allowHighestPlan?: boolean;
   variant?: "default" | "outline" | "ghost" | "secondary";
   size?: "default" | "sm" | "lg";
   className?: string;
@@ -41,6 +50,7 @@ function resolveTargetPlan(
   currentPlan: plan,
   targetPlan?: PaidPlan,
   isTrialing = false,
+  allowHighestPlan = false,
 ): PaidPlan {
   if (targetPlan) {
     return targetPlan;
@@ -49,6 +59,9 @@ function resolveTargetPlan(
   // subscribing to Pro, not upgrading past it.
   if (isTrialing) {
     return "pro";
+  }
+  if (allowHighestPlan && currentPlan === "business") {
+    return "business";
   }
   return currentPlan === "pro" ? "business" : "pro";
 }
@@ -70,7 +83,9 @@ export function UpgradeButton({
   currentPlan,
   isTrialing = false,
   currency = "USD",
+  qrPh,
   targetPlan,
+  allowHighestPlan = false,
   variant = "default",
   size = "sm",
   className,
@@ -94,8 +109,9 @@ export function UpgradeButton({
     ? businessCheckout.currentPlan
     : currentPlan;
 
-  // No upgrade available for the highest plan — render nothing.
-  if (effectiveCurrentPlan === "business") {
+  // No upgrade available for the highest plan — render nothing unless the
+  // caller is offering a same-plan prepaid renewal.
+  if (effectiveCurrentPlan === "business" && !allowHighestPlan) {
     return null;
   }
 
@@ -103,6 +119,7 @@ export function UpgradeButton({
     effectiveCurrentPlan,
     targetPlan,
     isTrialing,
+    allowHighestPlan,
   );
 
   function handleClick(event: React.MouseEvent<HTMLButtonElement>) {
@@ -119,6 +136,7 @@ export function UpgradeButton({
         currency,
         currentPlan: effectiveCurrentPlan,
         isTrialing,
+        qrPh,
         targetPlan: nextPlan,
       });
       return;
@@ -130,6 +148,7 @@ export function UpgradeButton({
   function handleSelectLocalPlan(
     selected: PaidPlan,
     interval: BillingInterval,
+    provider: BillingProvider,
   ) {
     setLocalOpen(false);
     const returnTo = businessSlug
@@ -137,10 +156,11 @@ export function UpgradeButton({
       : undefined;
 
     startLocalTransition(async () => {
-      const result = await startPolarCheckout({
+      const result = await startCheckout({
         businessId,
         plan: selected,
         interval,
+        provider,
         returnTo,
       });
 
@@ -196,6 +216,7 @@ export function UpgradeButton({
           onOpenChange={setLocalOpen}
           onSelectPlan={handleSelectLocalPlan}
           open={localOpen}
+          qrPh={qrPh}
           targetPlan={localTargetPlan}
           businessId={businessId}
           businessSlug={businessSlug}

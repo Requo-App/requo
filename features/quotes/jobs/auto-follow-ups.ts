@@ -95,6 +95,8 @@ export async function processQuoteAutoFollowUps(): Promise<AutoFollowUpsSummary>
       businessName: businesses.name,
       businessSubscriptionStatus: businessSubscriptions.status,
       businessSubscriptionPlan: businessSubscriptions.plan,
+      businessSubscriptionBillingProvider:
+        businessSubscriptions.billingProvider,
       businessSubscriptionCurrentPeriodEnd:
         businessSubscriptions.currentPeriodEnd,
       businessSubscriptionTrialEndsAt: businessSubscriptions.trialEndsAt,
@@ -162,6 +164,7 @@ export async function processQuoteAutoFollowUps(): Promise<AutoFollowUpsSummary>
     const plan = resolveEffectivePlanFromSubscriptionFields({
       status: row.businessSubscriptionStatus,
       plan: row.businessSubscriptionPlan,
+      billingProvider: row.businessSubscriptionBillingProvider,
       currentPeriodEnd: row.businessSubscriptionCurrentPeriodEnd,
       trialEndsAt: row.businessSubscriptionTrialEndsAt,
     });

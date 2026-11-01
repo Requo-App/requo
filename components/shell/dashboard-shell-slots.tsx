@@ -49,6 +49,7 @@ import {
 } from "@/components/ui/sidebar";
 import { useBusinessCheckout } from "@/features/billing/components/business-checkout-provider";
 import { UpgradeButton } from "@/features/billing/components/upgrade-button";
+import type { PaymongoEligibility } from "@/lib/billing/paymongo-eligibility";
 import {
   getBusinessHomePath,
   getBusinessSettingsPath,
@@ -209,6 +210,7 @@ export function BusinessSwitcher({
   compact = false,
   billingCurrency,
   isTrialing = false,
+  qrPh,
 }: {
   currentBusiness: BusinessContext;
   memberships: BusinessContext[];
@@ -220,6 +222,8 @@ export function BusinessSwitcher({
   billingCurrency?: BillingCurrency;
   /** The business is inside its Pro trial and still needs a subscription. */
   isTrialing?: boolean;
+  /** QR Ph availability for plan sheets opened from this switcher. */
+  qrPh?: PaymongoEligibility;
 }) {
   const { isMobile, setOpenMobile } = useSidebar();
   const businessCheckout = useBusinessCheckout();
@@ -372,6 +376,7 @@ export function BusinessSwitcher({
                 currentPlan={business.plan}
                 isTrialing={isTrialing}
                 onOpen={() => setMenuOpen(false)}
+                qrPh={qrPh}
                 size="sm"
                 userId={userId}
               >
@@ -441,6 +446,7 @@ export function DashboardUserMenu({
   businessId,
   currency,
   isTrialing = false,
+  qrPh,
 }: {
   user: {
     id: string;
@@ -455,6 +461,8 @@ export function DashboardUserMenu({
   currency?: string;
   /** The business is inside its Pro trial and still needs a subscription. */
   isTrialing?: boolean;
+  /** QR Ph availability for plan sheets opened from this menu. */
+  qrPh?: PaymongoEligibility;
 }) {
   const [isPending, startTransition] = useTransition();
   const { isMobile, setOpenMobile } = useSidebar();
@@ -564,6 +572,7 @@ export function DashboardUserMenu({
                     currentPlan={plan}
                     isTrialing={isTrialing}
                     onOpen={() => setMenuOpen(false)}
+                    qrPh={qrPh}
                     size="sm"
                     variant="outline"
                     userId={user.id}
@@ -650,6 +659,7 @@ export function MobileBusinessSwitcher({
   userId,
   billingCurrency,
   isTrialing = false,
+  qrPh,
 }: {
   currentBusiness: BusinessContext;
   memberships: BusinessContext[];
@@ -659,6 +669,8 @@ export function MobileBusinessSwitcher({
   billingCurrency?: BillingCurrency;
   /** The business is inside its Pro trial and still needs a subscription. */
   isTrialing?: boolean;
+  /** QR Ph availability for plan sheets opened from this switcher. */
+  qrPh?: PaymongoEligibility;
 }) {
   const businessCheckout = useBusinessCheckout();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -745,6 +757,7 @@ export function MobileBusinessSwitcher({
                   currentPlan={business.plan}
                   isTrialing={isTrialing}
                   onOpen={() => setMenuOpen(false)}
+                  qrPh={qrPh}
                   size="sm"
                   userId={userId}
                 >
@@ -805,6 +818,7 @@ export function MobileUserMenu({
   businessSlug,
   plan,
   businessId,
+  qrPh,
 }: {
   user: {
     id: string;
@@ -816,6 +830,8 @@ export function MobileUserMenu({
   businessSlug: string;
   plan: BusinessContext["business"]["plan"];
   businessId: string;
+  /** QR Ph availability for plan sheets opened from this menu. */
+  qrPh?: PaymongoEligibility;
 }) {
   const [isPending, startTransition] = useTransition();
   const displayName =
@@ -886,6 +902,7 @@ export function MobileUserMenu({
               <UpgradeButton
                 className="w-full whitespace-nowrap"
                 currentPlan={plan}
+                qrPh={qrPh}
                 size="sm"
                 variant="outline"
                 userId={user.id}

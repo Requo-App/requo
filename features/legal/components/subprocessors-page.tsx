@@ -57,6 +57,13 @@ const subprocessors: Subprocessor[] = [
     policyLabel: "Privacy Policy",
   },
   {
+    name: "PayMongo",
+    purpose: "QR Ph payment processing",
+    dataLocation: "Philippines",
+    policyUrl: "https://paymongo.com/privacy",
+    policyLabel: "Privacy Policy",
+  },
+  {
     name: "Resend",
     purpose: "Transactional email",
     dataLocation: "United States",

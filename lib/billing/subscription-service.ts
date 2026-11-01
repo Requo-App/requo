@@ -37,6 +37,7 @@ type DatabaseClient =
 type SubscriptionLike = {
   status: SubscriptionStatus;
   plan: string;
+  billingProvider?: BillingProvider | null;
   currentPeriodEnd: Date | null;
   trialEndsAt?: Date | null;
 };
@@ -106,8 +107,12 @@ export function usesStoredBillingCurrency(
  * Serializes subscription writes per business. `SELECT ... FOR UPDATE`
  * cannot lock a row that does not exist yet, so two first events could
  * otherwise both pass the stale check and race the unique insert.
+ *
+ * Exported for prepaid (PayMongo) activation, which writes the subscription,
+ * intent, and payment-attempt rows in one transaction and must share this lock
+ * with Polar webhook writes.
  */
-async function lockBusinessSubscription(
+export async function lockBusinessSubscription(
   tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
   businessId: string,
 ) {
@@ -159,7 +164,7 @@ function isPreTrialPeriodEvent(
  * the inquiry form config are resolved against the plan, so they must
  * converge with the subscription change too.
  */
-function invalidatePlanTierCache(businessId: string) {
+export function invalidatePlanTierCache(businessId: string) {
   for (const tag of getBusinessBillingCacheTags(businessId)) {
     revalidateTag(tag, "max");
   }
@@ -242,6 +247,16 @@ export function resolveEffectivePlanFromSubscription(
       return isTrialSubscription(subscription) ? "pro" : "free";
 
     case "active":
+      // Polar keeps an `active` row current through renewal webhooks. A
+      // prepaid PayMongo term has no renewal event, so access ends exactly at
+      // `currentPeriodEnd` — even before the daily expiry job flips the row.
+      if (subscription.billingProvider === "paymongo") {
+        return subscription.currentPeriodEnd &&
+          subscription.currentPeriodEnd > new Date()
+          ? (subscription.plan as PlanTier)
+          : "free";
+      }
+
       return subscription.plan as PlanTier;
 
     case "canceled":
@@ -280,6 +295,7 @@ export function resolveEffectivePlanFromSubscriptionFields(
     | {
         status: SubscriptionStatus | null;
         plan: string | null;
+        billingProvider?: BillingProvider | null;
         currentPeriodEnd: Date | null;
         trialEndsAt?: Date | null;
       }
@@ -293,6 +309,7 @@ export function resolveEffectivePlanFromSubscriptionFields(
   return resolveEffectivePlanFromSubscription({
     status: subscription.status,
     plan: subscription.plan,
+    billingProvider: subscription.billingProvider,
     currentPeriodEnd: subscription.currentPeriodEnd,
     trialEndsAt: subscription.trialEndsAt,
   });

@@ -12,11 +12,13 @@ import {
 import { toast } from "@/components/shared/notify";
 
 import { PlanSelectionSheet } from "@/features/billing/components/plan-selection-sheet";
-import { startPolarCheckout } from "@/features/billing/start-checkout";
+import { startCheckout } from "@/features/billing/start-checkout";
 import { getBusinessHomePath } from "@/features/businesses/routes";
+import type { PaymongoEligibility } from "@/lib/billing/paymongo-eligibility";
 import type {
   BillingCurrency,
   BillingInterval,
+  BillingProvider,
   PaidPlan,
 } from "@/lib/billing/types";
 import type { PlanTier } from "@/lib/plans/plans";
@@ -28,6 +30,7 @@ type PlanSelectionRequest = {
   isTrialing?: boolean;
   currency?: BillingCurrency;
   targetPlan?: PaidPlan;
+  qrPh?: PaymongoEligibility;
 };
 
 type PlanSelectionContextValue = {
@@ -61,7 +64,11 @@ export function PlanSelectionProvider({ children }: { children: ReactNode }) {
     setOpen(true);
   }, []);
 
-  function handleSelectPlan(plan: PaidPlan, interval: BillingInterval) {
+  function handleSelectPlan(
+    plan: PaidPlan,
+    interval: BillingInterval,
+    provider: BillingProvider,
+  ) {
     setOpen(false);
     if (!request) return;
 
@@ -70,10 +77,11 @@ export function PlanSelectionProvider({ children }: { children: ReactNode }) {
       : undefined;
 
     startTransition(async () => {
-      const result = await startPolarCheckout({
+      const result = await startCheckout({
         businessId: request.businessId,
         plan,
         interval,
+        provider,
         returnTo,
       });
 
@@ -108,6 +116,7 @@ export function PlanSelectionProvider({ children }: { children: ReactNode }) {
           onOpenChange={setOpen}
           onSelectPlan={handleSelectPlan}
           open={open}
+          qrPh={request.qrPh}
           targetPlan={request.targetPlan}
         />
       ) : null}

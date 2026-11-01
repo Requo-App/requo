@@ -51,6 +51,7 @@ export async function BusinessSwitcherSlot({
       userId={session.user.id}
       billingCurrency={billing?.billingCurrency}
       isTrialing={isTrialing}
+      qrPh={billing?.qrPh}
       compact
     />
   );
@@ -91,6 +92,7 @@ export async function MobileBusinessSwitcherSlot({
       userId={session.user.id}
       billingCurrency={billing?.billingCurrency}
       isTrialing={isTrialing}
+      qrPh={billing?.qrPh}
     />
   );
 }

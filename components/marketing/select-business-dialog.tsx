@@ -20,7 +20,7 @@ import {
   getUserUpgradeEligibleBusinessesAction,
   type UpgradeEligibleBusiness,
 } from "@/features/billing/actions";
-import { startPolarCheckout } from "@/features/billing/start-checkout";
+import { startCheckout } from "@/features/billing/start-checkout";
 import { getBusinessHomePath } from "@/features/businesses/routes";
 import { getPlanPriceLabel } from "@/lib/billing/plans";
 import type {
@@ -88,7 +88,7 @@ export function SelectBusinessDialog({
     const returnTo = getBusinessHomePath(business.slug);
 
     try {
-      const result = await startPolarCheckout({
+      const result = await startCheckout({
         businessId: business.id,
         plan: targetPlan,
         interval,

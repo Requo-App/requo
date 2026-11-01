@@ -9,15 +9,34 @@ import {
   sanitizeReturnTo,
 } from "@/lib/billing/polar-client";
 import { getPolarProductId } from "@/lib/billing/polar-products";
+import { detectVisitorCountry } from "@/lib/billing/region";
+import {
+  canBuyPlanWithPaymongo,
+  getPaymongoIneligibilityMessage,
+  isActivePrepaidSubscription,
+  resolvePaymongoEligibility,
+} from "@/lib/billing/paymongo-eligibility";
+import {
+  attachPaymongoCheckoutSession,
+  createPaymongoCheckoutIntent,
+  markPaymongoCheckoutIntentFailed,
+} from "@/lib/billing/paymongo-checkout";
+import { createPaymongoCheckoutSession } from "@/lib/billing/paymongo-client";
 import { getBusinessSubscription } from "@/lib/billing/subscription-service";
-import { env, isPolarConfigured } from "@/lib/env";
+import { env, getPaymongoMode, isPaymongoConfigured, isPolarConfigured } from "@/lib/env";
 import { getBusinessMembershipsForUser } from "@/lib/db/business-access";
 import { canManageBusinessAdministration } from "@/lib/business-members";
+import { planMeta } from "@/lib/plans";
 
 /**
  * Authed checkout route. Runs eligibility gates, resolves
  * `(plan, interval)` to a Polar product id, then creates the Polar
  * checkout session directly and returns `{ checkoutUrl }`.
+ *
+ * Philippine visitors may instead ask for `provider: "paymongo"`, which
+ * creates a one-time QR Ph hosted checkout session. The QR Ph branch rechecks
+ * country, configuration, existing Polar subscription, and prepaid plan locks
+ * server-side; the client-provided provider choice is never trusted on its own.
  */
 
 const checkoutBodySchema = z.object({
@@ -25,16 +44,10 @@ const checkoutBodySchema = z.object({
   plan: z.enum(["pro", "business"]),
   interval: z.enum(["monthly", "yearly"]),
   returnTo: z.string().trim().max(512).optional(),
+  provider: z.enum(["polar", "paymongo"]).default("polar"),
 });
 
 export async function POST(request: Request): Promise<Response> {
-  if (!isPolarConfigured) {
-    return NextResponse.json(
-      { error: "Billing is not configured." },
-      { status: 503 },
-    );
-  }
-
   let user: Awaited<ReturnType<typeof requireUser>>;
 
   try {
@@ -63,7 +76,7 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
-  const { businessId, plan, interval } = parsed.data;
+  const { businessId, plan, interval, provider } = parsed.data;
   const returnTo = sanitizeReturnTo(parsed.data.returnTo);
 
   // Ensure the actor can manage billing for this business.
@@ -86,6 +99,25 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
+  if (provider === "paymongo") {
+    return createPaymongoCheckoutResponse({
+      request,
+      userId: user.id,
+      userEmail: user.email,
+      businessId,
+      plan,
+      interval,
+      returnTo,
+    });
+  }
+
+  if (!isPolarConfigured) {
+    return NextResponse.json(
+      { error: "Billing is not configured." },
+      { status: 503 },
+    );
+  }
+
   const existing = await getBusinessSubscription(businessId);
   const now = new Date();
   const canceledButActive =
@@ -93,8 +125,25 @@ export async function POST(request: Request): Promise<Response> {
     existing.currentPeriodEnd !== null &&
     existing.currentPeriodEnd > now;
 
+  // A prepaid QR Ph term has no Polar subscription to update or cancel.
+  // Starting Polar checkout during that term would create a second paid
+  // subscription, so plan changes wait until the prepaid term ends.
+  if (isActivePrepaidSubscription(existing, now)) {
+    return NextResponse.json(
+      {
+        error:
+          "Your prepaid term is active. Renew with QR Ph, or switch plans after it ends.",
+      },
+      { status: 409 },
+    );
+  }
+
+  // A QR Ph row keeps `active` and its paid plan until the daily expiry job
+  // flips it, so gate this on Polar rows only: the owner of an ended prepaid
+  // term is already on Free and must be able to start a card subscription.
   if (
     existing &&
+    existing.billingProvider !== "paymongo" &&
     (existing.status === "active" || existing.status === "past_due") &&
     existing.plan === plan
   ) {
@@ -216,5 +265,128 @@ export async function POST(request: Request): Promise<Response> {
     const message =
       error instanceof Error ? error.message : "Checkout creation failed.";
     return NextResponse.json({ error: message }, { status: 502 });
+  }
+}
+
+async function createPaymongoCheckoutResponse({
+  request,
+  userId,
+  userEmail,
+  businessId,
+  plan,
+  interval,
+  returnTo,
+}: {
+  request: Request;
+  userId: string;
+  userEmail: string | null | undefined;
+  businessId: string;
+  plan: "pro" | "business";
+  interval: "monthly" | "yearly";
+  returnTo: string | null;
+}): Promise<Response> {
+  if (!isPaymongoConfigured) {
+    return NextResponse.json(
+      { error: "QR Ph is not available right now." },
+      { status: 503 },
+    );
+  }
+
+  // Never trust the client's provider flag alone: the visitor must still be
+  // in the Philippines according to the server-side geo header.
+  const country = await detectVisitorCountry();
+  const existing = await getBusinessSubscription(businessId);
+  const eligibility = resolvePaymongoEligibility({
+    countryCode: country,
+    configured: true,
+    subscription: existing,
+  });
+  const planEligibility = canBuyPlanWithPaymongo(eligibility, plan);
+
+  if (!planEligibility.allowed) {
+    return NextResponse.json(
+      { error: getPaymongoIneligibilityMessage(planEligibility.reason) },
+      { status: 409 },
+    );
+  }
+
+  if (!userEmail) {
+    return NextResponse.json(
+      { error: "Account email is required to start checkout." },
+      { status: 400 },
+    );
+  }
+
+  const origin = resolveAppOrigin(request.url);
+
+  if (!origin) {
+    return NextResponse.json(
+      { error: "Application URL is not configured." },
+      { status: 503 },
+    );
+  }
+
+  const intent = await createPaymongoCheckoutIntent({
+    businessId,
+    userId,
+    plan,
+    interval,
+  });
+
+  const successUrl = new URL("/billing/paymongo/return", origin);
+  successUrl.searchParams.set("intent", intent.id);
+  if (returnTo) {
+    successUrl.searchParams.set("returnTo", returnTo);
+  }
+
+  const cancelUrl = new URL(returnTo || "/", origin);
+  cancelUrl.searchParams.set("checkout", "cancelled");
+
+  try {
+    const session = await createPaymongoCheckoutSession({
+      intentId: intent.id,
+      description: `Requo ${planMeta[plan].label} (${interval})`,
+      amount: intent.amount,
+      customerEmail: userEmail,
+      successUrl: successUrl.toString(),
+      cancelUrl: cancelUrl.toString(),
+      metadata: {
+        businessId,
+        userId,
+        intentId: intent.id,
+        plan,
+        interval,
+      },
+    });
+
+    const expectedLiveMode = getPaymongoMode() === "live";
+
+    if (session.livemode !== null && session.livemode !== expectedLiveMode) {
+      await markPaymongoCheckoutIntentFailed(intent.id);
+      console.error(
+        "[billing] PayMongo checkout mode mismatch.",
+        { intentId: intent.id, livemode: session.livemode },
+      );
+
+      return NextResponse.json(
+        { error: "QR Ph is not available right now." },
+        { status: 503 },
+      );
+    }
+
+    await attachPaymongoCheckoutSession(intent.id, session.id);
+
+    return NextResponse.json({ checkoutUrl: session.checkoutUrl });
+  } catch (error) {
+    await markPaymongoCheckoutIntentFailed(intent.id).catch(() => undefined);
+
+    const message =
+      error instanceof Error ? error.message : "Checkout creation failed.";
+    console.error("[billing] PayMongo checkout creation failed:", message);
+
+    return NextResponse.json(
+      { error: "We couldn't start QR Ph checkout. Please try again." },
+      { status: 502 },
+    );
   }
 }

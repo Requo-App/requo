@@ -27,13 +27,17 @@ const refundSections: LegalDocumentSection[] = [
           .
         </LegalParagraph>
         <LegalParagraph>
-          Subscription payments are processed by {legalConfig.paymentProvider},
-          the merchant of record for {legalConfig.companyName}. There is no
-          in-app refund flow: subscription changes, cancellations, and refunds
-          are handled through the {legalConfig.paymentProvider} customer
-          portal linked from your billing settings. By subscribing to a paid
-          plan, you agree to the terms outlined in this Refund Policy and our
-          Terms of Service.
+          Subscription payments by card, Google Pay, or Apple Pay are processed
+          by {legalConfig.paymentProvider}, the merchant of record for{" "}
+          {legalConfig.companyName}. QR Ph payments from{" "}
+          {legalConfig.qrPaymentCountry} are processed by{" "}
+          {legalConfig.qrPaymentProvider} and are one-time payments that do not
+          renew automatically. There is no in-app refund flow: card subscription
+          changes, cancellations, and refunds are handled through the{" "}
+          {legalConfig.paymentProvider} customer portal linked from your billing
+          settings, while QR Ph refund requests are handled by contacting
+          support. By subscribing to a paid plan, you agree to the terms
+          outlined in this Refund Policy and our Terms of Service.
         </LegalParagraph>
       </>
     ),
@@ -45,16 +49,19 @@ const refundSections: LegalDocumentSection[] = [
       <>
         <LegalParagraph>
           {legalConfig.companyName} does not offer a fixed money-back
-          guarantee. Refund requests are handled through the{" "}
-          {legalConfig.paymentProvider} customer portal and are subject to{" "}
-          {legalConfig.paymentProvider}&rsquo;s review and standard processing
-          times.
+          guarantee. Refund requests for card, Google Pay, and Apple Pay
+          subscriptions are handled through the {legalConfig.paymentProvider}{" "}
+          customer portal and are subject to {legalConfig.paymentProvider}
+          &rsquo;s review and standard processing times. QR Ph refund requests
+          are handled by contacting support.
         </LegalParagraph>
         <LegalParagraph>
           When a refund is granted, it is issued through{" "}
-          {legalConfig.paymentProvider} to the original payment method used for
-          the purchase. The time it takes to appear in your account depends on
-          your payment provider or card issuer.
+          {legalConfig.paymentProvider} for card, Google Pay, and Apple Pay
+          payments, or through {legalConfig.qrPaymentProvider} for QR Ph
+          payments, to the original payment method used for the purchase. The
+          time it takes to appear in your account depends on your payment
+          provider, bank, or card issuer.
         </LegalParagraph>
       </>
     ),
@@ -65,8 +72,9 @@ const refundSections: LegalDocumentSection[] = [
     content: (
       <>
         <LegalParagraph>
-          Request a refund through the {legalConfig.paymentProvider} customer
-          portal linked from your billing settings:
+          For card, Google Pay, and Apple Pay subscriptions, request a refund
+          through the {legalConfig.paymentProvider} customer portal linked from
+          your billing settings:
         </LegalParagraph>
         <LegalList
           items={[
@@ -76,7 +84,8 @@ const refundSections: LegalDocumentSection[] = [
           ]}
         />
         <LegalParagraph>
-          If you need help, email{" "}
+          QR Ph payments do not use the Polar customer portal. To request a QR
+          Ph refund, email{" "}
           <a
             className="text-foreground underline-offset-4 hover:underline"
             href={`mailto:${legalConfig.supportEmail}`}
@@ -99,10 +108,10 @@ const refundSections: LegalDocumentSection[] = [
     content: (
       <>
         <LegalParagraph>
-          You can cancel your subscription at any time through the{" "}
-          {legalConfig.paymentProvider} customer portal linked from your
-          billing settings. Cancellation is separate from a refund and does
-          not, by itself, issue money back.
+          For card, Google Pay, and Apple Pay subscriptions, you can cancel at
+          any time through the {legalConfig.paymentProvider} customer portal
+          linked from your billing settings. Cancellation is separate from a
+          refund and does not, by itself, issue money back.
         </LegalParagraph>
         <LegalSubheading>Access After Cancellation</LegalSubheading>
         <LegalParagraph>
@@ -110,6 +119,11 @@ const refundSections: LegalDocumentSection[] = [
           of the current billing period. At the end of that period your
           business reverts to the free plan. If you also want the payment
           refunded, request it through the portal using the steps above.
+        </LegalParagraph>
+        <LegalParagraph>
+          QR Ph payments are one-time and do not renew automatically, so there
+          is nothing to cancel. Your business keeps paid features until the end
+          of the prepaid term, then reverts to the free plan.
         </LegalParagraph>
       </>
     ),
@@ -120,17 +134,26 @@ const refundSections: LegalDocumentSection[] = [
     content: (
       <>
         <LegalParagraph>
-          {legalConfig.companyName} uses {legalConfig.paymentProvider} as its
-          merchant of record. USD is the base billing currency;{" "}
+          {legalConfig.companyName} uses {legalConfig.paymentProvider} as the
+          merchant of record for card, Google Pay, and Apple Pay subscriptions.
+          USD is the base billing currency for those subscriptions;{" "}
           {legalConfig.paymentProvider} may display a local-currency amount at
           checkout for convenience. Refunds are issued through{" "}
           {legalConfig.paymentProvider} and are subject to the provider&apos;s
           review and standard processing times.
         </LegalParagraph>
         <LegalParagraph>
-          We will help with {legalConfig.paymentProvider} refund questions as
-          quickly as possible, but we cannot guarantee specific processing
-          times for delays introduced by the provider or your card issuer.
+          QR Ph payments are processed by {legalConfig.qrPaymentProvider} as a
+          payment gateway. {legalConfig.companyName} remains the merchant for
+          those one-time payments, the PHP amount shown at checkout is the final
+          amount, and refunds are issued through{" "}
+          {legalConfig.qrPaymentProvider} to the original payment method.
+        </LegalParagraph>
+        <LegalParagraph>
+          We will help with {legalConfig.paymentProvider} and{" "}
+          {legalConfig.qrPaymentProvider} refund questions as quickly as
+          possible, but we cannot guarantee specific processing times for delays
+          introduced by the provider, your bank, or your card issuer.
         </LegalParagraph>
       </>
     ),

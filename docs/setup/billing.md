@@ -1,6 +1,9 @@
 # Billing Setup
 
-Requo uses Polar (polar.sh) only. Polar acts as the merchant of record. Polar reports currencies as lowercase ISO 4217 codes; Requo normalizes them to its uppercase `billing_currency` enum. Supported currencies are USD, PHP, GBP, CAD, AUD, EUR, NZD, SGD, AED, INR, and ZAR. Unsupported currencies are logged and recorded as USD rather than failing the webhook.
+Requo has two payment providers:
+
+- **Polar** (polar.sh) handles recurring card, Google Pay, and Apple Pay subscriptions and acts as the merchant of record. Polar reports currencies as lowercase ISO 4217 codes; Requo normalizes them to its uppercase `billing_currency` enum. Supported currencies are USD, PHP, GBP, CAD, AUD, EUR, NZD, SGD, AED, INR, and ZAR. Unsupported currencies are logged and recorded as USD rather than failing the webhook.
+- **PayMongo** handles one-time **QR Ph** payments for businesses paying from the Philippines. PayMongo is a payment gateway, not a merchant of record: the PHP list price is the final amount (VAT-inclusive where applicable) and official receipts are handled manually. QR Ph never renews automatically.
 
 ## Data model
 
@@ -14,6 +17,8 @@ Migration `0043_expand_billing_currencies` adds the local billing currencies to 
 
 Migration `0044_enable_rls_business_trial_claims` enables row-level security on `business_trial_claims` and adds the default-deny policy used by the rest of the schema. Drizzle's direct connection bypasses RLS; the policy closes access through Supabase's PostgREST roles.
 
+Migration `0047_paymongo_billing` adds `paymongo` to the `billing_provider` enum and creates `paymongo_checkout_intents` with its unique session index and default-deny RLS policy.
+
 Billing tables:
 
 - `business_subscriptions`: source of truth for business subscription status,
@@ -21,6 +26,11 @@ Billing tables:
 - `business_trial_claims`: one row per owner that has used the one-time Pro
   trial. `business_id` is intentionally not a foreign key so deleting the
   business cannot reset trial eligibility.
+- `paymongo_checkout_intents`: one row per QR Ph hosted-checkout attempt. The
+  intent is written before the PayMongo session is created, stores the
+  server-derived amount and currency, and is the idempotency key for
+  activation. `provider_session_id` is unique; RLS is enabled with the
+  default-deny policy because the table is only read through Drizzle.
 - `billing_events`: idempotent webhook event log
 - `payment_attempts`: checkout and payment history
 - `refunds`: read-only after the canonical-Polar refactor; refunds are issued in the customer portal and reflected via `subscription.canceled` / `subscription.revoked` events
@@ -61,6 +71,12 @@ Subscription lifecycle rules:
   if Polar dunning never recovers; entitlement reads enforce the same cutoff.
 - `paused` resolves to the free plan until Polar sends `subscription.resumed`.
 - `canceled` keeps paid access until `current_period_end`, then becomes free.
+- `paymongo` rows are prepaid: access ends exactly at `current_period_end`
+  with no dunning or grace window, even before the daily expiry job flips the
+  row. A renewal extends from `max(now, current_period_end)` using calendar
+  months (a 31 January monthly term ends on the last day of February). While a
+  prepaid term is active the business may renew the same plan with QR Ph but
+  cannot change plans; plan changes stay on Polar and wait until the term ends.
 - Webhook writes carry the provider event's occurrence timestamp
   (`business_subscriptions.provider_event_at`). Older or out-of-order deliveries are
   ignored so a stale retry cannot roll back newer state. Starting a local trial
@@ -112,7 +128,7 @@ In-app plan prices use the subscription's billing currency when one exists; a bu
 
 ### Tax
 
-Polar is the merchant of record and calculates tax from the customer's billing location, not from the displayed currency. Polar's default tax behavior is **exclusive** in the United States, Canada, and India, and **inclusive** elsewhere. The checkout total is the final amount; Requo does not calculate, store, or remit tax itself. A customer in a country without a local price is charged in USD but still gets the tax treatment for their location. If tax settings change in Polar, update the customer-facing copy and this document together.
+Polar is the merchant of record for card, Google Pay, and Apple Pay subscriptions and calculates tax from the customer's billing location, not from the displayed currency. QR Ph is a one-time PayMongo payment; the PHP list price is the final amount (VAT-inclusive where applicable) and Requo issues any official receipt manually. Polar's default tax behavior is **exclusive** in the United States, Canada, and India, and **inclusive** elsewhere. The checkout total is the final amount; Requo does not calculate, store, or remit tax itself. A customer in a country without a local price is charged in USD but still gets the tax treatment for their location. If tax settings change in Polar, update the customer-facing copy and this document together.
 
 ### Checkout currency
 
@@ -182,6 +198,50 @@ Always wire sandbox first. Production cutover is documented below; do not skip s
    `business_subscriptions.providerCustomerId`, then `providerSubscriptionId`, with
    `metadata.businessId` as the final legacy fallback.
 
+## PayMongo QR Ph setup
+
+QR Ph is offered only when the server-side `x-vercel-ip-country` header is `PH`
+and PayMongo is configured. The client never decides eligibility: the plan sheet
+only renders the option, and `POST /api/billing/checkout` rechecks country,
+configuration, owner role, Polar subscription state, and prepaid plan locks.
+
+1. Enable QR Ph for the PayMongo account (KYC and the QR Ph payment method must
+   be active) and copy the secret key from the dashboard.
+2. Add env values to `.env.local`:
+
+   ```env
+   PAYMONGO_SECRET_KEY=sk_test_...      # sk_live_... for live
+   PAYMONGO_WEBHOOK_SECRET=whsec_...
+   ```
+
+   The key prefix selects the mode: `sk_test_` verifies `te` signatures,
+   `sk_live_` verifies `li`. Checkout and webhook verification both require the
+   mode, and a test webhook cannot activate a live prepaid term.
+
+3. Create a webhook endpoint pointing to:
+
+   ```text
+   {NEXT_PUBLIC_APP_URL}/api/billing/paymongo/webhook
+   ```
+
+   Subscribe it to `checkout_session.payment.paid`. Copy the endpoint's signing
+   secret into `PAYMONGO_WEBHOOK_SECRET`. Other events are acknowledged and
+   recorded in `billing_events` with status `ignored`.
+
+4. Checkout uses PayMongo Hosted Checkout v2 (`POST /v2/checkout_sessions`) with
+   `payment_method_types: ["qrph"]`, a PHP line item in centavos, the intent id
+   as `reference_number`, and an `Idempotency-Key`. The return page
+   (`/billing/paymongo/return`) reads the session back so a fast redirect
+   activates before the webhook lands; both paths call the same idempotent
+   activation, which validates the paid amount and currency against the stored
+   intent. The webhook remains authoritative.
+
+5. Signature verification accepts both header formats PayMongo emits: the keyed
+   `Paymongo-Signature: t=...,te=...,li=...` (HMAC-SHA256 of `${t}.${rawBody}`)
+   and a plain HMAC-SHA256 hex digest of the raw body. There is no timestamp
+   freshness window because PayMongo retries for hours; replay protection is the
+   `billing_events` event-id dedupe plus per-intent activation idempotency.
+
 ## Production cutover
 
 Cut over only after sandbox is fully validated end-to-end (checkout, webhook receipt, customer portal redirect, subscription state propagation). Production charges real money in the checkout currency; a misconfigured product id, missing local price, or webhook secret can result in user-visible billing errors or unrecoverable refund cases.
@@ -193,6 +253,8 @@ Cut over only after sandbox is fully validated end-to-end (checkout, webhook rec
 - Sandbox subscription state changes (active, past due, paused, resumed, canceled with future period end, revoked) propagate to `business_subscriptions` and the denormalized `businesses.plan` cache.
 - A stale or out-of-order duplicate delivery does not overwrite newer subscription state.
 - Sandbox customer portal redirect from `/api/billing/polar/customer-portal` works for the business owner with a non-null `providerCustomerId`; manager/staff requests return 403.
+- QR Ph sandbox checkout completes for a Philippine visitor and the paid session activates the intent exactly once, whether the return page, the webhook, or both arrive first.
+- A test-mode PayMongo webhook delivered to a live-key endpoint (or the reverse) is acknowledged and logged without changing subscription state.
 - The deployment target's public origin is reachable over HTTPS and `NEXT_PUBLIC_APP_URL` is set to that origin (e.g. `https://requo.app`).
 
 ### Cutover steps
@@ -210,8 +272,14 @@ Cut over only after sandbox is fully validated end-to-end (checkout, webhook rec
    POLAR_PRO_YEARLY_PRODUCT_ID=               # production product id (Pro yearly)
    POLAR_BUSINESS_PRODUCT_ID=                 # production product id (Business monthly)
    POLAR_BUSINESS_YEARLY_PRODUCT_ID=          # production product id (Business yearly)
+   PAYMONGO_SECRET_KEY=sk_live_...            # production key; prefix selects live mode
+   PAYMONGO_WEBHOOK_SECRET=whsec_...          # production endpoint signing secret
    NEXT_PUBLIC_APP_URL=https://<production-origin>
    ```
+
+   Point the production PayMongo webhook endpoint at
+   `https://<production-origin>/api/billing/paymongo/webhook` and subscribe it
+   to `checkout_session.payment.paid`.
 
 5. **Deploy and verify.** Trigger a production deploy, then verify the production environment can reach Polar:
    - Hit `/pricing` from the production origin and confirm the upgrade button reaches the Polar checkout page. Check at least one supported local market and one unsupported market: the cards should show that market's fixed currency and the Polar checkout should present the same currency, with USD as the fallback.

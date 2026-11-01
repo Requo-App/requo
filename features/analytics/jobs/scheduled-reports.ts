@@ -136,6 +136,7 @@ export async function sendAnalyticsScheduledReports(): Promise<AnalyticsSchedule
       subscription: {
         status: businessSubscriptions.status,
         plan: businessSubscriptions.plan,
+        billingProvider: businessSubscriptions.billingProvider,
         currentPeriodEnd: businessSubscriptions.currentPeriodEnd,
         trialEndsAt: businessSubscriptions.trialEndsAt,
       },

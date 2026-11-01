@@ -24,6 +24,7 @@ import {
   CreditCard,
   Crown,
   Mail,
+  QrCode,
   Sparkles,
   Tag,
 } from "lucide-react";
@@ -45,6 +46,7 @@ import { PaymentMethodIcon } from "@/features/billing/components/payment-method-
 import type { BusinessBillingOverview } from "@/features/billing/types";
 import { getBusinessAnalyticsPath } from "@/features/businesses/routes";
 import { getPlanPriceLabel } from "@/lib/billing/plans";
+import { isPaidPlan } from "@/lib/billing/paymongo-eligibility";
 import type { PaidPlan } from "@/lib/billing/types";
 import { planMeta } from "@/lib/plans";
 import { getUsageLimit } from "@/lib/plans/usage-limits";
@@ -94,14 +96,31 @@ export function BillingStatusCard({
     hasPendingSubscription ||
     hasPausedSubscription ||
     hasCanceledSubscription;
+  const isPrepaid = subscription?.provider === "paymongo";
+  // A prepaid row keeps the paid plan it was bought for after the term ends,
+  // while the effective plan has already dropped to Free. Name the plan the
+  // owner is renewing, not the one they temporarily lost.
+  const prepaidPlanLabel =
+    subscription && isPaidPlan(subscription.plan)
+      ? planMeta[subscription.plan].label
+      : planMeta[currentPlan].label;
+  const prepaidRenewalPlan =
+    isPrepaid && billing.qrPh.renewablePlan
+      ? billing.qrPh.renewablePlan
+      : null;
   const canManageInPortal =
-    !isTrialing && Boolean(hasSubscription) && !!subscription?.providerCustomerId;
+    !isTrialing &&
+    !isPrepaid &&
+    Boolean(hasSubscription) &&
+    !!subscription?.providerCustomerId;
 
   const [creditsDialogOpen, setCreditsDialogOpen] = useState(false);
 
   const renewalDate = isTrialing || isLapsedTrial
     ? (subscription?.trialEndsAt ?? subscription?.currentPeriodEnd ?? null)
     : (subscription?.currentPeriodEnd ?? null);
+  const isPrepaidExpired =
+    isPrepaid && renewalDate !== null && renewalDate <= new Date();
   const currency = billing.billingCurrency;
   const priceLabel = isFreePlan
     ? "Free"
@@ -122,6 +141,13 @@ export function BillingStatusCard({
       : "Your Pro trial has ended. The business is now on Free and your data stays available.";
   } else if (isTrialing && renewalDate) {
     subscriptionLine = `Your Pro trial ends ${formatBillingDate(renewalDate)}. Choose a plan to keep Pro features; otherwise the business moves to Free and your data stays available.`;
+  } else if (isPrepaid && renewalDate) {
+    subscriptionLine = isPrepaidExpired
+      ? `Your prepaid term ended ${formatBillingDate(renewalDate)}. Renew with QR Ph to restore ${prepaidPlanLabel} features.`
+      : `Prepaid with QR Ph until ${formatBillingDate(renewalDate)}. QR Ph payments don't renew automatically; renew before then to keep ${prepaidPlanLabel}.`;
+  } else if (isPrepaid) {
+    subscriptionLine =
+      "This business was paid with QR Ph. QR Ph payments are one-time and don't renew automatically.";
   } else if (
     subscription?.canceledAt &&
     (subscription.status === "active" ||
@@ -186,6 +212,7 @@ export function BillingStatusCard({
                       currency={currency}
                       currentPlan={currentPlan}
                       isTrialing={isTrialing}
+                      qrPh={billing.qrPh}
                       userId={userId}
                       businessId={businessId}
                       businessSlug={businessSlug}
@@ -198,6 +225,7 @@ export function BillingStatusCard({
                         currency={currency}
                         currentPlan={currentPlan}
                         isTrialing={isTrialing}
+                        qrPh={billing.qrPh}
                         userId={userId}
                         businessId={businessId}
                         businessSlug={businessSlug}
@@ -213,17 +241,38 @@ export function BillingStatusCard({
                       />
                     ) : (
                       <UpgradeButton
+                        allowHighestPlan={prepaidRenewalPlan === "business"}
                         currency={currency}
                         currentPlan={currentPlan}
+                        qrPh={billing.qrPh}
+                        targetPlan={prepaidRenewalPlan ?? undefined}
                         userId={userId}
                         businessId={businessId}
                         businessSlug={businessSlug}
                       >
                         <ArrowUpRight data-icon="inline-start" />
-                        {isFreePlan ? "Subscribe Now" : "Upgrade plan"}
+                        {prepaidRenewalPlan
+                          ? "Renew plan"
+                          : isFreePlan
+                            ? "Subscribe Now"
+                            : "Upgrade plan"}
                       </UpgradeButton>
                     )}
                   </div>
+                ) : prepaidRenewalPlan === "business" ? (
+                  <UpgradeButton
+                    allowHighestPlan
+                    currency={currency}
+                    currentPlan={currentPlan}
+                    qrPh={billing.qrPh}
+                    targetPlan="business"
+                    userId={userId}
+                    businessId={businessId}
+                    businessSlug={businessSlug}
+                  >
+                    <QrCode data-icon="inline-start" />
+                    Renew plan
+                  </UpgradeButton>
                 ) : (
                   <Button disabled variant="outline" size="sm">
                     Highest plan active
@@ -246,7 +295,11 @@ export function BillingStatusCard({
                       ? "Trial ends"
                       : isLapsedTrial
                         ? "Trial ended"
-                        : "Renewal date"
+                        : isPrepaid
+                          ? isPrepaidExpired
+                            ? "Prepaid term ended"
+                            : "Prepaid term ends"
+                          : "Renewal date"
                   }
                   value={formatBillingDate(renewalDate)}
                 />
@@ -358,6 +411,7 @@ export function BillingStatusCard({
                   <UpgradeButton
                     currency={currency}
                     currentPlan={currentPlan}
+                    qrPh={billing.qrPh}
                     userId={userId}
                     businessId={businessId}
                     businessSlug={businessSlug}
@@ -455,6 +509,45 @@ export function BillingStatusCard({
           </CardContent>
         </Card>
       </section>
+
+      {/* Prepaid QR Ph billing */}
+      {canManageBilling && isPrepaid ? (
+        <section
+          aria-labelledby="billing-prepaid-heading"
+          className="flex flex-col gap-2"
+        >
+          <h2
+            id="billing-prepaid-heading"
+            className="text-sm font-semibold text-foreground"
+          >
+            Prepaid billing
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            {isPrepaidExpired
+              ? `Your prepaid term ended ${formatBillingDate(renewalDate)}. Renew with QR Ph to restore access.`
+              : `QR Ph payments are one-time and don't renew automatically. Renew any time to extend your access from ${formatBillingDate(renewalDate)}.`}
+          </p>
+          <div>
+            <UpgradeButton
+              allowHighestPlan
+              currency={currency}
+              currentPlan={currentPlan}
+              qrPh={billing.qrPh}
+              targetPlan={
+                prepaidRenewalPlan ??
+                (isPaidPlan(subscription?.plan) ? subscription.plan : undefined)
+              }
+              userId={userId}
+              businessId={businessId}
+              businessSlug={businessSlug}
+              variant="outline"
+            >
+              <QrCode data-icon="inline-start" />
+              Renew with QR Ph
+            </UpgradeButton>
+          </div>
+        </section>
+      ) : null}
 
       {/* Manage billing information */}
       {canManageBilling && canManageInPortal ? (
@@ -637,6 +730,9 @@ function getPaymentMethodDisplay(provider: string, method?: string | null) {
       return "Mastercard";
     case "paypal":
       return "PayPal";
+    case "qr ph":
+    case "qrph":
+      return "QR Ph";
     case "apple_pay":
       return "Apple Pay";
     case "google_pay":

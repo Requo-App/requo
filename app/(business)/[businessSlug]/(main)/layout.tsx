@@ -18,6 +18,7 @@ import { UpgradeButton } from "@/features/billing/components/upgrade-button";
 import { BusinessCheckoutProvider } from "@/features/billing/components/business-checkout-provider";
 import { PlanSelectionProvider } from "@/features/billing/components/plan-selection-provider";
 import { TrialBanner } from "@/features/billing/components/trial-banner";
+import { PrepaidExpiryBanner } from "@/features/billing/components/prepaid-expiry-banner";
 import { UpgradeSuccessModal } from "@/features/billing/components/upgrade-success-modal";
 import { LockedBusinessSurface } from "@/features/businesses/components/locked-business-surface";
 import { ArchivedBusinessBanner } from "@/features/businesses/components/archived-business-banner";
@@ -179,6 +180,7 @@ async function UserMenuSlot({ businessSlug }: { businessSlug: string }) {
       }
       plan={businessContext.business.plan}
       isTrialing={isTrialing}
+      qrPh={billing?.qrPh}
     />
   );
 }
@@ -230,6 +232,7 @@ async function UpgradeSlot({ businessSlug }: { businessSlug: string }) {
           className="whitespace-nowrap"
           currentPlan={billing.currentPlan}
           isTrialing={isTrialing}
+          qrPh={billing.qrPh}
           size="sm"
           targetPlan={isTrialing ? "pro" : undefined}
           userId={billing.userId}
@@ -253,6 +256,12 @@ async function ChecklistSlot({ businessSlug }: { businessSlug: string }) {
       publicInquiryEnabled={businessContext.business.publicInquiryEnabled}
     />
   );
+}
+
+const PREPAID_REMINDER_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+
+function isPrepaidReminderDue(periodEnd: Date): boolean {
+  return periodEnd.getTime() - Date.now() <= PREPAID_REMINDER_WINDOW_MS;
 }
 
 async function BannerSlot({ businessSlug }: { businessSlug: string }) {
@@ -289,6 +298,31 @@ async function BannerSlot({ businessSlug }: { businessSlug: string }) {
         )}
       />
     );
+  }
+
+  // A prepaid QR Ph term has no renewal event, so remind the owner in the
+  // shell as the term nears its end and keep the banner after it lapses until
+  // the owner renews or switches plans.
+  if (
+    billing?.subscription?.provider === "paymongo" &&
+    (billing.subscription.status === "active" ||
+      billing.subscription.status === "expired") &&
+    billing.subscription.currentPeriodEnd
+  ) {
+    if (isPrepaidReminderDue(billing.subscription.currentPeriodEnd)) {
+      return (
+        <PrepaidExpiryBanner
+          billingHref={getBusinessSettingsPath(
+            businessContext.business.slug,
+            "billing",
+          )}
+          expiresAt={billing.subscription.currentPeriodEnd}
+          plan={
+            billing.subscription.plan === "business" ? "business" : "pro"
+          }
+        />
+      );
+    }
   }
 
   return null;

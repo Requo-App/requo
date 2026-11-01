@@ -192,25 +192,31 @@ const termsSections: LegalDocumentSection[] = [
       <>
         <LegalParagraph>
           Paid plans are billed monthly or yearly at the prices shown at
-          checkout. Subscriptions renew automatically at the end of each billing
-          period unless you cancel before the renewal date, and you authorize our
-          payment provider to charge your payment method for each renewal.
+          checkout. Card, Google Pay, and Apple Pay subscriptions renew
+          automatically at the end of each billing period unless you cancel
+          before the renewal date, and you authorize our payment provider to
+          charge your payment method for each renewal. QR Ph payments from{" "}
+          {legalConfig.qrPaymentCountry} are one-time: they do not renew, and
+          access runs to the end of the prepaid term.
         </LegalParagraph>
         <LegalParagraph>
-          Payments are processed by {legalConfig.paymentProvider}, our merchant
-          of record. USD is the base billing currency;{" "}
-          {legalConfig.paymentProvider} may display a local-currency amount at
-          checkout for convenience. We do not collect or store full payment card
-          details.
+          Card, Google Pay, and Apple Pay payments are processed by{" "}
+          {legalConfig.paymentProvider}, our merchant of record. USD is the base
+          billing currency; {legalConfig.paymentProvider} may display a
+          local-currency amount at checkout for convenience. QR Ph payments are
+          processed by {legalConfig.qrPaymentProvider} as a payment gateway, and
+          the PHP amount shown at checkout is the final amount. We do not collect
+          or store full payment card details.
         </LegalParagraph>
         <LegalParagraph>
-          You may cancel at any time through the {legalConfig.paymentProvider}{" "}
-          customer portal linked from your billing settings. After cancellation,
-          you retain access to paid features until the end of the current billing
-          period, after which the business reverts to the free plan. Refunds are
-          handled through that portal and are subject to our{" "}
-          <Link href="/refund-policy">Refund Policy</Link>. Cancellation does not
-          by itself entitle you to a refund.
+          You may cancel a card subscription at any time through the{" "}
+          {legalConfig.paymentProvider} customer portal linked from your billing
+          settings. After cancellation, you retain access to paid features until
+          the end of the current billing period, after which the business reverts
+          to the free plan. A QR Ph payment has nothing to cancel; access ends
+          with the prepaid term. Refunds are subject to our{" "}
+          <Link href="/refund-policy">Refund Policy</Link>, and cancellation does
+          not by itself entitle you to a refund.
         </LegalParagraph>
         <LegalParagraph>
           We may change plan pricing. If we increase the price of a plan you are

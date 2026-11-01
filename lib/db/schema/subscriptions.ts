@@ -20,7 +20,7 @@ export { billingCurrencies, type BillingCurrency };
 
 /* ── Enums ────────────────────────────────────────────────────────────────── */
 
-export const billingProviders = ["polar"] as const;
+export const billingProviders = ["polar", "paymongo"] as const;
 export type BillingProvider = (typeof billingProviders)[number];
 
 export const billingProviderEnum = pgEnum("billing_provider", [
@@ -64,6 +64,20 @@ export const refundStatuses = ["pending", "approved", "failed"] as const;
 export type RefundStatus = (typeof refundStatuses)[number];
 
 export const refundStatusEnum = pgEnum("refund_status", [...refundStatuses]);
+
+export const paymongoCheckoutIntentStatuses = [
+  "pending",
+  "succeeded",
+  "failed",
+  "expired",
+] as const;
+export type PaymongoCheckoutIntentStatus =
+  (typeof paymongoCheckoutIntentStatuses)[number];
+
+export const paymongoCheckoutIntentStatusEnum = pgEnum(
+  "paymongo_checkout_intent_status",
+  [...paymongoCheckoutIntentStatuses],
+);
 
 /* ── account_subscriptions ──────────────────────────────────────────────── */
 
@@ -162,8 +176,54 @@ export const businessSubscriptions = pgTable(
   ],
 );
 
-/* ── business_trial_claims ───────────────────────────────────────────────── */
+/* ── paymongo_checkout_intents ───────────────────────────────────────────── */
 
+/**
+ * One row per PayMongo QR Ph hosted-checkout attempt.
+ *
+ * The intent is written *before* the PayMongo session is created so a crash
+ * after the provider call can still be reconciled from `providerSessionId` or
+ * from the `intentId` metadata PayMongo echoes back. Activation is keyed by
+ * the intent row, which makes the success-page eager sync and the webhook
+ * idempotent when both arrive for the same payment.
+ */
+export const paymongoCheckoutIntents = pgTable(
+  "paymongo_checkout_intents",
+  {
+    id: text("id").primaryKey(),
+    businessId: text("business_id")
+      .notNull()
+      .references(() => businesses.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    providerSessionId: text("provider_session_id"),
+    plan: text("plan").notNull(), // "pro" | "business"
+    interval: text("interval").notNull(), // "monthly" | "yearly"
+    amount: integer("amount").notNull(), // PHP centavos
+    currency: billingCurrencyEnum("currency").notNull().default("PHP"),
+    status: paymongoCheckoutIntentStatusEnum("status")
+      .notNull()
+      .default("pending"),
+    providerPaymentId: text("provider_payment_id"),
+    paidAt: timestamp("paid_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("paymongo_checkout_intents_provider_session_id_unique").on(
+      table.providerSessionId,
+    ),
+    index("paymongo_checkout_intents_business_id_idx").on(table.businessId),
+    index("paymongo_checkout_intents_status_idx").on(table.status),
+  ],
+);
+
+/* ── business_trial_claims ───────────────────────────────────────────────── */
 /**
  * Permanent, owner-level marker that a business Pro trial has been used.
  *

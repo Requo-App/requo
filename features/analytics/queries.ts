@@ -191,6 +191,7 @@ async function getAnalyticsBusinessMetaUncached(
       currency: businesses.defaultCurrency,
       subscriptionStatus: businessSubscriptions.status,
       subscriptionPlan: businessSubscriptions.plan,
+      subscriptionBillingProvider: businessSubscriptions.billingProvider,
       subscriptionCurrentPeriodEnd: businessSubscriptions.currentPeriodEnd,
       subscriptionTrialEndsAt: businessSubscriptions.trialEndsAt,
       industryCategory: businesses.industryCategory,
@@ -212,6 +213,7 @@ async function getAnalyticsBusinessMetaUncached(
     plan: resolveEffectivePlanFromSubscriptionFields({
       status: row?.subscriptionStatus ?? null,
       plan: row?.subscriptionPlan ?? null,
+      billingProvider: row?.subscriptionBillingProvider ?? null,
       currentPeriodEnd: row?.subscriptionCurrentPeriodEnd ?? null,
       trialEndsAt: row?.subscriptionTrialEndsAt ?? null,
     }),

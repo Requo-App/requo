@@ -29,6 +29,7 @@ export async function processExpiredSubscriptions(): Promise<ExpireSubscriptions
       id: businessSubscriptions.id,
       businessId: businessSubscriptions.businessId,
       status: businessSubscriptions.status,
+      billingProvider: businessSubscriptions.billingProvider,
       currentPeriodEnd: businessSubscriptions.currentPeriodEnd,
       trialEndsAt: businessSubscriptions.trialEndsAt,
     })
@@ -51,6 +52,14 @@ export async function processExpiredSubscriptions(): Promise<ExpireSubscriptions
           eq(businessSubscriptions.status, "trialing"),
           isNotNull(businessSubscriptions.trialEndsAt),
           lt(businessSubscriptions.trialEndsAt, now),
+        ),
+        // QR Ph is prepaid: access ends at the paid term boundary with no
+        // dunning or grace window.
+        and(
+          eq(businessSubscriptions.status, "active"),
+          eq(businessSubscriptions.billingProvider, "paymongo"),
+          isNotNull(businessSubscriptions.currentPeriodEnd),
+          lt(businessSubscriptions.currentPeriodEnd, now),
         ),
       ),
     );

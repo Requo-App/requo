@@ -174,6 +174,11 @@ sites; in-app/push equivalents remain authoritative.
   - `POLAR_BUSINESS_PRODUCT_ID`
   - `POLAR_BUSINESS_YEARLY_PRODUCT_ID`
 - Add a fixed price in each supported currency (USD, PHP, GBP, CAD, AUD, EUR, NZD, SGD, AED, INR, ZAR) to all four Polar products, and set the organization's default presentment currency to USD. The price table, country mapping, and tax behavior are in `docs/setup/billing.md`.
+- Configure PayMongo for the one-time QR Ph option offered to Philippine businesses:
+  - `PAYMONGO_SECRET_KEY` (`sk_test_...` or `sk_live_...`; the prefix selects the webhook signature mode)
+  - `PAYMONGO_WEBHOOK_SECRET`
+
+  Register `{NEXT_PUBLIC_APP_URL}/api/billing/paymongo/webhook` for `checkout_session.payment.paid` and enable QR Ph on the PayMongo account. QR Ph is a one-time prepaid term with no auto-renewal, and plan changes wait until the term ends. Setup details are in `docs/setup/billing.md`.
 - `/pricing` uses Vercel's `x-vercel-ip-country` header to show local prices. Deploying on Vercel needs no extra configuration; on another host, set the same header in a proxy or the page falls back to USD. Polar still selects the checkout currency from the forwarded customer IP.
 - Point webhooks at:
   - `/api/billing/polar/webhook`
