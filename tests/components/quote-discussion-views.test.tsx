@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -38,6 +38,7 @@ const messages: QuoteDiscussionMessageView[] = [
 ];
 
 const publicDiscussion: PublicQuoteDiscussionView = {
+  quoteId: "quote-1",
   messages,
   closed: false,
   archived: false,
@@ -217,6 +218,74 @@ describe("public quote discussion panel", () => {
     );
     await user.click(screen.getByRole("button", { name: "Change" }));
     expect(screen.getByLabelText("Display name")).toHaveValue("E2E Customer");
+  });
+
+  it("keeps drafts and seen markers tied to the quote across business renames", async () => {
+    const user = userEvent.setup();
+    const action = async () => ({ success: "Message sent." });
+    const view = render(
+      <PublicQuoteDiscussion action={action} discussion={publicDiscussion} />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /Questions/ }));
+    await user.type(screen.getByLabelText("Message"), "A private draft");
+    view.unmount();
+
+    const renamed = render(
+      <PublicQuoteDiscussion
+        action={action}
+        discussion={{ ...publicDiscussion, businessName: "Renamed Studio" }}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Questions, 2 messages" })).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: /Questions/ }));
+    expect(screen.getByLabelText("Message")).toHaveValue("A private draft");
+    renamed.unmount();
+
+    render(
+      <PublicQuoteDiscussion
+        action={action}
+        discussion={{ ...publicDiscussion, quoteId: "quote-2" }}
+      />,
+    );
+    expect(screen.getByRole("button", { name: /new reply from business/ })).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: /Questions/ }));
+    expect(screen.getByLabelText("Message")).toHaveValue("");
+  });
+
+  it("reconciles a multiline optimistic message with the persisted message", async () => {
+    const user = userEvent.setup();
+    let resolveAction: ((state: { success: string }) => void) | undefined;
+    const action = () => new Promise<{ success: string }>((resolve) => {
+      resolveAction = resolve;
+    });
+    const discussion = { ...publicDiscussion, messages: [] };
+    const view = render(
+      <PublicQuoteDiscussion action={action} discussion={discussion} />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Questions" }));
+    await user.type(screen.getByLabelText("Message"), "First line{Enter}Second line");
+    await user.click(screen.getByRole("button", { name: "Send" }));
+    expect(within(screen.getByRole("list", { name: "Discussion messages" })).getAllByRole("listitem")).toHaveLength(1);
+
+    view.rerender(
+      <PublicQuoteDiscussion
+        action={action}
+        discussion={{
+          ...discussion,
+          messages: [{
+            id: "saved-message",
+            senderType: "customer",
+            senderName: "Maria Santos",
+            body: "First line\r\nSecond line",
+            createdAt: "2026-05-01T10:00:00.000Z",
+          }],
+        }}
+      />,
+    );
+    expect(within(screen.getByRole("list", { name: "Discussion messages" })).getAllByRole("listitem")).toHaveLength(1);
+    await act(async () => resolveAction?.({ success: "Message sent." }));
   });
 
   it("shows an optimistic bubble while sending and preserves text on failure", async () => {

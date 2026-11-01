@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { startTransition, useEffect, useRef, useState } from "react";
 import { Check, CircleSlash } from "lucide-react";
 
 import { ConfirmationDialog } from "@/components/shared/confirmation-dialog";
@@ -78,7 +78,9 @@ export function PublicQuoteResponseForm({
     setDeclineDialogOpen(false);
     const formData = new FormData(form);
     formData.set("response", "rejected");
-    formAction(formData);
+    startTransition(() => {
+      formAction(formData);
+    });
   }
 
   return (

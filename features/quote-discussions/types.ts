@@ -66,6 +66,7 @@ export type QuoteDiscussionInboxResult = {
 };
 
 export type PublicQuoteDiscussionView = {
+  quoteId: string;
   messages: QuoteDiscussionMessageView[];
   closed: boolean;
   archived: boolean;

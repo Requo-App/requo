@@ -34,22 +34,16 @@ const discussionSeenStoragePrefix = "requo:quote-discussion-seen:";
 const discussionDraftStoragePrefix = "requo:quote-discussion-draft:";
 const discussionSeenStorageEvent = "requo:quote-discussion-seen-change";
 
-function getDiscussionStorageScope(businessName: string, quoteNumber: string) {
-  // Quote numbers are unique per business, not across the public origin, so the
-  // business name keeps two quotes with the same number from sharing a badge or
-  // draft.
-  return `${businessName}:${quoteNumber}`;
+function getDiscussionSeenStorageKey(quoteId: string) {
+  return `${discussionSeenStoragePrefix}${quoteId}`;
 }
 
-function getDiscussionSeenStorageKey(businessName: string, quoteNumber: string) {
-  return `${discussionSeenStoragePrefix}${getDiscussionStorageScope(businessName, quoteNumber)}`;
+function getDiscussionDraftStorageKey(quoteId: string) {
+  return `${discussionDraftStoragePrefix}${quoteId}`;
 }
 
-function getDiscussionDraftStorageKey(
-  businessName: string,
-  quoteNumber: string,
-) {
-  return `${discussionDraftStoragePrefix}${getDiscussionStorageScope(businessName, quoteNumber)}`;
+function normalizeLineEndings(body: string) {
+  return body.replace(/\r\n?/g, "\n");
 }
 
 function subscribeToDiscussionSeenStorage(onStoreChange: () => void) {
@@ -91,10 +85,7 @@ export function PublicQuoteDiscussion({
   } | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const threadScrollRef = useRef<HTMLDivElement>(null);
-  const seenStorageKey = getDiscussionSeenStorageKey(
-    discussion.businessName,
-    discussion.quoteNumber,
-  );
+  const seenStorageKey = getDiscussionSeenStorageKey(discussion.quoteId);
   const lastSeenAt = useSyncExternalStore(
     subscribeToDiscussionSeenStorage,
     () => readDiscussionSeenAt(seenStorageKey),
@@ -224,7 +215,8 @@ export function PublicQuoteDiscussion({
       (message) =>
         !optimisticMessage.existingMessageIds.includes(message.id) &&
         message.senderType === "customer" &&
-        message.body === optimisticMessage.message.body,
+        normalizeLineEndings(message.body) ===
+          normalizeLineEndings(optimisticMessage.message.body),
     )
       ? optimisticMessage.message
       : null;
@@ -318,10 +310,7 @@ export function PublicQuoteDiscussion({
                   ? "This quote is closed, so the discussion is now read-only. The message history is still available above."
                   : undefined
               }
-              draftKey={getDiscussionDraftStorageKey(
-                discussion.businessName,
-                discussion.quoteNumber,
-              )}
+              draftKey={getDiscussionDraftStorageKey(discussion.quoteId)}
               nameFieldMode="collapsible"
               onOptimisticMessage={handleOptimisticMessage}
               onSendError={handleSendError}

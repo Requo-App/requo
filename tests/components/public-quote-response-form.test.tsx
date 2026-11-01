@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -84,5 +84,25 @@ describe("public quote response form", () => {
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
     );
     expect(action).not.toHaveBeenCalled();
+  });
+
+  it("disables the response controls while a decline is pending", async () => {
+    const user = userEvent.setup();
+    let resolveAction: ((state: PublicQuoteResponseActionState) => void) | undefined;
+    const action = vi.fn(() => new Promise<PublicQuoteResponseActionState>((resolve) => {
+      resolveAction = resolve;
+    }));
+    renderForm(action);
+
+    await user.click(screen.getByRole("button", { name: "Decline" }));
+    await user.click(screen.getByRole("button", { name: "Decline quote" }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(screen.getByRole("button", { name: "Decline" })).toBeDisabled();
+    expect(screen.getByLabelText("Your name")).toBeDisabled();
+    expect(action).toHaveBeenCalledTimes(1);
+
+    await act(async () => resolveAction?.({ error: "Try again." }));
+    expect(screen.getByRole("button", { name: "Decline" })).toBeEnabled();
   });
 });
