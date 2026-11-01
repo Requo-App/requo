@@ -90,7 +90,7 @@ async function main(): Promise<void> {
   // "Supabase fetch failed" from the pre-flight health check.
   if (!(await ensureSupabasePorts(log))) {
     console.error(
-      "[dev:local] Supabase is running but its local URLs are unreachable. Restart Docker Desktop and try again.",
+      "[dev:local] Could not verify Supabase local URLs. Check Supabase status and Docker Desktop, then try again.",
     );
     process.exit(1);
   }

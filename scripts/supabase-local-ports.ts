@@ -51,7 +51,7 @@ function readSupabaseEndpoints(): SupabaseEndpoint[] {
 
   if (result.error || result.status !== 0 || !result.stdout) return [];
 
-  let status: SupabaseStatus;
+  let status: SupabaseStatus | null;
   try {
     status = JSON.parse(result.stdout) as SupabaseStatus;
   } catch {
@@ -59,9 +59,9 @@ function readSupabaseEndpoints(): SupabaseEndpoint[] {
   }
 
   const candidates: Array<[string, string | undefined, string]> = [
-    ["API", status.API_URL, "/auth/v1/health"],
-    ["Studio", status.STUDIO_URL, "/"],
-    ["Inbucket", status.INBUCKET_URL, "/"],
+    ["API", status?.API_URL, "/auth/v1/health"],
+    ["Studio", status?.STUDIO_URL, "/"],
+    ["Inbucket", status?.INBUCKET_URL, "/"],
   ];
 
   return candidates.flatMap(([name, base, path]) => {
@@ -134,14 +134,17 @@ function restartContainers(names: string[]): boolean {
 
 /**
  * Probes the local Supabase HTTP endpoints and restarts the containers behind
- * any stale published ports. Returns false only when recovery was needed and
- * did not succeed.
+ * any stale published ports. Returns false if endpoints cannot be determined
+ * or reached, including when recovery fails.
  */
 export async function ensureSupabasePorts(
   log: (message: string) => void,
 ): Promise<boolean> {
   const endpoints = readSupabaseEndpoints();
-  if (endpoints.length === 0) return true;
+  if (endpoints.length !== 3) {
+    log("Could not determine all required Supabase endpoints from status.");
+    return false;
+  }
 
   const initial = await Promise.all(
     endpoints.map(async (endpoint) => ({
