@@ -586,22 +586,19 @@ export function DashboardSidebar({
       {/* Pinned header: the business profile and search stay put while only
           the primary nav below scrolls. The rail supplies the 8px outer inset;
           the top slot owns its own inner 8px padding so its hover fill starts
-          at the rail edge while labels still line up with the nav rows. The
-          header keeps the same height in both states, so collapsing swaps the
-          top slot for the trigger without shifting the nav. */}
+          at the rail edge while labels still line up with the nav rows. In the
+          collapsed rail, the compact slot sits above the toggle. */}
       <div className="flex w-full shrink-0 flex-col gap-1">
         <div
           className={cn(
-            "flex h-14 w-full items-center",
-            collapsed ? "gap-0" : "gap-2",
+            "flex w-full items-center gap-2",
+            collapsed ? "flex-col justify-center" : "h-14",
           )}
         >
           <div
-            aria-hidden={collapsed || undefined}
-            inert={collapsed}
             className={cn(
-              "min-w-0 flex-1 transition-opacity shell-sidebar-motion",
-              collapsed ? "pointer-events-none opacity-0" : "opacity-100",
+              "min-w-0",
+              collapsed ? "flex w-full justify-center" : "flex-1",
               // The built-in user menu has no inner padding of its own.
               !collapsed && !topSlot && "px-2",
             )}

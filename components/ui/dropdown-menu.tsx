@@ -333,7 +333,7 @@ function DropdownMenuSubContent({
     // Portaled so a scrolling parent content (max-height + overflow-y-auto)
     // cannot clip the submenu or turn it into extra scroll space. Radix's
     // SubContent is not portaled by default.
-    <DropdownMenuPrimitive.Portal>
+    <DropdownMenuPrimitive.Portal forceMount={props.forceMount}>
       <DropdownMenuPrimitive.SubContent
         data-slot="dropdown-menu-sub-content"
         data-mobile-sheet={mobileSheet ? "true" : undefined}
