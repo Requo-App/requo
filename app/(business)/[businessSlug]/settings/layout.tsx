@@ -18,13 +18,11 @@ import { BusinessCheckoutProvider } from "@/features/billing/components/business
 import { PlanSelectionProvider } from "@/features/billing/components/plan-selection-provider";
 import { getBusinessBillingShellOverview } from "@/features/billing/queries";
 import { getAppShellContext } from "@/lib/app-shell/context";
-import { requireSession } from "@/lib/auth/session";
 
 /**
  * Settings layout using the same sidebar shell pattern as the business
- * dashboard. Renders a collapsible sidebar with settings navigation and
- * a content inset area. No back button — navigation is handled by the
- * sidebar itself.
+ * dashboard. Renders a collapsible sidebar with settings navigation, a back
+ * row to the business home, and a content inset area.
  *
  * Mounts BusinessCheckoutProvider so entitlement components inside settings
  * (knowledge, pricing, email, members, billing, etc.) can open the plan
@@ -128,13 +126,8 @@ async function CheckoutProviderSlot({
 /* -------------------------------------------------------------------------- */
 
 async function UserMenuSlot({ businessSlug }: { businessSlug: string }) {
-  const session = await requireSession();
-  const [shellContext, profile] = await Promise.all([
-    getAppShellContext(businessSlug),
-    getAccountProfileForUser(session.user.id),
-  ]);
-
-  const { user } = shellContext;
+  const { user } = await getAppShellContext(businessSlug);
+  const profile = await getAccountProfileForUser(user.id);
 
   const avatarSrc = resolveUserAvatarSrc({
     avatarStoragePath: profile?.avatarStoragePath,

@@ -831,22 +831,22 @@ export function BillingStatusStaticFallback() {
             <div className="grid gap-4 sm:grid-cols-2 sm:gap-6">
               <div className="flex flex-col gap-3">
                 {detailRows.slice(0, 3).map((row) => (
-                  <p className="min-w-0 truncate text-sm" key={row.label}>
+                  <div className="min-w-0 truncate text-sm" key={row.label}>
                     <span className="text-muted-foreground">{row.label} </span>
                     <Skeleton
                       className={`inline-block h-4 rounded-md align-middle ${row.valueWidth}`}
                     />
-                  </p>
+                  </div>
                 ))}
               </div>
               <div className="flex flex-col gap-3 sm:border-l sm:border-border sm:pl-6">
                 {detailRows.slice(3).map((row) => (
-                  <p className="min-w-0 truncate text-sm" key={row.label}>
+                  <div className="min-w-0 truncate text-sm" key={row.label}>
                     <span className="text-muted-foreground">{row.label} </span>
                     <Skeleton
                       className={`inline-block h-4 rounded-md align-middle ${row.valueWidth}`}
                     />
-                  </p>
+                  </div>
                 ))}
               </div>
             </div>
@@ -862,10 +862,10 @@ export function BillingStatusStaticFallback() {
         <div className="rounded-xl border border-border/75 bg-card">
           <div className="flex flex-col gap-5 p-4 sm:p-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="flex items-center gap-2 text-sm text-foreground">
+              <div className="flex items-center gap-2 text-sm text-foreground">
                 <Skeleton className="h-4 w-36 rounded-md" />
                 <span className="text-muted-foreground">/month</span>
-              </p>
+              </div>
               <Skeleton className="h-8 w-20 rounded-md" />
             </div>
             <div className="flex flex-col gap-2">

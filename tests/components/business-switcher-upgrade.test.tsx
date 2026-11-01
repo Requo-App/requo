@@ -40,6 +40,7 @@ vi.mock(
 );
 
 import { BusinessSwitcher } from "@/components/shell/dashboard-shell-slots";
+import { DashboardSidebar } from "@/components/shared/dashboard-sidebar";
 import { PlanSelectionProvider } from "@/features/billing/components/plan-selection-provider";
 
 const business = {
@@ -67,6 +68,45 @@ const currentBusiness = {
 };
 
 describe("BusinessSwitcher", () => {
+  it("keeps the business menu usable in the collapsed desktop rail", async () => {
+    const user = userEvent.setup();
+    const otherBusiness = {
+      ...currentBusiness,
+      membershipId: "membership_2",
+      business: { ...business, id: "business_2", name: "Other Business", slug: "other-business" },
+    };
+
+    render(
+      <PlanSelectionProvider>
+        <DashboardSidebar
+          inset
+          bottomSlot={<span />}
+          topSlot={
+            <BusinessSwitcher
+              compact
+              currentBusiness={currentBusiness}
+              memberships={[currentBusiness, otherBusiness]}
+              businessQuota={{ allowed: true, current: 2, limit: 10, ownerUserId: "user_1", plan: "free", upgradePlan: "pro" }}
+              userId="user_1"
+            />
+          }
+        />
+      </PlanSelectionProvider>,
+    );
+
+    const toggle = screen.getByRole("button", { name: "Toggle sidebar" });
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    const switcher = screen.getByRole("button", { name: /switch business — current business/i });
+    expect(switcher.closest("[inert], [aria-hidden=true]")).toBeNull();
+    await user.click(switcher);
+    expect(await screen.findByRole("menuitem", { name: /other business/i })).toHaveAttribute("href", "/other-business/home");
+    await user.keyboard("{Escape}");
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("button", { name: /switch business — current business/i })).toBeVisible();
+  });
+
   it("previews three businesses and expands the rest without sign-out", async () => {
     const user = userEvent.setup();
     const memberships = Array.from({ length: 5 }, (_, index) => ({

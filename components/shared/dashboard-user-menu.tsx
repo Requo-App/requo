@@ -37,12 +37,12 @@ const USERS: UserRow[] = [
 ];
 
 const collapsibleVariants = cva(
-  "flex min-w-0 items-center overflow-hidden transition-[max-width,opacity,filter] shell-sidebar-motion",
+  "flex min-w-0 items-center overflow-hidden transition-[max-width,opacity] shell-sidebar-motion",
   {
     variants: {
       collapsed: {
-        true: "max-w-0 opacity-0 blur-[3px]",
-        false: "max-w-40 opacity-100 blur-0",
+        true: "max-w-0 opacity-0",
+        false: "max-w-40 opacity-100",
       },
     },
     defaultVariants: {
@@ -95,7 +95,7 @@ const userMenuPopoverVariants = cva(
   },
 );
 
-/** Label slot on the trigger: blurs + fades away as the rail collapses. */
+/** Label slot on the trigger: fades away as the rail collapses. */
 function Collapsible({ collapsed, children }: { collapsed: boolean; children: ReactNode }) {
   return (
     <span className={collapsibleVariants({ collapsed })}>

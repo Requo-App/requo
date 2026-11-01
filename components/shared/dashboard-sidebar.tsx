@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import {
+  ArrowLeft,
   Asterisk,
   Calendar,
   Home,
@@ -17,7 +18,6 @@ import {
   Landmark,
   Megaphone,
   MessageCircle,
-  PanelLeft,
   Search,
   Settings,
   UserRound,
@@ -43,8 +43,9 @@ import { DashboardUserMenu } from "./dashboard-user-menu";
  *   column). Rows stay left-anchored while the rail narrows, so icons hold
  *   their x instead of sliding.
  *
- * The two states morph into each other: the panel width animates while
- * labels / badges / kbd collapse via max-width + opacity.
+ * The two states morph into each other: only the panel width animates (plus a
+ * cheap opacity fade on labels / badges / kbd), so the collapse never pays for
+ * per-label width or filter transitions.
  */
 
 type IconComponent = ComponentType<{
@@ -53,23 +54,75 @@ type IconComponent = ComponentType<{
 }>;
 
 /**
- * Collapsible text/badge slot: blurs + fades + shrinks away when the rail
- * closes, and blurs back in on expand. The icons/rows themselves stay pinned in
- * place — only these label/badge slots animate — so nothing jumps to center.
+ * Text/badge slot on a nav row. The narrowing rail already clips the row, so
+ * the slot only fades: animating max-width/height here would add a layout pass
+ * per label on every frame of the panel resize.
  */
 function Collapsible({ collapsed, children, className }: { collapsed: boolean; children: ReactNode; className?: string }) {
   return (
     <span
       className={cn(
-        "flex min-w-0 items-center overflow-hidden whitespace-nowrap transition-[max-width,opacity,filter] shell-sidebar-motion",
-        // Expanded, the cap is the row itself: a fixed cap (it was 160px)
-        // clipped any label wider than it, "Components and Blocks" included.
-        collapsed ? "max-w-0 opacity-0 blur-[3px]" : "max-w-full opacity-100 blur-0",
+        "flex min-w-0 items-center overflow-hidden whitespace-nowrap transition-opacity shell-sidebar-motion",
+        collapsed ? "opacity-0" : "opacity-100",
         className,
       )}
     >
       {children}
     </span>
+  );
+}
+
+/**
+ * Sidebar trigger glyph. The panel frame is static; only the chevron swaps,
+ * sliding out in the direction the rail is moving while the next state's
+ * chevron slides in behind it. The outgoing chevron clears before the incoming
+ * one fades up, so the two arrowheads never sit side by side at half opacity
+ * (which read as a glitch at 16px). A whole-icon rotation read as a flip.
+ */
+function SidebarTriggerIcon({ collapsed }: { collapsed: boolean }) {
+  // Timing lives on the destination state: the entering chevron holds until
+  // the outgoing one is gone, then slides in from the side the rail came from;
+  // the exiting chevron starts fading immediately while it travels out. Both
+  // move in the rail's direction, so the handoff reads as one arrow leaving
+  // and the next following it rather than two arrows crossing.
+  const chevronEnter =
+    "[transition-property:opacity,translate] [transition-duration:90ms,140ms] [transition-delay:50ms,50ms] [transition-timing-function:var(--motion-ease-standard),var(--motion-ease-emphasized)] motion-reduce:[transition-delay:0ms]";
+  const chevronExit =
+    "[transition-property:opacity,translate] [transition-duration:60ms,140ms] [transition-timing-function:var(--motion-ease-standard),var(--motion-ease-emphasized)]";
+
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="size-4"
+      aria-hidden="true"
+    >
+      {/* Panel frame + divider, shared by both states so they never move. */}
+      <rect width="18" height="18" x="3" y="3" rx="2" />
+      <path d="M9 3v18" />
+      {/* Collapse: exits left, hands over to the open chevron. */}
+      <path
+        d="m16 15-3-3 3-3"
+        className={cn(
+          collapsed
+            ? `${chevronExit} -translate-x-1.5 opacity-0`
+            : `${chevronEnter} translate-x-0 opacity-100`,
+        )}
+      />
+      {/* Expand: starts right of centre and slides left into place. */}
+      <path
+        d="m14 9 3 3-3 3"
+        className={cn(
+          collapsed
+            ? `${chevronEnter} translate-x-0 opacity-100`
+            : `${chevronExit} translate-x-1.5 opacity-0`,
+        )}
+      />
+    </svg>
   );
 }
 
@@ -104,12 +157,13 @@ function NavItem({
   const content = (
     <>
       {/* Collapsed: drop the gap too — it still offsets the icon next to the
-          zero-width (invisible) label, leaving the icon off-center. */}
+          zero-width (invisible) label, leaving the icon off-center. The
+          content stays `flex-1` in both states so the icon holds its x while
+          the label is clipped by the rail. */}
       <span
         className={cn(
-          "flex min-w-0 items-center gap-2",
-          !collapsed && "flex-1",
-          collapsed && "gap-0",
+          "flex min-w-0 flex-1 items-center",
+          collapsed ? "gap-0" : "gap-2",
         )}
       >
         <Icon className="size-4 shrink-0" aria-hidden />
@@ -125,7 +179,7 @@ function NavItem({
     </>
   );
   const className = cn(
-    "flex h-8 w-full items-center justify-between gap-2 rounded-lg px-2",
+    "flex h-8 w-full items-center rounded-lg",
     "text-sm font-medium text-muted-foreground",
     "transition-[background-color,color] shell-sidebar-motion",
     !isSelected &&
@@ -135,7 +189,14 @@ function NavItem({
     // stronger fill than hover (8% light / 10% dark), and keeps that fill
     // while hovered.
     isSelected && "bg-sidebar-selected text-sidebar-foreground",
-    collapsed && (inset ? "justify-start gap-0" : "w-9 justify-center gap-0 px-0"),
+    // Collapsed rows keep the icon on the expanded x: the inset rail already
+    // has the outer 8px inset, while the panel rail swaps its row padding for
+    // the 10px that centres a 16px icon in its 36px row.
+    collapsed
+      ? inset
+        ? "justify-start gap-0 px-2"
+        : "w-9 justify-start gap-0 px-2.5"
+      : "justify-between gap-2 px-2",
   );
 
   if (onClick) {
@@ -318,8 +379,13 @@ function GroupedNavRows({
       key={group.label ?? `group-${groupIndex}`}
       className={cn("flex w-full flex-col gap-0.5", collapsed && "items-start")}
     >
-      {group.label && !collapsed ? (
-        <div className="mt-0.5 flex h-8 w-full items-center px-2 text-xs font-medium text-muted-foreground/70">
+      {group.label ? (
+        <div
+          className={cn(
+            "flex w-full items-center overflow-hidden px-2 text-xs font-medium text-muted-foreground/70 transition-[height,margin-top,opacity] shell-sidebar-motion",
+            collapsed ? "mt-0 h-0 opacity-0" : "mt-0.5 h-8 opacity-100",
+          )}
+        >
           <span className="truncate">{group.label}</span>
         </div>
       ) : null}
@@ -362,6 +428,7 @@ export function DashboardSidebar({
   settingsHref,
   hideSecondaryNav = false,
   onQuickSearch,
+  backLink,
 }: {
   /** Rendered inside the mobile drawer: always expanded, close button instead of collapse. */
   mobile?: boolean;
@@ -399,6 +466,11 @@ export function DashboardSidebar({
    * instead of filtering nav items.
    */
   onQuickSearch?: () => void;
+  /**
+   * Optional back row rendered above the navigation (e.g. settings →
+   * business home). Collapses to the arrow on the icon rail.
+   */
+  backLink?: { href: string; label: string };
 } = {}) {
   const [collapsedState, setCollapsed] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -514,7 +586,8 @@ export function DashboardSidebar({
       {/* Pinned header: the business profile and search stay put while only
           the primary nav below scrolls. The rail supplies the 8px outer inset;
           the top slot owns its own inner 8px padding so its hover fill starts
-          at the rail edge while labels still line up with the nav rows. */}
+          at the rail edge while labels still line up with the nav rows. In the
+          collapsed rail, the compact slot sits above the toggle. */}
       <div className="flex w-full shrink-0 flex-col gap-1">
         <div
           className={cn(
@@ -566,12 +639,9 @@ export function DashboardSidebar({
                 setCollapsed(!collapsedState);
                 setSuppressUserHover(isExpanding);
               }}
-              className={cn(
-                "shrink-0 text-muted-foreground hover:text-foreground",
-                collapsed && "size-9",
-              )}
+              className="size-9 shrink-0 text-muted-foreground hover:text-foreground"
             >
-              <PanelLeft className="size-4" aria-hidden />
+              <SidebarTriggerIcon collapsed={collapsed} />
             </Button>
           )}
         </div>
@@ -617,9 +687,9 @@ export function DashboardSidebar({
               title={collapsed ? "Search" : undefined}
               onClick={activateSearch}
               className={cn(
-                "flex h-8 w-full cursor-pointer items-center gap-2 rounded-lg bg-sidebar-accent px-2 text-muted-foreground",
+                "flex h-8 w-full cursor-pointer items-center rounded-lg bg-sidebar-accent px-2 text-muted-foreground",
                 "transition-[background-color,color] shell-sidebar-motion hover:bg-sidebar-accent/70 hover:text-foreground",
-                collapsed && "gap-0",
+                collapsed ? "gap-0" : "gap-2",
               )}
             >
               <Search className="size-4 shrink-0" aria-hidden />
@@ -643,6 +713,20 @@ export function DashboardSidebar({
       <div
         className="-mx-2 flex min-h-0 w-[calc(100%+1rem)] flex-1 flex-col overflow-y-auto px-2 py-2 [scrollbar-width:none]"
       >
+        {/* Back row (e.g. settings → business home). Sits above the group
+            sections, matching the settings rail’s header treatment. */}
+        {backLink ? (
+          <div className="mb-1 flex w-full shrink-0">
+            <NavItem
+              icon={ArrowLeft}
+              label={backLink.label}
+              href={backLink.href}
+              collapsed={collapsed}
+              inset={railInset}
+            />
+          </div>
+        ) : null}
+
         {/* Primary nav. Rows span the scroller width in every presentation,
             so their icons line up with the search row above; collapsed rows
             stay left-anchored instead of re-centering. */}

@@ -23,6 +23,7 @@ import {
   DashboardSidebar,
   type DashboardNavGroup,
 } from "@/components/shared/dashboard-sidebar";
+import { getBusinessHomePath } from "@/features/businesses/routes";
 import type { SettingsNavigationGroup } from "@/features/settings/navigation";
 
 /**
@@ -66,9 +67,10 @@ type BoarduiSettingsSidebarProps = {
  * The User / Business / Other navigation groups render as labeled
  * sections; the demo secondary Settings row is hidden because the settings
  * shell owns its own navigation (Help & Support lives in the Other group).
+ * A back row above the groups returns to the business home dashboard.
  */
 export function BoarduiSettingsSidebar({
-  businessSlug: _businessSlug,
+  businessSlug,
   groups,
   topSlot,
   bottomSlot,
@@ -114,6 +116,10 @@ export function BoarduiSettingsSidebar({
       selected={selected}
       topSlot={topSlot}
       bottomSlot={bottomSlot}
+      backLink={{
+        href: getBusinessHomePath(businessSlug),
+        label: "Back to dashboard",
+      }}
       hideSecondaryNav
       mobile={mobile}
       onClose={onClose}

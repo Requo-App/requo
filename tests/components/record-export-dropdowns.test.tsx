@@ -47,6 +47,34 @@ async function expectExportLinks() {
 }
 
 describe("record export dropdowns", () => {
+  it("mounts the status submenu outside the scrolling menu surface", async () => {
+    const user = userEvent.setup();
+    render(
+      <InquiryManageDropdown
+        workflowStatus="new"
+        recordState="active"
+        businessInquiryListHref="/businesses/acme/inquiries"
+        statusAction={inquiryAction}
+        archiveAction={inquiryAction}
+        unarchiveAction={inquiryAction}
+        deleteAction={inquiryAction}
+        pdfHref={pdfHref}
+        pngHref={pngHref}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Status" }));
+
+    const submenu = (await screen.findByRole("menuitem", { name: "New" }))
+      .closest('[data-slot="dropdown-menu-sub-content"]');
+    const menu = document.querySelector('[data-slot="dropdown-menu-content"]');
+
+    expect(submenu).not.toBeNull();
+    expect(menu).not.toBeNull();
+    expect(menu?.contains(submenu)).toBe(false);
+  });
+
   it("shows inquiry PDF and PNG exports without a plan gate", async () => {
     render(
       <InquiryManageDropdown
