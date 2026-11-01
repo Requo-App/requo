@@ -241,9 +241,9 @@ above. Print/PDF output always renders at 100%.
   “Service workflow”), and `collapseLabel` for icon-only sidebars. The wordmark
   stays in `text-primary`; surrounding copy uses the foreground and muted
   tokens.
-- `BrandWordmark` sizes the wordmark for the lockup (`default`) and the reload
-  overlay (`hero`). Do not add gradients, outlines, shadows, or a second colour
-  to the lockup.
+- `BrandWordmark` sizes the wordmark for the lockup (`default`) and the app
+  loading screen (`hero`). Do not add gradients, outlines, shadows, or a second
+  colour to the lockup.
 
 ### Spacing and Radius
 
@@ -407,6 +407,7 @@ Do not invent new variant or size names in feature code. Add a new name only if 
 - Use `DashboardDetailLayout` for two-column detail pages and `DashboardSidebarStack` for supporting side content.
 - Use `DashboardActionsRow` for clusters of page or section actions.
 - Keep dashboard spacing consistent with the shared page rhythm: section gaps at `gap-6` to `gap-8`, action gaps at `gap-2.5`.
+- A first entry into a business (`app/(business)/[businessSlug]/loading.tsx`) is not a sibling navigation: it shows the full-screen Requo loading screen while the business context resolves. Sibling navigation inside the dashboard keeps the instant shell and the destination route's `loading.tsx` fallbacks.
 
 ### Lists
 

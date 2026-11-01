@@ -557,53 +557,6 @@
   --auth-panel-border: rgb(255 255 255 / 0.1);
 }
 
-[data-app-loading-overlay] {
-  display: none;
-}
-
-html[data-app-loading="true"] body {
-  overflow: hidden;
-}
-
-html[data-app-loading="true"] #app-root-content {
-  visibility: hidden;
-}
-
-html[data-app-loading="true"] [data-app-loading-overlay] {
-  display: flex;
-}
-
-html[data-app-loading="fade-out"] [data-app-loading-overlay] {
-  display: flex;
-  animation: app-loading-fade-out var(--motion-duration-base)
-    var(--motion-ease-standard) forwards;
-}
-
-html[data-app-loading="fade-out"] #app-root-content {
-  visibility: visible;
-  animation: app-loading-content-fade-in var(--motion-duration-base)
-    var(--motion-ease-standard) forwards;
-}
-
-@keyframes app-loading-fade-out {
-  from {
-    opacity: 1;
-  }
-  to {
-    opacity: 0;
-    pointer-events: none;
-  }
-}
-
-@keyframes app-loading-content-fade-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
 /* Force light mode inside checkout regardless of .dark on html */
 .dark .checkout-light-force {
   color-scheme: light;
