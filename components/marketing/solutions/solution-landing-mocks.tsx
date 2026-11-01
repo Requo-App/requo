@@ -28,7 +28,6 @@ import type {
   SolutionLandingSample,
   SolutionLandingWorkflowMock,
 } from "@/components/marketing/solutions-data";
-import { InquiryStatusBadge } from "@/features/inquiries/components/inquiry-status-badge";
 import { InvoiceStatusBadge } from "@/features/invoices/components/invoice-status-badge";
 import { QuoteStatusBadge } from "@/features/quotes/components/quote-status-badge";
 import { cn } from "@/lib/utils";
@@ -92,26 +91,6 @@ function MockField({ label, value }: { label: string; value: string }) {
   );
 }
 
-function HeroLineItem({ item }: { item: SolutionLandingLineItem }) {
-  return (
-    <div className="flex min-h-9 flex-1 items-center justify-between gap-3 px-4 py-1.5">
-      <div className="min-w-0">
-        <p className="truncate text-xs leading-4 font-medium text-foreground">
-          {item.label}
-        </p>
-        {item.spec ? (
-          <p className="truncate text-xs leading-4 text-muted-foreground">
-            {item.spec}
-          </p>
-        ) : null}
-      </div>
-      <p className="shrink-0 font-mono text-xs leading-4 font-semibold tabular-nums text-foreground">
-        {item.value}
-      </p>
-    </div>
-  );
-}
-
 function WorkflowLineItem({ item }: { item: SolutionLandingLineItem }) {
   return (
     <div className="flex min-w-0 items-center justify-between gap-3 px-4 py-2">
@@ -144,123 +123,6 @@ function WorkflowLineItem({ item }: { item: SolutionLandingLineItem }) {
  * vertical overlap; the front card keeps a stage-coloured outline so it reads
  * as cut out of the quote behind it.
  */
-export function SolutionHeroMock({
-  sample,
-}: {
-  sample: SolutionLandingSample;
-}) {
-  const kind = /photo/i.test(sample.attachmentLabel) ? "photo" : "file";
-
-  return (
-    <div className="flex h-full flex-col">
-      <div className="flex min-h-0 flex-1 flex-col @[26rem]:ml-4">
-        <MockCard className="flex-1 pb-6">
-          <div className="flex shrink-0 items-center gap-2.5 border-b border-border/60 px-4 py-2.5">
-            <MockAvatar initials={sample.initials} size="md" />
-            <div className="min-w-0 flex-1">
-              <p className="text-[0.6875rem] leading-3 text-muted-foreground">
-                Prepared for
-              </p>
-              <p className={cn(mockTitleClassName, "mt-0.5")}>
-                {sample.customer}
-              </p>
-              <p className={mockSecondaryClassName}>
-                {sample.project}
-                <span className="hidden @[22rem]:inline">
-                  {" "}
-                  · {sample.quoteNumber}
-                </span>
-              </p>
-            </div>
-            <QuoteStatusBadge size="sm" status="sent" />
-          </div>
-
-          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border/60 bg-muted/40 px-4 py-1.5">
-            <span className="meta-label">Scope</span>
-            <span className="meta-label">Amount</span>
-          </div>
-
-          <div className="flex min-h-0 flex-1 flex-col divide-y divide-border/60">
-            {sample.lineItems.map((item) => (
-              <HeroLineItem item={item} key={item.label} />
-            ))}
-          </div>
-
-          <div className="flex shrink-0 items-baseline justify-between gap-3 border-t border-border/60 px-4 py-2.5">
-            <p className="text-xs leading-4 font-medium text-muted-foreground">
-              Total
-            </p>
-            <p className="font-mono text-lg leading-6 font-semibold tabular-nums tracking-tight text-foreground">
-              {sample.total}
-            </p>
-          </div>
-
-          <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-t border-border/60 px-4 py-2 text-xs leading-4 text-muted-foreground">
-            <span className="inline-flex items-center gap-1">
-              <Send aria-hidden="true" className="size-3.5" />
-              Sent
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <Eye aria-hidden="true" className="size-3.5 text-primary-ink" />
-              Viewed 3 days ago
-            </span>
-            <span className="inline-flex items-center gap-1 font-medium text-warning-ink">
-              <Clock3 aria-hidden="true" className="size-3.5" />
-              Follow-up due
-            </span>
-          </div>
-        </MockCard>
-      </div>
-
-      <div className="relative z-10 -mt-4 w-full max-w-[22rem] @[26rem]:w-[78%]">
-        <MockCard className="marketing-solution-front-card">
-          <div className="flex min-w-0 items-center gap-2.5 border-b border-border/60 px-4 py-2.5">
-            <MockAvatar initials={sample.initials} />
-            <div className="min-w-0 flex-1">
-              <p className={mockTitleClassName}>{sample.customer}</p>
-              <p className={mockSecondaryClassName}>{sample.project}</p>
-            </div>
-            <InquiryStatusBadge size="sm" status="quoted" />
-          </div>
-
-          <dl className="grid shrink-0 grid-cols-2 gap-x-4 gap-y-1 border-b border-border/60 px-4 py-2">
-            {sample.inquiryFields.slice(0, 2).map((field) => (
-              <div className="min-w-0" key={field.label}>
-                <dt className="truncate text-[0.6875rem] leading-3 text-muted-foreground">
-                  {field.label}
-                </dt>
-                <dd className="mt-0.5 truncate text-xs leading-4 font-medium text-foreground">
-                  {field.value}
-                </dd>
-              </div>
-            ))}
-          </dl>
-
-          <div className="p-2">
-            <div className="flex items-center justify-between gap-2 px-1 pb-1.5">
-              <span className="inline-flex min-w-0 items-center gap-1.5 text-xs leading-4 font-medium text-foreground">
-                <Camera
-                  aria-hidden="true"
-                  className="size-3.5 shrink-0 text-primary-ink"
-                />
-                <span className="truncate">{sample.attachmentLabel}</span>
-              </span>
-              <span className="shrink-0 text-xs leading-4 text-muted-foreground">
-                {sample.attachmentCount}
-              </span>
-            </div>
-            {sample.attachmentImages?.length ? (
-              <AttachmentImages images={sample.attachmentImages} />
-            ) : (
-              <AttachmentTiles kind={kind} labels={sample.attachmentTiles} />
-            )}
-          </div>
-        </MockCard>
-      </div>
-    </div>
-  );
-}
-
 function SolutionInquiryMock({ sample }: { sample: SolutionLandingSample }) {
   return (
     <MockCard>

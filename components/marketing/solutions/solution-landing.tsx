@@ -9,6 +9,7 @@ import {
   CtaSection,
 } from "@/components/marketing/cta-section";
 import { InViewReveal } from "@/components/marketing/in-view-reveal";
+import { MarketingEyebrow } from "@/components/marketing/marketing-eyebrow";
 import { MarketingFooter } from "@/components/marketing/marketing-footer";
 import { MarketingHeader } from "@/components/marketing/marketing-header";
 import type {
@@ -17,10 +18,8 @@ import type {
   SolutionLandingWorkflowStep,
   SolutionTestimonial,
 } from "@/components/marketing/solutions-data";
-import {
-  SolutionHeroMock,
-  SolutionWorkflowMock,
-} from "@/components/marketing/solutions/solution-landing-mocks";
+import { SolutionHeroVisual } from "@/components/marketing/solutions/solution-hero-visual";
+import { SolutionWorkflowMock } from "@/components/marketing/solutions/solution-landing-mocks";
 import { SolutionFaq } from "@/components/marketing/solutions/solutions-shared";
 import { PublicPageShell } from "@/components/shared/public-page-shell";
 import { Button } from "@/components/ui/button";
@@ -161,9 +160,12 @@ export function SolutionLandingPage({
             className="flex w-full flex-col items-start gap-5 sm:gap-6"
             style={revealStyle}
           >
-            <h1 className="max-w-[17ch] font-heading text-[2.5rem] leading-[1.06] font-semibold tracking-[-0.04em] text-balance text-foreground sm:text-6xl sm:leading-[1.03] lg:text-[4.25rem]">
-              {detail.headline}
-            </h1>
+            <div className="flex flex-col gap-3">
+              <MarketingEyebrow>{landing.heroEyebrow}</MarketingEyebrow>
+              <h1 className="max-w-[17ch] font-heading text-[2.5rem] leading-[1.06] font-semibold tracking-[-0.04em] text-balance text-foreground sm:text-6xl sm:leading-[1.03] lg:text-[4.25rem]">
+                {detail.headline}
+              </h1>
+            </div>
             <p className={cn("max-w-[58ch]", bodyClassName)}>{landing.subhead}</p>
             <div className="flex w-full flex-col gap-3 pt-1 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
               <StartFreeButton className="w-full sm:w-auto" />
@@ -172,20 +174,11 @@ export function SolutionLandingPage({
           </InViewReveal>
 
           <InViewReveal className="w-full" delay={80} style={revealStyle}>
-            <div className="marketing-solution-stage @container relative h-[41.5rem] overflow-hidden rounded-xl border border-border/70 p-4 sm:h-[43rem] sm:p-6 lg:h-[43rem] lg:p-7">
-              <div className="flex h-full flex-col">
-                <div className="mb-4 flex shrink-0 items-center justify-between gap-3">
-                  <span className="meta-label">Sample data</span>
-                </div>
-                <div
-                  aria-hidden="true"
-                  className="pointer-events-none min-h-0 flex-1 select-none"
-                  inert
-                >
-                  <SolutionHeroMock sample={landing.sample} />
-                </div>
-              </div>
-            </div>
+            <SolutionHeroVisual
+              cardSide={landing.heroCardSide}
+              image={landing.heroImage}
+              sample={landing.sample}
+            />
           </InViewReveal>
         </section>
 

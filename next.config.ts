@@ -125,6 +125,9 @@ const nextConfig: NextConfig = {
     // Only add hosts here when a new <Image src="https://..."> is introduced.
     // All current images are local or generated via next/image routes.
     remotePatterns: [],
+    // Next 16 serves only quality 75 unless a value is listed here. The
+    // solution hero opts into 95 for its full-bleed industry photo.
+    qualities: [75, 95],
   },
   experimental: {
     serverActions: {
