@@ -1,10 +1,11 @@
 import "server-only";
 
 import { cache } from "react";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { homePath } from "@/features/businesses/routes";
 import {
+  businessSlugExists,
   getBusinessContextForMembershipSlug,
   type BusinessContext,
 } from "@/lib/db/business-access";
@@ -28,6 +29,10 @@ export type AppShellContext = {
  */
 export const getAppShellContext = cache(
   async (slug: string): Promise<AppShellContext> => {
+    if (!(await businessSlugExists(slug))) {
+      notFound();
+    }
+
     const session = await requireSession();
     const businessContext = await getBusinessContextForMembershipSlug(
       session.user.id,

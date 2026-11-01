@@ -76,6 +76,10 @@ import {
   adminUsageTag,
   adminUsersTag,
 } from "@/lib/cache/admin-tags";
+import {
+  getPublicBusinessProfileCacheTags,
+  updateCacheTags,
+} from "@/lib/cache/business-tags";
 import { db } from "@/lib/db/client";
 import {
   businessSubscriptions,
@@ -1517,11 +1521,20 @@ export async function forceCancelSubscriptionAction(
  * Revalidate the standard set of tags touched by a narrow business
  * lifecycle mutation (archive, restore, soft-delete). Lists, counts,
  * and the audit feed all change; subscription aggregates do not.
+ *
+ * Delete and restore also flip the dashboard shell's cached
+ * `businessSlugExists` answer, which is tagged with the public profile
+ * tags. Pass the slug so that read is purged with the mutation instead of
+ * waiting out `hotBusinessCacheLife`.
  */
-function revalidateBusinessLifecycleTags() {
+function revalidateBusinessLifecycleTags(slug?: string) {
   revalidateTag(adminBusinessesTag(), "max");
   revalidateTag(adminDashboardTag(), "max");
   revalidateTag(adminAuditTag(), "max");
+
+  if (slug) {
+    updateCacheTags(getPublicBusinessProfileCacheTags(slug));
+  }
 }
 
 /** Minimal business snapshot for lifecycle guards + audit metadata. */
@@ -1724,7 +1737,7 @@ export async function restoreBusinessAction(
     };
   }
 
-  revalidateBusinessLifecycleTags();
+  revalidateBusinessLifecycleTags(target.slug);
 
   return { ok: true, message: `Restored ${target.name}.` };
 }
@@ -1805,7 +1818,7 @@ export async function deleteBusinessAction(
     };
   }
 
-  revalidateBusinessLifecycleTags();
+  revalidateBusinessLifecycleTags(target.slug);
 
   return { ok: true, message: `Deleted ${target.name}.` };
 }

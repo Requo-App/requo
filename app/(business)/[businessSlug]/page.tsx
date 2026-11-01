@@ -1,6 +1,7 @@
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 
+import { getPublicBusinessProfileBySlug } from "@/features/businesses/queries";
 import { getBusinessHomePath } from "@/features/businesses/routes";
 
 type BusinessSlugIndexPageProps = {
@@ -31,6 +32,10 @@ async function BusinessSlugIndexRedirect({
   params: Promise<{ businessSlug: string }>;
 }) {
   const { businessSlug } = await params;
+
+  if (!(await getPublicBusinessProfileBySlug(businessSlug))) {
+    notFound();
+  }
 
   redirect(getBusinessHomePath(businessSlug));
 

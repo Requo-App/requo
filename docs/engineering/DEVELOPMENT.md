@@ -185,6 +185,9 @@ Canonical action shape (`"use server"` at the top of `features/*/actions.ts`):
   and dynamic reads below `<Suspense>`; `loading.tsx` mirrors the page's
   header/tabs/sections. Never set `instant = false` to silence a failure.
   Details: [Instant Navigation](../architecture/instant-navigation.md).
+- Public token routes keep their existence check in a segment `layout.tsx`
+  above `loading.tsx`, so a dead link answers HTTP `404` instead of a streamed
+  `200` soft-404. The page reuses the request-cached lookup.
 - Compose pages from `PageHeader`, `FormSection`/`FieldGroup`/`Field`/
   `FormActions`, and `StatusBadge` (tone map in
   `components/shared/status-badge.tsx`); reuse colocated `*Fallback` exports
