@@ -1,3 +1,6 @@
+import { existsSync, statSync } from "node:fs";
+import { join } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import {
@@ -47,6 +50,45 @@ describe("solution marketing SEO", () => {
       expect(landing.linkCards).toHaveLength(3);
       expect(landing.workflowSteps).toHaveLength(5);
       expect(detail.faqs.length).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  it("gives every landing hero a unique, existing industry photo", () => {
+    const eyebrows = new Set<string>();
+    const imageSources = new Set<string>();
+
+    for (const link of solutionLinks) {
+      const landing = solutionDetails[link.slug]?.landing;
+      if (!landing) {
+        throw new Error(`Missing landing content for ${link.slug}`);
+      }
+
+      const { heroCardSide, heroEyebrow, heroImage } = landing;
+
+      expect(heroEyebrow.length).toBeGreaterThan(0);
+      expect(heroEyebrow.length).toBeLessThanOrEqual(60);
+      expect(eyebrows.has(heroEyebrow)).toBe(false);
+      eyebrows.add(heroEyebrow);
+
+      expect(heroImage.src.startsWith("/marketing/solutions/")).toBe(true);
+      expect(imageSources.has(heroImage.src)).toBe(false);
+      imageSources.add(heroImage.src);
+      expect(heroImage.alt.length).toBeGreaterThanOrEqual(20);
+      expect(heroImage.width).toBeGreaterThanOrEqual(1600);
+      expect(heroImage.height).toBeGreaterThanOrEqual(900);
+      expect(heroImage.objectPosition).toMatch(/^\d{1,3}% \d{1,3}%$/);
+      expect(heroImage.creditUrl).toMatch(
+        /^https:\/\/www\.pexels\.com\/photo\//,
+      );
+      expect(["left", "right"]).toContain(heroCardSide);
+
+      const imagePath = join(
+        process.cwd(),
+        "public",
+        heroImage.src.replace(/^\/+/, ""),
+      );
+      expect(existsSync(imagePath)).toBe(true);
+      expect(statSync(imagePath).size).toBeGreaterThan(10_000);
     }
   });
 

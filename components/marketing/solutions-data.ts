@@ -225,7 +225,7 @@ export type SolutionLandingSample = {
   attachmentLabel: string;
   attachmentCount: string;
   attachmentTiles: readonly string[];
-  /** Real sample photos for the hero inquiry, when the solution has them. */
+  /** Real sample photos for the inquiry mock, when the solution has them. */
   attachmentImages?: readonly SolutionLandingAttachmentImage[];
   attachmentSummary: string;
   quoteFooter: string;
@@ -234,12 +234,26 @@ export type SolutionLandingSample = {
   paymentMethod: string;
 };
 
+export type SolutionLandingHeroImage = {
+  src: string;
+  alt: string;
+  width: number;
+  height: number;
+  /** CSS object-position for the fixed-height hero crop. */
+  objectPosition: string;
+  /** Source page for the stock photo, kept for traceability. */
+  creditUrl: string;
+};
+
 /**
  * Optional landing treatment layered over the shared solution page. Only a
  * solution with this content renders the longer page; the other solution
  * pages keep the concise shared template.
  */
 export type SolutionLandingContent = {
+  heroEyebrow: string;
+  heroImage: SolutionLandingHeroImage;
+  heroCardSide: "left" | "right";
   subhead: string;
   linkCardsHeading: string;
   linkCardsIntro: string;
@@ -494,6 +508,17 @@ export const solutionDetails: Record<string, SolutionDetail> = {
     seoDescription:
       "Turn scattered project inquiries into confident quotes: property details, photos, line-item pricing, follow-ups, invoices, and payment status in one workflow.",
     landing: {
+      heroEyebrow: "From site visit to final payment",
+      heroImage: {
+        src: "/marketing/solutions/contractors-home-services/hero-d95bc066.jpg",
+        alt: "A contractor in a hard hat pulling cable through a block wall during a renovation.",
+        width: 3200,
+        height: 2133,
+        objectPosition: "50% 45%",
+        creditUrl:
+          "https://www.pexels.com/photo/man-in-black-t-shirt-holding-a-wire-8961695/",
+      },
+      heroCardSide: "left",
       subhead:
         "Take the job details and site photos on one inquiry, price the work line by line, track every view, and turn the approved quote into an invoice.",
       linkCardsHeading: "Everything around the quote.",
@@ -889,6 +914,17 @@ export const solutionDetails: Record<string, SolutionDetail> = {
     seoDescription:
       "Turn client inquiries into scoped proposals: capture requirements, spell out deliverables, share secure links, follow up, and invoice from the approved scope.",
     landing: {
+      heroEyebrow: "From discovery call to signed scope",
+      heroImage: {
+        src: "/marketing/solutions/professional-it-services/hero-29f16044.jpg",
+        alt: "An IT engineer checking a tablet beside server racks in a data center.",
+        width: 3200,
+        height: 2136,
+        objectPosition: "60% 50%",
+        creditUrl:
+          "https://www.pexels.com/photo/software-engineer-standing-beside-server-racks-1181354/",
+      },
+      heroCardSide: "left",
       subhead:
         "Turn discovery notes into a scoped, phased proposal, keep the client's context attached, and carry the approved scope through to payment.",
       linkCardsHeading: "Everything around the proposal.",
@@ -1246,6 +1282,16 @@ export const solutionDetails: Record<string, SolutionDetail> = {
     seoDescription:
       "From brief to approval: collect the project brief and reference files, quote each deliverable, handle revisions with comments, and invoice the approved scope.",
     landing: {
+      heroEyebrow: "From brief to approved deliverables",
+      heroImage: {
+        src: "/marketing/solutions/creative-marketing/hero-7825cb9e.jpg",
+        alt: "A graphic designer reviewing image layouts on a desktop screen in a studio.",
+        width: 3200,
+        height: 2133,
+        objectPosition: "55% 50%",
+        creditUrl: "https://www.pexels.com/photo/man-working-on-computer-13451105/",
+      },
+      heroCardSide: "left",
       subhead:
         "Take the brief and references on one inquiry, price each deliverable, keep every revision, and invoice the approved scope.",
       linkCardsHeading: "Everything around the brief.",
@@ -1562,6 +1608,17 @@ export const solutionDetails: Record<string, SolutionDetail> = {
     seoDescription:
       "Quote photo and video shoots with confidence: capture date, venue, and coverage, approve the package through a secure link, and invoice to paid.",
     landing: {
+      heroEyebrow: "From inquiry to booked shoot",
+      heroImage: {
+        src: "/marketing/solutions/photo-video/hero-08e941b3.jpg",
+        alt: "A photographer adjusting a camera mounted on a stand in a studio.",
+        width: 3200,
+        height: 2133,
+        objectPosition: "40% 50%",
+        creditUrl:
+          "https://www.pexels.com/photo/professional-photographer-in-studio-setting-with-camera-32092180/",
+      },
+      heroCardSide: "left",
       subhead:
         "Capture the date, venue, coverage, and deliverables up front, send a package the client can approve, and keep the booking moving to payment.",
       linkCardsHeading: "Everything around the shoot.",
@@ -1877,6 +1934,17 @@ export const solutionDetails: Record<string, SolutionDetail> = {
     seoDescription:
       "Quote events and rentals from the date, venue, and guest count. Price services line by line, approve change orders, and track the invoice to paid.",
     landing: {
+      heroEyebrow: "From venue walkthrough to final invoice",
+      heroImage: {
+        src: "/marketing/solutions/events-rentals/hero-66a3280a.jpg",
+        alt: "A woman arranging a floral centerpiece on a reception table.",
+        width: 3200,
+        height: 2134,
+        objectPosition: "50% 35%",
+        creditUrl:
+          "https://www.pexels.com/photo/a-woman-in-traditional-clothing-setting-up-a-table-14581440/",
+      },
+      heroCardSide: "right",
       subhead:
         "Take the date, venue, duration, and budget on one inquiry, price services and rentals line by line, and carry the approved event through to payment.",
       linkCardsHeading: "Everything around the event.",
@@ -2234,6 +2302,17 @@ export const solutionDetails: Record<string, SolutionDetail> = {
     seoDescription:
       "Quote custom fabrication and signage without guesswork: gather specs and artwork, price options line by line, approve the exact version, and invoice the order.",
     landing: {
+      heroEyebrow: "From spec to approved proof",
+      heroImage: {
+        src: "/marketing/solutions/custom-fabrication-signage/hero-eb95b3a2.jpg",
+        alt: "A print shop worker checking a large printed sheet beside rolls of material.",
+        width: 3200,
+        height: 2133,
+        objectPosition: "50% 50%",
+        creditUrl:
+          "https://www.pexels.com/photo/worker-in-industrial-setting-analyzing-designs-35383623/",
+      },
+      heroCardSide: "left",
       subhead:
         "Take the specs, quantities, and artwork on one inquiry, price every material and finish option, and invoice the approved order.",
       linkCardsHeading: "Everything around the order.",

@@ -333,7 +333,7 @@
      product window; the illustrations stay flat. */
   --marketing-surface-raised: #ffffff;
   --marketing-surface-muted: #f5f5f7;
-  /* The stage base doubles as the cutout colour around the front card. */
+  /* The workflow stage sits one fill below its cards in both themes. */
   --marketing-solution-stage-fill: var(--marketing-surface-muted);
   --marketing-hairline: rgb(29 29 31 / 0.1);
   --marketing-hairline-strong: rgb(29 29 31 / 0.16);
@@ -2759,11 +2759,6 @@ html[data-app-loading="fade-out"] #app-root-content {
 
   .dark .marketing-solution-stage .marketing-mock-card {
     border-color: var(--marketing-hairline-strong);
-  }
-
-  /* The front card is cut out of the quote behind it by a ring of stage fill. */
-  .marketing-solution-front-card {
-    outline: 6px solid var(--marketing-solution-stage-fill);
   }
 
   .marketing-solution-stage > * {
