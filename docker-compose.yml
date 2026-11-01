@@ -1,90 +1,15 @@
-# Full-local development: `docker compose up --build`
+# Local backing services for development.
 #
-# Expects the Supabase CLI stack to be running first (`npx supabase start`)
-# because the app joins its Docker network, and the database to be prepared
-# with `npm run db:local:setup`. See docs/setup/local.md.
+# The app and Inngest run on the host with `npm run dev`; only Redis and its
+# Upstash-compatible REST proxy run in Docker. `npm run dev:local` starts
+# these services, the Supabase CLI stack, and the host dev servers together.
 #
-# - app: Next.js dev server with hot reload (http://localhost:3000)
-# - inngest: local Inngest Dev Server (http://localhost:8288)
-# - redis: local Redis (localhost:6379)
-# - redis-http: Upstash-compatible REST proxy (http://localhost:8079)
+# - redis: local Redis (127.0.0.1:6379)
+# - redis-http: Upstash-compatible REST proxy (http://127.0.0.1:8079)
 #
-# Optional public tunnel for inbound webhooks:
-#   docker compose --profile tunnel up --build
-# - ngrok: public HTTPS tunnel to app:3000 (inspector http://localhost:4040)
+# The Supabase CLI manages its own containers (`npx supabase start`); it is not
+# part of this Compose project. See docs/setup/local.md.
 services:
-  app:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.dev
-    restart: unless-stopped
-    ports:
-      - "3000:3000"
-    volumes:
-      # Live source; image keeps its own node_modules/.next via the
-      # anonymous volumes below so host installs never shadow them.
-      - .:/app
-      - /app/node_modules
-      - /app/.next
-    env_file:
-      - .env.local
-    environment:
-      PORT: 3000
-      # Browser-facing origin; keep it identical to the URL you open.
-      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
-      NEXT_PUBLIC_BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}/api/auth
-      # Reach the Supabase local stack from inside the container. Browsers on
-      # Docker Desktop resolve host.docker.internal too, so realtime/storage
-      # keep working from the client side.
-      # Postgres lives on the Supabase CLI network, so reach it over the
-      # container network (stable hostname, no host-port forwarding in the
-      # path). The `supabase_network_<project>` name follows the Supabase CLI
-      # default for this directory; `npx supabase start` creates it.
-      # `sslmode=disable` keeps the dev health check on plaintext (see
-      # isLocalUrl in lib/admin/health-checks.ts).
-      DATABASE_URL: postgresql://postgres:postgres@supabase_db_requo:5432/postgres?sslmode=disable
-      DATABASE_MIGRATION_URL: postgresql://postgres:postgres@supabase_db_requo:5432/postgres?sslmode=disable
-      NEXT_PUBLIC_SUPABASE_URL: http://host.docker.internal:54321
-      # Local Redis is reached through the Upstash-compatible REST proxy.
-      UPSTASH_REDIS_REST_URL: http://redis-http:80
-      UPSTASH_REDIS_REST_TOKEN: local-dev-token
-      INNGEST_DEV: 1
-      INNGEST_BASE_URL: http://inngest:8288
-      # Docker Desktop bind mounts don't forward inotify events into the
-      # container. Turbopack ignores WATCHPACK_POLLING (webpack-only), so opt
-      # into Next's watcher polling by setting NEXT_DEV_WATCH_POLL_MS=1000 in
-      # `.env.local`. Leave it unset on native Linux: polling there watches
-      # Turbopack's own `.next` writes and can put the dev server in a reload
-      # loop.
-    command: npm run dev:app -- --hostname 0.0.0.0 --port 3000
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    networks:
-      - default
-      - supabase_network_requo
-
-  ngrok:
-    profiles: ["tunnel"]
-    image: ngrok/ngrok:3-alpine
-    restart: on-failure:3
-    depends_on:
-      - app
-    env_file:
-      - .env.local
-    entrypoint: ["/bin/sh", "/usr/local/bin/requo-ngrok-entrypoint.sh"]
-    volumes:
-      - ./scripts/ngrok-entrypoint.sh:/usr/local/bin/requo-ngrok-entrypoint.sh:ro
-    ports:
-      # ngrok's local inspector; loopback only.
-      - "127.0.0.1:4040:4040"
-
-  inngest:
-    image: node:24-bookworm-slim
-    restart: unless-stopped
-    ports:
-      - "8288:8288"
-    command: npx inngest-cli@latest dev -u http://app:3000/api/inngest --port 8288
-
   redis:
     image: redis:7-alpine
     restart: unless-stopped
@@ -115,8 +40,3 @@ services:
 
 volumes:
   redis-data:
-
-networks:
-  # Created by `npx supabase start`; external so CLI restarts keep working.
-  supabase_network_requo:
-    external: true

@@ -482,8 +482,10 @@ dashboards remain authoritative for external quota and health.
 
 [`lib/env.ts`](../../lib/env.ts) validates runtime environment names and optional provider
 configuration. `.env.example` is the safe name/reference list; never copy
-environment values into documentation. Local development can use Docker
-Postgres (`docker-compose.yml`) or the documented Supabase setup. Vercel is
+environment values into documentation. Local development can run Supabase,
+Redis, and the Redis proxy in Docker while the app and Inngest run on the host
+(`npm run dev:local`), or use a hosted Supabase project with `npm run dev`.
+Vercel is
 configured for production branch deployment in `vercel.json`; the build
 command applies strict migrations before `next build`. See
 [Development](../engineering/DEVELOPMENT.md) and

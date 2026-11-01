@@ -3,7 +3,7 @@
 Redis backs Requo's distributed cache layer. It is **optional** — the app runs
 without it — but several behaviours degrade in ways that are easy to miss, so
 this page covers what is actually lost and how to confirm Redis is live. The
-hosted Upstash setup and the full-local Docker Compose setup use the same
+hosted Upstash setup and the local Docker services setup use the same
 `@upstash/redis` client and the same REST contract.
 
 ## What it is used for
@@ -69,25 +69,23 @@ in two ways:
 
 ## Local development (Docker Compose)
 
-The full-local stack starts two Redis-related services:
+`npm run dev:local` starts two Redis-related services alongside the Supabase
+CLI stack:
 
 - `redis` — Redis 7 with append-only persistence on `localhost:6379`.
 - `redis-http` — [`serverless-redis-http`](https://github.com/hiett/serverless-redis-http),
   pinned to `0.0.10`, an Upstash-compatible REST proxy on `localhost:8079`.
 
-Both host port mappings bind to `127.0.0.1`; the Compose app reaches
-`redis-http` over the Compose network instead.
-
-For host `npm run dev`, set:
+Both host port mappings bind to `127.0.0.1`. The app runs on the host and
+reaches the proxy at that address. Set:
 
 ```text
 UPSTASH_REDIS_REST_URL=http://127.0.0.1:8079
 UPSTASH_REDIS_REST_TOKEN=local-dev-token
 ```
 
-The compose `app` service overrides the URL to `http://redis-http:80` and uses
-the same token. The cache client needs no changes: SRH speaks the REST API that
-the `@upstash/redis` client already uses, including the Lua `EVAL` scripts in
+The cache client needs no changes: SRH speaks the REST API that the
+`@upstash/redis` client already uses, including the Lua `EVAL` scripts in
 `lib/ai/cache-layer.ts`. The admin health check was updated to use the
 body-command form described below because SRH does not support path commands.
 
@@ -134,7 +132,7 @@ curl -X POST \
 # expected: {"result":"PONG"}
 ```
 
-For the local Compose stack, `redis-cli -h 127.0.0.1 -p 6379 ping` checks the
+For the local services stack, `redis-cli -h 127.0.0.1 -p 6379 ping` checks the
 Redis server itself.
 
 ## Related

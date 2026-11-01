@@ -15,8 +15,8 @@ import {
   type AdminHealthCheckStatus,
 } from "@/lib/admin/health-checks";
 
-config({ path: ".env.local" });
-config();
+config({ path: ".env.local", quiet: true });
+config({ quiet: true });
 
 const isColorSupported =
   process.env.NO_COLOR === undefined && process.stdout.isTTY;

@@ -22,17 +22,17 @@ npm run db:migrate
 npm run dev   # app + Inngest
 ```
 
-Full local (Supabase CLI + Docker):
+Local services (Supabase CLI + Docker; app and Inngest run on the host):
 
 ```bash
 cp .env.example .env.local   # local values from `npx supabase status`
-npx supabase start
+npm run services:up          # Supabase + Redis
 npm run db:local:setup
-npm run dev:docker           # app + Inngest + Redis
+npm run dev:local            # services (if needed) + app + Inngest
 ```
 
 For inbound webhooks, add `NGROK_AUTHTOKEN` to `.env.local` and use
-`npm run dev:tunnel` or `npm run dev:docker:tunnel`. See `docs/setup/local.md`
+`npm run dev:tunnel` or `npm run dev:local:tunnel`. See `docs/setup/local.md`
 for full setup, `docs/setup/deployment.md` for deploy, and
 `docs/setup/billing.md` for Polar.
 
