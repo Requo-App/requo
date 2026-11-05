@@ -68,9 +68,8 @@ const envSchema = z.object({
   CLOUDFLARE_API_TOKEN: emptyToUndefined(z.string().min(1)),
   NVIDIA_NIM_API_KEY: emptyToUndefined(z.string().min(1)),
   /**
-   * Self-hosted custom provider. Any OpenAI-compatible endpoint works; the
-   * provider is ignored in Cloud mode. `AI_CUSTOM_API_KEY` is optional so a
-   * local Ollama/vLLM endpoint can run without authentication.
+   * Reserved custom-provider settings. The AI router does not currently
+   * register or select a custom provider in either deployment mode.
    */
   AI_CUSTOM_BASE_URL: emptyToUndefined(z.url()),
   AI_CUSTOM_API_KEY: emptyToUndefined(z.string().min(1)),

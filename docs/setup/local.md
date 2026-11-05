@@ -285,11 +285,10 @@ DATABASE_MIGRATION_URL=postgresql://postgres.<project-ref>:<db-password>@aws-<re
 ### AI Providers
 
 - The router registers free-tier-first providers in this order: Groq, Gemini, Cloudflare Workers AI, NVIDIA NIM, then OpenRouter. Each routing profile defines the model order for its kind of work.
-- In self-hosted mode, `AI_CUSTOM_BASE_URL` + `AI_CUSTOM_MODEL` prepend an OpenAI-compatible provider to every chat/completion profile. It uses the same capacity-aware fallback and can be a local Ollama/vLLM endpoint.
 - Leave AI provider keys blank if you do not need live AI locally.
 - Configure at least one provider to test AI-assisted inquiry replies or drafting.
 - The inquiry assistant returns a configuration-related error when no AI provider is configured, and a capacity-related error when every configured model is exhausted or cooling down.
-- Built-in models in `lib/ai/catalog.ts` are routable, plus the self-hosted custom entry. See `docs/setup/ai-provider-limits.md` for the free-tier rules and custom-provider options.
+- Models in `lib/ai/catalog.ts` are routable. See `docs/setup/ai-provider-limits.md` for the free-tier rules.
 
 ## Demo Data
 

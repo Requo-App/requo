@@ -159,8 +159,8 @@ continues to work.
 
 ## AI providers
 
-Set your own key for at least one registered provider, or point Requo at any
-OpenAI-compatible endpoint. No Requo key is used.
+Configure credentials for at least one registered provider to use AI. No Requo
+key is used.
 
 ```env
 GROQ_API_KEY=
@@ -171,47 +171,9 @@ NVIDIA_NIM_API_KEY=
 OPENROUTER_API_KEY=
 ```
 
-### Use your own OpenAI-compatible provider
-
-Self-hosted mode can route first to an OpenAI-compatible API, including
-OpenAI, Ollama, vLLM, LiteLLM, Together, Fireworks, and similar services.
-
-```env
-AI_CUSTOM_BASE_URL=http://127.0.0.1:11434/v1
-AI_CUSTOM_API_KEY=
-AI_CUSTOM_MODEL=qwen3:8b
-```
-
-`AI_CUSTOM_BASE_URL` and `AI_CUSTOM_MODEL` must be set together.
-`AI_CUSTOM_API_KEY` is optional for local endpoints that do not authenticate.
-The custom provider is available only in self-hosted mode; Cloud ignores these
-variables.
-
-The custom model is prepended to every chat and completion routing profile and
-then uses the same capacity-aware selector, cooldown, fallback chain, and
-invocation logging as the built-in providers. If the endpoint is at capacity,
-over its context window, or failing, routing advances to the configured
-free-tier providers. Configure its behaviour with:
-
-```env
-AI_CUSTOM_TOOLS=true
-AI_CUSTOM_QUALITY=9
-AI_CUSTOM_CONTEXT_WINDOW=131072
-AI_CUSTOM_MAX_OUTPUT_TOKENS=8192
-AI_RPM_CUSTOM=60
-AI_CUSTOM_COST_INPUT=0
-AI_CUSTOM_COST_OUTPUT=0
-```
-
-- `AI_CUSTOM_TOOLS=false` skips the custom model for the tool-using Assistant
-  and Agent profiles while still using it for quote and short-text work.
-- `AI_CUSTOM_QUALITY` is 1-10; a model below a profile's minimum quality is
-  skipped for that profile.
-- `AI_RPM_CUSTOM=0` removes the local request cap. The provider may still
-  enforce its own limit.
-- Embeddings and multimodal importer extraction remain Gemini-specific. If no
-  Gemini key is configured, semantic retrieval falls back to lexical search and
-  AI-assisted file extraction is unavailable.
+Embeddings and multimodal importer extraction require Gemini. Without a
+Gemini key, semantic retrieval falls back to lexical search and AI-assisted
+file extraction is unavailable.
 
 The built-in registry and routing profiles live in `lib/ai/`. Provider
 allowances, routing ceilings, and the provider order are documented in
