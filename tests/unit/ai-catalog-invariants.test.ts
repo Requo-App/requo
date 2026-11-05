@@ -151,6 +151,8 @@ describe("AI routing profile invariants", () => {
           definition.excludedProviders.includes(providerOf(modelId)),
           `${profile} excludes ${providerOf(modelId)} but orders ${modelId}`,
         ).toBe(false);
+        // Custom capabilities are configured at runtime and filtered by the selector.
+        if (providerOf(modelId) === "custom") continue;
         expect(entry.quality, `${profile} → ${modelId}`).toBeGreaterThanOrEqual(
           definition.minQuality,
         );

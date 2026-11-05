@@ -184,6 +184,13 @@ AI_CUSTOM_MODEL=qwen3:8b
 
 `AI_CUSTOM_BASE_URL` and `AI_CUSTOM_MODEL` must be set together.
 `AI_CUSTOM_API_KEY` is optional for local endpoints that do not authenticate.
+
+<!-- coderabbit-ai-generated:v1 -->
+
+When `AI_CUSTOM_API_KEY` is set, requests include the key as a Bearer token,
+so use an `https://` base URL for remote endpoints. Plain `http://` is suitable
+for loopback or another trusted local path.
+
 The custom provider is available only in self-hosted mode; Cloud ignores these
 variables.
 
