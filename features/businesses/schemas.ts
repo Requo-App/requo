@@ -87,17 +87,15 @@ export function parseBusinessServiceNames(
       return fallback;
     }
 
-    const services = parsed
-      .slice(0, 10)
-      .flatMap((entry) => {
-        const name =
-          entry && typeof entry === "object" && typeof (entry as { name?: unknown }).name === "string"
-            ? (entry as { name: string }).name
-            : "";
-        const result = businessServiceEntrySchema.safeParse({ name });
+    const services = parsed.flatMap((entry) => {
+      const name =
+        entry && typeof entry === "object" && typeof (entry as { name?: unknown }).name === "string"
+          ? (entry as { name: string }).name
+          : "";
+      const result = businessServiceEntrySchema.safeParse({ name });
 
-        return result.success ? [{ name: result.data.name }] : [];
-      });
+      return result.success ? [{ name: result.data.name }] : [];
+    });
 
     return services.length > 0 ? services : fallback;
   } catch {

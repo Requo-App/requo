@@ -43,6 +43,7 @@ export type AdminBusinessToolbarStatus = "active" | "archived" | "deleted";
 type AdminBusinessToolbarProps = {
   businessId: string;
   businessName: string;
+  isSelfHosted: boolean;
   status: AdminBusinessToolbarStatus;
   /**
    * The business's subscription, or null when on the free plan. Drives
@@ -83,6 +84,7 @@ const OVERRIDABLE_PLANS: ReadonlyArray<Exclude<PlanTier, "free">> = [
 export function AdminBusinessToolbar({
   businessId,
   businessName,
+  isSelfHosted,
   status,
   subscription,
 }: AdminBusinessToolbarProps) {
@@ -185,30 +187,34 @@ export function AdminBusinessToolbar({
   return (
     <>
       <div className="flex flex-wrap items-center gap-2">
-        <Button
-          disabled={isPending}
-          onClick={() => setInputModal("plan")}
-          type="button"
-          variant="outline"
-        >
-          <CreditCard data-icon="inline-start" aria-hidden="true" />
-          Change plan
-        </Button>
+        {!isSelfHosted ? (
+          <>
+            <Button
+              disabled={isPending}
+              onClick={() => setInputModal("plan")}
+              type="button"
+              variant="outline"
+            >
+              <CreditCard data-icon="inline-start" aria-hidden="true" />
+              Change plan
+            </Button>
 
-        <Button
-          disabled={isPending || !canCancel}
-          onClick={() => setInputModal("cancel")}
-          title={
-            canCancel
-              ? undefined
-              : "No active subscription to cancel on this business."
-          }
-          type="button"
-          variant="outline"
-        >
-          <OctagonMinus data-icon="inline-start" aria-hidden="true" />
-          Cancel subscription
-        </Button>
+            <Button
+              disabled={isPending || !canCancel}
+              onClick={() => setInputModal("cancel")}
+              title={
+                canCancel
+                  ? undefined
+                  : "No active subscription to cancel on this business."
+              }
+              type="button"
+              variant="outline"
+            >
+              <OctagonMinus data-icon="inline-start" aria-hidden="true" />
+              Cancel subscription
+            </Button>
+          </>
+        ) : null}
 
         {status === "active" ? (
           <Button

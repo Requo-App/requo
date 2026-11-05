@@ -102,9 +102,10 @@ async function AdminBusinessHeaderRegion({
       // resolves billing alongside the core row. Self-hosted installations
       // have no Requo Cloud subscriptions or plan controls.
       const { isSelfHostedDeployment } = await import("@/lib/deployment");
+      const isSelfHosted = isSelfHostedDeployment();
       const [core, billing] = await Promise.all([
         getAdminBusinessDetailCore(businessId),
-        isSelfHostedDeployment()
+        isSelfHosted
           ? Promise.resolve(null)
           : getAdminBusinessBilling(businessId),
       ]);
@@ -113,7 +114,13 @@ async function AdminBusinessHeaderRegion({
         notFound();
       }
 
-      return <AdminBusinessHeaderSection billing={billing} detail={core} />;
+      return (
+        <AdminBusinessHeaderSection
+          billing={billing}
+          detail={core}
+          isSelfHosted={isSelfHosted}
+        />
+      );
     },
   );
 }
