@@ -158,7 +158,8 @@ sites; in-app/push equivalents remain authoritative.
 ## AI Provider Checklist
 
 - Configure one or more free-tier-first AI providers: `GROQ_API_KEY`, `GEMINI_API_KEY`, `CLOUDFLARE_ACCOUNT_ID` + `CLOUDFLARE_API_TOKEN`, `NVIDIA_NIM_API_KEY` (production exception), or `OPENROUTER_API_KEY`.
-- The router registers providers in this order: Groq, Gemini, Cloudflare Workers AI, NVIDIA NIM, then OpenRouter. Routing profiles in `lib/ai/routing-profiles.ts` choose the per-task model order. Only models in `lib/ai/catalog.ts` are routable; see `docs/setup/ai-provider-limits.md` for allowances, the NVIDIA exception, and safeguards.
+- Self-hosted deployments can instead use `AI_CUSTOM_BASE_URL` + `AI_CUSTOM_MODEL` (and optional `AI_CUSTOM_API_KEY`) to route first to an OpenAI-compatible provider. The custom entry is ignored in Cloud mode, is prepended to chat/completion profiles, and still participates in capacity-aware fallback.
+- The router registers providers in this order: Groq, Gemini, Cloudflare Workers AI, NVIDIA NIM, then OpenRouter. Routing profiles in `lib/ai/routing-profiles.ts` choose the per-task model order. Built-in models in `lib/ai/catalog.ts` are routable, plus the self-hosted custom entry; see `docs/setup/ai-provider-limits.md` for allowances, the NVIDIA exception, and safeguards.
 - Keep all AI API keys server-only.
 - Plan separate monitoring for rate limits, quota exhaustion, and model-availability failures.
 

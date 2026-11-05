@@ -6,6 +6,11 @@ import { COVERAGE_EXCLUDES } from './vitest.shared';
 
 const rootDir = path.resolve(__dirname, '..');
 
+// The integration suite exercises Requo Cloud billing and plan behavior.
+// Pin the mode before dotenv loads so a developer's self-hosted `.env.local`
+// cannot disable those code paths.
+process.env.REQUO_DEPLOYMENT_MODE ??= 'cloud';
+
 config({ path: path.join(rootDir, '.env.local') });
 config({ path: path.join(rootDir, '.env') });
 

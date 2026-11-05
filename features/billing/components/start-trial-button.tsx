@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 
+import { useIsSelfHostedDeployment } from "@/components/providers/deployment-mode-provider";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import {
@@ -24,6 +25,7 @@ export function StartTrialButton({
   businessSlug: string;
   className?: string;
 }) {
+  const isSelfHosted = useIsSelfHostedDeployment();
   const router = useRouter();
   const [state, formAction, isPending] = useActionStateWithSonner(
     startBusinessTrialAction.bind(null, businessId, businessSlug),
@@ -35,6 +37,8 @@ export function StartTrialButton({
       router.refresh();
     }
   }, [router, state.success]);
+
+  if (isSelfHosted) return null;
 
   return (
     <form action={formAction}>

@@ -37,6 +37,11 @@ import {
 import { appendRandomSlugSuffix, slugifyPublicName } from "@/lib/slugs";
 import { getUsageLimit } from "@/lib/plans/usage-limits";
 import { validateBusinessSlug } from "@/features/businesses/validation";
+import {
+  isCloudDeployment,
+  isSelfHostedDeployment,
+  selfHostedEntitlementPlan,
+} from "@/lib/deployment";
 import { isLowEmailMode } from "@/lib/env";
 
 type CreateBusinessForUserInput = {
@@ -169,11 +174,18 @@ export async function createBusinessRecordForUser({
   // owners can start it from billing for their current Free business instead.
   const ownedBusinessCount = await getOwnedBusinessCountForUser(user.id, tx);
   const autoStartTrial =
+    isCloudDeployment() &&
     startTrial &&
     plan === "free" &&
     ownedBusinessCount === 0 &&
     (await canStartBusinessTrial({ userId: user.id, client: tx }));
-  const resolvedPlan: plan = autoStartTrial ? "pro" : plan;
+  // Self-hosted has no Cloud plan; use the full product tier for onboarding
+  // defaults and limits without writing a plan assignment.
+  const resolvedPlan: plan = isSelfHostedDeployment()
+    ? selfHostedEntitlementPlan
+    : autoStartTrial
+      ? "pro"
+      : plan;
 
   await assertBusinessQuotaAvailableForUser({
     tx,

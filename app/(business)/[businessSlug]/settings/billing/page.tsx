@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
 import { BillingStatusStaticFallback } from "@/components/shell/settings-body-skeletons";
@@ -9,6 +10,7 @@ import {
   getMonthlyRequoDocumentSendCount,
 } from "@/lib/plans/usage";
 import { getMonthlyUsageSummary } from "@/lib/ai/usage-limiter";
+import { isSelfHostedDeployment } from "@/lib/deployment";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 import { getBusinessSettingsPageContext } from "../_lib/page-context";
 
@@ -20,6 +22,8 @@ export const metadata: Metadata = createNoIndexMetadata({
 export const instant = true;
 
 export default function BillingSettingsPage() {
+  if (isSelfHostedDeployment()) notFound();
+
   return (
     <>
       <h1 className="sr-only">Billing</h1>

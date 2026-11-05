@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { QrCode } from "lucide-react";
 
+import { isSelfHostedDeployment } from "@/lib/deployment";
+
 const dayMs = 24 * 60 * 60 * 1000;
 
 const planLabels = {
@@ -31,6 +33,8 @@ export function PrepaidExpiryBanner({
   plan: "pro" | "business";
   billingHref: string;
 }) {
+  if (isSelfHostedDeployment()) return null;
+
   const expired = hasExpired(expiresAt);
   const daysLeft = getDaysLeft(expiresAt);
   const daysLabel =

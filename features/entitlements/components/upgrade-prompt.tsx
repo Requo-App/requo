@@ -17,6 +17,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { useIsSelfHostedDeployment } from "@/components/providers/deployment-mode-provider";
 import { UpgradeButton } from "@/features/billing/components/upgrade-button";
 import type { PlanTier } from "@/lib/plans/plans";
 import type { PlanFeature } from "@/lib/plans/entitlements";
@@ -365,8 +366,11 @@ export function UpgradePrompt({
   trigger,
   className,
 }: UpgradePromptProps) {
-  // Business plan users never see upgrade prompts
-  if (plan === "business") {
+  const isSelfHosted = useIsSelfHostedDeployment();
+
+  // Self-hosted installations have no Cloud upgrade path, and Business plan
+  // users never see upgrade prompts.
+  if (isSelfHosted || plan === "business") {
     return null;
   }
 

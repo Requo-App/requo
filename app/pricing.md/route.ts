@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+import { isSelfHostedDeployment } from "@/lib/deployment";
+
 import {
   formatPrice,
   getPlanPrice,
@@ -89,6 +91,10 @@ function buildPricingMarkdown(): string {
 }
 
 export function GET() {
+  if (isSelfHostedDeployment()) {
+    return new NextResponse("Not Found", { status: 404 });
+  }
+
   return new NextResponse(buildPricingMarkdown(), {
     headers: { "Content-Type": "text/plain; charset=utf-8" },
   });

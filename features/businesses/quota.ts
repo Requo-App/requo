@@ -4,6 +4,10 @@ import { and, count, eq, isNull, sql } from "drizzle-orm";
 
 import type { BusinessQuotaSnapshot } from "@/features/businesses/types";
 import { hasPaidBusinessSubscriptionSql } from "@/lib/billing/entitlement-sql";
+import {
+  isSelfHostedDeployment,
+  selfHostedEntitlementPlan,
+} from "@/lib/deployment";
 import { db } from "@/lib/db/client";
 import { businesses } from "@/lib/db/schema";
 import { getUpgradePlan, planMeta, type PlanTier as plan } from "@/lib/plans/plans";
@@ -70,6 +74,18 @@ export async function getBusinessQuotaForUser({
     ownerUserId,
     client,
   );
+
+  // Self-hosted installations are not subject to Requo Cloud plan limits.
+  if (isSelfHostedDeployment()) {
+    return {
+      ownerUserId,
+      plan: selfHostedEntitlementPlan,
+      current: totalOwnedActive,
+      limit: null,
+      allowed: true,
+      upgradePlan: null,
+    };
+  }
 
   // One active Free business per owner:
   // - An owner may always operate one business without a paid subscription.

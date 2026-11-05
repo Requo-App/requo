@@ -16,6 +16,7 @@ import {
   solutionLinks,
 } from "@/components/marketing/solutions-data";
 import { MarketingThemeToggle } from "@/components/marketing/marketing-theme-toggle";
+import { useIsSelfHostedDeployment } from "@/components/providers/deployment-mode-provider";
 import { BrandMark } from "@/components/shared/brand-mark";
 import { Button } from "@/components/ui/button";
 import {
@@ -84,6 +85,7 @@ export function MarketingHeaderShell({
 }: MarketingHeaderShellProps) {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const isSelfHosted = useIsSelfHostedDeployment();
 
   useEffect(() => {
     const update = () => setScrolled(window.scrollY > 8);
@@ -106,10 +108,12 @@ export function MarketingHeaderShell({
 
           <nav className="hidden items-center gap-1 lg:flex">
             <MarketingMainNav triggerClassName={navLinkClass} />
-            <Link className={navLinkClass} href="/pricing">
-              Pricing
-              <span className="nav-underline" aria-hidden="true" />
-            </Link>
+            {isSelfHosted ? null : (
+              <Link className={navLinkClass} href="/pricing">
+                Pricing
+                <span className="nav-underline" aria-hidden="true" />
+              </Link>
+            )}
             <div className="ml-1 flex items-center">
               <MarketingThemeToggle />
             </div>
@@ -155,14 +159,16 @@ export function MarketingHeaderShell({
                         description={link.description}
                       />
                     ))}
-                    <SheetClose asChild>
-                      <Link
-                        className="rounded-lg px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-                        href="/pricing"
-                      >
-                        Pricing
-                      </Link>
-                    </SheetClose>
+                    {isSelfHosted ? null : (
+                      <SheetClose asChild>
+                        <Link
+                          className="rounded-lg px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                          href="/pricing"
+                        >
+                          Pricing
+                        </Link>
+                      </SheetClose>
+                    )}
                   </div>
 
                   <div className="mt-4 flex flex-col gap-0.5">

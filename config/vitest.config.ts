@@ -7,6 +7,11 @@ import { COVERAGE_EXCLUDES } from './vitest.shared';
 
 const rootDir = path.resolve(__dirname, '..');
 
+// Tests exercise Requo Cloud behavior unless they opt into another mode with
+// `vi.stubEnv`. Pin the default before dotenv loads so a developer's
+// self-hosted `.env.local` cannot change unrelated suites.
+process.env.REQUO_DEPLOYMENT_MODE ??= 'cloud';
+
 config({ path: path.join(rootDir, '.env.local') });
 config({ path: path.join(rootDir, '.env') });
 

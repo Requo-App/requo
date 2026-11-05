@@ -4,6 +4,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Check, Sparkles } from "lucide-react";
 
+import { useIsSelfHostedDeployment } from "@/components/providers/deployment-mode-provider";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -22,6 +23,7 @@ function getPlanLabel(plan: PlanTier): string {
 }
 
 export function UpgradeSuccessModal() {
+  const isSelfHosted = useIsSelfHostedDeployment();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -51,6 +53,8 @@ export function UpgradeSuccessModal() {
       setOpen(true);
     });
   }, [searchParams]);
+
+  if (isSelfHosted) return null;
 
   function handleClose() {
     setOpen(false);

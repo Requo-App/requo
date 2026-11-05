@@ -40,6 +40,7 @@ import {
   markEventIgnored,
   recordWebhookEvent,
 } from "@/lib/billing/webhook-processor";
+import { isSelfHostedDeployment } from "@/lib/deployment";
 import { env } from "@/lib/env";
 import { logWarn } from "@/lib/observability/logger";
 import { withRequestCorrelation } from "@/lib/observability/request";
@@ -244,6 +245,10 @@ export async function POST(request: NextRequest): Promise<Response> {
     request,
     "polar_webhook",
     async () => {
+      if (isSelfHostedDeployment()) {
+        return new Response("Not Found", { status: 404 });
+      }
+
       if (!env.POLAR_WEBHOOK_SECRET) {
         logWarn("polar.webhook.unconfigured", { provider: "polar" });
         return new Response("Webhook not configured.", { status: 503 });

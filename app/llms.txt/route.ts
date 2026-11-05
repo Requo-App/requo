@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { getPlanPriceLabel } from "@/lib/billing/plans";
 import { planCatalog, proTrialSummary } from "@/lib/plans/catalog";
+import { isSelfHostedDeployment } from "@/lib/deployment";
 import { planTiers } from "@/lib/plans/plans";
 
 const planLines = planTiers
@@ -58,6 +59,13 @@ Annual billing includes two months free. Paid subscriptions are billed per busin
 `;
 
 export function GET() {
+  if (isSelfHostedDeployment()) {
+    return new NextResponse(
+      "# Requo\n\nThis is an independently operated Requo installation. Requo is inquiry, quote, and invoice management software for service businesses. Product documentation: https://github.com/marrrkkk/requo\n",
+      { headers: { "Content-Type": "text/plain; charset=utf-8" } },
+    );
+  }
+
   return new NextResponse(llmsContent, {
     headers: { "Content-Type": "text/plain; charset=utf-8" },
   });

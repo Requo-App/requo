@@ -7,6 +7,7 @@ import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
 import "./globals.css";
+import { DeploymentModeProvider } from "@/components/providers/deployment-mode-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { MotionProvider } from "@/components/providers/motion-provider";
 import {
@@ -20,6 +21,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { getThemeInitScript } from "@/features/theme/init-script";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { legalConfig } from "@/features/legal/config";
+import { getDeploymentMode } from "@/lib/deployment";
 import { env } from "@/lib/env";
 import { themeCookieKey, themeStorageKey } from "@/features/theme/types";
 import {
@@ -194,14 +196,16 @@ export default function RootLayout({
             enableSystem
             storageKey={themeStorageKey}
           >
-            <Suspense fallback={null}>
-              <ScrollToTop />
-              <WebMCPProvider />
-            </Suspense>
-            <MotionProvider>
-              <TooltipProvider>{children}</TooltipProvider>
-              <Toaster />
-            </MotionProvider>
+            <DeploymentModeProvider mode={getDeploymentMode()}>
+              <Suspense fallback={null}>
+                <ScrollToTop />
+                <WebMCPProvider />
+              </Suspense>
+              <MotionProvider>
+                <TooltipProvider>{children}</TooltipProvider>
+                <Toaster />
+              </MotionProvider>
+            </DeploymentModeProvider>
           </ThemeProvider>
           <Analytics />
           <SpeedInsights />

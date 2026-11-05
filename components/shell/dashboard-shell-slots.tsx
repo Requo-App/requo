@@ -16,6 +16,7 @@ import {
 import Link from "next/link";
 
 import { cn } from "@/lib/utils";
+import { useIsSelfHostedDeployment } from "@/components/providers/deployment-mode-provider";
 import { authClient } from "@/lib/auth/client";
 import { isBillingCurrency } from "@/lib/billing/currencies";
 import type { BillingCurrency } from "@/lib/billing/types";
@@ -227,6 +228,7 @@ export function BusinessSwitcher({
 }) {
   const { isMobile, setOpenMobile } = useSidebar();
   const businessCheckout = useBusinessCheckout();
+  const isSelfHosted = useIsSelfHostedDeployment();
   const [menuOpen, setMenuOpen] = useState(false);
 
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -292,11 +294,13 @@ export function BusinessSwitcher({
             >
               {business.name}
             </span>
-            <PlanBadge
-              plan={business.plan}
-              size="sm"
-              className="group-data-[collapsed=true]/sidebar:hidden"
-            />
+            {isSelfHosted ? null : (
+              <PlanBadge
+                plan={business.plan}
+                size="sm"
+                className="group-data-[collapsed=true]/sidebar:hidden"
+              />
+            )}
             <span
               aria-hidden="true"
               className="flex size-4 shrink-0 items-center justify-center rounded-sm text-muted-foreground transition-colors group-data-[state=open]/business-switcher:text-sidebar-foreground group-data-[collapsed=true]/sidebar:hidden"
@@ -330,7 +334,7 @@ export function BusinessSwitcher({
             </div>
           </div>
           <div className="mt-3 flex flex-wrap gap-2 group-data-[collapsible=icon]:hidden">
-            <PlanBadge plan={business.plan} />
+            {isSelfHosted ? null : <PlanBadge plan={business.plan} />}
             <Badge
               className="text-sidebar-foreground"
               variant="outline"
@@ -356,7 +360,7 @@ export function BusinessSwitcher({
         />
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          {businessQuota.allowed ? (
+          {businessQuota.allowed || isSelfHosted ? (
             <DropdownMenuItem asChild>
               <Link href="/new" onClick={closeMobileSidebar} prefetch={true}>
                 <Plus data-icon="inline-start" />
@@ -466,6 +470,7 @@ export function DashboardUserMenu({
 }) {
   const [isPending, startTransition] = useTransition();
   const { isMobile, setOpenMobile } = useSidebar();
+  const isSelfHosted = useIsSelfHostedDeployment();
   const [menuOpen, setMenuOpen] = useState(false);
   const upgradeCurrency =
     currency && isBillingCurrency(currency) ? currency : "USD";
@@ -563,7 +568,7 @@ export function DashboardUserMenu({
                 </div>
               </div>
             </DropdownMenuLabel>
-            {plan !== "business" ? (
+            {!isSelfHosted && plan !== "business" ? (
               <>
                 <div className="px-2 py-1.5">
                   <UpgradeButton
@@ -608,17 +613,19 @@ export function DashboardUserMenu({
                   </Link>
                 </DropdownMenuItem>
               ) : null}
-              <DropdownMenuItem asChild>
-                <Link
-                  href={getBusinessSettingsPath(businessSlug, "billing")}
-                  prefetch={true}
-                  onClick={closeMobileSidebar}
-                >
-                  <BriefcaseBusiness data-icon="inline-start" />
-                  Billing
-                  <PlanBadge plan={plan} className="ml-auto" />
-                </Link>
-              </DropdownMenuItem>
+              {isSelfHosted ? null : (
+                <DropdownMenuItem asChild>
+                  <Link
+                    href={getBusinessSettingsPath(businessSlug, "billing")}
+                    prefetch={true}
+                    onClick={closeMobileSidebar}
+                  >
+                    <BriefcaseBusiness data-icon="inline-start" />
+                    Billing
+                    <PlanBadge plan={plan} className="ml-auto" />
+                  </Link>
+                </DropdownMenuItem>
+              )}
               <AppearanceMenuSubmenu userId={user.id} />
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
@@ -673,6 +680,7 @@ export function MobileBusinessSwitcher({
   qrPh?: PaymongoEligibility;
 }) {
   const businessCheckout = useBusinessCheckout();
+  const isSelfHosted = useIsSelfHostedDeployment();
   const [menuOpen, setMenuOpen] = useState(false);
 
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -737,7 +745,7 @@ export function MobileBusinessSwitcher({
           />
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
-            {businessQuota.allowed ? (
+            {businessQuota.allowed || isSelfHosted ? (
               <DropdownMenuItem asChild>
                 <Link href="/new" prefetch={true}>
                   <Plus data-icon="inline-start" />
@@ -834,6 +842,7 @@ export function MobileUserMenu({
   qrPh?: PaymongoEligibility;
 }) {
   const [isPending, startTransition] = useTransition();
+  const isSelfHosted = useIsSelfHostedDeployment();
   const displayName =
     getDisplayFirstName({ fullName: user.name }) || user.name;
 
@@ -896,7 +905,7 @@ export function MobileUserMenu({
             </div>
           </div>
         </DropdownMenuLabel>
-        {plan !== "business" ? (
+        {!isSelfHosted && plan !== "business" ? (
           <>
             <div className="px-2 py-1.5">
               <UpgradeButton
@@ -936,16 +945,18 @@ export function MobileUserMenu({
               </Link>
             </DropdownMenuItem>
           ) : null}
-          <DropdownMenuItem asChild>
-            <Link
-              href={getBusinessSettingsPath(businessSlug, "billing")}
-              prefetch={true}
-            >
-              <BriefcaseBusiness data-icon="inline-start" />
-              Billing
-              <PlanBadge plan={plan} className="ml-auto" />
-            </Link>
-          </DropdownMenuItem>
+          {isSelfHosted ? null : (
+            <DropdownMenuItem asChild>
+              <Link
+                href={getBusinessSettingsPath(businessSlug, "billing")}
+                prefetch={true}
+              >
+                <BriefcaseBusiness data-icon="inline-start" />
+                Billing
+                <PlanBadge plan={plan} className="ml-auto" />
+              </Link>
+            </DropdownMenuItem>
+          )}
           <AppearanceMenuSubmenu userId={user.id} />
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
