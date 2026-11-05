@@ -8,6 +8,7 @@ import { createClient } from "@supabase/supabase-js";
 import postgres from "postgres";
 
 import { pingRedisRestWithRetry } from "@/lib/admin/redis-health";
+import { isCustomAiConfigured } from "@/lib/ai/custom-provider";
 
 export type AdminHealthCheckStatus = "pass" | "fail" | "warn" | "skip";
 
@@ -163,6 +164,7 @@ function isPushConfigured(): boolean {
 
 export function getConfiguredAiProviderLabels(): string[] {
   const providers: string[] = [];
+  if (isCustomAiConfigured()) providers.push("Custom");
   if (isGroqConfigured()) providers.push("Groq");
   if (isGeminiConfigured()) providers.push("Gemini");
   if (isCloudflareAiConfigured()) providers.push("Cloudflare");
@@ -451,6 +453,17 @@ async function checkAiProviders(): Promise<AdminHealthCheckResult> {
 }
 
 async function checkBilling(): Promise<AdminHealthCheckResult> {
+  const { isSelfHostedDeployment } = await import("@/lib/deployment");
+
+  if (isSelfHostedDeployment()) {
+    return {
+      name: "Billing (Polar)",
+      status: "pass",
+      message: "Not used (self-hosted)",
+      category: "billing",
+    };
+  }
+
   if (!getEnv("POLAR_ACCESS_TOKEN")) {
     return {
       name: "Billing (Polar)",

@@ -1,5 +1,7 @@
 import "server-only";
 
+import { getCustomModelEntry } from "@/lib/ai/custom-provider";
+
 /**
  * Routing profiles — one per kind of work.
  *
@@ -7,7 +9,21 @@ import "server-only";
  * for each kind is data, so changing a chain is an edit to a table rather
  * than to control flow. Every identifier here must also exist in
  * `lib/ai/catalog.ts` — the catalog is the routing allowlist.
+ *
+ * A self-hosted custom OpenAI-compatible model is prepended to every
+ * chat/completion profile. It then participates in the same capacity-aware
+ * ordering and fallback chain as the built-in providers. Extraction is
+ * intentionally excluded: the importer sends Gemini-compatible document
+ * parts. Cloud builds never see the custom model.
  */
+
+const customModelId = getCustomModelEntry()?.modelId ?? null;
+
+function withCustom(
+  order: Array<`${string}:${string}`>,
+): Array<`${string}:${string}`> {
+  return customModelId ? [customModelId, ...order] : order;
+}
 
 export type AiRoutingProfile =
   | "assistant_chat" // owner Assistant: 12 tool schemas, long history
@@ -37,7 +53,7 @@ export type RoutingProfileDefinition = {
  * held in the reserve tier (50 RPD account-wide) and Cloudflare's neuron
  * pool is the last non-reserve option.
  */
-const ASSISTANT_CHAT_ORDER = [
+const ASSISTANT_CHAT_ORDER = withCustom([
   "google:gemini-3.8-flash",
   "google:gemini-3.6-flash",
   "groq:openai/gpt-oss-120b",
@@ -50,14 +66,14 @@ const ASSISTANT_CHAT_ORDER = [
   "openrouter:nvidia/nemotron-3-super-120b-a12b:free",
   "openrouter:nvidia/nemotron-3-ultra-550b-a55b:free",
   "openrouter:nvidia/nemotron-3.5-lightning:free",
-] as Array<`${string}:${string}`>;
+] as Array<`${string}:${string}`>);
 
 /**
  * Five tools and a short system prompt fit 8K TPM, and Groq is the fastest —
  * the right trade for an anonymous public surface. Gemini follows for turns
  * that outgrow Groq's shared minute.
  */
-const AGENT_CHAT_ORDER = [
+const AGENT_CHAT_ORDER = withCustom([
   "groq:openai/gpt-oss-20b",
   "groq:openai/gpt-oss-120b",
   "google:gemini-3.6-flash",
@@ -70,7 +86,7 @@ const AGENT_CHAT_ORDER = [
   "openrouter:nvidia/nemotron-3-super-120b-a12b:free",
   "openrouter:nvidia/nemotron-3-ultra-550b-a55b:free",
   "openrouter:nvidia/nemotron-3.5-lightning:free",
-] as Array<`${string}:${string}`>;
+] as Array<`${string}:${string}`>);
 
 /**
  * A 4,000-token output plus a knowledge-grounded prompt cannot fit Groq's 8K
@@ -78,7 +94,7 @@ const AGENT_CHAT_ORDER = [
  * the escape hatch for the largest grounded prompts; Cloudflare and NVIDIA
  * are last because their TPM pools are small.
  */
-const QUOTE_ORDER = [
+const QUOTE_ORDER = withCustom([
   "google:gemini-3.8-flash",
   "google:gemini-3.6-flash",
   "google:gemini-3.1-flash-lite",
@@ -90,13 +106,13 @@ const QUOTE_ORDER = [
   "cloudflare:@cf/openai/gpt-oss-120b",
   "cloudflare:@cf/openai/gpt-oss-20b",
   "nvidia:openai/gpt-oss-20b",
-] as Array<`${string}:${string}`>;
+] as Array<`${string}:${string}`>);
 
 /**
  * 150-300 output tokens. Deliberately starts on Cloudflare's small models
  * and keeps the high-TPM chat providers free for chat and quotes.
  */
-const SHORT_TEXT_ORDER = [
+const SHORT_TEXT_ORDER = withCustom([
   "cloudflare:@cf/openai/gpt-oss-20b",
   "cloudflare:@cf/zai-org/glm-4.7-flash",
   "groq:openai/gpt-oss-20b",
@@ -107,7 +123,7 @@ const SHORT_TEXT_ORDER = [
   "google:gemini-3.5-flash-lite",
   "openrouter:google/gemma-4-31b-it:free",
   "openrouter:nvidia/nemotron-3.5-lightning:free",
-] as Array<`${string}:${string}`>;
+] as Array<`${string}:${string}`>);
 
 /**
  * The importer calls Gemini directly (multimodal document parts), so its

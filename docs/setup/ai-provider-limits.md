@@ -3,9 +3,11 @@
 Requo routes **free-tier-first**. A provider normally belongs in the catalog
 only when it offers an ongoing no-card free tier with no expiring trial
 credits and no paid-plan requirement. `lib/ai/catalog.ts` is the single
-source of truth for model IDs, capabilities, allowances, reset boundaries,
-and list prices. Every identifier named by a routing profile must exist there;
-the router has no manual model-override path.
+source of truth for built-in model IDs, capabilities, allowances, reset
+boundaries, and list prices. Every built-in identifier named by a routing
+profile must exist there. Self-hosted operators can add one custom
+OpenAI-compatible entry through configuration (see
+[Self-hosted custom provider](#self-hosted-custom-provider)).
 
 **NVIDIA NIM is a deliberate production exception.** NVIDIA documents the
 hosted `build.nvidia.com` endpoints for prototyping and development, and
@@ -61,6 +63,41 @@ Sources:
 | Cloudflare Workers AI | Pricing, limits, and model pages | 10,000 neurons/day, 00:00 UTC reset, and per-model neuron rates verified. The per-model output ceiling is not published. |
 | NVIDIA NIM | API catalog, NIM FAQ, and AI Enterprise terms | Hosted endpoints are documented for prototyping/development; production requires NVIDIA AI Enterprise. Quota figures are deployment budgets. |
 | OpenRouter | Limits docs and live model metadata | 20 RPM / 50 RPD while under 10 credits verified. Free-model data handling varies by upstream provider. |
+
+## Self-hosted custom provider
+
+Self-hosted mode can route first to any OpenAI-compatible endpoint. This is an
+operator-selected provider, not a free-tier provider in the built-in catalog,
+and it is unavailable in Cloud mode.
+
+```env
+AI_CUSTOM_BASE_URL=https://api.openai.com/v1
+AI_CUSTOM_API_KEY=
+AI_CUSTOM_MODEL=gpt-4.1-mini
+```
+
+The custom model is prepended to every chat and completion routing profile. It
+is still subject to the same capacity selector, provider cooldowns, context
+window checks, fallback chain, and invocation logging as the built-in models.
+If it fails or is at capacity, routing continues through the existing free-tier
+order. Extraction and embeddings remain Gemini-specific.
+
+Configure capability and optional local limits with:
+
+```env
+AI_CUSTOM_TOOLS=true
+AI_CUSTOM_QUALITY=9
+AI_CUSTOM_CONTEXT_WINDOW=131072
+AI_CUSTOM_MAX_OUTPUT_TOKENS=8192
+AI_RPM_CUSTOM=60
+AI_CUSTOM_COST_INPUT=0
+AI_CUSTOM_COST_OUTPUT=0
+```
+
+`AI_CUSTOM_TOOLS=false` excludes the model from the Assistant and Agent
+profiles. `AI_RPM_CUSTOM=0` removes the modelled request cap. The provider's own
+rate limits and data-handling terms remain authoritative; the catalog drift
+check does not query this endpoint's model listing.
 
 ## Removed providers and models
 

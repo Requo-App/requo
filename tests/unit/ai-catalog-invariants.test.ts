@@ -35,10 +35,12 @@ describe("AI catalog invariants", () => {
     for (const entry of catalog) {
       expect(known, entry.modelId).toContain(providerOf(entry.modelId));
     }
-    // Every known provider must still have a model; a stale prefix would make
-    // the registry look configured while selection can never choose it.
+    // `custom` is conditional on self-hosted configuration, so it has no base
+    // catalog entry. Every other known provider must still have a model; a
+    // stale prefix would make the registry look configured while selection can
+    // never choose it.
     expect(new Set(catalog.map((entry) => providerOf(entry.modelId)))).toEqual(
-      known,
+      new Set([...known].filter((provider) => provider !== "custom")),
     );
   });
 
@@ -119,18 +121,29 @@ describe("AI catalog invariants", () => {
 
 describe("AI routing profile invariants", () => {
   it("names only catalog models", () => {
+    const routingCatalog = getModelCatalog();
+    const routingCatalogIds = new Set(
+      routingCatalog.map((entry) => entry.modelId),
+    );
+
     for (const [profile, definition] of Object.entries(ROUTING_PROFILES)) {
       expect(definition.order.length, profile).toBeGreaterThan(0);
       for (const modelId of definition.order) {
-        expect(catalogIds.has(modelId), `${profile} → ${modelId}`).toBe(true);
+        expect(routingCatalogIds.has(modelId), `${profile} → ${modelId}`).toBe(
+          true,
+        );
       }
     }
   });
 
   it("does not contradict its own constraints", () => {
+    const routingCatalog = getModelCatalog();
+
     for (const [profile, definition] of Object.entries(ROUTING_PROFILES)) {
       for (const modelId of definition.order) {
-        const entry = catalog.find((candidate) => candidate.modelId === modelId);
+        const entry = routingCatalog.find(
+          (candidate) => candidate.modelId === modelId,
+        );
         expect(entry, `${profile} → ${modelId}`).toBeDefined();
         if (!entry) continue;
 

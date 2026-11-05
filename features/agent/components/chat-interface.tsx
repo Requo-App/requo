@@ -197,6 +197,7 @@ function friendlyAgentError(message: string): string {
     lower.includes("groq") ||
     lower.includes("gemini") ||
     lower.includes("openrouter") ||
+    lower.includes("custom:") ||
     lower.includes("model") ||
     lower.includes("429") ||
     lower.includes("500") ||

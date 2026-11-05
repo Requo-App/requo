@@ -14,6 +14,10 @@ import {
   isCloudflareAiConfigured,
   isNvidiaNimConfigured,
 } from "@/lib/env";
+import {
+  getCustomProviderConfig,
+  isCustomAiConfigured,
+} from "@/lib/ai/custom-provider";
 
 // ---------------------------------------------------------------------------
 // AI Provider Registry — Vercel AI SDK
@@ -24,6 +28,9 @@ import {
 //
 // Providers are free-tier-first and wired in this order:
 //   Groq → Gemini → Cloudflare Workers AI → NVIDIA NIM → OpenRouter
+//
+// Self-hosted deployments may additionally register a `custom`
+// OpenAI-compatible endpoint. It is intentionally unavailable in Cloud mode.
 //
 // NVIDIA NIM is a deliberate production exception: its hosted endpoints are
 // documented for prototyping/development, but Requo production routing was
@@ -69,6 +76,15 @@ const nvidia = isNvidiaNimConfigured
     })
   : null;
 
+const customConfig = getCustomProviderConfig();
+const custom = customConfig
+  ? createOpenAICompatible({
+      name: "custom",
+      baseURL: customConfig.baseURL,
+      ...(customConfig.apiKey ? { apiKey: customConfig.apiKey } : {}),
+    })
+  : null;
+
 // ── Registry setup ────────────────────────────────────────────────────────
 
 /**
@@ -89,6 +105,7 @@ function buildRegistry() {
   if (openrouter) providers.openrouter = openrouter;
   if (cloudflare) providers.cloudflare = cloudflare;
   if (nvidia) providers.nvidia = nvidia;
+  if (custom) providers.custom = custom;
 
   return createProviderRegistry(providers);
 }
@@ -97,7 +114,7 @@ export const registry = buildRegistry();
 
 // ── Provider availability checks ──────────────────────────────────────────
 
-export { groq, google, openrouter, cloudflare, nvidia };
+export { groq, google, openrouter, cloudflare, nvidia, custom };
 
 /** Returns true if at least one AI provider is configured. */
 export function isAiConfigured(): boolean {
@@ -106,6 +123,7 @@ export function isAiConfigured(): boolean {
     isGeminiConfigured ||
     isOpenRouterConfigured ||
     isCloudflareAiConfigured ||
-    isNvidiaNimConfigured
+    isNvidiaNimConfigured ||
+    isCustomAiConfigured()
   );
 }

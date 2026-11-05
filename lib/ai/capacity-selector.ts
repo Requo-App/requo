@@ -13,6 +13,7 @@ import {
   isCloudflareAiConfigured,
   isNvidiaNimConfigured,
 } from "@/lib/env";
+import { isCustomAiConfigured } from "@/lib/ai/custom-provider";
 import {
   CLOUDFLARE_DAILY_NEURON_POOL,
   QUOTA_DIMENSIONS,
@@ -1248,6 +1249,8 @@ export async function selectModels(
         return isCloudflareAiConfigured;
       case "nvidia":
         return isNvidiaNimConfigured;
+      case "custom":
+        return isCustomAiConfigured();
       default:
         return false;
     }

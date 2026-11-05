@@ -24,6 +24,7 @@ const REGISTRY_PREFIXES = new Set([
   "cloudflare",
   "nvidia",
   "openrouter",
+  "custom",
 ]);
 
 function bareId(modelId: string): string {
