@@ -189,6 +189,7 @@ import {
   user,
   type EmailOutboxStatus,
 } from "@/lib/db/schema";
+import { isSelfHostedDeployment } from "@/lib/deployment";
 import type {
   BillingCurrency,
   BillingProvider,
@@ -982,7 +983,10 @@ async function listAdminBusinessesInner(
   const searchCondition = search
     ? buildBusinessSearchCondition(search)
     : undefined;
-  const planCondition = plan ? eq(businesses.plan, plan) : undefined;
+  const planCondition =
+    plan && !isSelfHostedDeployment()
+      ? eq(businesses.plan, plan)
+      : undefined;
 
   const baseConditions = and(
     isNull(businesses.deletedAt),
@@ -2946,6 +2950,7 @@ export const getAdminAiProviders = cache(
       isCloudflareAiConfigured,
       isNvidiaNimConfigured,
     } = await import("@/lib/env");
+    const { isCustomAiConfigured } = await import("@/lib/ai/custom-provider");
 
     const configuredById: Record<AdminAiProviderId, boolean> = {
       groq: isGroqConfigured,
@@ -2953,6 +2958,7 @@ export const getAdminAiProviders = cache(
       openrouter: isOpenRouterConfigured,
       cloudflare: isCloudflareAiConfigured,
       nvidia: isNvidiaNimConfigured,
+      custom: isCustomAiConfigured(),
     };
 
     const providers: AdminAiProvider[] = ADMIN_AI_PROVIDERS.map((id) => ({

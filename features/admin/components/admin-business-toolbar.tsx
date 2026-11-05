@@ -1,5 +1,7 @@
 "use client";
 
+import { useIsSelfHostedDeployment } from "@/components/providers/deployment-mode-provider";
+
 import { Archive, CreditCard, OctagonMinus, RotateCcw, Trash2 } from "lucide-react";
 import { useCallback, useState, useTransition } from "react";
 import { toast } from "@/components/shared/notify";
@@ -86,6 +88,7 @@ export function AdminBusinessToolbar({
   status,
   subscription,
 }: AdminBusinessToolbarProps) {
+  const isSelfHosted = useIsSelfHostedDeployment();
   const { scheduleRefresh } = useDeferredRefresh();
   const [isPending, startTransition] = useTransition();
   const [inputModal, setInputModal] = useState<InputModal>(null);
@@ -185,30 +188,34 @@ export function AdminBusinessToolbar({
   return (
     <>
       <div className="flex flex-wrap items-center gap-2">
-        <Button
-          disabled={isPending}
-          onClick={() => setInputModal("plan")}
-          type="button"
-          variant="outline"
-        >
-          <CreditCard data-icon="inline-start" aria-hidden="true" />
-          Change plan
-        </Button>
+        {isSelfHosted ? null : (
+          <>
+            <Button
+              disabled={isPending}
+              onClick={() => setInputModal("plan")}
+              type="button"
+              variant="outline"
+            >
+              <CreditCard data-icon="inline-start" aria-hidden="true" />
+              Change plan
+            </Button>
 
-        <Button
-          disabled={isPending || !canCancel}
-          onClick={() => setInputModal("cancel")}
-          title={
-            canCancel
-              ? undefined
-              : "No active subscription to cancel on this business."
-          }
-          type="button"
-          variant="outline"
-        >
-          <OctagonMinus data-icon="inline-start" aria-hidden="true" />
-          Cancel subscription
-        </Button>
+            <Button
+              disabled={isPending || !canCancel}
+              onClick={() => setInputModal("cancel")}
+              title={
+                canCancel
+                  ? undefined
+                  : "No active subscription to cancel on this business."
+              }
+              type="button"
+              variant="outline"
+            >
+              <OctagonMinus data-icon="inline-start" aria-hidden="true" />
+              Cancel subscription
+            </Button>
+          </>
+        )}
 
         {status === "active" ? (
           <Button

@@ -39,6 +39,8 @@ type DataListToolbarProps = {
   filterValue: string;
   onFilterChange: (value: string) => void;
   filterOptions: DataListToolbarOption[];
+  /** Hide the primary filter while keeping search and clear actions. */
+  showFilter?: boolean;
   secondaryFilterId?: string;
   secondaryFilterLabel?: string;
   secondaryFilterValue?: string;
@@ -78,6 +80,7 @@ export function DataListToolbar({
   filterValue,
   onFilterChange,
   filterOptions,
+  showFilter = true,
   secondaryFilterId,
   secondaryFilterLabel,
   secondaryFilterValue,
@@ -248,49 +251,53 @@ export function DataListToolbar({
           </Field>
 
           {/* Mobile Filter Button alongside search */}
-          <div className="sm:hidden">
-            <Sheet open={isMobileFiltersOpen} onOpenChange={setIsMobileFiltersOpen}>
-              <SheetTrigger asChild>
-                <Button
-                  aria-label="Filter records"
-                  className="size-9 shrink-0 px-0"
-                  type="button"
-                  variant="outline"
-                >
-                  <ListFilter className="size-4" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="bottom">
-                <SheetHeader>
-                  <SheetTitle>Filters</SheetTitle>
-                  <SheetDescription>
-                    Narrow list results with status, service, source, and sort options.
-                  </SheetDescription>
-                </SheetHeader>
-                <SheetBody className="gap-4">{filterFields}</SheetBody>
-              </SheetContent>
-            </Sheet>
-          </div>
+          {showFilter ? (
+            <div className="sm:hidden">
+              <Sheet open={isMobileFiltersOpen} onOpenChange={setIsMobileFiltersOpen}>
+                <SheetTrigger asChild>
+                  <Button
+                    aria-label="Filter records"
+                    className="size-9 shrink-0 px-0"
+                    type="button"
+                    variant="outline"
+                  >
+                    <ListFilter className="size-4" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="bottom">
+                  <SheetHeader>
+                    <SheetTitle>Filters</SheetTitle>
+                    <SheetDescription>
+                      Narrow list results with status, service, source, and sort options.
+                    </SheetDescription>
+                  </SheetHeader>
+                  <SheetBody className="gap-4">{filterFields}</SheetBody>
+                </SheetContent>
+              </Sheet>
+            </div>
+          ) : null}
         </div>
 
         <div className="hidden min-w-0 items-center gap-2 sm:flex sm:min-w-0 sm:flex-1">
-          <Field className="min-w-0 flex-1 sm:max-w-44">
-            <FieldLabel className="sr-only" htmlFor={filterId}>
-              {filterLabel}
-            </FieldLabel>
-            <FieldContent>
-              <Combobox
-                id={filterId}
-                value={filterValue}
-                onValueChange={(value) => {
-                  onFilterChange(value);
-                }}
-                options={filterOptions}
-                placeholder={filterLabel}
-                searchPlaceholder={`Search ${filterLabel.toLowerCase()}`}
-              />
-            </FieldContent>
-          </Field>
+          {showFilter ? (
+            <Field className="min-w-0 flex-1 sm:max-w-44">
+              <FieldLabel className="sr-only" htmlFor={filterId}>
+                {filterLabel}
+              </FieldLabel>
+              <FieldContent>
+                <Combobox
+                  id={filterId}
+                  value={filterValue}
+                  onValueChange={(value) => {
+                    onFilterChange(value);
+                  }}
+                  options={filterOptions}
+                  placeholder={filterLabel}
+                  searchPlaceholder={`Search ${filterLabel.toLowerCase()}`}
+                />
+              </FieldContent>
+            </Field>
+          ) : null}
 
           {shouldShowSecondaryFilter ? (
             <Field className="min-w-0 flex-1 sm:max-w-44">
