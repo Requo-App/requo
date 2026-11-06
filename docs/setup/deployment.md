@@ -165,7 +165,7 @@ sites; in-app/push equivalents remain authoritative.
 - Self-hosted deployments can use `AI_CUSTOM_BASE_URL` + `AI_CUSTOM_MODEL` (and optional `AI_CUSTOM_API_KEY`) to add an OpenAI-compatible provider. The custom model is prepended to chat/completion profiles, but capacity and health ranking can select a built-in model first even when it is healthy. Later steps in a turn prefer the model that last succeeded. Cloud does not register the custom provider, but validates these environment variables.
 
 <!-- /coderabbit-ai-generated:v1 -->
-- The router registers providers in this order: Groq, Gemini, Cloudflare Workers AI, NVIDIA NIM, then OpenRouter. Routing profiles in `lib/ai/routing-profiles.ts` choose the per-task model order. Built-in models in `lib/ai/catalog.ts` are routable, plus the self-hosted custom entry; see `docs/setup/ai-provider-limits.md` for allowances, the NVIDIA exception, and safeguards.
+- The router registers providers in this order: Groq, Gemini, Cloudflare Workers AI, NVIDIA NIM, then OpenRouter. Routing profiles in `lib/ai/routing-profiles.ts` choose the per-task model order. A model is eligible for routing for a task only if it appears in both the routing catalog returned by `getModelCatalog()` in `lib/ai/catalog.ts` (built-in entries plus the self-hosted custom entry) and that task's routing profile; see `docs/setup/ai-provider-limits.md` for allowances, the NVIDIA exception, and safeguards.
 - Keep all AI API keys server-only.
 - Plan separate monitoring for rate limits, quota exhaustion, and model-availability failures.
 
