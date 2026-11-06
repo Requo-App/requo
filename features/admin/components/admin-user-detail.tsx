@@ -19,6 +19,7 @@ import type {
   AdminUserDetailBusiness,
   AdminUserDetailCore,
 } from "@/features/admin/types";
+import { isSelfHostedDeployment } from "@/lib/deployment";
 
 type AdminUserDetailProps = {
   user: AdminUserDetailPayload;
@@ -161,6 +162,7 @@ export function AdminUserOverviewSection({
   ownedBusinesses: AdminUserDetailBusiness[];
   recentAuditLogs: AdminAuditLogRow[];
 }) {
+  const isSelfHosted = isSelfHostedDeployment();
   const paidBusinesses = ownedBusinesses.filter(
     (business) => business.plan !== "free",
   ).length;
@@ -177,9 +179,11 @@ export function AdminUserOverviewSection({
           sub={
             ownedBusinesses.length === 0
               ? "None yet"
-              : paidBusinesses > 0
-                ? `${paidBusinesses.toLocaleString()} on paid plans`
-                : "All on free"
+              : isSelfHosted
+                ? "Self-hosted deployment"
+                : paidBusinesses > 0
+                  ? `${paidBusinesses.toLocaleString()} on paid plans`
+                  : "All on free"
           }
           value={ownedBusinesses.length.toLocaleString()}
         />
@@ -211,9 +215,15 @@ export function AdminUserOwnedBusinessesSection({
 }: {
   ownedBusinesses: AdminUserDetailBusiness[];
 }) {
+  const isSelfHosted = isSelfHostedDeployment();
+
   return (
     <DashboardSection
-      description="Businesses this user owns. Plans and subscriptions are managed on each business page."
+      description={
+        isSelfHosted
+          ? "Businesses this user owns."
+          : "Businesses this user owns. Plans and subscriptions are managed on each business page."
+      }
       title={`Owned businesses (${ownedBusinesses.length})`}
     >
       {ownedBusinesses.length === 0 ? (
@@ -238,10 +248,14 @@ export function AdminUserOwnedBusinessesSection({
               meta={
                 <>
                   <span>{business.slug}</span>
-                  <span aria-hidden="true">·</span>
-                  <Badge variant="outline">
-                    {formatPlanLabel(business.plan)}
-                  </Badge>
+                  {isSelfHosted ? null : (
+                    <>
+                      <span aria-hidden="true">·</span>
+                      <Badge variant="outline">
+                        {formatPlanLabel(business.plan)}
+                      </Badge>
+                    </>
+                  )}
                 </>
               }
               title={business.name}

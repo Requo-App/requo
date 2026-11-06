@@ -24,6 +24,7 @@ import {
 import { normalizeBusinessInstructions } from "@/lib/ai/business-instructions";
 import { db } from "@/lib/db/client";
 import { inquiries, services, businesses } from "@/lib/db/schema";
+import { resolveDeploymentPlan } from "@/lib/deployment";
 
 export async function getBusinessSettingsForBusiness(
   businessId: string,
@@ -105,6 +106,7 @@ export async function getBusinessSettingsForBusiness(
 
   return {
     ...business,
+    plan: resolveDeploymentPlan(business.plan),
     quoteEmailTemplate: normalizeQuoteEmailTemplate(
       business.quoteEmailTemplate as Parameters<
         typeof normalizeQuoteEmailTemplate
@@ -188,7 +190,7 @@ export async function getServicePageSettingsForBusiness(
     id: row.id,
     name: row.name,
     slug: row.slug,
-    plan: row.plan,
+    plan: resolveDeploymentPlan(row.plan),
     shortDescription: row.shortDescription,
     logoStoragePath: row.logoStoragePath,
     serviceId: row.serviceId,
@@ -267,7 +269,7 @@ export async function getServiceSettingsForBusiness(
     id: row.id,
     name: row.name,
     slug: row.slug,
-    plan: row.plan,
+    plan: resolveDeploymentPlan(row.plan),
     serviceId: row.serviceId,
     serviceName: row.serviceName,
     serviceSlug: row.serviceSlug,
@@ -419,7 +421,7 @@ export async function getServiceHeaderForBusiness(
     id: row.id,
     name: row.name,
     slug: row.slug,
-    plan: row.plan,
+    plan: resolveDeploymentPlan(row.plan),
     logoStoragePath: row.logoStoragePath,
     updatedAt: row.updatedAt,
     serviceId: row.serviceId,
@@ -511,7 +513,7 @@ export async function getServiceEditorForBusiness(
     id: businessRow.id,
     name: businessRow.name,
     slug: businessRow.slug,
-    plan: businessRow.plan,
+    plan: resolveDeploymentPlan(businessRow.plan),
     shortDescription: businessRow.shortDescription,
     logoStoragePath: businessRow.logoStoragePath,
     serviceId: businessRow.serviceId,

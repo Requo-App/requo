@@ -135,6 +135,7 @@ export const ADMIN_AI_PROVIDERS = [
   "cloudflare",
   "nvidia",
   "openrouter",
+  "custom",
 ] as const;
 
 export type AdminAiProviderId = (typeof ADMIN_AI_PROVIDERS)[number];
@@ -146,6 +147,7 @@ export const ADMIN_AI_PROVIDER_LABELS: Record<AdminAiProviderId, string> = {
   cloudflare: "Cloudflare",
   nvidia: "NVIDIA NIM",
   openrouter: "OpenRouter",
+  custom: "Custom",
 };
 
 /**

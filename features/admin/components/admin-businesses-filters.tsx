@@ -4,6 +4,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 
 import { DataListToolbar } from "@/components/shared/data-list-toolbar";
+import { useIsSelfHostedDeployment } from "@/components/providers/deployment-mode-provider";
 import { useProgressRouter } from "@/hooks/use-progress-router";
 import type { AdminBusinessesListFilters } from "@/features/admin/schemas";
 import { planTiers, planMeta, type PlanTier } from "@/lib/plans";
@@ -48,6 +49,7 @@ export function AdminBusinessesFilters({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useProgressRouter();
+  const isSelfHosted = useIsSelfHostedDeployment();
   const [isPending, startTransition] = useTransition();
   const [query, setQuery] = useState(filters.search ?? "");
   const [plan, setPlan] = useState<PlanFilterValue>(
@@ -66,7 +68,7 @@ export function AdminBusinessesFilters({
         params.set("q", trimmedQuery);
       }
 
-      if (nextPlan !== ALL_PLANS) {
+      if (nextPlan !== ALL_PLANS && !isSelfHosted) {
         params.set("plan", nextPlan);
       }
 
@@ -85,7 +87,7 @@ export function AdminBusinessesFilters({
         router.replace(href, { scroll: false });
       });
     },
-    [pathname, router, searchParams],
+    [isSelfHosted, pathname, router, searchParams],
   );
 
   useEffect(() => {
@@ -103,13 +105,14 @@ export function AdminBusinessesFilters({
 
   return (
     <DataListToolbar
-      canClear={Boolean(query.trim() || plan !== ALL_PLANS)}
+      canClear={Boolean(query.trim() || (!isSelfHosted && plan !== ALL_PLANS))}
       description="Search by business name or slug. Records are always ordered newest first."
       filterId="admin-business-plan-filter"
       filterLabel="Plan"
       filterOptions={planFilterOptions}
       filterValue={plan}
       isPending={isPending}
+      showFilter={!isSelfHosted}
       onClear={() => {
         setQuery("");
         setPlan(ALL_PLANS);

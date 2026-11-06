@@ -3,6 +3,7 @@
 import { Briefcase } from "lucide-react";
 
 import { TruncatedTextWithTooltip } from "@/components/shared/truncated-text-with-tooltip";
+import { useIsSelfHostedDeployment } from "@/components/providers/deployment-mode-provider";
 import { Badge } from "@/components/ui/badge";
 import {
   AdminDataTable,
@@ -110,13 +111,20 @@ export function AdminBusinessesTable({
   toolbar,
   pagination,
 }: AdminBusinessesTableProps) {
+  const isSelfHosted = useIsSelfHostedDeployment();
+  const columns = isSelfHosted
+    ? adminBusinessColumns.filter((column) => column.id !== "plan")
+    : adminBusinessColumns;
+
   return (
     <AdminDataTable
-      columns={adminBusinessColumns}
+      columns={columns}
       empty={{
         title: hasActiveFilters ? "No matching businesses" : "No businesses yet",
         description: hasActiveFilters
-          ? "No businesses match these filters. Try clearing the search or plan filter."
+          ? isSelfHosted
+            ? "No businesses match this search. Try clearing it."
+            : "No businesses match these filters. Try clearing the search or plan filter."
           : "No businesses have been created yet.",
         icon: Briefcase,
       }}
@@ -127,7 +135,9 @@ export function AdminBusinessesTable({
       mobileCard={(item) => ({
         title: item.name,
         subtitle: `${item.slug} · ${item.ownerEmail}`,
-        statusBadge: <AdminPlanTierBadge plan={item.plan} />,
+        statusBadge: isSelfHosted ? undefined : (
+          <AdminPlanTierBadge plan={item.plan} />
+        ),
         metadata: (
           <span>
             {item.memberCount.toLocaleString()}{" "}
