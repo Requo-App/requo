@@ -177,8 +177,14 @@ file extraction is unavailable.
 
 ### Use your own OpenAI-compatible provider
 
-Self-hosted mode can route first to an OpenAI-compatible API, including
-OpenAI, Ollama, vLLM, LiteLLM, Together, Fireworks, and similar services.
+<!-- coderabbit-ai-generated:v1 -->
+
+<!-- coderabbit-ai-generated-section:v1:da9b43dc347d4bb0788ace7cae9bce081987b194e8e7eb2059084cd2bbef52a0 -->
+
+Self-hosted mode can use an OpenAI-compatible API, including OpenAI, Ollama,
+vLLM, LiteLLM, Together, Fireworks, and similar services.
+
+<!-- /coderabbit-ai-generated:v1 -->
 
 ```env
 AI_CUSTOM_BASE_URL=http://127.0.0.1:11434/v1
@@ -195,14 +201,29 @@ When `AI_CUSTOM_API_KEY` is set, requests include the key as a Bearer token,
 so use an `https://` base URL for remote endpoints. Plain `http://` is suitable
 for loopback or another trusted local path.
 
-The custom provider is available only in self-hosted mode; Cloud ignores these
-variables.
+<!-- coderabbit-ai-generated:v1 -->
 
-The custom model is prepended to every chat and completion routing profile and
-then uses the same capacity-aware selector, cooldown, fallback chain, and
-invocation logging as the built-in providers. If the endpoint is at capacity,
-over its context window, or failing, routing advances to the configured
-free-tier providers. Configure its behaviour with:
+<!-- coderabbit-ai-generated-section:v1:fede8182e4381c4e595eef7e84605cf629643413eed069a5592541375412cdee -->
+
+Cloud does not register the custom provider, but still validates the custom
+provider environment variables. In particular, `AI_CUSTOM_BASE_URL` and
+`AI_CUSTOM_MODEL` must be set together in Cloud mode too.
+
+<!-- /coderabbit-ai-generated:v1 -->
+
+<!-- coderabbit-ai-generated:v1 -->
+
+<!-- coderabbit-ai-generated-section:v1:2b398da4533799029b09d8711c14276913bbd4a1b0ab35577c45c25f0d9d062d -->
+
+The custom model is prepended to every chat and completion routing profile.
+It is not always tried first: capacity and health ranking can select a built-in
+model even when the custom model is healthy. For later steps in a turn, the
+router prefers the model that last succeeded. The same cooldown, fallback
+chain, and invocation logging apply as for built-in providers. If the endpoint
+is at capacity, over its context window, or failing, routing can advance to
+the configured free-tier providers. Configure its behaviour with:
+
+<!-- /coderabbit-ai-generated:v1 -->
 
 ```env
 AI_CUSTOM_TOOLS=true
