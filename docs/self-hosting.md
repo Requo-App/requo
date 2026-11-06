@@ -171,6 +171,10 @@ NVIDIA_NIM_API_KEY=
 OPENROUTER_API_KEY=
 ```
 
+Embeddings and multimodal importer extraction require Gemini. Without a
+Gemini key, semantic retrieval falls back to lexical search and AI-assisted
+file extraction is unavailable.
+
 ### Use your own OpenAI-compatible provider
 
 Self-hosted mode can route first to an OpenAI-compatible API, including
@@ -184,6 +188,13 @@ AI_CUSTOM_MODEL=qwen3:8b
 
 `AI_CUSTOM_BASE_URL` and `AI_CUSTOM_MODEL` must be set together.
 `AI_CUSTOM_API_KEY` is optional for local endpoints that do not authenticate.
+
+<!-- coderabbit-ai-generated:v1 -->
+
+When `AI_CUSTOM_API_KEY` is set, requests include the key as a Bearer token,
+so use an `https://` base URL for remote endpoints. Plain `http://` is suitable
+for loopback or another trusted local path.
+
 The custom provider is available only in self-hosted mode; Cloud ignores these
 variables.
 
@@ -209,9 +220,6 @@ AI_CUSTOM_COST_OUTPUT=0
   skipped for that profile.
 - `AI_RPM_CUSTOM=0` removes the local request cap. The provider may still
   enforce its own limit.
-- Embeddings and multimodal importer extraction remain Gemini-specific. If no
-  Gemini key is configured, semantic retrieval falls back to lexical search and
-  AI-assisted file extraction is unavailable.
 
 The built-in registry and routing profiles live in `lib/ai/`. Provider
 allowances, routing ceilings, and the provider order are documented in

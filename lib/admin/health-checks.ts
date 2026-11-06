@@ -9,6 +9,7 @@ import postgres from "postgres";
 
 import { pingRedisRestWithRetry } from "@/lib/admin/redis-health";
 import { isCustomAiConfigured } from "@/lib/ai/custom-provider";
+import { parseDeploymentMode } from "@/lib/deployment-mode";
 
 export type AdminHealthCheckStatus = "pass" | "fail" | "warn" | "skip";
 
@@ -717,6 +718,7 @@ export type AdminConfigMatrixRow = {
 export function getAdminConfigMatrix(): AdminConfigMatrixRow[] {
   const aiProviders = getConfiguredAiProviderLabels();
   const emailProviders = getConfiguredEmailProviderLabels();
+  const selfHosted = parseDeploymentMode(process.env.REQUO_DEPLOYMENT_MODE) === "self-hosted";
 
   return [
     {
@@ -768,8 +770,8 @@ export function getAdminConfigMatrix(): AdminConfigMatrixRow[] {
     },
     {
       integration: "Billing (Polar)",
-      configured: isPolarConfigured(),
-      notes: getEnv("POLAR_ACCESS_TOKEN")
+      configured: selfHosted || isPolarConfigured(),
+      notes: selfHosted ? "Not used (self-hosted)" : getEnv("POLAR_ACCESS_TOKEN")
         ? `Server: ${getEnv("POLAR_SERVER") || "sandbox"}`
         : "Not configured",
     },

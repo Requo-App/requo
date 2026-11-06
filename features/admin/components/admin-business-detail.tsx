@@ -23,7 +23,6 @@ import type {
 } from "@/features/admin/types";
 import { BusinessStatusBadge } from "@/features/businesses/components/business-status-badge";
 import { businessMemberRoleMeta } from "@/lib/business-members";
-import { isSelfHostedDeployment } from "@/lib/deployment";
 import { planMeta, type PlanTier } from "@/lib/plans";
 
 type AdminBusinessMembers = AdminBusinessDetail["members"];
@@ -48,8 +47,10 @@ type AdminBusinessMembers = AdminBusinessDetail["members"];
 export function AdminBusinessDetail({
   detail,
   billing,
+  isSelfHosted,
 }: {
   detail: AdminBusinessDetail;
+  isSelfHosted: boolean;
   /**
    * Every plan signal for this business, or null when the billing lookup
    * failed to resolve. The section is skipped (not errored) so a billing
@@ -59,7 +60,11 @@ export function AdminBusinessDetail({
 }) {
   return (
     <div className="flex min-w-0 flex-col gap-6">
-      <AdminBusinessHeaderSection billing={billing} detail={detail} />
+      <AdminBusinessHeaderSection
+        billing={billing}
+        detail={detail}
+        isSelfHosted={isSelfHosted}
+      />
 
       <DashboardDetailLayout className="xl:grid-cols-[minmax(0,1.1fr)_0.9fr]">
         <div className="flex min-w-0 flex-col gap-6">
@@ -68,7 +73,9 @@ export function AdminBusinessDetail({
             memberCount={detail.memberCount}
             members={detail.members}
           />
-          {billing ? <AdminBusinessBillingSection billing={billing} /> : null}
+          {!isSelfHosted && billing ? (
+            <AdminBusinessBillingSection billing={billing} />
+          ) : null}
         </div>
 
         <AdminBusinessMetaSidebar detail={detail} />
@@ -80,9 +87,11 @@ export function AdminBusinessDetail({
 export function AdminBusinessHeaderSection({
   detail,
   billing,
+  isSelfHosted,
 }: {
   detail: AdminBusinessDetailCore;
   billing: AdminBusinessBilling | null;
+  isSelfHosted: boolean;
 }) {
   const status = getBusinessLifecycleStatus(detail);
 
@@ -92,6 +101,7 @@ export function AdminBusinessHeaderSection({
         <AdminBusinessToolbar
           businessId={detail.id}
           businessName={detail.name}
+          isSelfHosted={isSelfHosted}
           status={status}
           subscription={
             billing?.subscription
@@ -106,9 +116,7 @@ export function AdminBusinessHeaderSection({
       description={`/${detail.slug}`}
       meta={
         <>
-          {isSelfHostedDeployment() ? null : (
-            <AdminPlanTierBadge plan={detail.plan} />
-          )}
+          {isSelfHosted ? null : <AdminPlanTierBadge plan={detail.plan} />}
           <AdminBusinessStatusBadge status={status} />
           <span className="text-xs text-muted-foreground">
             {detail.memberCount.toLocaleString()}{" "}

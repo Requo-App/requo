@@ -1,7 +1,5 @@
 "use client";
 
-import { useIsSelfHostedDeployment } from "@/components/providers/deployment-mode-provider";
-
 import { Archive, CreditCard, OctagonMinus, RotateCcw, Trash2 } from "lucide-react";
 import { useCallback, useState, useTransition } from "react";
 import { toast } from "@/components/shared/notify";
@@ -45,6 +43,7 @@ export type AdminBusinessToolbarStatus = "active" | "archived" | "deleted";
 type AdminBusinessToolbarProps = {
   businessId: string;
   businessName: string;
+  isSelfHosted: boolean;
   status: AdminBusinessToolbarStatus;
   /**
    * The business's subscription, or null when on the free plan. Drives
@@ -85,10 +84,10 @@ const OVERRIDABLE_PLANS: ReadonlyArray<Exclude<PlanTier, "free">> = [
 export function AdminBusinessToolbar({
   businessId,
   businessName,
+  isSelfHosted,
   status,
   subscription,
 }: AdminBusinessToolbarProps) {
-  const isSelfHosted = useIsSelfHostedDeployment();
   const { scheduleRefresh } = useDeferredRefresh();
   const [isPending, startTransition] = useTransition();
   const [inputModal, setInputModal] = useState<InputModal>(null);
@@ -188,7 +187,7 @@ export function AdminBusinessToolbar({
   return (
     <>
       <div className="flex flex-wrap items-center gap-2">
-        {isSelfHosted ? null : (
+        {!isSelfHosted ? (
           <>
             <Button
               disabled={isPending}
@@ -215,7 +214,7 @@ export function AdminBusinessToolbar({
               Cancel subscription
             </Button>
           </>
-        )}
+        ) : null}
 
         {status === "active" ? (
           <Button
