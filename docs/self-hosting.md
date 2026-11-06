@@ -159,8 +159,8 @@ continues to work.
 
 ## AI providers
 
-Configure credentials for at least one registered provider to use AI. No Requo
-key is used.
+Set your own key for at least one registered provider, or point Requo at any
+OpenAI-compatible endpoint. No Requo key is used.
 
 ```env
 GROQ_API_KEY=
@@ -174,6 +174,73 @@ OPENROUTER_API_KEY=
 Embeddings and multimodal importer extraction require Gemini. Without a
 Gemini key, semantic retrieval falls back to lexical search and AI-assisted
 file extraction is unavailable.
+
+### Use your own OpenAI-compatible provider
+
+<!-- coderabbit-ai-generated:v1 -->
+
+<!-- coderabbit-ai-generated-section:v1:da9b43dc347d4bb0788ace7cae9bce081987b194e8e7eb2059084cd2bbef52a0 -->
+
+Self-hosted mode can use an OpenAI-compatible API, including OpenAI, Ollama,
+vLLM, LiteLLM, Together, Fireworks, and similar services.
+
+<!-- /coderabbit-ai-generated:v1 -->
+
+```env
+AI_CUSTOM_BASE_URL=http://127.0.0.1:11434/v1
+AI_CUSTOM_API_KEY=
+AI_CUSTOM_MODEL=qwen3:8b
+```
+
+`AI_CUSTOM_BASE_URL` and `AI_CUSTOM_MODEL` must be set together.
+`AI_CUSTOM_API_KEY` is optional for local endpoints that do not authenticate.
+
+<!-- coderabbit-ai-generated:v1 -->
+
+When `AI_CUSTOM_API_KEY` is set, requests include the key as a Bearer token,
+so use an `https://` base URL for remote endpoints. Plain `http://` is suitable
+for loopback or another trusted local path.
+
+<!-- coderabbit-ai-generated:v1 -->
+
+<!-- coderabbit-ai-generated-section:v1:fede8182e4381c4e595eef7e84605cf629643413eed069a5592541375412cdee -->
+
+Cloud does not register the custom provider, but still validates the custom
+provider environment variables. In particular, `AI_CUSTOM_BASE_URL` and
+`AI_CUSTOM_MODEL` must be set together in Cloud mode too.
+
+<!-- /coderabbit-ai-generated:v1 -->
+
+<!-- coderabbit-ai-generated:v1 -->
+
+<!-- coderabbit-ai-generated-section:v1:2b398da4533799029b09d8711c14276913bbd4a1b0ab35577c45c25f0d9d062d -->
+
+The custom model is prepended to every chat and completion routing profile.
+It is not always tried first: capacity and health ranking can select a built-in
+model even when the custom model is healthy. For later steps in a turn, the
+router prefers the model that last succeeded. The same cooldown, fallback
+chain, and invocation logging apply as for built-in providers. If the endpoint
+is at capacity, over its context window, or failing, routing can advance to
+the configured free-tier providers. Configure its behaviour with:
+
+<!-- /coderabbit-ai-generated:v1 -->
+
+```env
+AI_CUSTOM_TOOLS=true
+AI_CUSTOM_QUALITY=9
+AI_CUSTOM_CONTEXT_WINDOW=131072
+AI_CUSTOM_MAX_OUTPUT_TOKENS=8192
+AI_RPM_CUSTOM=60
+AI_CUSTOM_COST_INPUT=0
+AI_CUSTOM_COST_OUTPUT=0
+```
+
+- `AI_CUSTOM_TOOLS=false` skips the custom model for the tool-using Assistant
+  and Agent profiles while still using it for quote and short-text work.
+- `AI_CUSTOM_QUALITY` is 1-10; a model below a profile's minimum quality is
+  skipped for that profile.
+- `AI_RPM_CUSTOM=0` removes the local request cap. The provider may still
+  enforce its own limit.
 
 The built-in registry and routing profiles live in `lib/ai/`. Provider
 allowances, routing ceilings, and the provider order are documented in

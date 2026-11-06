@@ -23,8 +23,8 @@
   },
   "scripts": {
     "dev": "concurrently \"npm run dev:app\" \"npm run dev:inngest\"",
-    "dev:check": "tsx scripts/dev-health-check.ts",
-    "dev:app": "tsx scripts/dev-health-check.ts && node --max-old-space-size=4096 ./node_modules/next/dist/bin/next dev",
+    "dev:check": "tsx --conditions=react-server scripts/dev-health-check.ts",
+    "dev:app": "tsx --conditions=react-server scripts/dev-health-check.ts && node --max-old-space-size=4096 ./node_modules/next/dist/bin/next dev",
     "dev:inngest": "npx inngest-cli@latest dev",
     "dev:ngrok": "tsx scripts/dev-tunnel.ts",
     "dev:tunnel": "concurrently \"npm run dev:app\" \"npm run dev:inngest\" \"npm run dev:ngrok\"",

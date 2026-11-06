@@ -5,8 +5,12 @@
  * Validates critical services, connectivity, and configuration before
  * starting the Next.js dev server.
  *
- * Usage: tsx scripts/dev-health-check.ts
+ * Usage: tsx --conditions=react-server scripts/dev-health-check.ts
  * Integrated via: npm run dev:app (runs automatically before next dev)
+ *
+ * The react-server condition lets this CLI import the same server-only
+ * modules the app uses; the default Node condition resolves `server-only`
+ * to its throwing guard.
  */
 import { config } from "dotenv";
 

@@ -1,5 +1,7 @@
 import "server-only";
 
+import { getCustomModelEntry } from "@/lib/ai/custom-provider";
+
 /**
  * Unified free-tier model catalog — the single source of truth for model
  * identifiers, free-tier allowances, capabilities, and list pricing.
@@ -14,11 +16,12 @@ import "server-only";
  * Gemini entries use `google:` — the cost table previously keyed them under
  * `gemini:`, so every Gemini-served turn was logged as unpriced.
  *
- * This catalog is also the routing allowlist: every identifier named by a
- * routing profile must match an entry here, and the router has no manual
- * model-override path. An entry normally belongs here only when the provider
- * offers an ongoing free tier with no card, no expiring trial credits, and no
- * paid-plan requirement. Providers that fail that test are removed, not
+ * This catalog is also the routing allowlist: every built-in identifier named
+ * by a routing profile must match an entry here, and the router has no manual
+ * model-override path. A self-hosted deployment may append one configured
+ * OpenAI-compatible entry at runtime; Cloud never adds it. An entry normally
+ * belongs here only when the provider offers an ongoing free tier with no
+ * card, no expiring trial credits, and no paid-plan requirement. Providers that fail that test are removed, not
  * commented out.
  *
  * NVIDIA NIM is the deliberate exception: Requo routes it in production even
@@ -417,9 +420,12 @@ const BASE_CATALOG: ModelEntry[] = [
   },
 ];
 
-/** Catalog with environment overrides applied. */
+/** Catalog with environment overrides applied, including the self-hosted custom model. */
 export function getModelCatalog(): ModelEntry[] {
-  return BASE_CATALOG.map((entry) => {
+  const custom = getCustomModelEntry();
+  const entries = custom ? [...BASE_CATALOG, custom] : BASE_CATALOG;
+
+  return entries.map((entry) => {
     const provider = providerOf(entry.modelId);
     return {
       ...entry,
@@ -473,11 +479,12 @@ export const EXTRACTION_MODEL_IDS = [
   "google:gemini-3.5-flash-lite",
 ] as const;
 
-/** Registry prefixes the runtime knows. */
+/** Registry prefixes the runtime knows. `custom` is present only in self-hosted mode. */
 export const KNOWN_CATALOG_PROVIDERS = [
   "groq",
   "google",
   "cloudflare",
   "nvidia",
   "openrouter",
+  "custom",
 ] as const;

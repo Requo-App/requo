@@ -10,6 +10,7 @@ const DEFAULT_TPM: Record<AiProviderName, number> = {
   cloudflare: 10_000,
   nvidia: 20_000,
   openrouter: 0,
+  custom: 0,
 };
 
 function envNumber(name: string, fallback: number): number {

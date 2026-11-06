@@ -51,6 +51,7 @@ const PROVIDER_TIMEOUTS: Record<AiProviderName, number> = {
   cloudflare: 25_000,
   nvidia: 25_000,
   openrouter: 30_000,
+  custom: 60_000,
 };
 
 /** End-to-end budgets. Per-candidate timeouts sit inside these. */

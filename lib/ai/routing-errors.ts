@@ -12,6 +12,7 @@ import {
   isNvidiaNimConfigured,
   isOpenRouterConfigured,
 } from "@/lib/env";
+import { isCustomAiConfigured } from "@/lib/ai/custom-provider";
 
 /**
  * Routing failure diagnostics shared by the router, the chat fallback, and
@@ -28,10 +29,10 @@ export const NO_PROVIDER_MESSAGE =
   "AI features are unavailable because no AI provider is configured. Contact the site owner to enable AI features.";
 
 export const NO_CAPACITY_MESSAGE =
-  "AI features are temporarily unavailable because every configured free-tier quota is exhausted or cooling down. Please try again after the quota resets.";
+  "AI features are temporarily unavailable because every configured model is at capacity or cooling down. Please try again later.";
 
 export const NO_ELIGIBLE_MODEL_MESSAGE =
-  "AI features are temporarily unavailable for this request because no configured free-tier model meets its requirements. Try a different workflow or contact the site owner.";
+  "AI features are temporarily unavailable for this request because no configured model meets its requirements. Try a different workflow or contact the site owner.";
 
 const PROVIDER_CONFIGURED: Record<string, () => boolean> = {
   groq: () => isGroqConfigured,
@@ -39,6 +40,7 @@ const PROVIDER_CONFIGURED: Record<string, () => boolean> = {
   openrouter: () => isOpenRouterConfigured,
   cloudflare: () => isCloudflareAiConfigured,
   nvidia: () => isNvidiaNimConfigured,
+  custom: () => isCustomAiConfigured(),
 };
 
 export function isProviderConfigured(provider: string): boolean {

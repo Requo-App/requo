@@ -6,6 +6,7 @@ export const aiProviderNames = [
   "cloudflare",
   "nvidia",
   "openrouter",
+  "custom",
 ] as const;
 
 export type AiProviderName = (typeof aiProviderNames)[number];
@@ -143,6 +144,8 @@ export function formatAiProviderName(provider: AiProviderName) {
       return "NVIDIA NIM";
     case "openrouter":
       return "OpenRouter";
+    case "custom":
+      return "Custom";
   }
 }
 
