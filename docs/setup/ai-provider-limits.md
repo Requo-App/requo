@@ -66,9 +66,14 @@ Sources:
 
 ## Self-hosted custom provider
 
-Self-hosted mode can route first to any OpenAI-compatible endpoint. This is an
-operator-selected provider, not a free-tier provider in the built-in catalog,
-and it is unavailable in Cloud mode.
+<!-- coderabbit-ai-generated:v1 -->
+
+<!-- coderabbit-ai-generated-section:v1:49381bd9465420bffbce1e3ec451ceb8415dbefde1bc299bb59caa360c03ffce -->
+
+Self-hosted mode can use an OpenAI-compatible endpoint selected by the
+operator. This provider is unavailable in Cloud mode.
+
+<!-- /coderabbit-ai-generated:v1 -->
 
 ```env
 AI_CUSTOM_BASE_URL=https://api.openai.com/v1
@@ -76,11 +81,18 @@ AI_CUSTOM_API_KEY=
 AI_CUSTOM_MODEL=gpt-4.1-mini
 ```
 
-The custom model is prepended to every chat and completion routing profile. It
-is still subject to the same capacity selector, provider cooldowns, context
-window checks, fallback chain, and invocation logging as the built-in models.
-If it fails or is at capacity, routing continues through the existing free-tier
-order. Extraction and embeddings remain Gemini-specific.
+<!-- coderabbit-ai-generated:v1 -->
+
+<!-- coderabbit-ai-generated-section:v1:952de4ea8ca3d859e257bcb8ad039300953d8c3ec6b48eb65163657fde297d12 -->
+
+The custom model is prepended to every chat and completion routing profile,
+but is not always tried first. Capacity and health ranking can select a
+built-in model even when the custom model is healthy; later steps in a turn
+prefer the model that last succeeded. The custom model is subject to the same
+provider cooldowns, context window checks, fallback chain, and invocation
+logging as built-in models. Extraction and embeddings remain Gemini-specific.
+
+<!-- /coderabbit-ai-generated:v1 -->
 
 Configure capability and optional local limits with:
 
