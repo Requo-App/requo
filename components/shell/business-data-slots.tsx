@@ -3,6 +3,7 @@ import { requireSession } from "@/lib/auth/session";
 import { getBusinessMembershipsForUser } from "@/lib/db/business-access";
 import { getBusinessQuotaForUser } from "@/features/businesses/quota";
 import { getBusinessBillingShellOverview } from "@/features/billing/queries";
+import { isSelfHostedDeployment } from "@/lib/deployment";
 import { getThemePreferenceForUser } from "@/features/theme/queries";
 import { ThemePreferenceSync } from "@/features/theme/components/theme-preference-sync";
 import { getUiScalePreferenceForUser } from "@/features/theme/ui-scale-queries";
@@ -35,9 +36,11 @@ export async function BusinessSwitcherSlot({
     ownerUserId: session.user.id,
   });
 
-  const billing = await getBusinessBillingShellOverview(
-    businessContext.business.id,
-  ).catch(() => null);
+  const billing = isSelfHostedDeployment()
+    ? null
+    : await getBusinessBillingShellOverview(
+        businessContext.business.id,
+      ).catch(() => null);
   const isTrialing =
     billing != null &&
     billing.currentPlan === "pro" &&
@@ -76,9 +79,11 @@ export async function MobileBusinessSwitcherSlot({
     ownerUserId: session.user.id,
   });
 
-  const billing = await getBusinessBillingShellOverview(
-    businessContext.business.id,
-  ).catch(() => null);
+  const billing = isSelfHostedDeployment()
+    ? null
+    : await getBusinessBillingShellOverview(
+        businessContext.business.id,
+      ).catch(() => null);
   const isTrialing =
     billing != null &&
     billing.currentPlan === "pro" &&

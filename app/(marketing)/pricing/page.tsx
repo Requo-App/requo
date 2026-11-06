@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
 import { PricingPage } from "@/components/marketing/pricing-page";
 import { StructuredData } from "@/components/seo/structured-data";
 import { getPlanPrice } from "@/lib/billing/plans";
+import { isSelfHostedDeployment } from "@/lib/deployment";
 import { detectDisplayCurrency } from "@/lib/billing/region";
 import type {
   BillingCurrency,
@@ -96,6 +98,8 @@ async function PricingPageDynamic() {
  * structured data in the visitor's fixed local currency.
  */
 export default function PricingRoute() {
+  if (isSelfHostedDeployment()) notFound();
+
   const defaultCurrency: BillingCurrency = "USD";
 
   const breadcrumbItems = buildBreadcrumbsForPathname("/pricing", {

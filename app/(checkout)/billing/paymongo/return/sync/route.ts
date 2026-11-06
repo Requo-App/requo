@@ -1,5 +1,5 @@
 import { revalidateTag } from "next/cache";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { homePath } from "@/features/businesses/routes";
 import { getSafeAuthRedirectPath } from "@/lib/auth/redirects";
@@ -13,8 +13,11 @@ import {
   retrievePaymongoCheckoutSession,
 } from "@/lib/billing/paymongo-client";
 import { getBusinessBillingCacheTags } from "@/lib/cache/shell-tags";
+import { isSelfHostedDeployment } from "@/lib/deployment";
 
 export async function GET(request: Request) {
+  if (isSelfHostedDeployment()) notFound();
+
   const session = await requireSession();
   const url = new URL(request.url);
   const intentId = url.searchParams.get("intent");

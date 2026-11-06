@@ -7,6 +7,7 @@ import {
   type PublicInquirySitemapEntry,
 } from "@/features/inquiries/queries";
 
+import { isSelfHostedDeployment } from "@/lib/deployment";
 import { absoluteUrl } from "@/lib/seo/site";
 
 
@@ -281,7 +282,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
 
 
-  const staticEntries: MetadataRoute.Sitemap = staticPages.map((page) => {
+  const pages = isSelfHostedDeployment()
+    ? staticPages.filter((page) => page.path !== "/pricing")
+    : staticPages;
+
+  const staticEntries: MetadataRoute.Sitemap = pages.map((page) => {
 
     const url = absoluteUrl(page.path);
 

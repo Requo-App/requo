@@ -14,6 +14,7 @@ import {
   markEventProcessed,
   recordWebhookEvent,
 } from "@/lib/billing/webhook-processor";
+import { isSelfHostedDeployment } from "@/lib/deployment";
 import { env, getPaymongoMode, isPaymongoConfigured } from "@/lib/env";
 import { logError, logWarn } from "@/lib/observability/logger";
 
@@ -91,6 +92,10 @@ function readPaidPayment(
 }
 
 export async function POST(request: Request): Promise<Response> {
+  if (isSelfHostedDeployment()) {
+    return NextResponse.json({ error: "Not found." }, { status: 404 });
+  }
+
   if (!isPaymongoConfigured) {
     return NextResponse.json(
       { error: "PayMongo is not configured." },

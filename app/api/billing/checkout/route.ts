@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { requireUser } from "@/lib/auth/session";
+import { isSelfHostedDeployment } from "@/lib/deployment";
 import {
   getPolarClient,
   resolveAppOrigin,
@@ -48,6 +49,10 @@ const checkoutBodySchema = z.object({
 });
 
 export async function POST(request: Request): Promise<Response> {
+  if (isSelfHostedDeployment()) {
+    return NextResponse.json({ error: "Not found." }, { status: 404 });
+  }
+
   let user: Awaited<ReturnType<typeof requireUser>>;
 
   try {

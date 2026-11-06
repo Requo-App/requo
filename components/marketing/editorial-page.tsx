@@ -11,6 +11,7 @@ import {
 } from "@/components/marketing/solutions/solutions-shared";
 import { PublicPageShell } from "@/components/shared/public-page-shell";
 import { Button } from "@/components/ui/button";
+import { isSelfHostedDeployment } from "@/lib/deployment";
 
 export type EditorialBreadcrumb = {
   name: string;
@@ -50,6 +51,13 @@ export function EditorialPage({
   ctaSub: string;
   children?: ReactNode;
 }) {
+  // Pricing does not exist in self-hosted mode, so drop a pricing CTA rather
+  // than linking to a route that returns 404.
+  const resolvedSecondaryCta =
+    isSelfHostedDeployment() && secondaryCta?.href === "/pricing"
+      ? undefined
+      : secondaryCta;
+
   return (
     <div className="overflow-x-clip">
       <PublicPageShell
@@ -107,14 +115,16 @@ export function EditorialPage({
                     <ArrowRight data-icon="inline-end" />
                   </Link>
                 </Button>
-                {secondaryCta ? (
+                {resolvedSecondaryCta ? (
                   <Button
                     asChild
                     className="rounded-lg border-border/80 bg-secondary/30 px-6 font-mono text-xs font-medium uppercase tracking-wider text-foreground hover:bg-secondary/60"
                     size="lg"
                     variant="outline"
                   >
-                    <Link href={secondaryCta.href}>{secondaryCta.label}</Link>
+                    <Link href={resolvedSecondaryCta.href}>
+                      {resolvedSecondaryCta.label}
+                    </Link>
                   </Button>
                 ) : null}
               </div>

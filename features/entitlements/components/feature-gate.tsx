@@ -24,6 +24,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useIsSelfHostedDeployment } from "@/components/providers/deployment-mode-provider";
 import { UpgradeButton } from "@/features/billing/components/upgrade-button";
 import type { PlanTier } from "@/lib/plans/plans";
 import {
@@ -117,8 +118,11 @@ export function FeatureGate({
   showTooltip = true,
   previewContent,
 }: FeatureGateProps) {
-  // If user has access, always render children normally
-  if (hasFeatureAccess(plan, feature)) {
+  const isSelfHosted = useIsSelfHostedDeployment();
+
+  // Self-hosted installations include the full product; Cloud plan gates do
+  // not apply.
+  if (isSelfHosted || hasFeatureAccess(plan, feature)) {
     return <>{children}</>;
   }
 

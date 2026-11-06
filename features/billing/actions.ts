@@ -8,6 +8,7 @@ import { detectDisplayCurrency } from "@/lib/billing/region";
 import { startBusinessTrial } from "@/lib/billing/subscription-service";
 import { getBusinessBillingCacheTags } from "@/lib/cache/shell-tags";
 import { getBusinessActionContext } from "@/lib/db/business-access";
+import { isSelfHostedDeployment } from "@/lib/deployment";
 import { PRO_TRIAL_DAYS } from "@/lib/plans/plans";
 
 export type UpgradeEligibleBusiness = {
@@ -65,6 +66,10 @@ export async function startBusinessTrialAction(
   _prevState: StartBusinessTrialActionState,
   _formData: FormData,
 ): Promise<StartBusinessTrialActionState> {
+  if (isSelfHostedDeployment()) {
+    return { error: "Requo Cloud billing is not available on this instance." };
+  }
+
   const access = await getBusinessActionContext({
     businessSlug,
     minimumRole: "owner",

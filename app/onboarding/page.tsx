@@ -20,6 +20,10 @@ import { UiScaleSync } from "@/features/theme/components/ui-scale-sync";
 import { getUiScalePreferenceForUser } from "@/features/theme/ui-scale-queries";
 import { ensureProfileForUser } from "@/lib/auth/business-bootstrap";
 import { requireSession } from "@/lib/auth/session";
+import {
+  isSelfHostedDeployment,
+  selfHostedEntitlementPlan,
+} from "@/lib/deployment";
 import { canStartBusinessTrial } from "@/lib/billing/subscription-service";
 import { getBusinessMembershipsForUser } from "@/lib/db/business-access";
 import { timed } from "@/lib/dev/server-timing";
@@ -73,7 +77,9 @@ async function OnboardingPageContent() {
       getBusinessMembershipsForUser(session.user.id),
       getAccountProfileForUser(session.user.id),
       hasGoogleAccountLinked(session.user.id),
-      canStartBusinessTrial({ userId: session.user.id }),
+      isSelfHostedDeployment()
+        ? Promise.resolve(false)
+        : canStartBusinessTrial({ userId: session.user.id }),
     ]),
   );
 
@@ -99,6 +105,12 @@ async function OnboardingPageContent() {
     ? geoCountry
     : "";
 
+  const onboardingPlan = isSelfHostedDeployment()
+    ? selfHostedEntitlementPlan
+    : trialEligible
+      ? "pro"
+      : "free";
+
   return (
     <>
       <ThemePreferenceSync
@@ -122,7 +134,7 @@ async function OnboardingPageContent() {
                 avatarUrl: session.user.image ?? null,
               }}
               lastNameOptional={lastNameOptional}
-              plan={trialEligible ? "pro" : "free"}
+              plan={onboardingPlan}
             />
           </div>
         </div>

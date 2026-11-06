@@ -16,6 +16,10 @@ import { newEntityId } from "@/lib/ids";
 import { onboardingPath } from "@/features/onboarding/routes";
 import { UpgradePrompt } from "@/features/entitlements";
 import { requireSession } from "@/lib/auth/session";
+import {
+  isSelfHostedDeployment,
+  selfHostedEntitlementPlan,
+} from "@/lib/deployment";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 
 export const metadata: Metadata = createNoIndexMetadata({
@@ -85,7 +89,9 @@ async function NewBusinessPageContent() {
           <CreateBusinessForm
             action={createBusinessAction}
             businessId={businessId}
-            plan="free"
+            plan={
+              isSelfHostedDeployment() ? selfHostedEntitlementPlan : "free"
+            }
             standalone
           />
         ) : (

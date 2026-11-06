@@ -1,5 +1,13 @@
 # Billing Setup
 
+> **Requo Cloud only.** Polar and PayMongo subscription billing operates the
+> managed Requo Cloud service. When `REQUO_DEPLOYMENT_MODE=self-hosted`, the
+> pricing and billing pages, checkout, customer portal, billing webhooks, and
+> subscription expiry job are disabled, and no Polar or PayMongo credentials
+> are required. Customer payment records (cash, bank transfer, GCash, Maya,
+> check, other) remain available in both modes. See
+> [Requo Self-Hosted](../self-hosting.md).
+
 Requo has two payment providers:
 
 - **Polar** (polar.sh) handles recurring card, Google Pay, and Apple Pay subscriptions and acts as the merchant of record. Polar reports currencies as lowercase ISO 4217 codes; Requo normalizes them to its uppercase `billing_currency` enum. Supported currencies are USD, PHP, GBP, CAD, AUD, EUR, NZD, SGD, AED, INR, and ZAR. Unsupported currencies are logged and recorded as USD rather than failing the webhook.

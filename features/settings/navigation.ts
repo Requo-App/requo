@@ -17,7 +17,10 @@ export type SettingsNavigationGroup = {
 
 export function getUnifiedSettingsNavigation(
   slug: string,
+  options: { includeBilling?: boolean } = {},
 ): SettingsNavigationGroup[] {
+  const { includeBilling = true } = options;
+
   return [
     {
       label: "User",
@@ -63,11 +66,15 @@ export function getUnifiedSettingsNavigation(
           label: "Customer agent",
           icon: "astroid",
         },
-        {
-          href: `/${slug}/settings/billing`,
-          label: "Billing",
-          icon: "receipt",
-        },
+        ...(includeBilling
+          ? [
+              {
+                href: `/${slug}/settings/billing`,
+                label: "Billing",
+                icon: "receipt",
+              },
+            ]
+          : []),
         {
           href: `/${slug}/settings/members`,
           label: "Members",

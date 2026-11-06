@@ -3,6 +3,7 @@ import "server-only";
 import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import { hasPaidBusinessSubscriptionSql } from "@/lib/billing/entitlement-sql";
+import { isSelfHostedDeployment } from "@/lib/deployment";
 import { db } from "@/lib/db/client";
 import { businesses, userRecentBusinesses } from "@/lib/db/schema";
 import { businessSubscriptions } from "@/lib/db/schema/subscriptions";
@@ -29,6 +30,11 @@ type ActiveBusinessSummary = {
  * Paid plans never cap the number of businesses an owner can operate.
  */
 function getActiveBusinessLimit(plan: PlanTier) {
+  // Self-hosted installations have no Requo Cloud business-count limit.
+  if (isSelfHostedDeployment()) {
+    return null;
+  }
+
   return getUsageLimit(plan, "freeBusinessesPerOwner");
 }
 
@@ -209,7 +215,7 @@ export async function unlockBusinessIfAllowed({
     )
     .limit(1);
 
-  if (!paidRow) {
+  if (!isSelfHostedDeployment() && !paidRow) {
     // Free business: unlocking it consumes the owner's one Free slot.
     // The locked business is not active, so any other active Free business
     // already occupies the slot.

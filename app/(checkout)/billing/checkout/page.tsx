@@ -1,7 +1,7 @@
 import "server-only";
 
 import { updateTag } from "next/cache";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import {
   homePath,
@@ -14,6 +14,7 @@ import {
 import { requireSession } from "@/lib/auth/session";
 import { syncSubscriptionFromPolar } from "@/lib/billing/subscription-service";
 import { getBusinessBillingCacheTags } from "@/lib/cache/shell-tags";
+import { isSelfHostedDeployment } from "@/lib/deployment";
 import { requireBusinessContextForUser } from "@/lib/db/business-access";
 
 type SearchParamsRecord = Record<string, string | string[] | undefined>;
@@ -39,6 +40,8 @@ function readParam(value: string | string[] | undefined): string | null {
 export default async function BillingCheckoutPage({
   searchParams,
 }: CheckoutPageProps) {
+  if (isSelfHostedDeployment()) notFound();
+
   const session = await requireSession();
 
   const resolvedSearchParams = await searchParams;

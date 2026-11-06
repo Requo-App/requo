@@ -11,6 +11,10 @@ import { eq, sql } from "drizzle-orm";
 import { cacheLife, cacheTag, revalidateTag } from "next/cache";
 
 import { normalizeBillingCurrency } from "@/lib/billing/currency";
+import {
+  isSelfHostedDeployment,
+  selfHostedEntitlementPlan,
+} from "@/lib/deployment";
 import { enforceLiveServiceLimit } from "@/lib/billing/live-service-enforcement";
 import { db } from "@/lib/db/client";
 import { businesses } from "@/lib/db/schema/businesses";
@@ -207,6 +211,10 @@ export async function getCachedBusinessSubscription(
 export async function getEffectivePlanForBusiness(
   businessId: string,
 ): Promise<PlanTier> {
+  if (isSelfHostedDeployment()) {
+    return selfHostedEntitlementPlan;
+  }
+
   const subscription = await getBusinessSubscription(businessId);
 
   if (!subscription) {
@@ -219,6 +227,10 @@ export async function getEffectivePlanForBusiness(
 export async function getCachedEffectivePlanForBusiness(
   businessId: string,
 ): Promise<PlanTier> {
+  if (isSelfHostedDeployment()) {
+    return selfHostedEntitlementPlan;
+  }
+
   // Resolve the effective plan outside the cache boundary. The subscription
   // row is cached, but trial end and period-end calculations depend on the
   // current time, so caching the result would keep granting Pro after a trial
@@ -239,6 +251,10 @@ export async function getCachedEffectivePlanForBusiness(
 export function resolveEffectivePlanFromSubscription(
   subscription: SubscriptionLike,
 ): PlanTier {
+  if (isSelfHostedDeployment()) {
+    return selfHostedEntitlementPlan;
+  }
+
   switch (subscription.status) {
     case "trialing":
       // Trials always grant Pro, regardless of the stored plan column. Once
@@ -288,7 +304,8 @@ export function resolveEffectivePlanFromSubscription(
 
 /**
  * Null-safe variant for queries that left-join `business_subscriptions`.
- * A business without a subscription row is on the free plan.
+ * Self-hosted installations have no subscription row, so they resolve to the
+ * full product tier. On Cloud, a business without a subscription row is Free.
  */
 export function resolveEffectivePlanFromSubscriptionFields(
   subscription:
@@ -302,6 +319,10 @@ export function resolveEffectivePlanFromSubscriptionFields(
     | null
     | undefined,
 ): PlanTier {
+  if (isSelfHostedDeployment()) {
+    return selfHostedEntitlementPlan;
+  }
+
   if (!subscription?.status || !subscription.plan) {
     return "free";
   }
@@ -342,6 +363,15 @@ type ActivateSubscriptionParams = {
 export async function activateSubscription(
   params: ActivateSubscriptionParams,
 ): Promise<BusinessSubscriptionRow> {
+  // Defence in depth: checkout and webhook routes already 404 in self-hosted
+  // mode, and admin billing controls are hidden. No caller may create a Cloud
+  // subscription record on an independent installation.
+  if (isSelfHostedDeployment()) {
+    throw new Error(
+      "Requo Cloud subscription billing is not available in self-hosted mode.",
+    );
+  }
+
   const now = new Date();
 
   const subscription = await db.transaction(async (tx) => {
@@ -639,6 +669,12 @@ export async function updateSubscriptionPaymentMethod(
 export async function cancelSubscription(
   businessId: string,
 ): Promise<BusinessSubscriptionRow | null> {
+  if (isSelfHostedDeployment()) {
+    throw new Error(
+      "Requo Cloud subscription billing is not available in self-hosted mode.",
+    );
+  }
+
   return updateSubscriptionStatus(businessId, "canceled", {
     canceledAt: new Date(),
   });
@@ -902,6 +938,10 @@ export async function startBusinessTrial({
 export async function syncSubscriptionFromPolar(
   businessId: string,
 ): Promise<PlanTier | false> {
+  if (isSelfHostedDeployment()) {
+    return false;
+  }
+
   const { env: envVars, isPolarConfigured } = await import("@/lib/env");
 
   if (!isPolarConfigured || !envVars.POLAR_ACCESS_TOKEN) {

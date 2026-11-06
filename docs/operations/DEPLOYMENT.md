@@ -4,6 +4,12 @@ This is a concise map of the checked-in deployment topology. Detailed provider
 setup lives in [Deployment Setup](../setup/deployment.md); database rollout is
 documented in [Database Migrations](../database-migrations.md).
 
+The same build serves two deployment modes selected by
+`REQUO_DEPLOYMENT_MODE` (`cloud` or `self-hosted`). Requo Cloud keeps
+subscription billing; self-hosted disables the Cloud billing routes, jobs, and
+UI and needs no Polar/PayMongo credentials. See
+[Requo Self-Hosted](../self-hosting.md).
+
 ## Topology
 
 - The application is a Next.js App Router deployment configured for Vercel.

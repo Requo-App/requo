@@ -23,6 +23,7 @@ import { MobileHeaderSlotProvider } from "@/components/shell/mobile-header-slot"
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { getBusinessAssistantPath } from "@/features/businesses/routes";
 import { getUnifiedSettingsNavigation } from "@/features/settings/navigation";
+import { useIsSelfHostedDeployment } from "@/components/providers/deployment-mode-provider";
 import type { BusinessMemberRole } from "@/lib/business-members";
 
 import { MobileTopBar } from "@/components/shell/mobile-top-bar";
@@ -113,9 +114,10 @@ export function DashboardShellFrame({
   const [settingsNavOpen, setSettingsNavOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const breadcrumbs = useMemo(() => getDashboardBreadcrumbs(pathname), [pathname]);
+  const isSelfHosted = useIsSelfHostedDeployment();
   const settingsGroups = useMemo(
-    () => getUnifiedSettingsNavigation(businessSlug),
-    [businessSlug],
+    () => getUnifiedSettingsNavigation(businessSlug, { includeBilling: !isSelfHosted }),
+    [businessSlug, isSelfHosted],
   );
 
   const sidebarBottomSlot = (

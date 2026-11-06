@@ -23,6 +23,7 @@ index is the map to the product, current implementation, and recurring work.
 
 - New contributor or local environment: [Development](engineering/DEVELOPMENT.md)
   and [local setup](setup/local.md).
+- Operating an independent installation: [Self-hosting](self-hosting.md).
 - Test changes: [`tests/README.md`](../tests/README.md).
 - Security-sensitive work: [Security](security/SECURITY.md).
 - Production operations: [Deployment](operations/DEPLOYMENT.md), the
@@ -46,7 +47,8 @@ the database contract; `tests/` holds executable checks.
 
 ## Setup guides
 
-- [Billing and Polar](setup/billing.md)
+- [Self-hosting](self-hosting.md)
+- [Billing and Polar (Requo Cloud only)](setup/billing.md)
 - [AI provider limits](setup/ai-provider-limits.md)
 - [Crisp support](setup/crisp-support.md)
 - [Redis](setup/redis.md)

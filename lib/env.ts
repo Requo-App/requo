@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { deploymentModes } from "@/lib/deployment-mode";
+
 const emptyToUndefined = <T extends z.ZodTypeAny>(schema: T) =>
   z.preprocess((value) => {
     if (typeof value === "string" && value.trim() === "") {
@@ -11,6 +13,24 @@ const emptyToUndefined = <T extends z.ZodTypeAny>(schema: T) =>
 
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+  /**
+   * `cloud` is the managed Requo Cloud service; `self-hosted` is an
+   * independently operated installation. Missing values keep the historical
+   * Cloud behavior so existing deployments do not change on upgrade.
+   */
+  REQUO_DEPLOYMENT_MODE: z.preprocess(
+    (value) => {
+      if (typeof value !== "string") return value;
+
+      const trimmed = value.trim();
+      return trimmed === "" ? undefined : trimmed;
+    },
+    z
+      .enum(deploymentModes, {
+        error: 'REQUO_DEPLOYMENT_MODE must be "cloud" or "self-hosted".',
+      })
+      .default("cloud"),
+  ),
   DATABASE_URL: z.string().min(1),
   BETTER_AUTH_SECRET: z.string().min(32),
   BETTER_AUTH_URL: z.url(),
@@ -47,6 +67,19 @@ const envSchema = z.object({
   CLOUDFLARE_ACCOUNT_ID: emptyToUndefined(z.string().min(1)),
   CLOUDFLARE_API_TOKEN: emptyToUndefined(z.string().min(1)),
   NVIDIA_NIM_API_KEY: emptyToUndefined(z.string().min(1)),
+  /**
+   * Reserved custom-provider settings. The AI router does not currently
+   * register or select a custom provider in either deployment mode.
+   */
+  AI_CUSTOM_BASE_URL: emptyToUndefined(z.url()),
+  AI_CUSTOM_API_KEY: emptyToUndefined(z.string().min(1)),
+  AI_CUSTOM_MODEL: emptyToUndefined(z.string().trim().min(1)),
+  AI_CUSTOM_CONTEXT_WINDOW: emptyToUndefined(z.coerce.number().int().min(1)),
+  AI_CUSTOM_MAX_OUTPUT_TOKENS: emptyToUndefined(z.coerce.number().int().min(1)),
+  AI_CUSTOM_QUALITY: emptyToUndefined(z.coerce.number().int().min(1).max(10)),
+  AI_CUSTOM_TOOLS: emptyToUndefined(z.enum(["0", "1", "true", "false"])),
+  AI_CUSTOM_COST_INPUT: emptyToUndefined(z.coerce.number().min(0)),
+  AI_CUSTOM_COST_OUTPUT: emptyToUndefined(z.coerce.number().min(0)),
   DEMO_OWNER_NAME: emptyToUndefined(z.string().trim().min(1)),
   DEMO_OWNER_EMAIL: emptyToUndefined(z.email()),
   DEMO_OWNER_PASSWORD: emptyToUndefined(z.string().min(8)),
@@ -127,6 +160,17 @@ const envSchema = z.object({
   UPSTASH_REDIS_REST_URL: emptyToUndefined(z.url()),
   UPSTASH_REDIS_REST_TOKEN: emptyToUndefined(z.string().min(1)),
   CRON_SECRET: emptyToUndefined(z.string().min(16)),
+}).superRefine((value, ctx) => {
+  const hasBaseUrl = Boolean(value.AI_CUSTOM_BASE_URL);
+  const hasModel = Boolean(value.AI_CUSTOM_MODEL);
+
+  if (hasBaseUrl !== hasModel) {
+    ctx.addIssue({
+      code: "custom",
+      message: "AI_CUSTOM_BASE_URL and AI_CUSTOM_MODEL must be set together.",
+      path: [hasBaseUrl ? "AI_CUSTOM_MODEL" : "AI_CUSTOM_BASE_URL"],
+    });
+  }
 });
 
 export const env = envSchema.parse(process.env);

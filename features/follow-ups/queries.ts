@@ -40,6 +40,10 @@ import {
   hotBusinessCacheLife,
 } from "@/lib/cache/business-tags";
 import { withCircuitBreaker } from "@/lib/db/circuit-breaker";
+import {
+  isSelfHostedDeployment,
+  selfHostedEntitlementPlan,
+} from "@/lib/deployment";
 import { db } from "@/lib/db/client";
 import {
   businesses,
@@ -162,7 +166,9 @@ function mapFollowUpRow(row: FollowUpRow): FollowUpView {
     id: row.id,
     businessId: row.businessId,
     businessTimezone: row.businessTimezone,
-    businessPlan: row.businessPlan as PlanTier,
+    businessPlan: isSelfHostedDeployment()
+      ? selfHostedEntitlementPlan
+      : (row.businessPlan as PlanTier),
     inquiryId: row.inquiryId,
     quoteId: row.quoteId,
     assignedToUserId: row.assignedToUserId,

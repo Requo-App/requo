@@ -15,6 +15,29 @@
   <img src="https://img.shields.io/badge/License-AGPL--3.0-blue" alt="AGPL-3.0-only" />
 </p>
 
+## Two Ways to Use Requo
+
+### Requo Cloud
+
+The managed hosted service at <https://requo.app>. It includes the Free, Pro,
+and Business plans, Polar and PayMongo subscription billing, and the hosted
+marketing site. Nothing to install or operate.
+
+### Requo Self-Hosted
+
+Clone or fork this public repository and run an independent instance with
+`REQUO_DEPLOYMENT_MODE=self-hosted`. Self-hosted is a complete deployment type,
+not a limited Free plan: there is no Requo subscription, no pricing or billing
+screen, no Cloud checkout or webhook, no license check, and no phone-home
+dependency. It still includes inquiries, quotes, customers, invoices, manual
+customer payment records, AI workflows, email, files, and notifications.
+
+You provide your own PostgreSQL database, storage, auth secret, and optional
+AI/email provider credentials. See **[docs/self-hosting.md](docs/self-hosting.md)**
+for infrastructure, configuration, migrations, scheduling, deployment, and
+backups. Requo Cloud sets `REQUO_DEPLOYMENT_MODE=cloud`; a missing value also
+defaults to Cloud for backward compatibility.
+
 ## Screenshots
 
 ![Requo landing page and dashboard preview](public/screenshots/landing.png)
@@ -45,7 +68,7 @@
 - **Quote work:** drafting and revisions, reusable product/quote library, version snapshots, public quote pages, customer responses (accept / reject / revision), and email templates.
 - **Follow-up and visibility:** owner reminder tasks, supported automatic follow-up emails, conversion and workflow analytics, CSV, PDF, and PNG exports, in-app notifications, web push, activity/audit records, and business membership.
 - **Commercial continuation:** invoices from accepted quotes, manually recorded payments, quote acceptance records, approval flows, typed scope blocks, payment schedules, and change orders.
-- **Business management:** business onboarding templates, multiple businesses per account, role-aware membership, plan entitlements, and Polar subscriptions (Free, Pro, Business).
+- **Business management:** business onboarding templates, multiple businesses per account, role-aware membership, and plan entitlements. Requo Cloud adds Polar/PayMongo subscriptions (Free, Pro, Business); self-hosted installations run without them.
 
 > **Agent vs Assistant:** the **Agent** is public customer-facing chat — its proposed inquiry needs customer confirmation before creation. The **Assistant** is the authenticated, business-scoped owner chat — it needs confirmation for customer-visible or pipeline-mutating work. AI drafts quote text grounded in business knowledge files, but **models never emit prices**: quote candidates return `unitPriceInCents: 0` and the server hydrates real prices from the database.
 
@@ -65,19 +88,21 @@ No dispatch/job management, general calendar or crew scheduling, mobile app, mar
 | Identity | Better Auth (Drizzle adapter) — the only identity provider; every business query is `businessId`-scoped |
 | Storage / realtime | Supabase private storage (via authenticated server routes) and realtime notification plumbing |
 | Email | Resend, with Mailtrap then Brevo fallbacks |
-| AI | Vercel AI SDK with capacity-aware free-tier-first routing (Groq, Gemini, Cloudflare Workers AI, NVIDIA NIM, OpenRouter; NVIDIA hosted NIM is a documented production exception) |
+| AI | Vercel AI SDK with capacity-aware free-tier-first routing (Groq, Gemini, Cloudflare Workers AI, NVIDIA NIM, OpenRouter; NVIDIA hosted NIM is a documented production exception). |
 | Background work | Inngest (local Dev Server) plus Vercel Cron route handlers |
-| Billing | Polar subscriptions and checkout; role authorization stays separate from plan entitlement, enforced server-side |
+| Billing | Requo Cloud only: Polar subscriptions/checkout and PayMongo QR Ph; role authorization stays separate from plan entitlement, enforced server-side |
 
 ## Quick Start
 
 Prerequisites: Node.js 24+ and npm, plus either a cloud Supabase project or
-Docker for local services. Copy `.env.example` to `.env.local` first.
+Docker for local services. Copy `.env.example` to `.env.local` first. The
+template defaults to self-hosted; set `REQUO_DEPLOYMENT_MODE=cloud` for the
+managed Requo Cloud service.
 
 ### Cloud Supabase
 
 ```bash
-cp .env.example .env.local   # fill in cloud Supabase + database values
+cp .env.example .env.local   # Cloud Supabase + database values; set REQUO_DEPLOYMENT_MODE=cloud
 npm install
 npm run db:migrate           # first run, or after pulling new migrations
 npm run dev                  # app + Inngest
@@ -92,7 +117,7 @@ The app and Inngest run on the host; Supabase, Redis, and the
 Upstash-compatible Redis proxy run in Docker.
 
 ```bash
-cp .env.example .env.local   # local Supabase values
+cp .env.example .env.local   # local Supabase values; set REQUO_DEPLOYMENT_MODE=cloud
 npm install
 npm run services:up          # start Supabase + Redis, then exit
 npm run db:local:setup       # migrate + demo seed + local realtime setup

@@ -6,6 +6,7 @@ import { toast } from "@/components/shared/notify";
 
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { useIsSelfHostedDeployment } from "@/components/providers/deployment-mode-provider";
 import { useBusinessCheckout } from "@/features/billing/components/business-checkout-provider";
 import { PlanSelectionSheet } from "@/features/billing/components/plan-selection-sheet";
 import { usePlanSelection } from "@/features/billing/components/plan-selection-provider";
@@ -92,6 +93,7 @@ export function UpgradeButton({
   onOpen,
   children,
 }: UpgradeButtonProps) {
+  const isSelfHosted = useIsSelfHostedDeployment();
   const businessCheckout = useBusinessCheckout();
   const planSelection = usePlanSelection();
   const usingProvider =
@@ -104,6 +106,11 @@ export function UpgradeButton({
     targetPlan,
   );
   const [isLocalPending, startLocalTransition] = useTransition();
+
+  // Cloud subscriptions do not exist in a self-hosted installation.
+  if (isSelfHosted) {
+    return null;
+  }
 
   const effectiveCurrentPlan = usingProvider
     ? businessCheckout.currentPlan
