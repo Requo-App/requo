@@ -37,10 +37,10 @@ const devOnlyExperimental = isProduction
       instantInsights: { validationLevel: "manual-warning" },
     } satisfies NextConfig["experimental"]);
 
-// Report-only until the policy has been observed against the real third-party
-// surface (Crisp, Supabase Realtime, Sentry, checkout). See
-// `docs/security/SECURITY.md` before switching the header to enforcement.
-const contentSecurityPolicy = getContentSecurityPolicyHeader("report-only", {
+// Enforced after the report-only pass. New directives and third-party
+// integrations must be observed report-only first; see
+// `docs/security/SECURITY.md` before changing the policy.
+const contentSecurityPolicy = getContentSecurityPolicyHeader("enforce", {
   crispWebsiteId: process.env.CRISP_WEBSITE_ID,
   isProduction,
   sentryDsn: process.env.NEXT_PUBLIC_SENTRY_DSN,

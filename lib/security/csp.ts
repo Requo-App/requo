@@ -92,9 +92,8 @@ function buildDirectives(options: CspOptions): string[] {
       ]),
     ],
     // React attaches event handlers with addEventListener rather than inline
-    // `on*` attributes. Keeping attributes blocked is a cheap XSS barrier; it
-    // is report-only first so an unforeseen embed can be caught before
-    // enforcement.
+    // `on*` attributes. Keeping attributes blocked is a cheap XSS barrier.
+    // Validate a new embed report-only before relaxing this.
     ["script-src-attr", ["'none'"]],
     [
       "style-src",

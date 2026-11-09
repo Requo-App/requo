@@ -22,7 +22,7 @@ function directive(policy: string, name: string): string {
 }
 
 describe("content security policy", () => {
-  it("uses a report-only header until enforcement is enabled explicitly", () => {
+  it("maps the CSP mode to the matching response header", () => {
     expect(getContentSecurityPolicyHeader("report-only", production).key).toBe(
       "Content-Security-Policy-Report-Only",
     );

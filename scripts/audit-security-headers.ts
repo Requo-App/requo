@@ -6,6 +6,10 @@
  *
  *   npm run audit:security-headers -- --base-url http://127.0.0.1:3000
  *
+ * The default expectation is an enforced `Content-Security-Policy`. Pass
+ * `--csp-mode report-only` when auditing a preview that is still collecting
+ * violations for a new directive or third-party origin.
+ *
  * It intentionally has no test-runner dependency: the same command can compare
  * a preview deployment with production before and after a rollout.
  */
@@ -77,7 +81,9 @@ function readCspMode(): CspMode {
     return value;
   }
 
-  return "report-only";
+  // The deployed policy is enforced. Pass `--csp-mode report-only` to audit a
+  // preview that is still validating a new directive.
+  return "enforce";
 }
 
 function headerValue(headers: Headers, name: string): string | null {

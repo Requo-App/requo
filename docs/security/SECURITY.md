@@ -138,13 +138,15 @@ root [`SECURITY.md`](../../SECURITY.md).
   because businesses can attach arbitrary showcase image URLs; keep that broad
   source scoped to images. When adding a new browser integration, extend the
   builder and its unit tests in the same change.
-- Roll out CSP changes report-only first and collect
-  `securitypolicyviolation` events from real journeys (the Playwright security
-  header spec does this for public pages). Do not add a production CSP report
-  endpoint: public quote, inquiry, and attachment URLs carry bearer tokens in
-  the pathname, and violation reports would leak them. Switch the header to
-  `Content-Security-Policy` only after the report-only pass is clean; the
-  enforcement change is a separate review.
+- The policy is enforced as `Content-Security-Policy` (not report-only).
+  Validate any new directive or third-party integration report-only first and
+  collect `securitypolicyviolation` events from real journeys; the Playwright
+  security header spec fails on any violation across the public pages. Pass
+  `--csp-mode report-only` to `npm run audit:security-headers` when auditing
+  such a preview. Do not add a production CSP report endpoint: public quote,
+  inquiry, and attachment URLs carry bearer tokens in the pathname, and
+  violation reports would leak them. Switching an integration from report-only
+  to enforcement is a separate review.
 - `Cross-Origin-Resource-Policy: same-origin` is scoped to authenticated app
   and auth responses (static app-shell rules plus business-scoped routes in
   `proxy.ts`). Do not apply it to public pages, logos, OG images, or public
