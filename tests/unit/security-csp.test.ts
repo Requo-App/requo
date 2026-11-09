@@ -99,6 +99,8 @@ describe("content security policy", () => {
     });
 
     expect(disabled).not.toContain("crisp.chat");
+    expect(directive(disabled, "worker-src")).toBe("worker-src 'self'");
+    expect(directive(enabled, "worker-src")).toBe("worker-src 'self' blob:");
     expect(directive(enabled, "script-src")).toContain(
       "https://client.crisp.chat",
     );

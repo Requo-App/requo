@@ -127,7 +127,7 @@ function buildDirectives(options: CspOptions): string[] {
       ]),
     ],
     ["media-src", ["'self'", "blob:"]],
-    ["worker-src", ["'self'"]],
+    ["worker-src", ["'self'", ...(crispEnabled ? ["blob:"] : [])]],
     ["manifest-src", ["'self'"]],
     ["frame-src", unique(["'self'", ...(crispEnabled ? [CRISP_CLIENT_ORIGIN] : [])])],
     ["object-src", ["'none'"]],

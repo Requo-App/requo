@@ -130,14 +130,21 @@ root [`SECURITY.md`](../../SECURITY.md).
   `dangerouslySetInnerHTML` on public pages, and `script-src-attr 'none'`
   (inline event-handler attributes are blocked). Never interpolate untrusted
   text into an inline script or a `dangerouslySetInnerHTML` payload.
+<!-- coderabbit-ai-generated:v1 -->
+<!-- coderabbit-ai-generated-section:v1:9b660cb4e87749c2f076c4a5f67fda7af856e082a5f36e7e812915c70ee4dac9 -->
+
 - Third-party origins are allowlisted only when the integration is configured:
-  Crisp (`client.crisp.chat` / `client.relay.crisp.chat`), Supabase REST and
+  Crisp (`client.crisp.chat` / `client.relay.crisp.chat`, plus `blob:` workers
+  only when `CRISP_WEBSITE_ID` is configured), Supabase REST and
   Realtime origins derived from `NEXT_PUBLIC_SUPABASE_URL`, and the Sentry
   ingest origin derived from `NEXT_PUBLIC_SENTRY_DSN`. Vercel analytics debug
   scripts are allowed only outside production. `img-src` includes `https:`
   because businesses can attach arbitrary showcase image URLs; keep that broad
   source scoped to images. When adding a new browser integration, extend the
   builder and its unit tests in the same change.
+
+<!-- /coderabbit-ai-generated:v1 -->
+
 - The policy is enforced as `Content-Security-Policy` (not report-only).
   Validate any new directive or third-party integration report-only first and
   collect `securitypolicyviolation` events from real journeys; the Playwright

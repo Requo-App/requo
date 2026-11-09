@@ -67,7 +67,16 @@ const selectedHeaders = [
 
 function readArg(name: string): string | undefined {
   const index = process.argv.indexOf(name);
-  return index >= 0 ? process.argv[index + 1] : undefined;
+  if (index < 0) {
+    return undefined;
+  }
+
+  const value = process.argv[index + 1];
+  if (!value || value.startsWith("-")) {
+    throw new Error(`${name} requires an operand`);
+  }
+
+  return value;
 }
 
 function hasFlag(name: string): boolean {
@@ -81,9 +90,11 @@ function readCspMode(): CspMode {
     return value;
   }
 
-  // The deployed policy is enforced. Pass `--csp-mode report-only` to audit a
-  // preview that is still validating a new directive.
-  return "enforce";
+  if (value === undefined) {
+    return "enforce";
+  }
+
+  throw new Error("--csp-mode must be enforce or report-only");
 }
 
 function headerValue(headers: Headers, name: string): string | null {
