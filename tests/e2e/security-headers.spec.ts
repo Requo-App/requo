@@ -76,6 +76,7 @@ test.describe("security headers", () => {
       expect(body, path).toContain("Contact: mailto:security@requo.app");
       expect(body, path).toContain("Expires: ");
       expect(body, path).toContain("Policy: https://requo.app/security");
+      expect(body.endsWith("\n"), path).toBe(true);
     }
   });
 
@@ -112,6 +113,8 @@ test.describe("security headers", () => {
       });
     });
 
+    const violations: CspViolation[] = [];
+
     for (const path of ["/", "/pricing"]) {
       const response = await page.goto(path);
 
@@ -121,11 +124,10 @@ test.describe("security headers", () => {
       ).toBeTruthy();
       await expect(page.locator("h1").first()).toBeVisible();
       await page.waitForTimeout(1_000);
+      violations.push(
+        ...(await page.evaluate(() => window.__requoCspViolations ?? [])),
+      );
     }
-
-    const violations = await page.evaluate(
-      () => window.__requoCspViolations ?? [],
-    );
 
     expect(violations).toEqual([]);
   });

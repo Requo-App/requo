@@ -14,5 +14,6 @@ export function getSecurityTxtBody(now = new Date()): string {
     `Expires: ${expires.toISOString()}`,
     "Preferred-Languages: en",
     "Policy: https://requo.app/security#vulnerability-disclosure",
+    "",
   ].join("\n");
 }

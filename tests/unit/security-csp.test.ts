@@ -126,6 +126,19 @@ describe("content security policy", () => {
     expect(directive(policy, "connect-src")).toBe("connect-src 'self'");
   });
 
+  it.each(["localhost:54321", "data:text/plain,hello", "ftp://example.com"])(
+    "ignores non-HTTP optional origins (%s) without failing configuration loading",
+    (origin) => {
+      const policy = buildContentSecurityPolicy({
+        ...production,
+        supabaseUrl: origin,
+        sentryDsn: origin,
+      });
+
+      expect(directive(policy, "connect-src")).toBe("connect-src 'self'");
+    },
+  );
+
   it("deduplicates repeated origins", () => {
     const policy = buildContentSecurityPolicy({
       ...production,

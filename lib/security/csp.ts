@@ -39,7 +39,10 @@ function parseOrigin(value: string | null | undefined): string | null {
   }
 
   try {
-    return new URL(value).origin;
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:"
+      ? url.origin
+      : null;
   } catch {
     return null;
   }

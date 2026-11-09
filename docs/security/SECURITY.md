@@ -194,3 +194,33 @@ boundary, including denial cases. Use database integration coverage for
 authorization-sensitive mutations and real persistence guarantees. Relevant
 source and tests live under `lib/auth/`, `lib/db/`, `features/`, and
 `tests/integration/`; see [`tests/README.md`](../../tests/README.md).
+
+## Remote image proxy
+
+- OAuth avatar proxying is not a general remote-image proxy. The session
+  avatar URL is provider-controlled, but
+  [`features/account/oauth-avatar.ts`](../../features/account/oauth-avatar.ts)
+  still allowlists only the provider CDNs over HTTPS, revalidates every
+  redirect hop, rejects non-raster responses, and caps the buffered body.
+  Do not switch the proxy back to `redirect: "follow"` or add arbitrary
+  remote image hosts; an open redirect on an allowed host would otherwise
+  become an SSRF pivot.
+
+## Dependency audit
+
+- Run `npm audit --omit=dev` for production findings and triage them before
+  changing dependency ranges. Do not run `npm audit fix --force`: it removes
+  packages and crosses majors.
+- `body-parser` is overridden to `^2.4.0` because Inngest's Express peer
+  resolves it; the override stays inside Express's supported `^2.x` range.
+- Remaining production findings are transitive to Inngest:
+  - Inngest's bundled `zod@3.25.x` has no fixed 3.x release. Inngest's peer
+    range accepts zod 4, but its dependency range does not; forcing zod 4
+    under Inngest is a major override and is not applied. The vulnerable
+    path validates event payloads submitted by the app or a holder of the
+    Inngest signing key.
+  - `@opentelemetry/resource-detector-gcp` pulls `gcp-metadata` → `gaxios` →
+    `rimraf` → `glob` → `minimatch`. A fix requires major upgrades across
+    that chain; it is not applied without validating Inngest/OTel behavior.
+- Re-run `npm audit --omit=dev` after any dependency change and record new
+  findings in the PR instead of silently widening ranges.
