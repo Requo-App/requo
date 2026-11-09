@@ -23,6 +23,7 @@ const AUTHENTICATED_APP_NOINDEX = "noindex, nofollow, noarchive";
 // registry).
 const AUTHENTICATED_APP_CACHE_CONTROL =
   "private, no-cache, no-store, max-age=0, must-revalidate";
+const AUTHENTICATED_APP_RESOURCE_POLICY = "same-origin";
 
 const ADMIN_CONSOLE_PREFIX = "/admin";
 
@@ -69,6 +70,7 @@ function adminForbiddenResponse(): NextResponse {
     headers: {
       "content-type": "text/html; charset=utf-8",
       "cache-control": "private, no-store, max-age=0",
+      "cross-origin-resource-policy": AUTHENTICATED_APP_RESOURCE_POLICY,
       "x-robots-tag": "noindex, nofollow, noarchive",
       "referrer-policy": "no-referrer",
     },
@@ -131,6 +133,10 @@ function finalizeProxyResponse(request: NextRequest, response: NextResponse) {
   if (!isPublicRoutePrefix(pathname) && !isPrivateRoutePrefix(pathname)) {
     response.headers.set("X-Robots-Tag", AUTHENTICATED_APP_NOINDEX);
     response.headers.set("Cache-Control", AUTHENTICATED_APP_CACHE_CONTROL);
+    response.headers.set(
+      "Cross-Origin-Resource-Policy",
+      AUTHENTICATED_APP_RESOURCE_POLICY,
+    );
   }
 
   return response;
@@ -238,7 +244,13 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
+  // Keep crawler and metadata resources out of the proxy. `finalizeProxyResponse`
+  // marks anything that is neither a public nor a private app prefix as a
+  // private, non-indexable app route, which is correct for business-scoped
+  // dashboards but wrong for robots.txt, sitemap.xml, .well-known discovery
+  // documents, and social images. Those responses must stay cacheable and
+  // indexable without an `X-Robots-Tag: noindex`.
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff2)$).*)",
+    "/((?!_next/static|_next/image|favicon\\.ico$|\\.well-known/|robots\\.txt$|sitemap\\.xml$|llms\\.txt$|pricing\\.md$|opengraph-image|twitter-image|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|woff2?|txt|xml|json|md|webm|mp4|pdf)$).*)",
   ],
 };

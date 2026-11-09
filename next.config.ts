@@ -1,6 +1,8 @@
 import withBundleAnalyzer from "@next/bundle-analyzer";
 import type { NextConfig } from "next";
 
+import { getContentSecurityPolicyHeader } from "./lib/security/csp";
+
 const isProduction = process.env.NODE_ENV === "production";
 // The instant-navigation testing API is for dedicated end-to-end test builds
 // only. `next dev` exposes it automatically; a production build must opt in
@@ -35,11 +37,27 @@ const devOnlyExperimental = isProduction
       instantInsights: { validationLevel: "manual-warning" },
     } satisfies NextConfig["experimental"]);
 
+// Report-only until the policy has been observed against the real third-party
+// surface (Crisp, Supabase Realtime, Sentry, checkout). See
+// `docs/security/SECURITY.md` before switching the header to enforcement.
+const contentSecurityPolicy = getContentSecurityPolicyHeader("report-only", {
+  crispWebsiteId: process.env.CRISP_WEBSITE_ID,
+  isProduction,
+  sentryDsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+  supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+});
+
 const baselineSecurityHeaders = [
+  contentSecurityPolicy,
+  {
+    key: "Cross-Origin-Opener-Policy",
+    value: "same-origin",
+  },
   { key: "Permissions-Policy", value: "camera=(), geolocation=(), microphone=()" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "X-Frame-Options", value: "DENY" },
+  { key: "X-Permitted-Cross-Domain-Policies", value: "none" },
   ...(isProduction
     ? [
         {
@@ -52,6 +70,10 @@ const baselineSecurityHeaders = [
 
 const sensitiveNoStoreHeaders = [
   { key: "Cache-Control", value: "private, no-store, max-age=0" },
+  {
+    key: "Cross-Origin-Resource-Policy",
+    value: "same-origin",
+  },
   { key: "Referrer-Policy", value: "no-referrer" },
   { key: "X-Robots-Tag", value: "noindex, nofollow, noarchive" },
 ] satisfies Array<{ key: string; value: string }>;
@@ -66,6 +88,10 @@ const authenticatedAppShellHeaders = [
   {
     key: "Cache-Control",
     value: "private, no-cache, no-store, max-age=0, must-revalidate",
+  },
+  {
+    key: "Cross-Origin-Resource-Policy",
+    value: "same-origin",
   },
   { key: "Referrer-Policy", value: "no-referrer" },
   { key: "X-Robots-Tag", value: "noindex, nofollow, noarchive" },
@@ -85,6 +111,8 @@ const agentDiscoveryHeaders = [
 ] satisfies Array<{ key: string; value: string }>;
 
 const nextConfig: NextConfig = {
+  // Do not advertise the framework in every response.
+  poweredByHeader: false,
   // Skip type-checking during `next build` — types are validated separately
   // via `npm run check`. Works around a Next.js 16 Turbopack bug where the
   // auto-generated route validator truncates paths containing parenthesized
