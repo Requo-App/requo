@@ -227,10 +227,9 @@ export async function fetchOAuthAvatar(
   ) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
-    let response: Response;
 
     try {
-      response = await fetchImpl(currentUrl, {
+      const response = await fetchImpl(currentUrl, {
         redirect: "manual",
         signal: controller.signal,
         headers: {
@@ -239,46 +238,46 @@ export async function fetchOAuthAvatar(
             "image/avif,image/webp,image/png,image/jpeg,image/*;q=0.8,*/*;q=0.2",
         },
       });
+
+      if (response.status >= 300 && response.status < 400) {
+        const nextUrl = resolveOAuthAvatarRedirect(
+          currentUrl,
+          response.headers.get("location"),
+        );
+
+        await cancelBody(response);
+
+        if (!nextUrl || redirectCount === maxRedirects) {
+          return null;
+        }
+
+        currentUrl = nextUrl;
+        continue;
+      }
+
+      const contentType = response.headers.get("content-type");
+
+      if (!response.ok || !isAllowedOAuthAvatarContentType(contentType)) {
+        await cancelBody(response);
+        return null;
+      }
+
+      const bytes = await readOAuthAvatarBody(response, maxBytes);
+
+      if (!bytes) {
+        return null;
+      }
+
+      return {
+        bytes,
+        contentType: normalizeContentType(contentType ?? "image/jpeg"),
+      };
     } catch {
       // Network error, timeout, or abort — treat as transient failure.
       return null;
     } finally {
       clearTimeout(timeout);
     }
-
-    if (response.status >= 300 && response.status < 400) {
-      const nextUrl = resolveOAuthAvatarRedirect(
-        currentUrl,
-        response.headers.get("location"),
-      );
-
-      await cancelBody(response);
-
-      if (!nextUrl || redirectCount === maxRedirects) {
-        return null;
-      }
-
-      currentUrl = nextUrl;
-      continue;
-    }
-
-    const contentType = response.headers.get("content-type");
-
-    if (!response.ok || !isAllowedOAuthAvatarContentType(contentType)) {
-      await cancelBody(response);
-      return null;
-    }
-
-    const bytes = await readOAuthAvatarBody(response, maxBytes);
-
-    if (!bytes) {
-      return null;
-    }
-
-    return {
-      bytes,
-      contentType: normalizeContentType(contentType ?? "image/jpeg"),
-    };
   }
 
   return null;

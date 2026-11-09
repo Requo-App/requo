@@ -229,6 +229,30 @@ describe("fetchOAuthAvatar", () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
+  it("returns null when the response body stalls past the timeout", async () => {
+    const fetchImpl = vi.fn(
+      async (_input: string | URL | Request, init?: RequestInit) => {
+        const body = new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(new Uint8Array([1]));
+            // Model fetch rejecting a pending body read when its signal aborts.
+            init?.signal?.addEventListener(
+              "abort",
+              () => controller.error(init.signal?.reason),
+              { once: true },
+            );
+          },
+        });
+
+        return imageResponse(body);
+      },
+    );
+
+    await expect(
+      fetchOAuthAvatar(githubAvatar, { fetchImpl, timeoutMs: 10 }),
+    ).resolves.toBeNull();
+  });
+
   it("treats a network failure as a transient miss", async () => {
     const fetchImpl = vi.fn(async () => {
       throw new Error("network down");
