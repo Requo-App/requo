@@ -108,6 +108,59 @@ root [`SECURITY.md`](../../SECURITY.md).
   from the client. Server Actions have a separate 4 MB body limit, below
   the hosting request cap and sufficient for existing 2 MB logo uploads.
 
+## Browser security headers and CSP
+
+- Baseline headers are defined in [`next.config.ts`](../../next.config.ts):
+  HSTS (production only), `X-Content-Type-Options: nosniff`,
+  `X-Frame-Options: DENY`, `Referrer-Policy`,
+  `Permissions-Policy`, `Cross-Origin-Opener-Policy: same-origin`, and
+  `X-Permitted-Cross-Domain-Policies: none`. Keep HSTS preload and the existing
+  frame/content-type/referrer/permissions values unchanged unless a security
+  review explicitly accepts the compatibility risk.
+- The Content Security Policy is built by
+  [`lib/security/csp.ts`](../../lib/security/csp.ts). It is a static policy, not
+  a per-request nonce. Public pages are prerendered and CDN-cached, and Next.js
+  emits inline RSC flight scripts that cannot be hashed on static pages. A
+  nonce would force dynamic rendering, disable PPR/CDN caching, and change the
+  public SEO surface. Do not add nonces to public pages to tighten this policy.
+- The policy allows `script-src 'self' 'unsafe-inline'` and
+  `style-src 'self' 'unsafe-inline'` because of those inline flight scripts and
+  Next's inline CSS. This is a known residual XSS mitigation gap, not an
+  oversight. It is partly offset by React escaping, no user-controlled
+  `dangerouslySetInnerHTML` on public pages, and `script-src-attr 'none'`
+  (inline event-handler attributes are blocked). Never interpolate untrusted
+  text into an inline script or a `dangerouslySetInnerHTML` payload.
+- Third-party origins are allowlisted only when the integration is configured:
+  Crisp (`client.crisp.chat` / `client.relay.crisp.chat`), Supabase REST and
+  Realtime origins derived from `NEXT_PUBLIC_SUPABASE_URL`, and the Sentry
+  ingest origin derived from `NEXT_PUBLIC_SENTRY_DSN`. Vercel analytics debug
+  scripts are allowed only outside production. `img-src` includes `https:`
+  because businesses can attach arbitrary showcase image URLs; keep that broad
+  source scoped to images. When adding a new browser integration, extend the
+  builder and its unit tests in the same change.
+- Roll out CSP changes report-only first and collect
+  `securitypolicyviolation` events from real journeys (the Playwright security
+  header spec does this for public pages). Do not add a production CSP report
+  endpoint: public quote, inquiry, and attachment URLs carry bearer tokens in
+  the pathname, and violation reports would leak them. Switch the header to
+  `Content-Security-Policy` only after the report-only pass is clean; the
+  enforcement change is a separate review.
+- `Cross-Origin-Resource-Policy: same-origin` is scoped to authenticated app
+  and auth responses (static app-shell rules plus business-scoped routes in
+  `proxy.ts`). Do not apply it to public pages, logos, OG images, or public
+  APIs; those are intentionally embeddable/cross-origin resources.
+- `proxy.ts` must not run on crawler or discovery resources. Its matcher
+  excludes `robots.txt`, `sitemap.xml`, `llms.txt`, `pricing.md`, `.well-known/*`,
+  and social image routes so `finalizeProxyResponse()` cannot attach
+  `X-Robots-Tag: noindex` or private `Cache-Control` to them. Keep
+  `robots.txt` and `sitemap.xml` anonymously reachable with `200` and
+  byte-identical output; use authentication, authorization, and `noindex` for
+  app/admin surfaces instead of robots `Disallow`.
+- `/.well-known/security.txt` is the canonical RFC 9116 location. The legacy
+  `/.well-known/security-txt` route shares
+  [`lib/security/security-txt.ts`](../../lib/security/security-txt.ts) so the
+  contact, expiry, and policy cannot drift.
+
 ## AI boundaries
 
 - Treat user content and retrieved business knowledge as untrusted input.

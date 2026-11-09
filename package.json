@@ -50,6 +50,7 @@
     "audit:migrations": "tsx scripts/audit-migration-history.ts",
     "audit:instant-navigation": "tsx scripts/audit-instant-navigation.ts",
     "audit:instant-navigation-coverage": "tsx scripts/instant-navigation/check-coverage.ts",
+    "audit:security-headers": "tsx scripts/audit-security-headers.ts",
     "audit:density": "tsx scripts/audit-density.ts",
     "audit:radius": "tsx scripts/audit-radius.ts",
     "audit:status-tokens": "tsx scripts/audit-status-tokens.ts",
