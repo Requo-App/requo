@@ -130,21 +130,30 @@ root [`SECURITY.md`](../../SECURITY.md).
   `dangerouslySetInnerHTML` on public pages, and `script-src-attr 'none'`
   (inline event-handler attributes are blocked). Never interpolate untrusted
   text into an inline script or a `dangerouslySetInnerHTML` payload.
+<!-- coderabbit-ai-generated:v1 -->
+<!-- coderabbit-ai-generated-section:v1:9b660cb4e87749c2f076c4a5f67fda7af856e082a5f36e7e812915c70ee4dac9 -->
+
 - Third-party origins are allowlisted only when the integration is configured:
-  Crisp (`client.crisp.chat` / `client.relay.crisp.chat`), Supabase REST and
+  Crisp (`client.crisp.chat` / `client.relay.crisp.chat`, plus `blob:` workers
+  only when `CRISP_WEBSITE_ID` is configured), Supabase REST and
   Realtime origins derived from `NEXT_PUBLIC_SUPABASE_URL`, and the Sentry
   ingest origin derived from `NEXT_PUBLIC_SENTRY_DSN`. Vercel analytics debug
   scripts are allowed only outside production. `img-src` includes `https:`
   because businesses can attach arbitrary showcase image URLs; keep that broad
   source scoped to images. When adding a new browser integration, extend the
   builder and its unit tests in the same change.
-- Roll out CSP changes report-only first and collect
-  `securitypolicyviolation` events from real journeys (the Playwright security
-  header spec does this for public pages). Do not add a production CSP report
-  endpoint: public quote, inquiry, and attachment URLs carry bearer tokens in
-  the pathname, and violation reports would leak them. Switch the header to
-  `Content-Security-Policy` only after the report-only pass is clean; the
-  enforcement change is a separate review.
+
+<!-- /coderabbit-ai-generated:v1 -->
+
+- The policy is enforced as `Content-Security-Policy` (not report-only).
+  Validate any new directive or third-party integration report-only first and
+  collect `securitypolicyviolation` events from real journeys; the Playwright
+  security header spec fails on any violation across the public pages. Pass
+  `--csp-mode report-only` to `npm run audit:security-headers` when auditing
+  such a preview. Do not add a production CSP report endpoint: public quote,
+  inquiry, and attachment URLs carry bearer tokens in the pathname, and
+  violation reports would leak them. Switching an integration from report-only
+  to enforcement is a separate review.
 - `Cross-Origin-Resource-Policy: same-origin` is scoped to authenticated app
   and auth responses (static app-shell rules plus business-scoped routes in
   `proxy.ts`). Do not apply it to public pages, logos, OG images, or public

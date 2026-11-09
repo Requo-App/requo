@@ -12,7 +12,7 @@ declare global {
 }
 
 test.describe("security headers", () => {
-  test("public pages keep the baseline headers and a report-only CSP", async ({
+  test("public pages keep the baseline headers and an enforced CSP", async ({
     request,
   }) => {
     const response = await request.get("/");
@@ -20,20 +20,13 @@ test.describe("security headers", () => {
     expect(response.status()).toBe(200);
 
     const headers = response.headers();
+    const csp = headers["content-security-policy"];
 
-    expect(headers["content-security-policy-report-only"]).toContain(
-      "default-src 'self'",
-    );
-    expect(headers["content-security-policy-report-only"]).toContain(
-      "script-src 'self' 'unsafe-inline'",
-    );
-    expect(headers["content-security-policy-report-only"]).toContain(
-      "script-src-attr 'none'",
-    );
-    expect(headers["content-security-policy-report-only"]).not.toContain(
-      "nonce-",
-    );
-    expect(headers["content-security-policy"]).toBeUndefined();
+    expect(csp).toContain("default-src 'self'");
+    expect(csp).toContain("script-src 'self' 'unsafe-inline'");
+    expect(csp).toContain("script-src-attr 'none'");
+    expect(csp).not.toContain("nonce-");
+    expect(headers["content-security-policy-report-only"]).toBeUndefined();
     expect(headers["cross-origin-opener-policy"]).toBe("same-origin");
     expect(headers["permissions-policy"]).toBe(
       "camera=(), geolocation=(), microphone=()",
@@ -109,7 +102,7 @@ test.describe("security headers", () => {
     expect(headers["x-robots-tag"]).toContain("noindex");
   });
 
-  test("public pages do not report script-src violations", async ({ page }) => {
+  test("public pages report no CSP violations", async ({ page }) => {
     await page.addInitScript(() => {
       window.__requoCspViolations = [];
       document.addEventListener("securitypolicyviolation", (event) => {
@@ -123,7 +116,12 @@ test.describe("security headers", () => {
     const violations: CspViolation[] = [];
 
     for (const path of ["/", "/pricing"]) {
-      await page.goto(path);
+      const response = await page.goto(path);
+
+      expect(
+        response?.headers()["content-security-policy"],
+        `${path} must be served with an enforced CSP`,
+      ).toBeTruthy();
       await expect(page.locator("h1").first()).toBeVisible();
       await page.waitForTimeout(1_000);
       violations.push(
@@ -131,10 +129,6 @@ test.describe("security headers", () => {
       );
     }
 
-    const scriptViolations = violations.filter((violation) =>
-      violation.effectiveDirective.startsWith("script-src"),
-    );
-
-    expect(scriptViolations).toEqual([]);
+    expect(violations).toEqual([]);
   });
 });

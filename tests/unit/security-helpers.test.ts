@@ -1,6 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 describe("security helpers", () => {
+  it("links security.txt to the disclosure instructions", async () => {
+    const { getSecurityTxtBody } = await import("@/lib/security/security-txt");
+    expect(getSecurityTxtBody()).toContain(
+      "Policy: https://requo.app/security#responsible-disclosure\n",
+    );
+  });
+
   afterEach(() => {
     vi.resetModules();
     vi.unstubAllEnvs();

@@ -22,7 +22,7 @@ function directive(policy: string, name: string): string {
 }
 
 describe("content security policy", () => {
-  it("uses a report-only header until enforcement is enabled explicitly", () => {
+  it("maps the CSP mode to the matching response header", () => {
     expect(getContentSecurityPolicyHeader("report-only", production).key).toBe(
       "Content-Security-Policy-Report-Only",
     );
@@ -99,6 +99,8 @@ describe("content security policy", () => {
     });
 
     expect(disabled).not.toContain("crisp.chat");
+    expect(directive(disabled, "worker-src")).toBe("worker-src 'self'");
+    expect(directive(enabled, "worker-src")).toBe("worker-src 'self' blob:");
     expect(directive(enabled, "script-src")).toContain(
       "https://client.crisp.chat",
     );

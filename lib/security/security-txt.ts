@@ -13,7 +13,7 @@ export function getSecurityTxtBody(now = new Date()): string {
     "Contact: mailto:security@requo.app",
     `Expires: ${expires.toISOString()}`,
     "Preferred-Languages: en",
-    "Policy: https://requo.app/security#vulnerability-disclosure",
+    "Policy: https://requo.app/security#responsible-disclosure",
     "",
   ].join("\n");
 }
