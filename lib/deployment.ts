@@ -51,8 +51,12 @@ export function isBillingEnabled(): boolean {
   return getBillingDriver() !== "none";
 }
 
-/** The selected driver is also the only enabled checkout/webhook provider. */
+/** Cloud defaults to both providers; an explicit driver enables only itself. */
 export function isBillingProviderEnabled(provider: BillingProvider): boolean {
+  if (!env.REQUO_BILLING_DRIVER && isCloudDeployment()) {
+    return true;
+  }
+
   return getBillingDriver() === provider;
 }
 

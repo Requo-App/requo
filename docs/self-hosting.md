@@ -1,3 +1,7 @@
+<!-- coderabbit-ai-generated:v1 -->
+
+<!-- coderabbit-ai-generated-section:v1:2381c605500aa697cf7ef504cc509814f57f9df35b4ec43111d1548c8edd8e35 -->
+
 # Requo Self-Hosted
 
 Requo is one open-source application (AGPL-3.0-only) with two deployment
@@ -107,7 +111,7 @@ SUPABASE_SERVICE_ROLE_KEY=
 
 # S3-compatible storage (REQUO_STORAGE_DRIVER=s3)
 S3_BUCKET=
-S3_REGION=auto
+S3_REGION=auto                           # AWS S3: use the bucket’s AWS region before storage:setup; R2: auto
 S3_ENDPOINT=
 S3_ACCESS_KEY_ID=
 S3_SECRET_ACCESS_KEY=
@@ -125,6 +129,7 @@ SMTP_PORT=587
 SMTP_SECURE=                              # 1 for implicit TLS (usually port 465)
 SMTP_USER=
 SMTP_PASSWORD=
+SMTP_ALLOW_INSECURE_AUTH=                 # true only for trusted local relays
 AUTH_REQUIRE_EMAIL_VERIFICATION=true      # false only when running without email
 
 CRON_SECRET=<at least 16 random characters>
@@ -194,8 +199,7 @@ File uploads go through one provider-neutral storage port. Choose a driver with
 - `supabase` uses Supabase Storage. Set `NEXT_PUBLIC_SUPABASE_URL`, a
   browser-safe key (`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` or
   `NEXT_PUBLIC_SUPABASE_ANON_KEY`), and `SUPABASE_SERVICE_ROLE_KEY`.
-- `s3` uses one S3-compatible bucket (AWS S3, Cloudflare R2, MinIO, Backblaze
-  B2). Set the `S3_*` variables; `S3_PREFIX` keeps the logical buckets apart.
+- `s3` uses one S3-compatible bucket (AWS S3, MinIO). Set the `S3_*` variables; `S3_PREFIX` keeps the logical buckets apart.
 - `local` writes under `LOCAL_STORAGE_ROOT`. This is the zero-dependency
   default for a single host. Use a persistent volume, and do not use local disk
   across multiple app instances unless the directory is shared.
@@ -208,6 +212,8 @@ exist. The application still owns authorization, file limits, and content-type
 checks. Keep buckets private: downloads and approval artifacts are proxied
 through authenticated or token-scoped application routes, never a public bucket
 URL.
+
+Cloudflare R2 and Backblaze B2 are unsupported by this browser POST upload flow.
 
 Inquiry attachments upload directly to S3 with a presigned POST policy that
 caps the object at the plan limit. The bucket must allow browser `POST`
@@ -346,6 +352,7 @@ SMTP_PORT=587
 SMTP_SECURE=
 SMTP_USER=
 SMTP_PASSWORD=
+SMTP_ALLOW_INSECURE_AUTH=                 # true only for trusted local relays
 
 EMAIL_DOMAIN=mail.example.com
 EMAIL_FROM_DEFAULT=
@@ -368,6 +375,16 @@ runs without email. Optional operational emails are controlled by
 do not crash unrelated features; the affected send path reports that email is
 not configured. See [Billing and Polar](setup/billing.md) only for Cloud
 billing; it is not required here.
+
+Authenticated SMTP requires STARTTLS unless implicit TLS is enabled. Set
+`SMTP_ALLOW_INSECURE_AUTH=true` only for trusted local relays that cannot use
+TLS. Certificate validation remains enabled.
+
+For country detection, set `GEO_COUNTRY_HEADER` to a header supplied by your
+trusted proxy. When configured, only that header is read; otherwise
+`x-vercel-ip-country` and `cf-ipcountry` are checked in order. The trusted proxy
+must overwrite the configured header and strip untrusted default country
+headers from incoming requests.
 
 ## Scheduled work
 
@@ -479,3 +496,6 @@ installation. Budget for provider costs directly.
 
 For repository setup conventions, see the [documentation index](README.md) and
 [local setup](setup/local.md).
+
+
+<!-- /coderabbit-ai-generated:v1 -->

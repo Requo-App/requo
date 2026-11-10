@@ -13,6 +13,7 @@ import type {
 } from "./types";
 
 const deleteChunkSize = 100;
+const listPageSize = 100;
 
 /**
  * Supabase Storage adapter. Keeps the existing bucket/path contract and the
@@ -139,17 +140,27 @@ export class SupabaseObjectStorage implements ObjectStorage {
       }
 
       const current = queue.shift() ?? "";
-      const { data, error } = await this.client.storage
-        .from(input.bucket)
-        .list(current, {
-          limit: 100,
-          sortBy: { column: "name", order: "asc" },
-        });
+      const data = [];
 
-      if (error) {
-        throw new Error(
-          `Failed to list ${input.bucket}: ${error.message}`,
-        );
+      for (let offset = 0; ; offset += listPageSize) {
+        const { data: page, error } = await this.client.storage
+          .from(input.bucket)
+          .list(current, {
+            limit: listPageSize,
+            offset,
+            sortBy: { column: "name", order: "asc" },
+          });
+
+        if (error) {
+          throw new Error(
+            `Failed to list ${input.bucket}: ${error.message}`,
+          );
+        }
+
+        data.push(...(page ?? []));
+        if (!page || page.length < listPageSize) {
+          break;
+        }
       }
 
       for (const entry of data ?? []) {

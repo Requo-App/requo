@@ -40,8 +40,8 @@ export async function PUT(request: Request) {
 
   if (!request.body) {
     return NextResponse.json(
-      { error: "That file is too large." },
-      { status: 413 },
+      { error: "The upload body is empty." },
+      { status: 400 },
     );
   }
 
@@ -71,8 +71,8 @@ export async function PUT(request: Request) {
 
   if (totalBytes === 0) {
     return NextResponse.json(
-      { error: "That file is too large." },
-      { status: 413 },
+      { error: "The upload body is empty." },
+      { status: 400 },
     );
   }
 

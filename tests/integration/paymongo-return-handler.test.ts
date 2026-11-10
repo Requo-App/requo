@@ -17,7 +17,10 @@ vi.mock("next/navigation", () => ({
   notFound: () => { throw new Error("notFound"); },
   redirect: (path: string) => { throw new Error(`redirect:${path}`); },
 }));
-vi.mock("@/lib/deployment", () => ({ isBillingProviderEnabled: () => true }));
+vi.mock("@/lib/deployment", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/deployment")>()),
+  isBillingProviderEnabled: () => true,
+}));
 vi.mock("@/lib/auth/session", () => ({ requireSession: async () => ({ user: { id: mocks.userId } }) }));
 vi.mock("@/lib/billing/paymongo-client", () => ({
   retrievePaymongoCheckoutSession: mocks.retrieve,

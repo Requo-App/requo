@@ -17,13 +17,20 @@ function getTransporter() {
     throw new Error("SMTP_HOST and SMTP_PORT are required.");
   }
 
+  const secure =
+    env.SMTP_SECURE === "1" ||
+    env.SMTP_SECURE === "true" ||
+    env.SMTP_PORT === 465;
+  const authenticated = Boolean(env.SMTP_USER && env.SMTP_PASSWORD);
+  const allowInsecureAuth =
+    env.SMTP_ALLOW_INSECURE_AUTH === "1" ||
+    env.SMTP_ALLOW_INSECURE_AUTH === "true";
+
   transporter = nodemailer.createTransport({
     host: env.SMTP_HOST,
     port: env.SMTP_PORT,
-    secure:
-      env.SMTP_SECURE === "1" ||
-      env.SMTP_SECURE === "true" ||
-      env.SMTP_PORT === 465,
+    secure,
+    requireTLS: authenticated && !secure && !allowInsecureAuth,
     ...(env.SMTP_USER && env.SMTP_PASSWORD
       ? {
           auth: {

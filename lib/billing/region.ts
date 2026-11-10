@@ -105,7 +105,7 @@ function getCountryHeaderNames() {
   const defaults = ["x-vercel-ip-country", "cf-ipcountry"];
 
   return configured
-    ? [configured, ...defaults.filter((name) => name !== configured)]
+    ? [configured]
     : defaults;
 }
 

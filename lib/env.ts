@@ -97,6 +97,7 @@ const envSchema = z.object({
   SMTP_HOST: emptyToUndefined(z.string().trim().min(1)),
   SMTP_PORT: emptyToUndefined(z.coerce.number().int().min(1).max(65535)),
   SMTP_SECURE: emptyToUndefined(z.enum(["0", "1", "true", "false"])),
+  SMTP_ALLOW_INSECURE_AUTH: emptyToUndefined(z.enum(["0", "1", "true", "false"])),
   SMTP_USER: emptyToUndefined(z.string().trim().min(1)),
   SMTP_PASSWORD: emptyToUndefined(z.string().min(1)),
   EMAIL_DOMAIN: emptyToUndefined(z.string().trim().min(1)).default("test.requo.app"),
