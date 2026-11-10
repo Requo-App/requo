@@ -380,10 +380,18 @@ billing; it is not required here.
 
 <!-- coderabbit-ai-generated-section:v1:576b7b7699b32c9ad30c980266222d2a8e5a351dc9c9072e647d2f633c960947 -->
 
+<!-- coderabbit-ai-generated:v1 -->
+
+<!-- coderabbit-ai-generated-section:v1:cb5bc66baf3c54778e106944a08e7ff2a648f65d90ea9cce27d9c824439b6bb0 -->
+
 SMTP requires STARTTLS unless implicit TLS is enabled, regardless of authentication.
 `SMTP_ALLOW_INSECURE_AUTH=true` permits cleartext only for trusted loopback relays
-(`localhost`, `127.0.0.1`, or `::1`). Remote relays always require TLS.
+(`localhost`, `127.0.0.1`, or `::1`). The connected peer must be a loopback address;
+otherwise the connection is rejected before authentication or delivery, even if
+`localhost` resolves to a remote address. Remote relays always require TLS.
 Certificate validation remains enabled.
+
+<!-- /coderabbit-ai-generated:v1 -->
 
 <!-- /coderabbit-ai-generated:v1 -->
 

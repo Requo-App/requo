@@ -1,6 +1,9 @@
+import { EventEmitter } from "node:events";
+
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
+  connect: vi.fn(),
   headers: new Headers(),
   list: vi.fn(),
   put: vi.fn(),
@@ -12,6 +15,10 @@ vi.mock("@/lib/supabase/admin", () => ({
 }));
 vi.mock("@/lib/storage", () => ({ getObjectStorage: () => ({ put: mocks.put }) }));
 vi.mock("@/lib/storage/upload-token", () => ({ verifyStorageUploadToken: () => ({ bucket: "inquiry-attachments", path: "test", contentType: "text/plain", maxBytes: 5 }) }));
+vi.mock("node:net", async (importOriginal) => ({
+  ...await importOriginal<typeof import("node:net")>(),
+  default: { ...await importOriginal<typeof import("node:net")>(), connect: mocks.connect },
+}));
 vi.mock("nodemailer", () => ({ default: { createTransport: mocks.createTransport } }));
 
 afterEach(() => {
@@ -80,7 +87,52 @@ it.each([
   const { smtpEmailProvider } = await import("@/lib/email/providers/smtp");
   await smtpEmailProvider.send({ from: "test@example.com", to: ["test@example.com"], emailType: "system", metadata: {}, subject: "test", html: "test", idempotencyKey: "test" });
   expect(mocks.createTransport).toHaveBeenCalledWith(expect.objectContaining({ requireTLS }));
+  expect(typeof mocks.createTransport.mock.calls[0][0].getSocket).toBe(!requireTLS && !secure && port !== "465" ? "function" : "undefined");
   expect(mocks.createTransport.mock.calls[0][0]).not.toHaveProperty("tls.rejectUnauthorized", false);
+});
+
+describe("SMTP cleartext peer verification", () => {
+  it.each([
+    ["127.0.0.1", true],
+    ["127.0.0.2", true],
+    ["::1", true],
+    ["::ffff:127.0.0.1", true],
+    ["::ffff:7f00:1", true],
+    ["192.0.2.1", false],
+    ["10.0.0.1", false],
+    ["2001:db8::1", false],
+    ["::ffff:192.0.2.1", false],
+    [undefined, false],
+  ])("checks the connected peer %s before SMTP starts", async (remoteAddress, allowed) => {
+    vi.stubEnv("SMTP_HOST", "localhost");
+    vi.stubEnv("SMTP_PORT", "587");
+    vi.stubEnv("SMTP_SECURE", "");
+    vi.stubEnv("SMTP_ALLOW_INSECURE_AUTH", "true");
+    const socket = Object.assign(new EventEmitter(), {
+      remoteAddress,
+      setTimeout: vi.fn(),
+      destroy: vi.fn((error: Error) => socket.emit("error", error)),
+    });
+    mocks.connect.mockReturnValue(socket);
+    const { smtpEmailProvider } = await import("@/lib/email/providers/smtp");
+    await smtpEmailProvider.send({ from: "test@example.com", to: ["test@example.com"], emailType: "system", metadata: {}, subject: "test", html: "test", idempotencyKey: "test" });
+    const options = mocks.createTransport.mock.calls[0][0];
+    const getSocket = options.getSocket as NonNullable<import("nodemailer/lib/smtp-transport").Options["getSocket"]>;
+    const callback = vi.fn();
+    getSocket({}, callback);
+    expect(mocks.connect).toHaveBeenCalledTimes(1);
+    expect(socket.listenerCount("connect")).toBe(1);
+    expect(callback).not.toHaveBeenCalled();
+    socket.emit("connect");
+    expect(callback).toHaveBeenCalledTimes(1);
+    if (allowed) {
+      expect(callback).toHaveBeenCalledWith(null, { connection: socket });
+      expect(socket.destroy).not.toHaveBeenCalled();
+    } else {
+      expect(socket.destroy).toHaveBeenCalled();
+      expect(callback).toHaveBeenCalledWith(expect.objectContaining({ message: "Cleartext SMTP requires a loopback peer." }), {});
+    }
+  });
 });
 
 it("lists later pages and nested folders while preserving the result limit", async () => {
