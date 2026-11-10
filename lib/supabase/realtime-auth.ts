@@ -2,7 +2,7 @@ import "server-only";
 
 import { createHmac } from "node:crypto";
 
-import { env } from "@/lib/env";
+import { env, isSupabaseRealtimeConfigured } from "@/lib/env";
 
 const supabaseRealtimeTokenLifetimeSeconds = 15 * 60;
 
@@ -17,8 +17,8 @@ function base64UrlEncode(value: string) {
 }
 
 function signJwt(payload: Record<string, unknown>) {
-  if (!env.SUPABASE_JWT_SECRET) {
-    throw new Error("SUPABASE_JWT_SECRET is not configured.");
+  if (!isSupabaseRealtimeConfigured || !env.SUPABASE_JWT_SECRET) {
+    throw new Error("Supabase Realtime is not configured.");
   }
 
   const header = {
