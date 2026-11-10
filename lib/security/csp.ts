@@ -27,6 +27,11 @@ export type CspOptions = {
 
 const CRISP_CLIENT_ORIGIN = "https://client.crisp.chat";
 const CRISP_RELAY_ORIGIN = "wss://client.relay.crisp.chat";
+// The policy is generated at build time while Turnstile is enabled from
+// runtime environment variables. Keep this fixed Cloudflare origin allowed so
+// enabling the integration after a build cannot leave the widget blocked by a
+// stale policy; the widget only loads when both keys are configured.
+const TURNSTILE_ORIGIN = "https://challenges.cloudflare.com";
 const VERCEL_SCRIPTS_ORIGIN = "https://va.vercel-scripts.com";
 
 function unique(values: Array<string | null | undefined>): string[] {
@@ -97,6 +102,7 @@ function buildDirectives(options: CspOptions): string[] {
         ...(isProduction ? [] : ["'unsafe-eval'"]),
         ...developmentScriptOrigins,
         ...crispScriptOrigins,
+        TURNSTILE_ORIGIN,
       ]),
     ],
     // React attaches event handlers with addEventListener rather than inline
@@ -135,7 +141,14 @@ function buildDirectives(options: CspOptions): string[] {
     ["media-src", ["'self'", "blob:"]],
     ["worker-src", ["'self'", ...(crispEnabled ? ["blob:"] : [])]],
     ["manifest-src", ["'self'"]],
-    ["frame-src", unique(["'self'", ...(crispEnabled ? [CRISP_CLIENT_ORIGIN] : [])])],
+    [
+      "frame-src",
+      unique([
+        "'self'",
+        ...(crispEnabled ? [CRISP_CLIENT_ORIGIN] : []),
+        TURNSTILE_ORIGIN,
+      ]),
+    ],
     ["object-src", ["'none'"]],
     ["base-uri", ["'self'"]],
     ["form-action", ["'self'"]],

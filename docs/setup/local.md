@@ -186,6 +186,7 @@ Minimum requirements:
 Optional but commonly needed:
 
 - `NEXT_PUBLIC_BETTER_AUTH_URL`
+- `NEXT_PUBLIC_TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY` (set both to enable auth bot protection)
 - `NGROK_AUTHTOKEN` and `NGROK_DOMAIN` for the optional tunnel commands
 - `APP_TOKEN_HASH_SECRET`
 - `NEXT_PUBLIC_VAPID_PUBLIC_KEY`

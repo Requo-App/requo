@@ -55,6 +55,13 @@ const envSchema = z.object({
     z.enum(["0", "1", "true", "false"]),
   ),
   NEXT_PUBLIC_BETTER_AUTH_URL: emptyToUndefined(z.url()),
+  /**
+   * Optional Cloudflare Turnstile bot protection. Both keys must be set
+   * together: the site key renders the browser widget and the secret key
+   * verifies tokens server-side. Missing keys disable the challenge entirely.
+   */
+  NEXT_PUBLIC_TURNSTILE_SITE_KEY: emptyToUndefined(z.string().min(1)),
+  TURNSTILE_SECRET_KEY: emptyToUndefined(z.string().min(1)),
   APP_TOKEN_HASH_SECRET: emptyToUndefined(z.string().min(32)),
   ADMIN_EMAILS: emptyToUndefined(z.string().min(1)),
   VERCEL_URL: emptyToUndefined(z.string().min(1)),
@@ -217,9 +224,42 @@ const envSchema = z.object({
       path: [hasBaseUrl ? "AI_CUSTOM_MODEL" : "AI_CUSTOM_BASE_URL"],
     });
   }
+
+  const hasTurnstileSiteKey = Boolean(value.NEXT_PUBLIC_TURNSTILE_SITE_KEY);
+  const hasTurnstileSecretKey = Boolean(value.TURNSTILE_SECRET_KEY);
+
+  if (hasTurnstileSiteKey !== hasTurnstileSecretKey) {
+    ctx.addIssue({
+      code: "custom",
+      message:
+        "NEXT_PUBLIC_TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY must be set together.",
+      path: [
+        hasTurnstileSiteKey
+          ? "TURNSTILE_SECRET_KEY"
+          : "NEXT_PUBLIC_TURNSTILE_SITE_KEY",
+      ],
+    });
+  }
 });
 
 export const env = envSchema.parse(process.env);
+
+/**
+ * Both Turnstile keys, or null when the optional integration is disabled.
+ * Callers must treat null as "no challenge" rather than a half-configured
+ * widget: a site key without its secret would display a check the server
+ * never verifies.
+ */
+export function getTurnstileConfig() {
+  const siteKey = env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+  const secretKey = env.TURNSTILE_SECRET_KEY;
+
+  if (!siteKey || !secretKey) {
+    return null;
+  }
+
+  return { siteKey, secretKey };
+}
 
 export const supabaseKey =
   env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";

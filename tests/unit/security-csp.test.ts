@@ -37,7 +37,7 @@ describe("content security policy", () => {
     expect(policy).not.toContain("nonce-");
     expect(policy).not.toContain("'unsafe-eval'");
     expect(directive(policy, "script-src")).toBe(
-      "script-src 'self' 'unsafe-inline'",
+      "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com",
     );
     expect(directive(policy, "script-src-attr")).toBe("script-src-attr 'none'");
     expect(directive(policy, "style-src")).toBe(
@@ -128,6 +128,18 @@ describe("content security policy", () => {
     expect(directive(enabled, "frame-src")).toContain(
       "https://client.crisp.chat",
     );
+  });
+
+  it("always allows Turnstile scripts and frames without relaxing connect-src", () => {
+    const policy = buildContentSecurityPolicy(production);
+
+    expect(directive(policy, "script-src")).toContain(
+      "https://challenges.cloudflare.com",
+    );
+    expect(directive(policy, "frame-src")).toContain(
+      "https://challenges.cloudflare.com",
+    );
+    expect(directive(policy, "connect-src")).toBe("connect-src 'self'");
   });
 
   it("ignores malformed optional origins instead of failing the build", () => {

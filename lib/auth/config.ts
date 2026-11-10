@@ -1,13 +1,17 @@
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { betterAuth } from "better-auth";
-import { admin, magicLink } from "better-auth/plugins";
+import { admin, captcha, magicLink } from "better-auth/plugins";
 import { nextCookies } from "better-auth/next-js";
 
 import { ensureProfileForUser } from "@/lib/auth/business-bootstrap";
 import { extractFirstName } from "@/features/account/name";
 import { db } from "@/lib/db/client";
 import * as schema from "@/lib/db/schema";
-import { env, isEmailVerificationRequired } from "@/lib/env";
+import {
+  env,
+  getTurnstileConfig,
+  isEmailVerificationRequired,
+} from "@/lib/env";
 import {
   sendMagicLinkEmail,
   sendPasswordResetEmail,
@@ -117,6 +121,29 @@ const shouldSkipMagicLinkEmail =
 // Empty in local dev (see getCookieDomain) — the cross-subdomain option
 // below is omitted entirely in that case.
 const cookieDomain = getCookieDomain();
+
+// Optional bot protection: absent keys leave the password flows unchanged.
+const turnstileConfig = getTurnstileConfig();
+
+// Keep this as a tuple union rather than an inline conditional spread. Better
+// Auth infers plugin DB fields from a tuple-shaped `plugins` array; a widened
+// array drops the admin plugin's `role`, `banned`, and session fields.
+const passwordCaptchaPlugins: [] | [ReturnType<typeof captcha>] =
+  turnstileConfig
+    ? [
+        captcha({
+          provider: "cloudflare-turnstile",
+          secretKey: turnstileConfig.secretKey,
+          // Must match TURNSTILE_ACTION in the browser widget.
+          expectedAction: "auth",
+          endpoints: [
+            "/sign-up/email",
+            "/sign-in/email",
+            "/request-password-reset",
+          ],
+        }),
+      ]
+    : [];
 
 export const auth = betterAuth({
   appName: "Requo",
@@ -288,6 +315,9 @@ export const auth = betterAuth({
     },
   },
   plugins: [
+    // Password credential flows only. OAuth redirects and magic-link requests
+    // are not challenged; password reset is included because it sends email.
+    ...passwordCaptchaPlugins,
     magicLink({
       expiresIn: 900,
       storeToken: "hashed",

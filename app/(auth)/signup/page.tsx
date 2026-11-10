@@ -7,6 +7,7 @@ import type { SocialAuthProvider } from "@/features/auth/components/social-auth-
 import { AuthenticatedRedirectGuard } from "@/features/auth/components/auth-redirect-guard";
 import { getSafeAuthRedirectPath } from "@/lib/auth/redirects";
 import { homePath } from "@/features/businesses/routes";
+import { getTurnstileConfig } from "@/lib/env";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 import { AuthFormSkeleton } from "@/features/auth/components/auth-form-skeleton";
 
@@ -58,6 +59,7 @@ async function SignupContent({
       <AuthenticatedRedirectGuard nextPath={nextPath} />
       <SignupForm
         socialProviders={socialProviders}
+        turnstileSiteKey={getTurnstileConfig()?.siteKey}
       />
     </>
   );

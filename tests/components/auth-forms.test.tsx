@@ -1,4 +1,13 @@
-import { beforeAll, afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  beforeAll,
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
@@ -74,6 +83,10 @@ describe("auth forms", () => {
     });
   });
 
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   beforeEach(() => {
     assignMock.mockReset();
     searchParamsMock.mockReturnValue(new URLSearchParams());
@@ -126,6 +139,67 @@ describe("auth forms", () => {
     );
     await waitFor(() =>
       expect(assignMock).toHaveBeenCalledWith("/demo/home"),
+    );
+  });
+
+  it("attaches the Turnstile token to password sign-in when configured", async () => {
+    const renderWidget = vi.fn(
+      (
+        _container: HTMLElement,
+        options: { callback: (token: string) => void; size: string },
+      ) => {
+        options.callback("turnstile-token");
+        return "widget-id";
+      },
+    );
+    vi.stubGlobal("turnstile", {
+      render: renderWidget,
+      reset: vi.fn(),
+      remove: vi.fn(),
+    });
+
+    const user = userEvent.setup();
+    render(<LoginForm turnstileSiteKey="site-key" />);
+
+    await waitFor(() => expect(renderWidget).toHaveBeenCalled());
+    expect(renderWidget).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ size: "flexible" }),
+    );
+
+    await user.type(screen.getByLabelText("Email address"), "owner@example.com");
+    await user.type(screen.getByLabelText("Password"), "Password123!");
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
+
+    await waitFor(() =>
+      expect(signInEmailMock).toHaveBeenCalledWith({
+        email: "owner@example.com",
+        password: "Password123!",
+        callbackURL: "/home",
+        fetchOptions: {
+          headers: { "x-captcha-response": "turnstile-token" },
+        },
+      }),
+    );
+  });
+
+  it("uses the compact Turnstile widget on narrow viewports", async () => {
+    vi.stubGlobal("innerWidth", 320);
+    const renderWidget = vi.fn(
+      (_container: HTMLElement, _options: { size: string }) => "widget-id",
+    );
+    vi.stubGlobal("turnstile", {
+      render: renderWidget,
+      reset: vi.fn(),
+      remove: vi.fn(),
+    });
+
+    render(<LoginForm turnstileSiteKey="site-key" />);
+
+    await waitFor(() => expect(renderWidget).toHaveBeenCalled());
+    expect(renderWidget).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ size: "compact" }),
     );
   });
 

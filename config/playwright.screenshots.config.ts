@@ -56,6 +56,8 @@ export default defineConfig({
           BETTER_AUTH_URL: localBaseURL,
           DISABLE_TRANSACTIONAL_EMAILS: "1",
           NEXT_PUBLIC_BETTER_AUTH_URL: `${localBaseURL}/api/auth`,
+          NEXT_PUBLIC_TURNSTILE_SITE_KEY: "",
+          TURNSTILE_SECRET_KEY: "",
           GROQ_API_KEY: "",
           GEMINI_API_KEY: "",
           RESEND_API_KEY: "",
