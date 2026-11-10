@@ -10,7 +10,7 @@ const emptyToUndefined = <T extends z.ZodTypeAny>(schema: T) =>
   }, schema.optional());
 
 const publicEnvSchema = z.object({
-  NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
+  NEXT_PUBLIC_SUPABASE_URL: emptyToUndefined(z.string().url()),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: emptyToUndefined(z.string().min(1)),
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: emptyToUndefined(z.string().min(1)),
   NEXT_PUBLIC_VAPID_PUBLIC_KEY: emptyToUndefined(z.string().min(1)),
