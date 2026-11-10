@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { requireUser } from "@/lib/auth/session";
-import { isSelfHostedDeployment } from "@/lib/deployment";
+import {
+  isBillingEnabled,
+  isBillingProviderEnabled,
+} from "@/lib/deployment";
 import {
   getPolarClient,
   resolveAppOrigin,
@@ -49,7 +52,7 @@ const checkoutBodySchema = z.object({
 });
 
 export async function POST(request: Request): Promise<Response> {
-  if (isSelfHostedDeployment()) {
+  if (!isBillingEnabled()) {
     return NextResponse.json({ error: "Not found." }, { status: 404 });
   }
 
@@ -105,6 +108,10 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   if (provider === "paymongo") {
+    if (!isBillingProviderEnabled("paymongo")) {
+      return NextResponse.json({ error: "Not found." }, { status: 404 });
+    }
+
     return createPaymongoCheckoutResponse({
       request,
       userId: user.id,
@@ -114,6 +121,10 @@ export async function POST(request: Request): Promise<Response> {
       interval,
       returnTo,
     });
+  }
+
+  if (!isBillingProviderEnabled("polar")) {
+    return NextResponse.json({ error: "Not found." }, { status: 404 });
   }
 
   if (!isPolarConfigured) {

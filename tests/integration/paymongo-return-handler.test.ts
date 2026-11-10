@@ -13,7 +13,11 @@ vi.mock("@/lib/db/client", async () => {
   return { db: testDb };
 });
 vi.mock("next/cache", () => ({ cacheLife: vi.fn(), cacheTag: vi.fn(), updateTag: vi.fn(), revalidateTag: mocks.revalidate }));
-vi.mock("next/navigation", () => ({ redirect: (path: string) => { throw new Error(`redirect:${path}`); } }));
+vi.mock("next/navigation", () => ({
+  notFound: () => { throw new Error("notFound"); },
+  redirect: (path: string) => { throw new Error(`redirect:${path}`); },
+}));
+vi.mock("@/lib/deployment", () => ({ isBillingProviderEnabled: () => true }));
 vi.mock("@/lib/auth/session", () => ({ requireSession: async () => ({ user: { id: mocks.userId } }) }));
 vi.mock("@/lib/billing/paymongo-client", () => ({
   retrievePaymongoCheckoutSession: mocks.retrieve,

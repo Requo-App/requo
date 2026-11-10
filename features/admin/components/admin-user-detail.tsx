@@ -19,7 +19,7 @@ import type {
   AdminUserDetailBusiness,
   AdminUserDetailCore,
 } from "@/features/admin/types";
-import { isSelfHostedDeployment } from "@/lib/deployment";
+import { isBillingEnabled } from "@/lib/deployment";
 
 type AdminUserDetailProps = {
   user: AdminUserDetailPayload;
@@ -162,7 +162,7 @@ export function AdminUserOverviewSection({
   ownedBusinesses: AdminUserDetailBusiness[];
   recentAuditLogs: AdminAuditLogRow[];
 }) {
-  const isSelfHosted = isSelfHostedDeployment();
+  const isSelfHosted = !isBillingEnabled();
   const paidBusinesses = ownedBusinesses.filter(
     (business) => business.plan !== "free",
   ).length;
@@ -180,7 +180,7 @@ export function AdminUserOverviewSection({
             ownedBusinesses.length === 0
               ? "None yet"
               : isSelfHosted
-                ? "Self-hosted deployment"
+                ? "Billing disabled"
                 : paidBusinesses > 0
                   ? `${paidBusinesses.toLocaleString()} on paid plans`
                   : "All on free"
@@ -215,7 +215,7 @@ export function AdminUserOwnedBusinessesSection({
 }: {
   ownedBusinesses: AdminUserDetailBusiness[];
 }) {
-  const isSelfHosted = isSelfHostedDeployment();
+  const isSelfHosted = !isBillingEnabled();
 
   return (
     <DashboardSection

@@ -12,7 +12,9 @@ import { cacheLife, cacheTag, revalidateTag } from "next/cache";
 
 import { normalizeBillingCurrency } from "@/lib/billing/currency";
 import {
-  isSelfHostedDeployment,
+  getEntitlementPolicy,
+  isBillingEnabled,
+  isBillingProviderEnabled,
   selfHostedEntitlementPlan,
 } from "@/lib/deployment";
 import { enforceLiveServiceLimit } from "@/lib/billing/live-service-enforcement";
@@ -211,7 +213,7 @@ export async function getCachedBusinessSubscription(
 export async function getEffectivePlanForBusiness(
   businessId: string,
 ): Promise<PlanTier> {
-  if (isSelfHostedDeployment()) {
+  if (getEntitlementPolicy() === "full") {
     return selfHostedEntitlementPlan;
   }
 
@@ -227,7 +229,7 @@ export async function getEffectivePlanForBusiness(
 export async function getCachedEffectivePlanForBusiness(
   businessId: string,
 ): Promise<PlanTier> {
-  if (isSelfHostedDeployment()) {
+  if (getEntitlementPolicy() === "full") {
     return selfHostedEntitlementPlan;
   }
 
@@ -251,7 +253,7 @@ export async function getCachedEffectivePlanForBusiness(
 export function resolveEffectivePlanFromSubscription(
   subscription: SubscriptionLike,
 ): PlanTier {
-  if (isSelfHostedDeployment()) {
+  if (getEntitlementPolicy() === "full") {
     return selfHostedEntitlementPlan;
   }
 
@@ -319,7 +321,7 @@ export function resolveEffectivePlanFromSubscriptionFields(
     | null
     | undefined,
 ): PlanTier {
-  if (isSelfHostedDeployment()) {
+  if (getEntitlementPolicy() === "full") {
     return selfHostedEntitlementPlan;
   }
 
@@ -363,13 +365,17 @@ type ActivateSubscriptionParams = {
 export async function activateSubscription(
   params: ActivateSubscriptionParams,
 ): Promise<BusinessSubscriptionRow> {
-  // Defence in depth: checkout and webhook routes already 404 in self-hosted
-  // mode, and admin billing controls are hidden. No caller may create a Cloud
-  // subscription record on an independent installation.
-  if (isSelfHostedDeployment()) {
+  // Defence in depth: checkout and webhook routes already 404 when billing is
+  // disabled, and admin billing controls are hidden. No caller may create a
+  // Cloud subscription record on an installation without a billing driver.
+  if (!isBillingEnabled()) {
     throw new Error(
       "Requo Cloud subscription billing is not available in self-hosted mode.",
     );
+  }
+
+  if (!isBillingProviderEnabled(params.provider)) {
+    throw new Error(`Billing provider ${params.provider} is not enabled.`);
   }
 
   const now = new Date();
@@ -669,7 +675,7 @@ export async function updateSubscriptionPaymentMethod(
 export async function cancelSubscription(
   businessId: string,
 ): Promise<BusinessSubscriptionRow | null> {
-  if (isSelfHostedDeployment()) {
+  if (!isBillingEnabled()) {
     throw new Error(
       "Requo Cloud subscription billing is not available in self-hosted mode.",
     );
@@ -938,7 +944,7 @@ export async function startBusinessTrial({
 export async function syncSubscriptionFromPolar(
   businessId: string,
 ): Promise<PlanTier | false> {
-  if (isSelfHostedDeployment()) {
+  if (!isBillingProviderEnabled("polar")) {
     return false;
   }
 

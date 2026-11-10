@@ -9,7 +9,7 @@ import {
 } from "@/lib/auth/redirects";
 import { requireSession } from "@/lib/auth/session";
 import { getPaymongoCheckoutIntentForUser } from "@/lib/billing/paymongo-checkout";
-import { isSelfHostedDeployment } from "@/lib/deployment";
+import { isBillingProviderEnabled } from "@/lib/deployment";
 
 type SearchParamsRecord = Record<string, string | string[] | undefined>;
 
@@ -48,7 +48,7 @@ function withCheckoutState(
 export default async function PaymongoReturnPage({
   searchParams,
 }: PaymongoReturnPageProps) {
-  if (isSelfHostedDeployment()) notFound();
+  if (!isBillingProviderEnabled("paymongo")) notFound();
 
   const session = await requireSession();
   const resolvedSearchParams = await searchParams;

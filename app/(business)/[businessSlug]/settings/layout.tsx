@@ -18,10 +18,7 @@ import { BusinessCheckoutProvider } from "@/features/billing/components/business
 import { PlanSelectionProvider } from "@/features/billing/components/plan-selection-provider";
 import { getBusinessBillingShellOverview } from "@/features/billing/queries";
 import { getAppShellContext } from "@/lib/app-shell/context";
-import {
-  isCloudDeployment,
-  isSelfHostedDeployment,
-} from "@/lib/deployment";
+import { isBillingEnabled } from "@/lib/deployment";
 
 /**
  * Settings layout using the same sidebar shell pattern as the business
@@ -59,7 +56,7 @@ async function SettingsShell({
 }) {
   const { businessSlug } = await params;
   const groups = getUnifiedSettingsNavigation(businessSlug, {
-    includeBilling: isCloudDeployment(),
+    includeBilling: isBillingEnabled(),
   });
 
   return (
@@ -111,7 +108,7 @@ async function CheckoutProviderSlot({
   businessSlug: string;
   children: React.ReactNode;
 }) {
-  if (isSelfHostedDeployment()) {
+  if (!isBillingEnabled()) {
     return <>{children}</>;
   }
 

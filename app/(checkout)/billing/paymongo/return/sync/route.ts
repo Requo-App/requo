@@ -13,10 +13,10 @@ import {
   retrievePaymongoCheckoutSession,
 } from "@/lib/billing/paymongo-client";
 import { getBusinessBillingCacheTags } from "@/lib/cache/shell-tags";
-import { isSelfHostedDeployment } from "@/lib/deployment";
+import { isBillingProviderEnabled } from "@/lib/deployment";
 
 export async function GET(request: Request) {
-  if (isSelfHostedDeployment()) notFound();
+  if (!isBillingProviderEnabled("paymongo")) notFound();
 
   const session = await requireSession();
   const url = new URL(request.url);

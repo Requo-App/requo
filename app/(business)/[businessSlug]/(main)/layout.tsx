@@ -26,7 +26,7 @@ import { unarchiveBusinessAction } from "@/features/businesses/actions";
 import { getAccountProfileForUser } from "@/features/account/queries";
 import { resolveUserAvatarSrc } from "@/features/account/utils";
 import { getBusinessBillingShellOverview } from "@/features/billing/queries";
-import { isSelfHostedDeployment } from "@/lib/deployment";
+import { isBillingEnabled } from "@/lib/deployment";
 import { InquiryUnreadBadgeSlot } from "@/features/inquiries/components/inquiry-unread-badge-slot";
 import { getBusinessNotificationBellView } from "@/features/notifications/queries";
 import { DashboardNotificationBell } from "@/features/notifications/components/dashboard-notification-bell";
@@ -149,7 +149,7 @@ async function UserMenuSlot({ businessSlug }: { businessSlug: string }) {
   const { user, businessContext } = await getAppShellContext(businessSlug);
   const [profile, billing] = await Promise.all([
     getAccountProfileForUser(user.id),
-    isSelfHostedDeployment()
+    !isBillingEnabled()
       ? Promise.resolve(null)
       : getBusinessBillingShellOverview(businessContext.business.id).catch(
           () => null,
@@ -215,7 +215,7 @@ async function NotificationBellSlot({ businessSlug }: { businessSlug: string }) 
 }
 
 async function UpgradeSlot({ businessSlug }: { businessSlug: string }) {
-  if (isSelfHostedDeployment()) return null;
+  if (!isBillingEnabled()) return null;
 
   const { businessContext } = await getAppShellContext(businessSlug);
   const billing = await getBusinessBillingShellOverview(
@@ -285,7 +285,7 @@ async function BannerSlot({ businessSlug }: { businessSlug: string }) {
     );
   }
 
-  if (isSelfHostedDeployment()) return null;
+  if (!isBillingEnabled()) return null;
 
   const billing = await getBusinessBillingShellOverview(
     businessContext.business.id,
@@ -366,7 +366,7 @@ async function BillingBoundaryContent({
   const { businessContext } = await getAppShellContext(businessSlug);
   const isArchived = businessContext.business.recordState === "archived";
 
-  if (isSelfHostedDeployment()) {
+  if (!isBillingEnabled()) {
     return (
       <div data-archived={isArchived || undefined} data-slot="archived-scope">
         {children}

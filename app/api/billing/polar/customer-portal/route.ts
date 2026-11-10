@@ -10,7 +10,10 @@ import {
 } from "@/lib/billing/polar-client";
 import { getBusinessSubscription } from "@/lib/billing/subscription-service";
 import { canManageBusinessAdministration } from "@/lib/business-members";
-import { isSelfHostedDeployment } from "@/lib/deployment";
+import {
+  isBillingEnabled,
+  isBillingProviderEnabled,
+} from "@/lib/deployment";
 import { isPolarConfigured } from "@/lib/env";
 import { getBusinessRequestContextForSlug } from "@/lib/db/business-access";
 import { db } from "@/lib/db/client";
@@ -35,7 +38,7 @@ const portalQuerySchema = z.object({
  * Usage: GET /api/billing/polar/customer-portal
  */
 export async function GET(request: Request): Promise<Response> {
-  if (isSelfHostedDeployment()) {
+  if (!isBillingEnabled() || !isBillingProviderEnabled("polar")) {
     return NextResponse.json({ error: "Not found." }, { status: 404 });
   }
 

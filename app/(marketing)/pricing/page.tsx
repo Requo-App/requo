@@ -5,7 +5,7 @@ import { Suspense } from "react";
 import { PricingPage } from "@/components/marketing/pricing-page";
 import { StructuredData } from "@/components/seo/structured-data";
 import { getPlanPrice } from "@/lib/billing/plans";
-import { isSelfHostedDeployment } from "@/lib/deployment";
+import { isBillingEnabled } from "@/lib/deployment";
 import { detectDisplayCurrency } from "@/lib/billing/region";
 import type {
   BillingCurrency,
@@ -93,12 +93,12 @@ async function PricingPageDynamic() {
 
 /**
  * The fallback and metadata use USD because this sync Server Component runs
- * before request headers are available. `PricingPageDynamic` reads Vercel geo
- * headers inside the Suspense boundary and renders both the cards and product
+ * before request headers are available. `PricingPageDynamic` reads the
+ * configured geo header inside the Suspense boundary and renders both cards and
  * structured data in the visitor's fixed local currency.
  */
 export default function PricingRoute() {
-  if (isSelfHostedDeployment()) notFound();
+  if (!isBillingEnabled()) notFound();
 
   const defaultCurrency: BillingCurrency = "USD";
 

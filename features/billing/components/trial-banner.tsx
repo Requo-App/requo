@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Sparkles } from "lucide-react";
 
-import { isSelfHostedDeployment } from "@/lib/deployment";
+import { isBillingEnabled } from "@/lib/deployment";
 
 const dayMs = 24 * 60 * 60 * 1000;
 
@@ -20,7 +20,7 @@ export function TrialBanner({
   trialEndsAt: Date;
   billingHref: string;
 }) {
-  if (isSelfHostedDeployment()) return null;
+  if (!isBillingEnabled()) return null;
 
   const daysLeft = getDaysLeft(trialEndsAt);
   const daysLabel =
