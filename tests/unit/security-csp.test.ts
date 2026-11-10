@@ -80,6 +80,21 @@ describe("content security policy", () => {
     );
   });
 
+  it("allows browser uploads to the configured storage origins", () => {
+    const policy = buildContentSecurityPolicy({
+      ...production,
+      storageUploadUrls: [
+        "https://bucket.s3.us-east-1.amazonaws.com",
+        "https://bucket.account.r2.cloudflarestorage.com/",
+        undefined,
+      ],
+    });
+
+    expect(directive(policy, "connect-src")).toBe(
+      "connect-src 'self' https://bucket.s3.us-east-1.amazonaws.com https://bucket.account.r2.cloudflarestorage.com",
+    );
+  });
+
   it("derives the Sentry ingest origin from the DSN", () => {
     const policy = buildContentSecurityPolicy({
       ...production,

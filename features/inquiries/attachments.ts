@@ -31,8 +31,9 @@ import {
   sanitizeStorageFileName,
 } from "@/lib/files";
 import { getPublicInquiryAttachmentMaxBytes } from "@/features/inquiries/plan-rules";
+import { storageBuckets } from "@/lib/storage/buckets";
 
-export const publicInquiryAttachmentBucket = "inquiry-attachments";
+export const publicInquiryAttachmentBucket = storageBuckets.inquiryAttachments;
 
 export const publicInquiryAllowedExtensions = [
   ".pdf",

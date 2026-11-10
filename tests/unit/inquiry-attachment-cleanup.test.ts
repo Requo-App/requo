@@ -1,52 +1,107 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({ list: vi.fn(), remove: vi.fn(), where: vi.fn() }));
-vi.mock("@/lib/supabase/admin", () => ({
-  createSupabaseAdminClient: () => ({ storage: { from: () => mocks } }),
+const mocks = vi.hoisted(() => ({
+  list: vi.fn(),
+  deleteMany: vi.fn(),
+  where: vi.fn(),
 }));
+
+vi.mock("@/lib/storage", () => ({
+  getObjectStorage: () => ({
+    list: mocks.list,
+    deleteMany: mocks.deleteMany,
+  }),
+}));
+
 vi.mock("@/lib/db/client", () => ({
   db: { select: () => ({ from: () => ({ where: mocks.where }) }) },
 }));
 
+import {
+  publicInquiryAttachmentBucket,
+  publicInquiryAttachmentUploadRoot,
+} from "@/features/inquiries/attachments";
 import { cleanupOrphanedInquiryAttachments } from "@/features/inquiries/attachment-cleanup";
 
 beforeEach(() => {
   vi.resetAllMocks();
   mocks.where.mockResolvedValue([]);
-  mocks.remove.mockResolvedValue({ error: null });
+  mocks.deleteMany.mockResolvedValue(undefined);
 });
 
-describe("inquiry attachment cleanup pagination", () => {
-  it("reaches old uploads on later pages even when earlier folders have no candidates", async () => {
-    mocks.list.mockImplementation(async (path: string, options?: { limit: number; offset: number }) => {
-      if (path === "uploads") {
-        const names = Array.from({ length: 30 }, (_, i) => ({ name: `folder-${i}` }));
-        return { data: names.slice(options!.offset, options!.offset + options!.limit), error: null };
-      }
-      return { data: path === "uploads/folder-29" ? [{ name: "old.pdf", created_at: "2020-01-01" }] : [], error: null };
-    });
+describe("inquiry attachment cleanup", () => {
+  it("removes only old objects that no inquiry attachment references", async () => {
+    const old = new Date("2020-01-01T00:00:00.000Z");
+
+    mocks.list.mockResolvedValue([
+      {
+        path: "uploads/folder/old.pdf",
+        name: "old.pdf",
+        size: 10,
+        contentType: "application/pdf",
+        createdAt: old,
+      },
+      {
+        path: "uploads/folder/attached.pdf",
+        name: "attached.pdf",
+        size: 10,
+        contentType: "application/pdf",
+        createdAt: old,
+      },
+      {
+        path: "uploads/folder/recent.pdf",
+        name: "recent.pdf",
+        size: 10,
+        contentType: "application/pdf",
+        createdAt: new Date(),
+      },
+    ]);
+    mocks.where.mockResolvedValue([
+      { storagePath: "uploads/folder/attached.pdf" },
+    ]);
 
     const summary = await cleanupOrphanedInquiryAttachments();
-    expect(mocks.list).toHaveBeenCalledWith("uploads", { limit: 25, offset: 25, sortBy: { column: "name", order: "asc" } });
-    expect(summary.removedPaths).toEqual(["uploads/folder-29/old.pdf"]);
+
+    expect(mocks.list).toHaveBeenCalledWith({
+      bucket: publicInquiryAttachmentBucket,
+      prefix: `${publicInquiryAttachmentUploadRoot}/`,
+      recursive: true,
+      limit: 1000,
+    });
+    expect(mocks.deleteMany).toHaveBeenCalledWith({
+      bucket: publicInquiryAttachmentBucket,
+      paths: ["uploads/folder/old.pdf"],
+    });
+    expect(summary).toMatchObject({
+      scanned: 2,
+      removed: 1,
+      removedPaths: ["uploads/folder/old.pdf"],
+    });
   });
 
-  it("bounds examined folders independently of candidate count", async () => {
-    mocks.list.mockImplementation(async (path: string, options?: { limit: number; offset: number }) => ({
-      data: path === "uploads"
-        ? Array.from({ length: options!.limit }, (_, i) => ({ name: `folder-${options!.offset + i}` }))
-        : [],
-      error: null,
-    }));
-    await cleanupOrphanedInquiryAttachments();
-    expect(mocks.list.mock.calls.filter(([path]) => path === "uploads")).toHaveLength(2);
-    expect(mocks.list.mock.calls.filter(([path]) => path !== "uploads")).toHaveLength(50);
-    expect(mocks.remove).not.toHaveBeenCalled();
-  });
+  it("scans one bounded flat prefix instead of paginating folders", async () => {
+    mocks.list.mockResolvedValue([]);
 
-  it("stops when a page has no folders", async () => {
-    mocks.list.mockResolvedValue({ data: [], error: null });
     await cleanupOrphanedInquiryAttachments();
+
     expect(mocks.list).toHaveBeenCalledTimes(1);
+    expect(mocks.list).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recursive: true,
+        limit: 1000,
+      }),
+    );
+    expect(mocks.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it("returns an empty summary when the bucket has no uploads", async () => {
+    mocks.list.mockResolvedValue([]);
+
+    await expect(cleanupOrphanedInquiryAttachments()).resolves.toEqual({
+      scanned: 0,
+      removed: 0,
+      removedPaths: [],
+    });
+    expect(mocks.deleteMany).not.toHaveBeenCalled();
   });
 });

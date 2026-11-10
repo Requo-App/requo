@@ -8,7 +8,7 @@ import {
 } from "@/features/inquiries/attachments";
 import { db } from "@/lib/db/client";
 import { inquiryAttachments } from "@/lib/db/schema";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getObjectStorage } from "@/lib/storage";
 
 /**
  * Removes inquiry attachment uploads that were never attached to an inquiry.
@@ -24,9 +24,8 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 const orphanCutoffMs = 24 * 60 * 60 * 1000;
 
-/** Upper bound on the folders examined in one run, so the sweep stays quick. */
-const maxFoldersPerRun = 50;
-const folderPageSize = 25;
+/** Upper bound on objects examined in one run, so the sweep stays quick. */
+const maxObjectsPerRun = 1000;
 
 export type InquiryAttachmentCleanupSummary = {
   scanned: number;
@@ -44,55 +43,28 @@ export async function cleanupOrphanedInquiryAttachments(): Promise<InquiryAttach
   const errors: string[] = [];
 
   try {
-    const storage = createSupabaseAdminClient().storage.from(
-      publicInquiryAttachmentBucket,
-    );
-
+    const storage = getObjectStorage();
     const cutoff = Date.now() - orphanCutoffMs;
-    const candidatePaths: string[] = [];
-    let scannedFolders = 0;
-    let offset = 0;
 
-    while (scannedFolders < maxFoldersPerRun) {
-      const limit = Math.min(folderPageSize, maxFoldersPerRun - scannedFolders);
-      const { data: folders, error: listError } = await storage.list(
-        publicInquiryAttachmentUploadRoot,
-        { limit, offset, sortBy: { column: "name", order: "asc" } },
-      );
+    // Every adapter returns a flat list for a prefix. Supabase walks nested
+    // folders; S3 and local return the flattened keys. The sweeper therefore
+    // does not need provider-specific folder pagination.
+    const objects = await storage.list({
+      bucket: publicInquiryAttachmentBucket,
+      prefix: `${publicInquiryAttachmentUploadRoot}/`,
+      recursive: true,
+      limit: maxObjectsPerRun,
+    });
 
-      if (listError) {
-        throw new Error(listError.message);
-      }
-
-      if (!folders?.length) break;
-
-      offset += folders.length;
-
-      for (const folder of folders) {
-        scannedFolders += 1;
-        const folderPath = `${publicInquiryAttachmentUploadRoot}/${folder.name}`;
-        const { data: files, error: filesError } = await storage.list(folderPath);
-
-        if (filesError) {
-          errors.push(`${folderPath}: ${filesError.message}`);
-          continue;
+    const candidatePaths = objects
+      .filter((object) => {
+        if (!object.createdAt) {
+          return false;
         }
 
-        for (const file of files ?? []) {
-          const createdAt = file.created_at
-            ? new Date(file.created_at).getTime()
-            : Number.POSITIVE_INFINITY;
-
-          if (createdAt > cutoff) {
-            continue;
-          }
-
-          candidatePaths.push(`${folderPath}/${file.name}`);
-        }
-      }
-
-      if (folders.length < limit) break;
-    }
+        return object.createdAt.getTime() <= cutoff;
+      })
+      .map((object) => object.path);
 
     if (!candidatePaths.length) {
       return summary;
@@ -103,9 +75,7 @@ export async function cleanupOrphanedInquiryAttachments(): Promise<InquiryAttach
       .from(inquiryAttachments)
       .where(inArray(inquiryAttachments.storagePath, candidatePaths));
 
-    const attachedPaths = new Set(
-      attachedRows.map((row) => row.storagePath),
-    );
+    const attachedPaths = new Set(attachedRows.map((row) => row.storagePath));
     const orphanPaths = candidatePaths.filter(
       (path) => !attachedPaths.has(path),
     );
@@ -116,11 +86,10 @@ export async function cleanupOrphanedInquiryAttachments(): Promise<InquiryAttach
       return summary;
     }
 
-    const { error: removeError } = await storage.remove(orphanPaths);
-
-    if (removeError) {
-      throw new Error(removeError.message);
-    }
+    await storage.deleteMany({
+      bucket: publicInquiryAttachmentBucket,
+      paths: orphanPaths,
+    });
 
     summary.removed = orphanPaths.length;
     summary.removedPaths = orphanPaths;

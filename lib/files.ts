@@ -168,7 +168,7 @@ export type ServeStorageAssetInput = {
   download: (
     bucket: string,
     path: string,
-  ) => Promise<{ data: Blob | null; error: unknown }>;
+  ) => Promise<{ data: Blob | Uint8Array | ArrayBuffer | null; error: unknown }>;
   fallbackFileName: string;
   notFoundMessage?: string;
 };
@@ -201,7 +201,7 @@ export async function serveStorageAsset(
     return notFoundResponse(input.notFoundMessage);
   }
 
-  return new Response(data, {
+  return new Response(data as BodyInit, {
     headers: {
       ...cacheHeaders,
       "content-disposition": buildContentDisposition(

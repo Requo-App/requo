@@ -12,7 +12,8 @@ import { ensureProfileForUser } from "@/lib/auth/business-bootstrap";
 import { db } from "@/lib/db/client";
 import { profiles } from "@/lib/db/schema";
 import { resolveSafeContentType } from "@/lib/files";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getObjectStorage } from "@/lib/storage";
+import type { LogicalStorageBucket } from "@/lib/storage/buckets";
 
 type UpdateAccountProfileInput = {
   user: {
@@ -33,7 +34,7 @@ function chunkPaths(paths: string[], size = 100) {
 }
 
 async function removeStoragePaths(
-  bucket: string,
+  bucket: LogicalStorageBucket,
   paths: Array<string | null | undefined>,
 ) {
   const sanitizedPaths = paths.filter((path): path is string => Boolean(path));
@@ -42,12 +43,12 @@ async function removeStoragePaths(
     return;
   }
 
-  const storageClient = createSupabaseAdminClient();
+  const storage = getObjectStorage();
 
   for (const chunk of chunkPaths(sanitizedPaths)) {
-    const { error } = await storageClient.storage.from(bucket).remove(chunk);
-
-    if (error) {
+    try {
+      await storage.deleteMany({ bucket, paths: chunk });
+    } catch (error) {
       console.error(`Failed to remove storage objects from ${bucket}.`, error);
     }
   }
@@ -86,7 +87,7 @@ export async function updateAccountProfile({
 
   const now = new Date();
   const avatarFile = values.avatar;
-  const storageClient = avatarFile ? createSupabaseAdminClient() : null;
+  const storage = avatarFile ? getObjectStorage() : null;
   const previousAvatarStoragePath = currentProfile?.avatarStoragePath ?? null;
   const nextAvatarContentType = avatarFile
     ? resolveSafeContentType(avatarFile, {
@@ -95,22 +96,26 @@ export async function updateAccountProfile({
       })
     : null;
   const nextAvatarStoragePath =
-    avatarFile && storageClient
+    avatarFile && storage
       ? `${user.id}/avatar/${createId("asset")}-${sanitizeProfileAvatarFileName(
           avatarFile.name,
         )}`
       : null;
 
-  if (nextAvatarStoragePath && storageClient && avatarFile) {
-    const { error } = await storageClient.storage
-      .from(profileAvatarBucket)
-      .upload(nextAvatarStoragePath, avatarFile, {
+  if (nextAvatarStoragePath && storage && avatarFile) {
+    try {
+      await storage.put({
+        bucket: profileAvatarBucket,
+        path: nextAvatarStoragePath,
+        body: new Uint8Array(await avatarFile.arrayBuffer()),
         contentType: nextAvatarContentType ?? "application/octet-stream",
-        upsert: false,
       });
-
-    if (error) {
-      throw new Error(`Failed to upload profile avatar: ${error.message}`);
+    } catch (error) {
+      throw new Error(
+        `Failed to upload profile avatar: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
     }
   }
 
@@ -136,12 +141,13 @@ export async function updateAccountProfile({
       })
       .where(eq(profiles.userId, user.id));
   } catch (error) {
-    if (nextAvatarStoragePath && storageClient) {
-      const { error: cleanupError } = await storageClient.storage
-        .from(profileAvatarBucket)
-        .remove([nextAvatarStoragePath]);
-
-      if (cleanupError) {
+    if (nextAvatarStoragePath && storage) {
+      try {
+        await storage.delete({
+          bucket: profileAvatarBucket,
+          path: nextAvatarStoragePath,
+        });
+      } catch (cleanupError) {
         console.error(
           "Failed to clean up uploaded profile avatar after a database error.",
           cleanupError,
@@ -158,13 +164,13 @@ export async function updateAccountProfile({
       nextAvatarStoragePath !== previousAvatarStoragePath) ||
       (values.removeAvatar && !nextAvatarStoragePath));
 
-  if (shouldRemovePreviousAvatar) {
-    const storageClient = createSupabaseAdminClient();
-    const { error } = await storageClient.storage
-      .from(profileAvatarBucket)
-      .remove([previousAvatarStoragePath]);
-
-    if (error) {
+  if (shouldRemovePreviousAvatar && previousAvatarStoragePath) {
+    try {
+      await getObjectStorage().delete({
+        bucket: profileAvatarBucket,
+        path: previousAvatarStoragePath,
+      });
+    } catch (error) {
       console.error("Failed to clean up the previous profile avatar.", error);
     }
   }

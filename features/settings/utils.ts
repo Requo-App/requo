@@ -1,4 +1,5 @@
 import { sanitizeStorageFileName } from "@/lib/files";
+import { storageBuckets } from "@/lib/storage/buckets";
 import {
   normalizePublicSlugInput,
   publicSlugMaxLength,
@@ -6,7 +7,7 @@ import {
   publicSlugRegex,
 } from "@/lib/slugs";
 
-export const businessLogoBucket = "business-assets";
+export const businessLogoBucket = storageBuckets.businessAssets;
 export const businessLogoMaxSize = 2 * 1024 * 1024;
 export const businessSlugMaxLength = publicSlugMaxLength;
 export const businessSlugPattern = publicSlugPattern;

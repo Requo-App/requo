@@ -1,6 +1,7 @@
 import { sanitizeStorageFileName } from "@/lib/files";
+import { storageBuckets } from "@/lib/storage/buckets";
 
-export const profileAvatarBucket = "profile-assets";
+export const profileAvatarBucket = storageBuckets.profileAssets;
 export const profileAvatarMaxSize = 2 * 1024 * 1024;
 export const profileAvatarAllowedExtensions = [
   ".jpg",

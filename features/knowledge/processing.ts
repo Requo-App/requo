@@ -8,15 +8,16 @@ import { invalidateKnowledgeCache } from "@/features/knowledge/knowledge-cache";
 import { KNOWLEDGE_FILE_MAX_BYTES } from "@/features/knowledge/types";
 import { generateEmbeddings } from "@/lib/ai/embeddings";
 import { sanitizeKnowledgeContent } from "@/lib/ai/input-sanitizer";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getObjectStorage } from "@/lib/storage";
 import { db } from "@/lib/db/client";
 import { newEntityId } from "@/lib/ids";
+import { storageBuckets } from "@/lib/storage/buckets";
 import {
   businessKnowledgeChunks,
   businessKnowledgeFiles,
 } from "@/lib/db/schema";
 
-export const KNOWLEDGE_FILES_BUCKET = "knowledge-files";
+export const KNOWLEDGE_FILES_BUCKET = storageBuckets.knowledgeFiles;
 
 export const knowledgeFileFailureReasons = {
   notFound: "The file could not be found. Try uploading it again.",
@@ -28,22 +29,20 @@ export const knowledgeFileFailureReasons = {
 } as const;
 
 async function downloadKnowledgeFile(storagePath: string): Promise<Buffer> {
-  const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase.storage
-    .from(KNOWLEDGE_FILES_BUCKET)
-    .download(storagePath);
+  const object = await getObjectStorage().get({
+    bucket: KNOWLEDGE_FILES_BUCKET,
+    path: storagePath,
+  });
 
-  if (error || !data) {
-    throw new Error(`Storage download failed: ${error?.message ?? "no data"}`);
-  }
-
-  return Buffer.from(await data.arrayBuffer());
+  return Buffer.from(object.body);
 }
 
 async function removeStoredFile(storagePath: string) {
   try {
-    const supabase = createSupabaseAdminClient();
-    await supabase.storage.from(KNOWLEDGE_FILES_BUCKET).remove([storagePath]);
+    await getObjectStorage().delete({
+      bucket: KNOWLEDGE_FILES_BUCKET,
+      path: storagePath,
+    });
   } catch {
     // Best-effort cleanup.
   }

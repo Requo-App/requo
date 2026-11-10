@@ -18,7 +18,7 @@ import {
 } from "@/lib/db/schema";
 import { insertBusinessNotification } from "@/features/notifications/mutations";
 import { terminateRecurringFollowUpsForRecords } from "@/features/follow-ups/mutations";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getObjectStorage } from "@/lib/storage";
 import { resolveInquiryAttachmentContentType } from "@/features/inquiries/attachment-content";
 import {
   publicInquiryAttachmentBucket,
@@ -101,16 +101,17 @@ export async function createInquirySubmission({
     // submitted, because a function request body cannot carry it. Confirm
     // the object is really there and use the size storage reports rather
     // than the one the client claimed.
-    const storageClient = createSupabaseAdminClient();
-    const { data: objectInfo, error: infoError } = await storageClient.storage
-      .from(publicInquiryAttachmentBucket)
-      .info(attachmentUpload.storagePath);
+    const storage = getObjectStorage();
+    const objectInfo = await storage.head({
+      bucket: publicInquiryAttachmentBucket,
+      path: attachmentUpload.storagePath,
+    });
 
-    if (infoError || !objectInfo) {
+    if (!objectInfo) {
       throw new Error("Failed to confirm the uploaded inquiry attachment.");
     }
 
-    const observedSize = objectInfo.size ?? 0;
+    const observedSize = objectInfo.size;
     const maxAttachmentBytes = submission.maxAttachmentBytes;
 
     if (
@@ -121,16 +122,17 @@ export async function createInquirySubmission({
       throw new Error("The uploaded inquiry attachment failed validation.");
     }
 
-    const { data: object, error: downloadError } = await storageClient.storage
-      .from(publicInquiryAttachmentBucket)
-      .download(attachmentUpload.storagePath);
+    const object = await storage.get({
+      bucket: publicInquiryAttachmentBucket,
+      path: attachmentUpload.storagePath,
+    });
 
-    if (downloadError || !object || object.size !== observedSize) {
+    if (object.size !== observedSize) {
       throw new Error("Failed to confirm the uploaded inquiry attachment.");
     }
 
     const contentType = await resolveInquiryAttachmentContentType(
-      new Uint8Array(await object.arrayBuffer()),
+      object.body,
       attachmentUpload.fileName,
     );
 

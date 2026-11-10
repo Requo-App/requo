@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { createArtifactSignedUrl } from "@/features/approvals/artifacts";
+import { getApprovalArtifactContent } from "@/features/approvals/artifacts";
 import {
   getApprovalArtifactForTokenView,
   getApprovalByCustomerToken,
 } from "@/features/approvals/queries";
+import { buildContentDisposition } from "@/lib/files";
+import { toArrayBuffer } from "@/lib/storage";
 import { assertPublicActionRateLimit } from "@/lib/public-action-rate-limit";
 
 const artifactRouteParamsSchema = z.object({
@@ -14,8 +16,9 @@ const artifactRouteParamsSchema = z.object({
 
 /**
  * Token-scoped artifact access: possession of the approval link grants
- * exactly the linked artifact view — signed URL redirect, never a public
- * bucket URL. Rate-limited like the quote-response actions.
+ * exactly the linked artifact view. The bytes are streamed through this
+ * route, never exposed as a public bucket URL. Rate-limited like the
+ * quote-response actions.
  */
 export async function GET(
   _request: Request,
@@ -51,10 +54,26 @@ export async function GET(
   }
 
   try {
-    const signedUrl = await createArtifactSignedUrl({ storagePath: artifact.storagePath });
+    const object = await getApprovalArtifactContent({
+      storagePath: artifact.storagePath,
+    });
 
-    return NextResponse.redirect(signedUrl, { status: 302 });
+    return new Response(toArrayBuffer(object.body), {
+      headers: {
+        "cache-control": "private, no-store",
+        "content-disposition": buildContentDisposition(
+          artifact.storagePath.split("/").pop() ?? "artifact",
+          "inline",
+        ),
+        "content-type":
+          object.contentType ?? "application/octet-stream",
+        "x-content-type-options": "nosniff",
+      },
+    });
   } catch {
-    return NextResponse.json({ error: "Could not prepare the file." }, { status: 500 });
+    return NextResponse.json(
+      { error: "Could not prepare the file." },
+      { status: 500 },
+    );
   }
 }

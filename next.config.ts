@@ -4,6 +4,62 @@ import type { NextConfig } from "next";
 import { getContentSecurityPolicyHeader } from "./lib/security/csp";
 
 const isProduction = process.env.NODE_ENV === "production";
+
+function envValue(name: string) {
+  return process.env[name]?.trim() || undefined;
+}
+
+// A browser upload can go directly to S3, so the CSP needs the origin of the
+// presigned POST URL. Custom endpoints may use path-style or virtual-host
+// addressing; allow both derived forms.
+function getS3UploadUrls() {
+  const endpoint = envValue("S3_ENDPOINT");
+  const bucket = envValue("S3_BUCKET");
+  const region = envValue("S3_REGION");
+  const urls: string[] = [];
+
+  if (endpoint) {
+    urls.push(endpoint);
+  }
+
+  if (bucket) {
+    if (!endpoint) {
+      const regionSuffix = region && region !== "auto" ? `.${region}` : "";
+      urls.push(`https://${bucket}.s3${regionSuffix}.amazonaws.com`);
+
+      if (region && region !== "auto") {
+        // S3_FORCE_PATH_STYLE puts the bucket in the path instead of the host.
+        urls.push(`https://s3.${region}.amazonaws.com`);
+      }
+    } else {
+      try {
+        const url = new URL(endpoint);
+
+        if (!url.hostname.startsWith(`${bucket}.`)) {
+          urls.push(`${url.protocol}//${bucket}.${url.host}`);
+        }
+      } catch {
+        // The adapter reports an invalid endpoint; CSP ignores malformed URLs.
+      }
+    }
+  }
+
+  return urls;
+}
+
+// Only advertise Supabase origins when this deployment actually uses them.
+// A local/S3 install with Realtime disabled should not ship a dead origin in
+// its Content Security Policy.
+const storageDriver =
+  envValue("REQUO_STORAGE_DRIVER") ??
+  (envValue("NEXT_PUBLIC_SUPABASE_URL") ? "supabase" : "local");
+const realtimeDriver =
+  envValue("REQUO_REALTIME_DRIVER") ??
+  (envValue("SUPABASE_JWT_SECRET") ? "supabase" : "none");
+const supabaseCspUrl =
+  storageDriver === "supabase" || realtimeDriver === "supabase"
+    ? envValue("NEXT_PUBLIC_SUPABASE_URL")
+    : undefined;
 // The instant-navigation testing API is for dedicated end-to-end test builds
 // only. `next dev` exposes it automatically; a production build must opt in
 // explicitly. Never set this for a user-facing deployment.
@@ -44,7 +100,8 @@ const contentSecurityPolicy = getContentSecurityPolicyHeader("enforce", {
   crispWebsiteId: process.env.CRISP_WEBSITE_ID,
   isProduction,
   sentryDsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
-  supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+  storageUploadUrls: storageDriver === "s3" ? getS3UploadUrls() : undefined,
+  supabaseUrl: supabaseCspUrl,
 });
 
 const baselineSecurityHeaders = [

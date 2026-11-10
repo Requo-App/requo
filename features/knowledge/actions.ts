@@ -22,7 +22,7 @@ import { hasFeatureAccess } from "@/lib/plans";
 import { getUsageLimit } from "@/lib/plans/usage-limits";
 import { sanitizeKnowledgeContent } from "@/lib/ai/input-sanitizer";
 import { logAiSecurityEvent } from "@/lib/ai/security-events";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getObjectStorage } from "@/lib/storage";
 import { getFileExtension, resolveSafeContentType } from "@/lib/files";
 import { KNOWLEDGE_FILE_ACCEPT } from "@/features/knowledge/types";
 import { db } from "@/lib/db/client";
@@ -418,18 +418,12 @@ export async function uploadKnowledgeFileAction(
   const storagePath = `${businessId}/${fileId}${extension.toLowerCase()}`;
 
   try {
-    const supabase = createSupabaseAdminClient();
-    const { error } = await supabase.storage
-      .from(KNOWLEDGE_FILES_BUCKET)
-      .upload(storagePath, parsed.data.content, {
-        contentType: safeContentType,
-        upsert: false,
-      });
-
-    if (error) {
-      console.error("Failed to upload knowledge file to storage.", error);
-      return { error: "We couldn't upload that file right now." };
-    }
+    await getObjectStorage().put({
+      bucket: KNOWLEDGE_FILES_BUCKET,
+      path: storagePath,
+      body: new Uint8Array(parsed.data.content),
+      contentType: safeContentType,
+    });
 
     await db.insert(businessKnowledgeFiles).values({
       id: fileId,
@@ -453,8 +447,10 @@ export async function uploadKnowledgeFileAction(
 
     // Best-effort cleanup of the uploaded object.
     try {
-      const supabase = createSupabaseAdminClient();
-      await supabase.storage.from(KNOWLEDGE_FILES_BUCKET).remove([storagePath]);
+      await getObjectStorage().delete({
+        bucket: KNOWLEDGE_FILES_BUCKET,
+        path: storagePath,
+      });
     } catch {
       // Ignore cleanup failures.
     }
