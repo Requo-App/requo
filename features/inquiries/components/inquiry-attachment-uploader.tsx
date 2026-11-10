@@ -33,6 +33,9 @@ type InquiryAttachmentUploaderProps = {
 
 type UploadResponse = {
   signedUrl: string;
+  method: "PUT" | "POST";
+  headers?: Record<string, string>;
+  fields?: Record<string, string>;
   token: string;
   fileName: string;
   size: number;
@@ -111,14 +114,28 @@ export function InquiryAttachmentUploader({
         return;
       }
 
-      const uploadResponse = await fetch(payload.signedUrl, {
-        method: "PUT",
-        headers: {
-          "content-type": file.type || "application/octet-stream",
-          "x-upsert": "false",
-        },
-        body: file,
-      });
+      let uploadRequest: RequestInit;
+
+      if (payload.method === "POST") {
+        const formData = new FormData();
+
+        for (const [key, value] of Object.entries(payload.fields ?? {})) {
+          formData.append(key, value);
+        }
+
+        formData.append("file", file);
+        uploadRequest = { method: "POST", body: formData };
+      } else {
+        uploadRequest = {
+          method: "PUT",
+          headers: payload.headers ?? {
+            "content-type": file.type || "application/octet-stream",
+          },
+          body: file,
+        };
+      }
+
+      const uploadResponse = await fetch(payload.signedUrl, uploadRequest);
 
       if (!uploadResponse.ok) {
         setHasError(true);

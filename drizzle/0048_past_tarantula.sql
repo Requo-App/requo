@@ -1,0 +1,1 @@
+ALTER TYPE "public"."email_provider" ADD VALUE 'smtp';

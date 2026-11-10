@@ -7,7 +7,7 @@ import { ensureProfileForUser } from "@/lib/auth/business-bootstrap";
 import { extractFirstName } from "@/features/account/name";
 import { db } from "@/lib/db/client";
 import * as schema from "@/lib/db/schema";
-import { env } from "@/lib/env";
+import { env, isEmailVerificationRequired } from "@/lib/env";
 import {
   sendMagicLinkEmail,
   sendPasswordResetEmail,
@@ -131,7 +131,7 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     autoSignIn: false,
-    requireEmailVerification: true,
+    requireEmailVerification: isEmailVerificationRequired,
     revokeSessionsOnPasswordReset: true,
     sendResetPassword: async ({ user, url, token }) => {
       if (shouldSkipTransactionalAuthEmails) {

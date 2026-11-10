@@ -11,7 +11,7 @@ import {
 } from "@/components/marketing/solutions/solutions-shared";
 import { PublicPageShell } from "@/components/shared/public-page-shell";
 import { Button } from "@/components/ui/button";
-import { isSelfHostedDeployment } from "@/lib/deployment";
+import { isBillingEnabled } from "@/lib/deployment";
 
 export type EditorialBreadcrumb = {
   name: string;
@@ -51,10 +51,10 @@ export function EditorialPage({
   ctaSub: string;
   children?: ReactNode;
 }) {
-  // Pricing does not exist in self-hosted mode, so drop a pricing CTA rather
-  // than linking to a route that returns 404.
+  // Pricing does not exist when billing is disabled, so drop a pricing CTA
+  // rather than linking to a route that returns 404.
   const resolvedSecondaryCta =
-    isSelfHostedDeployment() && secondaryCta?.href === "/pricing"
+    !isBillingEnabled() && secondaryCta?.href === "/pricing"
       ? undefined
       : secondaryCta;
 

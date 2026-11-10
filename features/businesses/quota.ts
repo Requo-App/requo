@@ -5,7 +5,7 @@ import { and, count, eq, isNull, sql } from "drizzle-orm";
 import type { BusinessQuotaSnapshot } from "@/features/businesses/types";
 import { hasPaidBusinessSubscriptionSql } from "@/lib/billing/entitlement-sql";
 import {
-  isSelfHostedDeployment,
+  getEntitlementPolicy,
   selfHostedEntitlementPlan,
 } from "@/lib/deployment";
 import { db } from "@/lib/db/client";
@@ -75,8 +75,8 @@ export async function getBusinessQuotaForUser({
     client,
   );
 
-  // Self-hosted installations are not subject to Requo Cloud plan limits.
-  if (isSelfHostedDeployment()) {
+  // Installations without billing are not subject to Requo Cloud plan limits.
+  if (getEntitlementPolicy() === "full") {
     return {
       ownerUserId,
       plan: selfHostedEntitlementPlan,

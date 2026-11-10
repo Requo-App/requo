@@ -30,6 +30,40 @@ export function isSelfHostedDeployment(): boolean {
   return getDeploymentMode() === "self-hosted";
 }
 
+export type BillingDriver = "none" | "polar" | "paymongo";
+export type BillingProvider = Exclude<BillingDriver, "none">;
+export type EntitlementPolicy = "full" | "plans";
+
+/**
+ * Billing is a deployment capability, not an edition. Explicit
+ * `REQUO_BILLING_DRIVER` wins; otherwise Cloud keeps Polar and self-hosted
+ * installs stay billing-free as before.
+ */
+export function getBillingDriver(): BillingDriver {
+  if (env.REQUO_BILLING_DRIVER) {
+    return env.REQUO_BILLING_DRIVER;
+  }
+
+  return isSelfHostedDeployment() ? "none" : "polar";
+}
+
+export function isBillingEnabled(): boolean {
+  return getBillingDriver() !== "none";
+}
+
+/** Cloud defaults to both providers; an explicit driver enables only itself. */
+export function isBillingProviderEnabled(provider: BillingProvider): boolean {
+  if (!env.REQUO_BILLING_DRIVER && isCloudDeployment()) {
+    return true;
+  }
+
+  return getBillingDriver() === provider;
+}
+
+export function getEntitlementPolicy(): EntitlementPolicy {
+  return isBillingEnabled() ? "plans" : "full";
+}
+
 /**
  * Resolve the plan a read path should expose for a stored Cloud plan.
  *
@@ -39,5 +73,5 @@ export function isSelfHostedDeployment(): boolean {
  * column.
  */
 export function resolveDeploymentPlan(plan: PlanTier): PlanTier {
-  return isSelfHostedDeployment() ? selfHostedEntitlementPlan : plan;
+  return getEntitlementPolicy() === "full" ? selfHostedEntitlementPlan : plan;
 }

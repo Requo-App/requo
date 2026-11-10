@@ -5,7 +5,11 @@ const mocks = vi.hoisted(() => ({
   activate: vi.fn(), revalidate: vi.fn(),
 }));
 vi.mock("next/cache", () => ({ revalidateTag: mocks.revalidate }));
-vi.mock("next/navigation", () => ({ redirect: (path: string) => { throw new Error(`redirect:${path}`); } }));
+vi.mock("next/navigation", () => ({
+  notFound: () => { throw new Error("notFound"); },
+  redirect: (path: string) => { throw new Error(`redirect:${path}`); },
+}));
+vi.mock("@/lib/deployment", () => ({ isBillingProviderEnabled: () => true }));
 vi.mock("@/lib/auth/session", () => ({ requireSession: mocks.session }));
 vi.mock("@/lib/billing/paymongo-checkout", () => ({
   getPaymongoCheckoutIntentForUser: mocks.intent,

@@ -17,7 +17,7 @@ import { onboardingPath } from "@/features/onboarding/routes";
 import { UpgradePrompt } from "@/features/entitlements";
 import { requireSession } from "@/lib/auth/session";
 import {
-  isSelfHostedDeployment,
+  getEntitlementPolicy,
   selfHostedEntitlementPlan,
 } from "@/lib/deployment";
 import { createNoIndexMetadata } from "@/lib/seo/site";
@@ -90,7 +90,9 @@ async function NewBusinessPageContent() {
             action={createBusinessAction}
             businessId={businessId}
             plan={
-              isSelfHostedDeployment() ? selfHostedEntitlementPlan : "free"
+              getEntitlementPolicy() === "full"
+                ? selfHostedEntitlementPlan
+                : "free"
             }
             standalone
           />

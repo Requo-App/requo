@@ -38,8 +38,8 @@ import { appendRandomSlugSuffix, slugifyPublicName } from "@/lib/slugs";
 import { getUsageLimit } from "@/lib/plans/usage-limits";
 import { validateBusinessSlug } from "@/features/businesses/validation";
 import {
-  isCloudDeployment,
-  isSelfHostedDeployment,
+  getBillingDriver,
+  getEntitlementPolicy,
   selfHostedEntitlementPlan,
 } from "@/lib/deployment";
 import { isLowEmailMode } from "@/lib/env";
@@ -174,14 +174,14 @@ export async function createBusinessRecordForUser({
   // owners can start it from billing for their current Free business instead.
   const ownedBusinessCount = await getOwnedBusinessCountForUser(user.id, tx);
   const autoStartTrial =
-    isCloudDeployment() &&
+    getBillingDriver() === "polar" &&
     startTrial &&
     plan === "free" &&
     ownedBusinessCount === 0 &&
     (await canStartBusinessTrial({ userId: user.id, client: tx }));
-  // Self-hosted has no Cloud plan; use the full product tier for onboarding
-  // defaults and limits without writing a plan assignment.
-  const resolvedPlan: plan = isSelfHostedDeployment()
+  // A billing-free install uses the full product tier for onboarding defaults
+  // and limits without writing a plan assignment.
+  const resolvedPlan: plan = getEntitlementPolicy() === "full"
     ? selfHostedEntitlementPlan
     : autoStartTrial
       ? "pro"

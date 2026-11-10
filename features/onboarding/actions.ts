@@ -41,7 +41,7 @@ import {
   sanitizeProfileAvatarFileName,
 } from "@/features/account/utils";
 import { isAcceptedFileType, resolveSafeContentType } from "@/lib/files";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getObjectStorage } from "@/lib/storage";
 
 const initialState: OnboardingActionState = {};
 
@@ -177,16 +177,14 @@ export async function completeOnboardingAction(
       fallback: "application/octet-stream",
     });
     const storagePath = `${user.id}/avatar/onboarding-${crypto.randomUUID()}-${sanitizeProfileAvatarFileName(avatarFile.name)}`;
-    const storageClient = createSupabaseAdminClient();
-
-    const { error: uploadError } = await storageClient.storage
-      .from(profileAvatarBucket)
-      .upload(storagePath, avatarFile, {
+    try {
+      await getObjectStorage().put({
+        bucket: profileAvatarBucket,
+        path: storagePath,
+        body: new Uint8Array(await avatarFile.arrayBuffer()),
         contentType,
-        upsert: false,
       });
-
-    if (uploadError) {
+    } catch (uploadError) {
       console.error("Failed to upload onboarding avatar.", uploadError);
       return { error: "We couldn't upload your profile photo right now." };
     }

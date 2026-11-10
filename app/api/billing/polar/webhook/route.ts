@@ -40,7 +40,10 @@ import {
   markEventIgnored,
   recordWebhookEvent,
 } from "@/lib/billing/webhook-processor";
-import { isSelfHostedDeployment } from "@/lib/deployment";
+import {
+  isBillingEnabled,
+  isBillingProviderEnabled,
+} from "@/lib/deployment";
 import { env } from "@/lib/env";
 import { logWarn } from "@/lib/observability/logger";
 import { withRequestCorrelation } from "@/lib/observability/request";
@@ -245,7 +248,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     request,
     "polar_webhook",
     async () => {
-      if (isSelfHostedDeployment()) {
+      if (!isBillingEnabled() || !isBillingProviderEnabled("polar")) {
         return new Response("Not Found", { status: 404 });
       }
 

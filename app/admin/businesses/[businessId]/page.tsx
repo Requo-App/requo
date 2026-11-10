@@ -99,10 +99,10 @@ async function AdminBusinessHeaderRegion({
     },
     async () => {
       // The toolbar's plan actions read the subscription, so the header
-      // resolves billing alongside the core row. Self-hosted installations
-      // have no Requo Cloud subscriptions or plan controls.
-      const { isSelfHostedDeployment } = await import("@/lib/deployment");
-      const isSelfHosted = isSelfHostedDeployment();
+      // resolves billing alongside the core row. Installations without a
+      // billing driver have no subscriptions or plan controls.
+      const { isBillingEnabled } = await import("@/lib/deployment");
+      const isSelfHosted = !isBillingEnabled();
       const [core, billing] = await Promise.all([
         getAdminBusinessDetailCore(businessId),
         isSelfHosted
@@ -163,9 +163,9 @@ async function AdminBusinessBillingRegion({
   params,
 }: AdminBusinessDetailPageProps) {
   const { businessId } = await params;
-  const { isSelfHostedDeployment } = await import("@/lib/deployment");
+  const { isBillingEnabled } = await import("@/lib/deployment");
 
-  if (isSelfHostedDeployment()) {
+  if (!isBillingEnabled()) {
     return null;
   }
 

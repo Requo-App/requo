@@ -1,7 +1,7 @@
 import { getBusinessLogoAssetForBusiness } from "@/features/settings/queries";
 import { serveStorageAsset } from "@/lib/files";
 import { getCurrentBusinessRequestContext } from "@/lib/db/business-access";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { createStorageAssetDownloader } from "@/lib/storage/files";
 import { businessLogoBucket } from "@/features/settings/utils";
 
 export async function GET(request: Request) {
@@ -17,15 +17,12 @@ export async function GET(request: Request) {
   const asset = await getBusinessLogoAssetForBusiness(
     requestContext.businessContext.business.id,
   );
-  const storageClient = createSupabaseAdminClient();
-
   return serveStorageAsset({
     request,
     bucket: businessLogoBucket,
     storagePath: asset?.logoStoragePath,
     contentType: asset?.logoContentType,
     fallbackFileName: "business-logo",
-    download: (bucket, path) =>
-      storageClient.storage.from(bucket).download(path),
+    download: createStorageAssetDownloader(),
   });
 }

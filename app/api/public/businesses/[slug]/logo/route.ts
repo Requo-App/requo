@@ -1,5 +1,5 @@
 import { buildContentDisposition } from "@/lib/files";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getObjectStorage, toArrayBuffer } from "@/lib/storage";
 import { getPublicBusinessLogoAssetBySlug } from "@/features/inquiries/queries";
 import { businessLogoBucket } from "@/features/settings/utils";
 import { slugParamSchema } from "@/lib/api/params";
@@ -28,12 +28,27 @@ export async function GET(
     });
   }
 
-  const storageClient = createSupabaseAdminClient();
-  const { data, error } = await storageClient.storage
-    .from(businessLogoBucket)
-    .download(asset.logoStoragePath);
+  try {
+    const object = await getObjectStorage().get({
+      bucket: businessLogoBucket,
+      path: asset.logoStoragePath,
+    });
 
-  if (error || !data) {
+    return new Response(toArrayBuffer(object.body), {
+      headers: {
+        "cache-control": "public, max-age=86400, stale-while-revalidate=3600",
+        "content-disposition": buildContentDisposition(
+          asset.logoStoragePath.split("/").pop() ?? "business-logo",
+          "inline",
+        ),
+        "content-type":
+          asset.logoContentType ??
+          object.contentType ??
+          "application/octet-stream",
+        "x-content-type-options": "nosniff",
+      },
+    });
+  } catch (error) {
     console.error("Failed to download public business logo from storage.", error);
 
     return new Response("Not found", {
@@ -43,16 +58,4 @@ export async function GET(
       },
     });
   }
-
-  return new Response(data, {
-    headers: {
-      "cache-control": "public, max-age=86400, stale-while-revalidate=3600",
-      "content-disposition": buildContentDisposition(
-        asset.logoStoragePath.split("/").pop() ?? "business-logo",
-        "inline",
-      ),
-      "content-type": asset.logoContentType ?? "application/octet-stream",
-      "x-content-type-options": "nosniff",
-    },
-  });
 }

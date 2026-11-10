@@ -8,13 +8,14 @@ import { approvalArtifacts } from "@/lib/db/schema";
 import { db } from "@/lib/db/client";
 import { sanitizeStorageFileName, resolveSafeContentType } from "@/lib/files";
 import { newEntityId } from "@/lib/ids";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getObjectStorage } from "@/lib/storage";
 import { publicInquiryExtensionToMimeType } from "@/features/inquiries/schemas";
+import { storageBuckets } from "@/lib/storage/buckets";
 
 type DatabaseTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 /** Approval artifacts live in the existing private bucket (no new bucket). */
-export const approvalArtifactBucket = "business-assets";
+export const approvalArtifactBucket = storageBuckets.businessAssets;
 
 const maxArtifactSizeBytes = 25 * 1024 * 1024;
 
@@ -49,14 +50,12 @@ export async function uploadApprovalArtifactForBusiness(input: {
   const buffer = Buffer.from(await input.file.arrayBuffer());
   const sha256 = createHash("sha256").update(buffer).digest("hex");
 
-  const storageClient = createSupabaseAdminClient();
-  const { error } = await storageClient.storage
-    .from(approvalArtifactBucket)
-    .upload(storagePath, buffer, { contentType: safeContentType, upsert: false });
-
-  if (error) {
-    throw new Error(`Failed to upload approval file: ${error.message}`);
-  }
+  await getObjectStorage().put({
+    bucket: approvalArtifactBucket,
+    path: storagePath,
+    body: new Uint8Array(buffer),
+    contentType: safeContentType,
+  });
 
   let artifactVersion = 1;
 
@@ -128,21 +127,16 @@ export async function getApprovalArtifactForBusiness(
 }
 
 /**
- * Token-scoped signed artifact URL for the customer page. Access is granted
- * through the approval token route only — never a public bucket URL.
+ * Token-scoped artifact content for the customer page. Access is granted
+ * through the approval token route only — never a public bucket URL. The
+ * route streams the bytes, which keeps the behavior identical for Supabase,
+ * S3, and local storage (local disk has no signed URL).
  */
-export async function createArtifactSignedUrl(input: {
+export async function getApprovalArtifactContent(input: {
   storagePath: string;
-  expiresInSeconds?: number;
 }) {
-  const storageClient = createSupabaseAdminClient();
-  const { data, error } = await storageClient.storage
-    .from(approvalArtifactBucket)
-    .createSignedUrl(input.storagePath, input.expiresInSeconds ?? 300);
-
-  if (error || !data?.signedUrl) {
-    throw new Error("Could not prepare the file for viewing.");
-  }
-
-  return data.signedUrl;
+  return getObjectStorage().get({
+    bucket: approvalArtifactBucket,
+    path: input.storagePath,
+  });
 }

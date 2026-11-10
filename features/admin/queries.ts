@@ -189,7 +189,7 @@ import {
   user,
   type EmailOutboxStatus,
 } from "@/lib/db/schema";
-import { isSelfHostedDeployment } from "@/lib/deployment";
+import { isBillingEnabled } from "@/lib/deployment";
 import type {
   BillingCurrency,
   BillingProvider,
@@ -984,7 +984,7 @@ async function listAdminBusinessesInner(
     ? buildBusinessSearchCondition(search)
     : undefined;
   const planCondition =
-    plan && !isSelfHostedDeployment()
+    plan && isBillingEnabled()
       ? eq(businesses.plan, plan)
       : undefined;
 

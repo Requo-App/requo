@@ -50,7 +50,7 @@ import {
   businesses,
 } from "@/lib/db/schema";
 import { appendRandomSlugSuffix } from "@/lib/slugs";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getObjectStorage } from "@/lib/storage";
 import { newEntityId, prefixedId } from "@/lib/ids";
 
 type UpdateBusinessGeneralSettingsInput = {
@@ -302,7 +302,7 @@ export async function updateBusinessSettings({
 
   const now = new Date();
   const logoFile = values.logo;
-  const storageClient = logoFile ? createSupabaseAdminClient() : null;
+  const storage = logoFile ? getObjectStorage() : null;
   const previousLogoStoragePath = currentBusiness.logoStoragePath;
   const nextLogoContentType = logoFile
     ? resolveSafeContentType(logoFile, {
@@ -311,23 +311,19 @@ export async function updateBusinessSettings({
       })
     : null;
   const nextLogoStoragePath =
-    logoFile && storageClient
+    logoFile && storage
       ? `${businessId}/logo/${prefixedId("asset")}-${sanitizeBusinessLogoFileName(
           logoFile.name,
         )}`
       : null;
 
-  if (nextLogoStoragePath && storageClient && logoFile) {
-    const { error } = await storageClient.storage
-      .from(businessLogoBucket)
-      .upload(nextLogoStoragePath, logoFile, {
-        contentType: nextLogoContentType ?? "application/octet-stream",
-        upsert: false,
-      });
-
-    if (error) {
-      throw new Error(`Failed to upload business logo: ${error.message}`);
-    }
+  if (nextLogoStoragePath && storage && logoFile) {
+    await storage.put({
+      bucket: businessLogoBucket,
+      path: nextLogoStoragePath,
+      body: new Uint8Array(await logoFile.arrayBuffer()),
+      contentType: nextLogoContentType ?? "application/octet-stream",
+    });
   }
 
   try {
@@ -409,12 +405,13 @@ export async function updateBusinessSettings({
       });
     });
   } catch (error) {
-    if (nextLogoStoragePath && storageClient) {
-      const { error: cleanupError } = await storageClient.storage
-        .from(businessLogoBucket)
-        .remove([nextLogoStoragePath]);
-
-      if (cleanupError) {
+    if (nextLogoStoragePath && storage) {
+      try {
+        await storage.delete({
+          bucket: businessLogoBucket,
+          path: nextLogoStoragePath,
+        });
+      } catch (cleanupError) {
         console.error(
           "Failed to clean up uploaded business logo after a database error.",
           cleanupError,
@@ -430,13 +427,13 @@ export async function updateBusinessSettings({
     ((Boolean(nextLogoStoragePath) && nextLogoStoragePath !== previousLogoStoragePath) ||
       (values.removeLogo && !nextLogoStoragePath));
 
-  if (shouldRemovePreviousLogo) {
-    const storageClient = createSupabaseAdminClient();
-    const { error } = await storageClient.storage
-      .from(businessLogoBucket)
-      .remove([previousLogoStoragePath]);
-
-    if (error) {
+  if (shouldRemovePreviousLogo && previousLogoStoragePath) {
+    try {
+      await getObjectStorage().delete({
+        bucket: businessLogoBucket,
+        path: previousLogoStoragePath,
+      });
+    } catch (error) {
       console.error("Failed to clean up the previous business logo.", error);
     }
   }

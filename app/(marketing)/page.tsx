@@ -7,7 +7,7 @@ import {
 } from "@/components/marketing/marketing-data";
 import { MarketingHero } from "@/components/marketing/marketing-hero";
 import { StructuredData } from "@/components/seo/structured-data";
-import { isSelfHostedDeployment } from "@/lib/deployment";
+import { isBillingEnabled } from "@/lib/deployment";
 import {
   getFaqPageStructuredData,
   getSoftwareApplicationStructuredData,
@@ -50,7 +50,7 @@ export default async function MarketingPage() {
       description: marketingDescription,
       featureList: landingFeatureItems.map((item) => item.title),
       name: siteName,
-      offers: isSelfHostedDeployment()
+      offers: !isBillingEnabled()
         ? []
         : [
             { price: 0, priceCurrency: "USD", url: absoluteUrl("/pricing") },

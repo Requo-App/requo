@@ -6,7 +6,7 @@ import {
   expireSubscription,
   PAST_DUE_GRACE_MS,
 } from "@/lib/billing/subscription-service";
-import { isSelfHostedDeployment } from "@/lib/deployment";
+import { isBillingEnabled } from "@/lib/deployment";
 import { db } from "@/lib/db/client";
 import { businessSubscriptions } from "@/lib/db/schema/subscriptions";
 
@@ -18,8 +18,8 @@ export type ExpireSubscriptionsSummary = {
 };
 
 export async function processExpiredSubscriptions(): Promise<ExpireSubscriptionsSummary> {
-  // Self-hosted installations have no Requo Cloud subscriptions to expire.
-  if (isSelfHostedDeployment()) {
+  // Installations without billing have no Requo Cloud subscriptions to expire.
+  if (!isBillingEnabled()) {
     return { processed: 0, succeeded: 0, failed: 0 };
   }
 

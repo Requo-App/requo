@@ -2,6 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/deployment", () => ({
   getDeploymentMode: () => "self-hosted",
+  getBillingDriver: () => "none",
+  getEntitlementPolicy: () => "full",
+  isBillingEnabled: () => false,
+  isBillingProviderEnabled: () => false,
   isCloudDeployment: () => false,
   isSelfHostedDeployment: () => true,
   selfHostedEntitlementPlan: "business",

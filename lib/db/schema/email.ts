@@ -14,7 +14,12 @@ import {
 import { user } from "@/lib/db/schema/auth";
 import { businesses } from "@/lib/db/schema/businesses";
 
-export const emailProviders = ["resend", "mailtrap", "brevo"] as const;
+export const emailProviders = [
+  "resend",
+  "mailtrap",
+  "brevo",
+  "smtp",
+] as const;
 export type EmailProviderName = (typeof emailProviders)[number];
 
 export const emailProviderEnum = pgEnum("email_provider", [

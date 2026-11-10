@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { buildContentDisposition } from "@/lib/files";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getObjectStorage, toArrayBuffer } from "@/lib/storage";
 import { getCurrentBusinessRequestContext } from "@/lib/db/business-access";
 import { assertBusinessActionRateLimit } from "@/lib/rate-limit/redis-rate-limiter";
 import {
@@ -62,28 +62,34 @@ export async function GET(_request: Request, context: InquiryAttachmentRouteCont
     );
   }
 
-  const supabaseAdminClient = createSupabaseAdminClient();
-  const { data, error } = await supabaseAdminClient.storage
-    .from(publicInquiryAttachmentBucket)
-    .download(attachment.storagePath);
+  try {
+    const object = await getObjectStorage().get({
+      bucket: publicInquiryAttachmentBucket,
+      path: attachment.storagePath,
+    });
 
-  if (error || !data) {
-    console.error("Failed to download inquiry attachment from storage.", error);
-
-    return NextResponse.json({ error: "Attachment download is unavailable right now." }, {
-      status: 500,
+    return new Response(toArrayBuffer(object.body), {
       headers: {
-        "cache-control": "no-store",
+        "cache-control": "private, no-store",
+        "content-disposition": buildContentDisposition(attachment.fileName),
+        "content-type":
+          object.contentType ||
+          attachment.contentType ||
+          "application/octet-stream",
+        "x-content-type-options": "nosniff",
       },
     });
-  }
+  } catch (error) {
+    console.error("Failed to download inquiry attachment from storage.", error);
 
-  return new Response(data, {
-    headers: {
-      "cache-control": "private, no-store",
-      "content-disposition": buildContentDisposition(attachment.fileName),
-      "content-type": attachment.contentType || "application/octet-stream",
-      "x-content-type-options": "nosniff",
-    },
-  });
+    return NextResponse.json(
+      { error: "Attachment download is unavailable right now." },
+      {
+        status: 500,
+        headers: {
+          "cache-control": "no-store",
+        },
+      },
+    );
+  }
 }

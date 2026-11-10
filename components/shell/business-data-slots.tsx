@@ -3,7 +3,7 @@ import { requireSession } from "@/lib/auth/session";
 import { getBusinessMembershipsForUser } from "@/lib/db/business-access";
 import { getBusinessQuotaForUser } from "@/features/businesses/quota";
 import { getBusinessBillingShellOverview } from "@/features/billing/queries";
-import { isSelfHostedDeployment } from "@/lib/deployment";
+import { isBillingEnabled } from "@/lib/deployment";
 import { getThemePreferenceForUser } from "@/features/theme/queries";
 import { ThemePreferenceSync } from "@/features/theme/components/theme-preference-sync";
 import { getUiScalePreferenceForUser } from "@/features/theme/ui-scale-queries";
@@ -36,7 +36,7 @@ export async function BusinessSwitcherSlot({
     ownerUserId: session.user.id,
   });
 
-  const billing = isSelfHostedDeployment()
+  const billing = !isBillingEnabled()
     ? null
     : await getBusinessBillingShellOverview(
         businessContext.business.id,
@@ -79,7 +79,7 @@ export async function MobileBusinessSwitcherSlot({
     ownerUserId: session.user.id,
   });
 
-  const billing = isSelfHostedDeployment()
+  const billing = !isBillingEnabled()
     ? null
     : await getBusinessBillingShellOverview(
         businessContext.business.id,

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { isSelfHostedDeployment } from "@/lib/deployment";
+import { isBillingEnabled } from "@/lib/deployment";
 
 import {
   formatPrice,
@@ -91,7 +91,7 @@ function buildPricingMarkdown(): string {
 }
 
 export function GET() {
-  if (isSelfHostedDeployment()) {
+  if (!isBillingEnabled()) {
     return new NextResponse("Not Found", { status: 404 });
   }
 

@@ -41,7 +41,7 @@ import {
 } from "@/lib/cache/business-tags";
 import { withCircuitBreaker } from "@/lib/db/circuit-breaker";
 import {
-  isSelfHostedDeployment,
+  getEntitlementPolicy,
   selfHostedEntitlementPlan,
 } from "@/lib/deployment";
 import { db } from "@/lib/db/client";
@@ -166,7 +166,7 @@ function mapFollowUpRow(row: FollowUpRow): FollowUpView {
     id: row.id,
     businessId: row.businessId,
     businessTimezone: row.businessTimezone,
-    businessPlan: isSelfHostedDeployment()
+    businessPlan: getEntitlementPolicy() === "full"
       ? selfHostedEntitlementPlan
       : (row.businessPlan as PlanTier),
     inquiryId: row.inquiryId,

@@ -4,7 +4,7 @@ import { AdminBusinessesTable } from "@/features/admin/components/admin-business
 import { ADMIN_BUSINESSES_PATH } from "@/features/admin/navigation";
 import { listAdminBusinesses } from "@/features/admin/queries";
 import { adminBusinessesListFiltersSchema } from "@/features/admin/schemas";
-import { isSelfHostedDeployment } from "@/lib/deployment";
+import { isBillingEnabled } from "@/lib/deployment";
 
 type SearchParamsRecord = Record<string, string | string[] | undefined>;
 
@@ -38,7 +38,7 @@ export async function AdminBusinessesListContentSection({
   const currentPage = Math.min(Math.max(1, filters.page), totalPages);
   const hasActiveFilters = Boolean(
     filters.search?.trim() ||
-      (!isSelfHostedDeployment() && filters.plan),
+      (isBillingEnabled() && filters.plan),
   );
 
   return (

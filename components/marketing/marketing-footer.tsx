@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { BrandMark } from "@/components/shared/brand-mark";
 import { legalPages } from "@/features/legal/legal-pages";
-import { isSelfHostedDeployment } from "@/lib/deployment";
+import { isBillingEnabled } from "@/lib/deployment";
 
 function XIcon({ className }: { className?: string }) {
   return (
@@ -128,7 +128,7 @@ const footerColumns: FooterColumn[] = [
 ];
 
 export function MarketingFooter() {
-  const isSelfHosted = isSelfHostedDeployment();
+  const billingDisabled = !isBillingEnabled();
 
   return (
     <footer className="marketing-footer relative z-10 w-full text-muted-foreground">
@@ -155,7 +155,7 @@ export function MarketingFooter() {
               <p className="marketing-footer-heading">{column.title}</p>
               <div className="flex flex-col gap-2.5 text-[13px]">
                 {column.links.map((link) => {
-                  if (isSelfHosted && link.href === "/pricing") return null;
+                  if (billingDisabled && link.href === "/pricing") return null;
 
                   const Icon = link.icon;
                   const content = (

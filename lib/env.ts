@@ -32,8 +32,28 @@ const envSchema = z.object({
       .default("cloud"),
   ),
   DATABASE_URL: z.string().min(1),
+  /**
+   * Storage backend. Explicit values override the historical auto-detection:
+   * Supabase credentials present -> supabase, otherwise local disk.
+   */
+  REQUO_STORAGE_DRIVER: emptyToUndefined(
+    z.enum(["supabase", "s3", "local"]),
+  ),
+  /** Realtime transport. `supabase` also requires SUPABASE_JWT_SECRET. */
+  REQUO_REALTIME_DRIVER: emptyToUndefined(z.enum(["supabase", "none"])),
+  /** Billing provider. `none` grants the full product tier without billing. */
+  REQUO_BILLING_DRIVER: emptyToUndefined(
+    z.enum(["none", "polar", "paymongo"]),
+  ),
   BETTER_AUTH_SECRET: z.string().min(32),
   BETTER_AUTH_URL: z.url(),
+  /**
+   * Require email verification for password sign-ups. Defaults to true.
+   * Set to false only for installs that intentionally run without email.
+   */
+  AUTH_REQUIRE_EMAIL_VERIFICATION: emptyToUndefined(
+    z.enum(["0", "1", "true", "false"]),
+  ),
   NEXT_PUBLIC_BETTER_AUTH_URL: emptyToUndefined(z.url()),
   APP_TOKEN_HASH_SECRET: emptyToUndefined(z.string().min(32)),
   ADMIN_EMAILS: emptyToUndefined(z.string().min(1)),
@@ -43,11 +63,26 @@ const envSchema = z.object({
   GOOGLE_CLIENT_SECRET: emptyToUndefined(z.string().min(1)),
   /** HTML tag verification value from Google Search Console (meta name="google-site-verification"). */
   GOOGLE_SITE_VERIFICATION: emptyToUndefined(z.string().min(1)),
-  NEXT_PUBLIC_SUPABASE_URL: z.url(),
+  NEXT_PUBLIC_SUPABASE_URL: emptyToUndefined(z.url()),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: emptyToUndefined(z.string().min(1)),
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: emptyToUndefined(z.string().min(1)),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
+  SUPABASE_SERVICE_ROLE_KEY: emptyToUndefined(z.string().min(1)),
   SUPABASE_JWT_SECRET: emptyToUndefined(z.string().min(1)),
+  /** S3-compatible storage (AWS S3, Cloudflare R2, MinIO, Backblaze B2). */
+  S3_BUCKET: emptyToUndefined(z.string().trim().min(1)),
+  S3_REGION: emptyToUndefined(z.string().trim().min(1)),
+  S3_ENDPOINT: emptyToUndefined(z.url()),
+  S3_ACCESS_KEY_ID: emptyToUndefined(z.string().trim().min(1)),
+  S3_SECRET_ACCESS_KEY: emptyToUndefined(z.string().min(1)),
+  S3_FORCE_PATH_STYLE: emptyToUndefined(
+    z.enum(["0", "1", "true", "false"]),
+  ),
+  /** Optional key prefix inside S3_BUCKET. */
+  S3_PREFIX: emptyToUndefined(z.string().trim().min(1)),
+  /** Filesystem root for REQUO_STORAGE_DRIVER=local. */
+  LOCAL_STORAGE_ROOT: emptyToUndefined(z.string().trim().min(1)),
+  /** Geo header used for display currency, e.g. cf-ipcountry. */
+  GEO_COUNTRY_HEADER: emptyToUndefined(z.string().trim().min(1)),
   RESEND_API_KEY: emptyToUndefined(z.string().min(1)),
   RESEND_FROM_EMAIL: emptyToUndefined(z.string().trim().min(1)),
   RESEND_REPLY_TO_EMAIL: emptyToUndefined(z.email()),
@@ -55,6 +90,16 @@ const envSchema = z.object({
   NEXT_PUBLIC_SENTRY_DSN: emptyToUndefined(z.url()),
   MAILTRAP_API_TOKEN: emptyToUndefined(z.string().min(1)),
   BREVO_API_KEY: emptyToUndefined(z.string().min(1)),
+  /** Email driver: auto (fallback chain) or a named provider. */
+  REQUO_EMAIL_DRIVER: emptyToUndefined(
+    z.enum(["auto", "resend", "mailtrap", "brevo", "smtp"]),
+  ),
+  SMTP_HOST: emptyToUndefined(z.string().trim().min(1)),
+  SMTP_PORT: emptyToUndefined(z.coerce.number().int().min(1).max(65535)),
+  SMTP_SECURE: emptyToUndefined(z.enum(["0", "1", "true", "false"])),
+  SMTP_ALLOW_INSECURE_AUTH: emptyToUndefined(z.enum(["0", "1", "true", "false"])),
+  SMTP_USER: emptyToUndefined(z.string().trim().min(1)),
+  SMTP_PASSWORD: emptyToUndefined(z.string().min(1)),
   EMAIL_DOMAIN: emptyToUndefined(z.string().trim().min(1)).default("test.requo.app"),
   EMAIL_FROM_DEFAULT: emptyToUndefined(z.string().trim().min(1)),
   EMAIL_FROM_NOTIFICATIONS: emptyToUndefined(z.string().trim().min(1)),
@@ -206,13 +251,35 @@ export const isMailtrapConfigured = Boolean(
 export const isBrevoConfigured = Boolean(
   env.BREVO_API_KEY && hasConfiguredEmailSender(),
 );
+export const isSmtpConfigured = Boolean(
+  env.SMTP_HOST && env.SMTP_PORT && hasConfiguredEmailSender(),
+);
 export const isEmailConfigured = Boolean(
-  isResendConfigured || isMailtrapConfigured || isBrevoConfigured,
+  isResendConfigured ||
+    isMailtrapConfigured ||
+    isBrevoConfigured ||
+    isSmtpConfigured,
 );
 
 export const isGroqConfigured = Boolean(env.GROQ_API_KEY);
 export const isGeminiConfigured = Boolean(env.GEMINI_API_KEY);
-export const isSupabaseRealtimeConfigured = Boolean(env.SUPABASE_JWT_SECRET);
+export const isSupabaseConfigured = Boolean(
+  env.NEXT_PUBLIC_SUPABASE_URL && env.SUPABASE_SERVICE_ROLE_KEY,
+);
+/** Explicit realtime driver; defaults to Supabase when its JWT secret exists. */
+export const realtimeDriver =
+  env.REQUO_REALTIME_DRIVER ?? (env.SUPABASE_JWT_SECRET ? "supabase" : "none");
+export const isSupabaseRealtimeConfigured = Boolean(
+  realtimeDriver === "supabase" &&
+    env.SUPABASE_JWT_SECRET &&
+    env.NEXT_PUBLIC_SUPABASE_URL &&
+    (env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+      env.NEXT_PUBLIC_SUPABASE_ANON_KEY),
+);
+export const isEmailVerificationRequired = !(
+  env.AUTH_REQUIRE_EMAIL_VERIFICATION === "0" ||
+  env.AUTH_REQUIRE_EMAIL_VERIFICATION === "false"
+);
 
 export const isOpenRouterConfigured = Boolean(
   (process.env.OPENROUTER_API_KEY ?? "").trim().length > 0,

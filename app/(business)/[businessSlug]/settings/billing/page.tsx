@@ -10,7 +10,7 @@ import {
   getMonthlyRequoDocumentSendCount,
 } from "@/lib/plans/usage";
 import { getMonthlyUsageSummary } from "@/lib/ai/usage-limiter";
-import { isSelfHostedDeployment } from "@/lib/deployment";
+import { isBillingEnabled } from "@/lib/deployment";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 import { getBusinessSettingsPageContext } from "../_lib/page-context";
 
@@ -22,7 +22,7 @@ export const metadata: Metadata = createNoIndexMetadata({
 export const instant = true;
 
 export default function BillingSettingsPage() {
-  if (isSelfHostedDeployment()) notFound();
+  if (!isBillingEnabled()) notFound();
 
   return (
     <>

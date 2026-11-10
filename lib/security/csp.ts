@@ -17,6 +17,8 @@ export type CspOptions = {
   isProduction: boolean;
   /** Supabase project URL; enables REST and Realtime connections. */
   supabaseUrl?: string | null;
+  /** Browser-facing storage upload URLs; enables direct S3 uploads. */
+  storageUploadUrls?: Array<string | null | undefined>;
   /** Sentry DSN; its origin receives browser error envelopes. */
   sentryDsn?: string | null;
   /** Crisp website id; when set, the chat widget origins are allowed. */
@@ -60,6 +62,9 @@ function buildDirectives(options: CspOptions): string[] {
   const supabaseSocketOrigin = supabaseOrigin
     ? toWebSocketOrigin(supabaseOrigin)
     : null;
+  const storageUploadOrigins = (options.storageUploadUrls ?? []).map(
+    parseOrigin,
+  );
   const sentryOrigin = parseOrigin(options.sentryDsn);
   const crispEnabled = Boolean(options.crispWebsiteId);
 
@@ -122,6 +127,7 @@ function buildDirectives(options: CspOptions): string[] {
         ...developmentConnectOrigins,
         supabaseOrigin,
         supabaseSocketOrigin,
+        ...storageUploadOrigins,
         sentryOrigin,
         ...crispConnectOrigins,
       ]),

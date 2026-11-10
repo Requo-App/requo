@@ -136,8 +136,10 @@ root [`SECURITY.md`](../../SECURITY.md).
 - Third-party origins are allowlisted only when the integration is configured:
   Crisp (`client.crisp.chat` / `client.relay.crisp.chat`, plus `blob:` workers
   only when `CRISP_WEBSITE_ID` is configured), Supabase REST and
-  Realtime origins derived from `NEXT_PUBLIC_SUPABASE_URL`, and the Sentry
-  ingest origin derived from `NEXT_PUBLIC_SENTRY_DSN`. Vercel analytics debug
+  Realtime origins derived from `NEXT_PUBLIC_SUPABASE_URL`, the S3 upload
+  origin(s) derived from `S3_ENDPOINT`/`S3_BUCKET`/`S3_REGION` when the S3
+  storage driver is selected, and the Sentry ingest origin derived from
+  `NEXT_PUBLIC_SENTRY_DSN`. Vercel analytics debug
   scripts are allowed only outside production. `img-src` includes `https:`
   because businesses can attach arbitrary showcase image URLs; keep that broad
   source scoped to images. When adding a new browser integration, extend the

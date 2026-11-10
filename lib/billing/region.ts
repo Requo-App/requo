@@ -100,24 +100,45 @@ export function getDisplayCurrencyForCountry(
   return "USD";
 }
 
-/** Reads the Vercel geo header and returns the matching display currency. */
+function getCountryHeaderNames() {
+  const configured = process.env.GEO_COUNTRY_HEADER?.trim();
+  const defaults = ["x-vercel-ip-country", "cf-ipcountry"];
+
+  return configured
+    ? [configured]
+    : defaults;
+}
+
+function readCountryHeader(
+  headerStore: Awaited<ReturnType<typeof headers>>,
+): string | null {
+  for (const name of getCountryHeaderNames()) {
+    const value = headerStore.get(name)?.trim();
+
+    if (value) {
+      return value;
+    }
+  }
+
+  return null;
+}
+
+/** Reads the configured geo header and returns the matching display currency. */
 export async function detectDisplayCurrency(): Promise<BillingCurrency> {
   const headerStore = await headers();
-  return getDisplayCurrencyForCountry(
-    headerStore.get("x-vercel-ip-country"),
-  );
+  return getDisplayCurrencyForCountry(readCountryHeader(headerStore));
 }
 
 /**
- * Reads the visitor's ISO country from the Vercel geo header.
+ * Reads the visitor's ISO country from the configured geo header.
  *
- * Returns `null` when the header is absent or set to Vercel's `XX` fallback.
+ * Returns `null` when the header is absent or set to the `XX` fallback.
  * Callers that gate a payment method must treat `null` as "not in the
  * Philippines".
  */
 export async function detectVisitorCountry(): Promise<string | null> {
   const headerStore = await headers();
-  const value = headerStore.get("x-vercel-ip-country")?.trim().toUpperCase();
+  const value = readCountryHeader(headerStore)?.toUpperCase();
 
   if (!value || value === "XX") {
     return null;

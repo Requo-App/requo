@@ -4,6 +4,7 @@ import {
   buildPublicInquiryAttachmentUploadPath,
   publicInquiryAllowedExtensions,
   publicInquiryAllowedMimeTypes,
+  publicInquiryAttachmentBucket,
   publicInquiryAttachmentTypeError,
 } from "@/features/inquiries/attachments";
 import {
@@ -23,7 +24,7 @@ import { getBusinessRequestContextForSlug } from "@/lib/db/business-access";
 import { isAcceptedFileType } from "@/lib/files";
 import { newEntityId } from "@/lib/ids";
 import { assertPublicActionRateLimit } from "@/lib/rate-limit/redis-rate-limiter";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getObjectStorage } from "@/lib/storage";
 
 /**
  * Issues a signed upload URL for a public inquiry attachment.
@@ -171,12 +172,17 @@ export async function POST(request: Request) {
     fileName,
   });
 
-  const supabaseAdminClient = createSupabaseAdminClient();
-  const { data, error } = await supabaseAdminClient.storage
-    .from("inquiry-attachments")
-    .createSignedUploadUrl(storagePath);
+  let uploadTarget;
 
-  if (error || !data) {
+  try {
+    uploadTarget = await getObjectStorage().createUploadTarget({
+      bucket: publicInquiryAttachmentBucket,
+      path: storagePath,
+      contentType: contentType || "application/octet-stream",
+      maxBytes,
+      expiresInSeconds: uploadTokenLifetimeSeconds,
+    });
+  } catch (error) {
     console.error("Failed to create a signed inquiry upload URL.", error);
 
     return NextResponse.json(
@@ -196,7 +202,10 @@ export async function POST(request: Request) {
 
   return NextResponse.json(
     {
-      signedUrl: data.signedUrl,
+      signedUrl: uploadTarget.url,
+      method: uploadTarget.method,
+      headers: uploadTarget.headers,
+      fields: uploadTarget.fields,
       token,
       fileName,
       size,

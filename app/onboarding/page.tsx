@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
@@ -21,9 +20,11 @@ import { getUiScalePreferenceForUser } from "@/features/theme/ui-scale-queries";
 import { ensureProfileForUser } from "@/lib/auth/business-bootstrap";
 import { requireSession } from "@/lib/auth/session";
 import {
-  isSelfHostedDeployment,
+  getEntitlementPolicy,
+  isBillingProviderEnabled,
   selfHostedEntitlementPlan,
 } from "@/lib/deployment";
+import { detectVisitorCountry } from "@/lib/billing/region";
 import { canStartBusinessTrial } from "@/lib/billing/subscription-service";
 import { getBusinessMembershipsForUser } from "@/lib/db/business-access";
 import { timed } from "@/lib/dev/server-timing";
@@ -77,9 +78,9 @@ async function OnboardingPageContent() {
       getBusinessMembershipsForUser(session.user.id),
       getAccountProfileForUser(session.user.id),
       hasGoogleAccountLinked(session.user.id),
-      isSelfHostedDeployment()
-        ? Promise.resolve(false)
-        : canStartBusinessTrial({ userId: session.user.id }),
+      isBillingProviderEnabled("polar")
+        ? canStartBusinessTrial({ userId: session.user.id })
+        : Promise.resolve(false),
     ]),
   );
 
@@ -98,14 +99,13 @@ async function OnboardingPageContent() {
     isSingleTokenName(session.user.name) &&
     googleLinked;
 
-  const headerStore = await headers();
-  const geoCountry =
-    headerStore.get("x-vercel-ip-country")?.toUpperCase() ?? "";
-  const detectedCountryCode = isSupportedBusinessCountryCode(geoCountry)
-    ? geoCountry
-    : "";
+  const visitorCountry = await detectVisitorCountry();
+  const detectedCountryCode =
+    visitorCountry && isSupportedBusinessCountryCode(visitorCountry)
+      ? visitorCountry
+      : "";
 
-  const onboardingPlan = isSelfHostedDeployment()
+  const onboardingPlan = getEntitlementPolicy() === "full"
     ? selfHostedEntitlementPlan
     : trialEligible
       ? "pro"

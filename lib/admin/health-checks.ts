@@ -113,8 +113,19 @@ function isBrevoConfigured(): boolean {
   return Boolean(getEnv("BREVO_API_KEY") && hasEmailSenderConfigured());
 }
 
+function isSmtpConfigured(): boolean {
+  return Boolean(
+    getEnv("SMTP_HOST") && getEnv("SMTP_PORT") && hasEmailSenderConfigured(),
+  );
+}
+
 function isEmailConfigured(): boolean {
-  return isResendConfigured() || isMailtrapConfigured() || isBrevoConfigured();
+  return (
+    isResendConfigured() ||
+    isMailtrapConfigured() ||
+    isBrevoConfigured() ||
+    isSmtpConfigured()
+  );
 }
 
 function isGroqConfigured(): boolean {
@@ -145,6 +156,16 @@ function isPolarConfigured(): boolean {
         getEnv("POLAR_BUSINESS_PRODUCT_ID") ||
         getEnv("POLAR_PRO_YEARLY_PRODUCT_ID") ||
         getEnv("POLAR_BUSINESS_YEARLY_PRODUCT_ID")),
+  );
+}
+
+function isPaymongoConfigured(): boolean {
+  const key = getEnv("PAYMONGO_SECRET_KEY");
+
+  return Boolean(
+    key &&
+      getEnv("PAYMONGO_WEBHOOK_SECRET") &&
+      (key.startsWith("sk_test_") || key.startsWith("sk_live_")),
   );
 }
 
@@ -179,6 +200,7 @@ export function getConfiguredEmailProviderLabels(): string[] {
   if (isResendConfigured()) providers.push("Resend");
   if (isMailtrapConfigured()) providers.push("Mailtrap");
   if (isBrevoConfigured()) providers.push("Brevo");
+  if (isSmtpConfigured()) providers.push("SMTP");
   return providers;
 }
 
@@ -307,9 +329,8 @@ async function checkSupabase(): Promise<AdminHealthCheckResult> {
   if (!url || !key) {
     return {
       name: "Supabase",
-      status: "fail",
-      message: "Credentials not set",
-      hint: "Configure Supabase credentials in the environment.",
+      status: "skip",
+      message: "Not used",
       category: "core",
     };
   }
@@ -342,30 +363,15 @@ async function checkSupabase(): Promise<AdminHealthCheckResult> {
 }
 
 async function checkStorage(): Promise<AdminHealthCheckResult> {
-  const url = getEnv("NEXT_PUBLIC_SUPABASE_URL");
-  const key = getEnv("SUPABASE_SERVICE_ROLE_KEY");
-
-  if (!url || !key) {
-    return {
-      name: "Storage",
-      status: "skip",
-      message: "Supabase not configured",
-      category: "core",
-    };
-  }
-
   try {
-    const [, duration] = await timed(async () => {
-      const client = createClient(url, key, {
-        auth: { autoRefreshToken: false, persistSession: false },
-      });
-      const { error } = await client.storage.listBuckets();
-      if (error) throw error;
-    });
+    const { getObjectStorage } = await import("@/lib/storage");
+    const storage = getObjectStorage();
+    const [, duration] = await timed(() => storage.ping());
+
     return {
       name: "Storage",
       status: "pass",
-      message: "Available",
+      message: `${storage.driver} available`,
       duration,
       category: "core",
     };
@@ -375,7 +381,7 @@ async function checkStorage(): Promise<AdminHealthCheckResult> {
       name: "Storage",
       status: "warn",
       message: error.message.split("\n")[0],
-      hint: "Check Supabase Storage settings.",
+      hint: "Check REQUO_STORAGE_DRIVER and its credentials.",
       category: "core",
     };
   }
@@ -454,13 +460,26 @@ async function checkAiProviders(): Promise<AdminHealthCheckResult> {
 }
 
 async function checkBilling(): Promise<AdminHealthCheckResult> {
-  const { isSelfHostedDeployment } = await import("@/lib/deployment");
+  const { getBillingDriver } = await import("@/lib/deployment");
+  const driver = getBillingDriver();
 
-  if (isSelfHostedDeployment()) {
+  if (driver === "none") {
     return {
-      name: "Billing (Polar)",
+      name: "Billing",
       status: "pass",
-      message: "Not used (self-hosted)",
+      message: "Not used",
+      category: "billing",
+    };
+  }
+
+  if (driver === "paymongo") {
+    return {
+      name: "Billing (PayMongo)",
+      status: isPaymongoConfigured() ? "pass" : "warn",
+      message: isPaymongoConfigured() ? "Configured" : "Not configured",
+      hint: isPaymongoConfigured()
+        ? undefined
+        : "Set a valid PAYMONGO_SECRET_KEY and PAYMONGO_WEBHOOK_SECRET.",
       category: "billing",
     };
   }
@@ -719,6 +738,12 @@ export function getAdminConfigMatrix(): AdminConfigMatrixRow[] {
   const aiProviders = getConfiguredAiProviderLabels();
   const emailProviders = getConfiguredEmailProviderLabels();
   const selfHosted = parseDeploymentMode(process.env.REQUO_DEPLOYMENT_MODE) === "self-hosted";
+  const storageDriver =
+    process.env.REQUO_STORAGE_DRIVER?.trim() ||
+    (getEnv("NEXT_PUBLIC_SUPABASE_URL") ? "supabase" : "local");
+  const billingDriver =
+    process.env.REQUO_BILLING_DRIVER?.trim() ||
+    (selfHosted ? "none" : "polar");
 
   return [
     {
@@ -736,7 +761,24 @@ export function getAdminConfigMatrix(): AdminConfigMatrixRow[] {
       configured: Boolean(
         getEnv("NEXT_PUBLIC_SUPABASE_URL") && getEnv("SUPABASE_SERVICE_ROLE_KEY"),
       ),
-      notes: "Storage and realtime",
+      notes: "Optional storage and realtime provider",
+    },
+    {
+      integration: "Object storage",
+      configured:
+        storageDriver === "supabase"
+          ? Boolean(
+              getEnv("NEXT_PUBLIC_SUPABASE_URL") &&
+                getEnv("SUPABASE_SERVICE_ROLE_KEY"),
+            )
+          : storageDriver === "s3"
+            ? Boolean(
+                getEnv("S3_BUCKET") &&
+                  getEnv("S3_ACCESS_KEY_ID") &&
+                  getEnv("S3_SECRET_ACCESS_KEY"),
+              )
+            : true,
+      notes: `${storageDriver} driver`,
     },
     {
       integration: "Email",
@@ -769,11 +811,22 @@ export function getAdminConfigMatrix(): AdminConfigMatrixRow[] {
       notes: "Upstash REST · AI cache layer · embedding cache",
     },
     {
-      integration: "Billing (Polar)",
-      configured: selfHosted || isPolarConfigured(),
-      notes: selfHosted ? "Not used (self-hosted)" : getEnv("POLAR_ACCESS_TOKEN")
-        ? `Server: ${getEnv("POLAR_SERVER") || "sandbox"}`
-        : "Not configured",
+      integration: "Billing",
+      configured:
+        billingDriver === "none" ||
+        (billingDriver === "polar"
+          ? isPolarConfigured()
+          : isPaymongoConfigured()),
+      notes:
+        billingDriver === "none"
+          ? "Not used"
+          : billingDriver === "polar"
+            ? getEnv("POLAR_ACCESS_TOKEN")
+              ? `Polar · ${getEnv("POLAR_SERVER") || "sandbox"}`
+              : "Polar · not configured"
+            : isPaymongoConfigured()
+              ? "PayMongo · configured"
+              : "PayMongo · not configured",
     },
     {
       integration: "Push (VAPID)",
