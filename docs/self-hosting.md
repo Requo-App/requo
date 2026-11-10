@@ -23,26 +23,34 @@ existing deployments do not change on upgrade. Requo Cloud sets it explicitly
 to `cloud` in local development and in Vercel; independent installations should
 set it to `self-hosted`.
 
+Infrastructure is selected separately from the deployment mode. Storage,
+Realtime, billing, and email each have an explicit driver variable, and the
+defaults preserve the historical stack. Billing is a capability rather than a
+hard-coded edition: `REQUO_BILLING_DRIVER=none` grants the full product tier,
+while `polar` or `paymongo` re-enables billing routes and plan entitlements even
+on a self-hosted installation.
+
 ## What self-hosted mode changes
 
-| Area | Requo Cloud | Requo Self-Hosted |
+| Area | Requo Cloud | Requo Self-Hosted (default) |
 | --- | --- | --- |
 | Requo subscription | Free/Pro/Business plans | Not required and not assigned |
-| Pricing page (`/pricing`, `/pricing.md`) | Available | Returns 404 |
-| Billing settings (`/settings/billing`) | Available | Returns 404 |
-| Checkout, portal, billing webhooks | Available | Return 404 |
-| Subscription expiry job | Runs | No-op |
-| Upgrade prompts, trial banners, plan badges | Available | Hidden |
-| Cloud plan restrictions | Apply | Not applied to the product |
+| Pricing page (`/pricing`, `/pricing.md`) | Available | Available when a billing driver is enabled; 404 when `none` |
+| Billing settings (`/settings/billing`) | Available | Available when a billing driver is enabled; 404 when `none` |
+| Checkout, portal, billing webhooks | Available | Available when a billing driver is enabled; 404 when `none` |
+| Subscription expiry job | Runs | No-op when billing is disabled |
+| Upgrade prompts, trial banners, plan badges | Available | Hidden when billing is disabled |
+| Cloud plan restrictions | Apply | Not applied when billing is disabled |
 | Requo license or phone-home | None | None |
 | Core inquiries, quotes, invoices, customers | Available | Available |
 | Manual customer payments | Available | Available |
 | AI and email providers | Operator-configured | Operator-configured |
 
-Self-hosted is not "Cloud on the Free plan". It is a separate deployment type.
-Entitlement reads resolve to the full product tier, and the application does
-not require any Requo Cloud certificate, feature flag, subscription row, or
-network call.
+Self-hosted without a billing driver is not "Cloud on the Free plan". It is a
+separate deployment type. With `REQUO_BILLING_DRIVER=none`, entitlement reads
+resolve to the full product tier, and the application does not require any
+Requo Cloud certificate, feature flag, subscription row, or network call.
+Setting a billing driver opts back into the plan model.
 
 Customer payment records are unrelated to Requo subscriptions. Cash, bank
 transfer, GCash, Maya, check, and other manually recorded customer payments
@@ -57,9 +65,10 @@ Cloud credentials or infrastructure.
 | --- | --- | --- |
 | PostgreSQL | Required | Supabase Postgres is the tested target. Use `DATABASE_URL` for runtime and `DATABASE_MIGRATION_URL` for migrations when they differ. |
 | Better Auth | Built in | Runs inside the app; it needs a strong secret and the public application URL. No external identity service is required. |
-| Supabase Storage | Required for file uploads | Uploads are served through authenticated application routes. Use your own project and keep the service-role key server-side. |
-| Supabase Realtime | Optional | Enabled by `SUPABASE_JWT_SECRET`; in-app notifications still work without it. |
-| Email provider | Required for auth email | Resend, Mailtrap, or Brevo. Verification and password-reset email cannot be delivered without a provider. |
+| Object storage | Required for file uploads | Supabase Storage, any S3-compatible bucket, or local disk. Uploads are served through authenticated application routes. |
+| Realtime | Optional | Supabase Realtime when configured; in-app notifications still work with `REQUO_REALTIME_DRIVER=none`. |
+| Email provider | Required for auth email | Resend, Mailtrap, Brevo, or any SMTP server. Verification and password-reset email cannot be delivered without a provider. |
+| Billing provider | Optional | Polar or PayMongo only when `REQUO_BILLING_DRIVER` selects one. Leave it as `none` for a billing-free install. |
 | Inngest | Required for background automation | Runs follow-ups, digests, and event-driven jobs. Core request/response workflows still work if it is down, but queued jobs wait. |
 | Redis (Upstash-compatible) | Optional | Caches, rate-limit mirrors, and cooldown state degrade to in-process or database fallbacks. |
 | AI provider | Optional | AI features show a configuration message when no provider is set; the rest of the product keeps working. |
@@ -87,10 +96,36 @@ BETTER_AUTH_URL=https://requo.example.com
 NEXT_PUBLIC_BETTER_AUTH_URL=              # optional when same-origin
 APP_TOKEN_HASH_SECRET=                    # optional; falls back to BETTER_AUTH_SECRET
 
+# Object storage: supabase | s3 | local (auto-detects Supabase when unset)
+REQUO_STORAGE_DRIVER=local
+LOCAL_STORAGE_ROOT=.data/storage          # use a persistent volume in production
+
+# Supabase Storage (REQUO_STORAGE_DRIVER=supabase)
 NEXT_PUBLIC_SUPABASE_URL=https://<project>.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=     # or NEXT_PUBLIC_SUPABASE_ANON_KEY
 SUPABASE_SERVICE_ROLE_KEY=
+
+# S3-compatible storage (REQUO_STORAGE_DRIVER=s3)
+S3_BUCKET=
+S3_REGION=auto
+S3_ENDPOINT=
+S3_ACCESS_KEY_ID=
+S3_SECRET_ACCESS_KEY=
+S3_FORCE_PATH_STYLE=                      # 1 for MinIO and path-style endpoints
+S3_PREFIX=
+
+# Realtime: supabase | none. Unset uses Supabase when the JWT secret exists.
+REQUO_REALTIME_DRIVER=
 SUPABASE_JWT_SECRET=                      # only for Supabase Realtime
+
+# Email: auto | resend | mailtrap | brevo | smtp
+REQUO_EMAIL_DRIVER=auto
+SMTP_HOST=
+SMTP_PORT=587
+SMTP_SECURE=                              # 1 for implicit TLS (usually port 465)
+SMTP_USER=
+SMTP_PASSWORD=
+AUTH_REQUIRE_EMAIL_VERIFICATION=true      # false only when running without email
 
 CRON_SECRET=<at least 16 random characters>
 INNGEST_EVENT_KEY=
@@ -107,6 +142,8 @@ installation. These names are read only by Cloud billing code, and the related
 routes are disabled in self-hosted mode:
 
 ```env
+REQUO_BILLING_DRIVER=none
+
 POLAR_ACCESS_TOKEN=
 POLAR_WEBHOOK_SECRET=
 POLAR_PRO_PRODUCT_ID=
@@ -119,8 +156,9 @@ PAYMONGO_WEBHOOK_SECRET=
 ```
 
 Reusing Requo's production credentials in your own deployment is unsupported.
-If billing credentials are present, self-hosted mode still refuses checkout,
-portal, and webhook requests instead of charging anyone.
+Unless you explicitly set `REQUO_BILLING_DRIVER` to `polar` or `paymongo`,
+self-hosted mode refuses checkout, portal, and webhook requests instead of
+charging anyone.
 
 ## Database
 
@@ -129,9 +167,13 @@ quotes, invoices, customer payments, subscriptions (Cloud only), and audit
 records. Tenant isolation is enforced by `businessId`-scoped queries and
 membership checks, not by the deployment mode.
 
-Apply the committed migrations before starting the application:
+Apply the committed migrations before starting the application. On a plain
+PostgreSQL database that was not provisioned by Supabase, run the one-time
+bootstrap first; it creates the `anon`/`authenticated` roles and the
+`storage.buckets` stand-in that the committed migrations expect:
 
 ```bash
+npm run db:bootstrap:vanilla   # once per plain PostgreSQL database
 npm run db:migrate
 ```
 
@@ -146,16 +188,54 @@ schema rollout, migration timing, and rollback planning.
 
 ## Storage and realtime
 
-File uploads use Supabase Storage through server-side application routes. Set
+File uploads go through one provider-neutral storage port. Choose a driver with
+`REQUO_STORAGE_DRIVER`:
+
+- `supabase` uses Supabase Storage. Set `NEXT_PUBLIC_SUPABASE_URL`, a
+  browser-safe key (`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` or
+  `NEXT_PUBLIC_SUPABASE_ANON_KEY`), and `SUPABASE_SERVICE_ROLE_KEY`.
+- `s3` uses one S3-compatible bucket (AWS S3, Cloudflare R2, MinIO, Backblaze
+  B2). Set the `S3_*` variables; `S3_PREFIX` keeps the logical buckets apart.
+- `local` writes under `LOCAL_STORAGE_ROOT`. This is the zero-dependency
+  default for a single host. Use a persistent volume, and do not use local disk
+  across multiple app instances unless the directory is shared.
+
+When the variable is unset, Supabase is selected if its credentials exist;
+otherwise uploads use local disk. Run `npm run storage:setup` after configuring
+the driver: it creates the four private Supabase buckets with per-bucket size
+limits, checks an S3 bucket, or creates the local root. S3 buckets must already
+exist. The application still owns authorization, file limits, and content-type
+checks. Keep buckets private: downloads and approval artifacts are proxied
+through authenticated or token-scoped application routes, never a public bucket
+URL.
+
+Inquiry attachments upload directly to S3 with a presigned POST policy that
+caps the object at the plan limit. The bucket must allow browser `POST`
+requests from the application origin; a typical CORS rule is:
+
+```json
+[
+  {
+    "AllowedOrigins": ["https://requo.example.com"],
+    "AllowedMethods": ["POST"],
+    "AllowedHeaders": ["Content-Type"],
+    "MaxAgeSeconds": 3000
+  }
+]
+```
+
+The policy also fixes the object key and content type. Downloads remain
+same-origin through Requo, so the bucket itself stays private.
+
+Realtime is separate. `REQUO_REALTIME_DRIVER=supabase` requires
 `NEXT_PUBLIC_SUPABASE_URL`, a browser-safe key
 (`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` or `NEXT_PUBLIC_SUPABASE_ANON_KEY`), and
-`SUPABASE_SERVICE_ROLE_KEY`. The service-role key must never be exposed to the
-browser or committed to the repository.
+`SUPABASE_JWT_SECRET`. With `none`, or when the JWT secret is unset, Realtime is
+disabled and the rest of the application — including notifications stored in
+the database — continues to work.
 
-Keep buckets private. The application authorizes file access before issuing a
-signed or proxied URL. If `SUPABASE_JWT_SECRET` is unset, Realtime is disabled;
-the rest of the application, including notifications stored in the database,
-continues to work.
+The service-role key, S3 secret, and SMTP password must never be exposed to the
+browser or committed to the repository.
 
 ## AI providers
 
@@ -260,6 +340,12 @@ RESEND_REPLY_TO_EMAIL=
 MAILTRAP_API_TOKEN=
 # or
 BREVO_API_KEY=
+# or any SMTP server
+SMTP_HOST=
+SMTP_PORT=587
+SMTP_SECURE=
+SMTP_USER=
+SMTP_PASSWORD=
 
 EMAIL_DOMAIN=mail.example.com
 EMAIL_FROM_DEFAULT=
@@ -270,8 +356,14 @@ EMAIL_FROM_SUPPORT=
 LOW_EMAIL_MODE=
 ```
 
+`REQUO_EMAIL_DRIVER` accepts `auto`, `resend`, `mailtrap`, `brevo`, or `smtp`.
+`auto` keeps the historical fallback chain and tries SMTP last; a named driver
+is tried first, with the other configured providers as fallback.
+
 Authentication email (verification and password reset) needs a working
-provider and sender. Optional operational emails are controlled by
+provider and sender. Email verification stays required by default; set
+`AUTH_REQUIRE_EMAIL_VERIFICATION=false` only when the installation intentionally
+runs without email. Optional operational emails are controlled by
 `LOW_EMAIL_MODE` and per-business settings. Missing optional email credentials
 do not crash unrelated features; the affected send path reports that email is
 not configured. See [Billing and Polar](setup/billing.md) only for Cloud
@@ -290,7 +382,7 @@ Timed route handlers need a scheduler that sends
 - `/api/cron/expire-approvals`
 - `/api/cron/cleanup-inquiry-uploads`
 - `/api/cron/token-log-cleanup`
-- `/api/cron/expire-subscriptions` (returns a no-op summary in self-hosted mode)
+- `/api/cron/expire-subscriptions` (returns a no-op summary when billing is disabled)
 
 `vercel.json` contains the Cloud schedule. On another host, reproduce the same
 paths and frequencies or let Inngest cron functions handle the equivalent work
@@ -304,6 +396,8 @@ cp .env.example .env.local
 # Fill in the database, auth, storage, and at least one email sender.
 # Keep REQUO_DEPLOYMENT_MODE=self-hosted for an independent install.
 npm install
+npm run storage:setup          # create local root or Supabase buckets
+npm run db:bootstrap:vanilla   # only for a plain, non-Supabase PostgreSQL
 npm run db:migrate
 npm run dev            # Next.js app + local Inngest dev server
 ```
@@ -334,8 +428,9 @@ origin. Any Node.js 24+ host that can run Next.js works; Vercel is supported
 but not required.
 
 Health checks are available to administrators in the admin console. The
-billing health row reports `Not used (self-hosted)` instead of warning about
-missing Polar configuration.
+storage row probes the selected driver, and the billing row reports `Not used`
+when `REQUO_BILLING_DRIVER` is `none` instead of warning about missing Polar
+configuration.
 
 ## Environment and application security
 
@@ -375,12 +470,12 @@ installation. Budget for provider costs directly.
 | Symptom | Check |
 | --- | --- |
 | Startup fails with `REQUO_DEPLOYMENT_MODE must be "cloud" or "self-hosted"` | Use exactly `cloud` or `self-hosted`; empty values default to `cloud`. |
-| `/pricing` or `/settings/billing` returns 404 | Expected in self-hosted mode. |
-| Checkout or billing webhook returns 404 | Expected in self-hosted mode; Cloud billing endpoints are disabled. |
+| `/pricing` or `/settings/billing` returns 404 | Expected when billing is disabled (`REQUO_BILLING_DRIVER=none`). |
+| Checkout or billing webhook returns 404 | Expected when billing is disabled. |
 | AI features show a configuration message | Set at least one provider key and restart/redeploy. |
 | Verification or password-reset email does not arrive | Configure a supported email provider and sender, then check provider logs. |
 | Follow-ups or digests do not run | Check Inngest keys, the `/api/inngest` endpoint, and scheduler authorization. |
-| Uploads fail | Check Supabase URL, keys, bucket policy, and storage quotas. |
+| Uploads fail | Check `REQUO_STORAGE_DRIVER`, that driver's credentials, the bucket policy or `LOCAL_STORAGE_ROOT`, and storage quotas. |
 
 For repository setup conventions, see the [documentation index](README.md) and
 [local setup](setup/local.md).
