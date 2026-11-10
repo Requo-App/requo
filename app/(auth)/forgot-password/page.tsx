@@ -5,6 +5,7 @@ import { AuthShell } from "@/components/shell/auth-shell";
 import { homePath } from "@/features/businesses/routes";
 import { AuthenticatedRedirectGuard } from "@/features/auth/components/auth-redirect-guard";
 import { ForgotPasswordForm } from "@/features/auth/components/forgot-password-form";
+import { getTurnstileConfig } from "@/lib/env";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 
 export const metadata: Metadata = createNoIndexMetadata({
@@ -20,7 +21,9 @@ export default function ForgotPasswordPage() {
       <Suspense fallback={null}>
         <AuthenticatedRedirectGuard nextPath={homePath} />
       </Suspense>
-      <ForgotPasswordForm />
+      <ForgotPasswordForm
+        turnstileSiteKey={getTurnstileConfig()?.siteKey}
+      />
     </AuthShell>
   );
 }

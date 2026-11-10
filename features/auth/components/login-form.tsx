@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useState, useTransition } from "react";
+import { FormEvent, useRef, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { Mail } from "lucide-react";
@@ -25,6 +25,11 @@ import {
 import { loginSchema, magicLinkEmailSchema } from "@/features/auth/schemas";
 import type { AuthFormState } from "@/features/auth/types";
 import { AuthFormFeedback } from "@/features/auth/components/auth-form-feedback";
+import {
+  getTurnstileFetchOptions,
+  TurnstileChallenge,
+  type TurnstileChallengeHandle,
+} from "@/features/auth/components/turnstile-challenge";
 import {
   AuthEmailField,
   AuthPasswordField,
@@ -56,11 +61,14 @@ type LoginFormProps = {
   socialProviders?: SocialAuthProvider[];
   /** When false, hides the magic link CTA (e.g. transactional email not configured). */
   magicLinkEnabled?: boolean;
+  /** Renders the optional Turnstile challenge when bot protection is configured. */
+  turnstileSiteKey?: string;
 };
 
 export function LoginForm({
   socialProviders = [],
   magicLinkEnabled = false,
+  turnstileSiteKey,
 }: LoginFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -79,6 +87,7 @@ export function LoginForm({
   const [magicLinkOpen, setMagicLinkOpen] = useState(false);
   const [magicLinkEmail, setMagicLinkEmail] = useState("");
   const [magicLinkError, setMagicLinkError] = useState<string | undefined>();
+  const turnstileRef = useRef<TurnstileChallengeHandle>(null);
 
   const resetMessage =
     searchParams.get("reset") === "success" ? resetSuccessMessage : undefined;
@@ -101,6 +110,13 @@ export function LoginForm({
       return;
     }
 
+    const turnstileToken = turnstileRef.current?.getToken() ?? null;
+
+    if (turnstileSiteKey && !turnstileToken) {
+      setState({ error: "Complete the security check and try again." });
+      return;
+    }
+
     setState({});
     setLoadingAction("email");
 
@@ -108,9 +124,11 @@ export function LoginForm({
       const result = await authClient.signIn.email({
         ...validationResult.data,
         callbackURL: nextPath,
+        ...getTurnstileFetchOptions(turnstileToken),
       });
 
       if (result.error) {
+        turnstileRef.current?.reset();
         setLoadingAction(null);
         setState({
           error: getAuthErrorMessage(
@@ -272,6 +290,10 @@ export function LoginForm({
           }
         />
       </FieldGroup>
+
+      {turnstileSiteKey ? (
+        <TurnstileChallenge ref={turnstileRef} siteKey={turnstileSiteKey} />
+      ) : null}
 
       <AuthSubmitButton
         pending={isPending && loadingAction === "email"}

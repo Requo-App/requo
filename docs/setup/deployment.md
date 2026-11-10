@@ -33,6 +33,7 @@ pushes to any other branch or PRs build nothing on Vercel.
 ### Optional but recommended
 
 - `NEXT_PUBLIC_BETTER_AUTH_URL`
+- `NEXT_PUBLIC_TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY` (set both to enable auth bot protection)
 - `ADMIN_EMAILS`
 - `VERCEL_URL`
 - `RESEND_API_KEY`
@@ -76,6 +77,10 @@ pushes to any other branch or PRs build nothing on Vercel.
 - Add provider credentials only for the OAuth providers you want to expose:
   - `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`
   - Configure transactional email for optional magic-link sign-in.
+- Optionally add Cloudflare Turnstile to password sign-up, password sign-in,
+  and password reset by setting both `NEXT_PUBLIC_TURNSTILE_SITE_KEY` and
+  `TURNSTILE_SECRET_KEY`. Leave both empty to disable it; setting only one
+  fails environment validation.
 - Provider callback URLs use `/api/auth/callback/<provider>`.
 
 ## Supabase Checklist

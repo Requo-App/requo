@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useState, useTransition } from "react";
+import { FormEvent, useRef, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { authClient } from "@/lib/auth/client";
@@ -25,6 +25,11 @@ import { joinFullName } from "@/features/account/name";
 import type { AuthFormState } from "@/features/auth/types";
 import { AuthFormFeedback } from "@/features/auth/components/auth-form-feedback";
 import {
+  getTurnstileFetchOptions,
+  TurnstileChallenge,
+  type TurnstileChallengeHandle,
+} from "@/features/auth/components/turnstile-challenge";
+import {
   AuthEmailField,
   AuthPasswordField,
   AuthSubmitButton,
@@ -42,10 +47,13 @@ import { Input } from "@/components/ui/input";
 
 type SignupFormProps = {
   socialProviders?: SocialAuthProvider[];
+  /** Renders the optional Turnstile challenge when bot protection is configured. */
+  turnstileSiteKey?: string;
 };
 
 export function SignupForm({
   socialProviders = [],
+  turnstileSiteKey,
 }: SignupFormProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -58,6 +66,7 @@ export function SignupForm({
     "email" | SocialAuthProvider | null
   >(null);
   const [isPending, startTransition] = useTransition();
+  const turnstileRef = useRef<TurnstileChallengeHandle>(null);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -76,6 +85,13 @@ export function SignupForm({
       return;
     }
 
+    const turnstileToken = turnstileRef.current?.getToken() ?? null;
+
+    if (turnstileSiteKey && !turnstileToken) {
+      setState({ error: "Complete the security check and try again." });
+      return;
+    }
+
     setState({});
     setLoadingAction("email");
     const verificationCallback = `/login?verified=success&next=${encodeURIComponent(nextPath)}`;
@@ -89,9 +105,11 @@ export function SignupForm({
         email: validationResult.data.email,
         password: validationResult.data.password,
         callbackURL: verificationCallback,
+        ...getTurnstileFetchOptions(turnstileToken),
       });
 
       if (result.error) {
+        turnstileRef.current?.reset();
         setLoadingAction(null);
         setState({
           error: getAuthErrorMessage(
@@ -218,6 +236,10 @@ export function SignupForm({
           disabled={isPending}
         />
       </FieldGroup>
+
+      {turnstileSiteKey ? (
+        <TurnstileChallenge ref={turnstileRef} siteKey={turnstileSiteKey} />
+      ) : null}
 
       <AuthSubmitButton
         pending={isPending && loadingAction === "email"}

@@ -9,6 +9,12 @@ root [`SECURITY.md`](../../SECURITY.md).
 - Better Auth is the only application identity/session system. Do not add
   Supabase Auth. Its configuration and catch-all route are in `lib/auth/` and
   `app/api/auth/[...all]/route.ts`.
+- Cloudflare Turnstile is optional bot protection for password auth. Set both
+  `NEXT_PUBLIC_TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY` to enable the
+  Better Auth captcha plugin on `/sign-up/email`, `/sign-in/email`, and
+  `/request-password-reset`; leave both unset to disable it. The browser widget
+  sends the token in the `x-captcha-response` header. A half-configured pair is
+  rejected at startup rather than showing an unverified widget.
 - Authenticate on the server and authorize each page, action, route, query, or
   mutation that reads or changes protected data. `proxy.ts` is an early route
   gate, not a substitute for server-side checks.
@@ -133,7 +139,8 @@ root [`SECURITY.md`](../../SECURITY.md).
 <!-- coderabbit-ai-generated:v1 -->
 <!-- coderabbit-ai-generated-section:v1:9b660cb4e87749c2f076c4a5f67fda7af856e082a5f36e7e812915c70ee4dac9 -->
 
-- Third-party origins are allowlisted only when the integration is configured:
+- Third-party origins are allowlisted only when the integration is configured,
+  except for the fixed Turnstile origin below:
   Crisp (`client.crisp.chat` / `client.relay.crisp.chat`, plus `blob:` workers
   only when `CRISP_WEBSITE_ID` is configured), Supabase REST and
   Realtime origins derived from `NEXT_PUBLIC_SUPABASE_URL`, the S3 upload
@@ -146,6 +153,15 @@ root [`SECURITY.md`](../../SECURITY.md).
   builder and its unit tests in the same change.
 
 <!-- /coderabbit-ai-generated:v1 -->
+
+- Cloudflare Turnstile's fixed `https://challenges.cloudflare.com` origin is
+  always allowed in `script-src` and `frame-src`. The policy is built at build
+  time while the widget is enabled from runtime keys, so gating the origin on
+  those keys would leave a post-build enablement with a policy that blocks the
+  widget. The widget and the Better Auth captcha plugin are still enabled only
+  when both `NEXT_PUBLIC_TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY` are
+  configured. The widget sends its token in `x-captcha-response`; the plugin
+  verifies it server-side.
 
 - The policy is enforced as `Content-Security-Policy` (not report-only).
   Validate any new directive or third-party integration report-only first and

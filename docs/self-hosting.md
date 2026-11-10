@@ -79,10 +79,10 @@ Cloud credentials or infrastructure.
 | Web push (VAPID) | Optional | Browser push is disabled when the key pair is not configured. |
 | Cron scheduler | Required for timed jobs | Five route handlers under `/api/cron/*`; see [Scheduled work](#scheduled-work). |
 
-Google OAuth, Crisp support, Sentry browser reporting, and Vercel
-Analytics/Speed Insights are optional integrations. They are only active when
-their own environment variables or hosting platform enable them. They do not
-send data to Requo Cloud.
+Google OAuth, Crisp support, Sentry browser reporting, Cloudflare Turnstile
+auth bot protection, and Vercel Analytics/Speed Insights are optional
+integrations. They are only active when their own environment variables or
+hosting platform enable them. They do not send data to Requo Cloud.
 
 ## Required environment variables
 
@@ -131,6 +131,10 @@ SMTP_USER=
 SMTP_PASSWORD=
 SMTP_ALLOW_INSECURE_AUTH=                 # true only for trusted local relays
 AUTH_REQUIRE_EMAIL_VERIFICATION=true      # false only when running without email
+
+# Optional Cloudflare Turnstile bot protection for password auth; set both.
+NEXT_PUBLIC_TURNSTILE_SITE_KEY=
+TURNSTILE_SECRET_KEY=
 
 CRON_SECRET=<at least 16 random characters>
 INNGEST_EVENT_KEY=
