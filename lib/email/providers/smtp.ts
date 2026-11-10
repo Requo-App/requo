@@ -21,7 +21,7 @@ function getTransporter() {
     env.SMTP_SECURE === "1" ||
     env.SMTP_SECURE === "true" ||
     env.SMTP_PORT === 465;
-  const authenticated = Boolean(env.SMTP_USER && env.SMTP_PASSWORD);
+  const localRelay = ["localhost", "127.0.0.1", "::1"].includes(env.SMTP_HOST);
   const allowInsecureAuth =
     env.SMTP_ALLOW_INSECURE_AUTH === "1" ||
     env.SMTP_ALLOW_INSECURE_AUTH === "true";
@@ -30,7 +30,7 @@ function getTransporter() {
     host: env.SMTP_HOST,
     port: env.SMTP_PORT,
     secure,
-    requireTLS: authenticated && !secure && !allowInsecureAuth,
+    requireTLS: !secure && !(localRelay && allowInsecureAuth),
     ...(env.SMTP_USER && env.SMTP_PASSWORD
       ? {
           auth: {

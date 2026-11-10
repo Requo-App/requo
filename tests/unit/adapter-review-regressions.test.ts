@@ -56,15 +56,25 @@ it.each([undefined, "", "123456"])("rejects invalid upload size for %j", async (
 });
 
 it.each([
-  ["587", "", "", true],
-  ["465", "", "", false],
-  ["587", "true", "", false],
-  ["587", "", "true", false],
-])("requires STARTTLS according to transport settings %s/%s/%s", async (port, secure, optOut, requireTLS) => {
-  vi.stubEnv("SMTP_HOST", "localhost");
+  ["smtp.example.com", "587", "", "", false, true],
+  ["smtp.example.com", "587", "", "", true, true],
+  ["smtp.example.com", "587", "", "true", false, true],
+  ["smtp.example.com", "587", "", "true", true, true],
+  ["smtp.example.com", "587", "", "1", true, true],
+  ["smtp.example.com", "465", "", "", false, false],
+  ["smtp.example.com", "587", "true", "", false, false],
+  ["localhost", "587", "", "", true, true],
+  ["localhost", "465", "", "", true, false],
+  ["localhost", "587", "true", "", true, false],
+  ["localhost", "587", "", "true", true, false],
+  ["127.0.0.1", "587", "", "1", false, false],
+  ["::1", "587", "", "true", false, false],
+  ["localhost.example.com", "587", "", "true", true, true],
+])("requires STARTTLS for relay settings %s/%s/%s/%s/auth=%s", async (host, port, secure, optOut, authenticated, requireTLS) => {
+  vi.stubEnv("SMTP_HOST", host);
   vi.stubEnv("SMTP_PORT", port);
-  vi.stubEnv("SMTP_USER", "test");
-  vi.stubEnv("SMTP_PASSWORD", "test");
+  vi.stubEnv("SMTP_USER", authenticated ? "test" : "");
+  vi.stubEnv("SMTP_PASSWORD", authenticated ? "test" : "");
   vi.stubEnv("SMTP_SECURE", secure);
   vi.stubEnv("SMTP_ALLOW_INSECURE_AUTH", optOut);
   const { smtpEmailProvider } = await import("@/lib/email/providers/smtp");

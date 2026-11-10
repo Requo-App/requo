@@ -376,9 +376,16 @@ do not crash unrelated features; the affected send path reports that email is
 not configured. See [Billing and Polar](setup/billing.md) only for Cloud
 billing; it is not required here.
 
-Authenticated SMTP requires STARTTLS unless implicit TLS is enabled. Set
-`SMTP_ALLOW_INSECURE_AUTH=true` only for trusted local relays that cannot use
-TLS. Certificate validation remains enabled.
+<!-- coderabbit-ai-generated:v1 -->
+
+<!-- coderabbit-ai-generated-section:v1:576b7b7699b32c9ad30c980266222d2a8e5a351dc9c9072e647d2f633c960947 -->
+
+SMTP requires STARTTLS unless implicit TLS is enabled, regardless of authentication.
+`SMTP_ALLOW_INSECURE_AUTH=true` permits cleartext only for trusted loopback relays
+(`localhost`, `127.0.0.1`, or `::1`). Remote relays always require TLS.
+Certificate validation remains enabled.
+
+<!-- /coderabbit-ai-generated:v1 -->
 
 For country detection, set `GEO_COUNTRY_HEADER` to a header supplied by your
 trusted proxy. When configured, only that header is read; otherwise
