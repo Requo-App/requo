@@ -245,8 +245,8 @@ above. Print/PDF output always renders at 100%.
   loading screen (`hero`). Do not add gradients, outlines, shadows, or a second
   colour to the lockup.
 - Packaged masters, raster exports, web icons, and the outlined wordmark live in
-  `brand/`; see [`brand/README.md`](brand/README.md) before exporting or
-  replacing a lockup.
+  `public/brand/`; see [`public/brand/README.md`](public/brand/README.md) before
+  exporting or replacing a lockup.
 
 ### Spacing and Radius
 

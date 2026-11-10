@@ -11,6 +11,9 @@ assets.
 
 ![Requo brand overview](preview.png)
 
+The pack is published from `public/brand/`, so every file is served at
+`/brand/<path>` (for example, `/brand/svg/requo-symbol.svg`).
+
 ## Files
 
 | Path | Use |
@@ -159,7 +162,7 @@ and `#FFFFFF` as the background colour.
 
 The live app still uses `app/icon.svg` and `/logo.svg` (declared in
 `app/layout.tsx`). This pack is a source of masters and exports; adopting the
-`web/` icons is a separate change to `app/layout.tsx` and `public/`.
+`web/` icons is a separate change to `app/layout.tsx`.
 
 ## Verification
 
