@@ -138,6 +138,15 @@ quote status can never disagree. Public tokens are bearer capabilities: they
 are validated for scope, expiry, business, and record state on every use, and
 the rate-limit ledger stores a hash of the token rather than the token.
 
+Older inquiries are not exempt from those send gates. When a submitted snapshot
+lacks a critical question from the business's active intake recipe, the inquiry
+detail exposes a completion form. The server accepts only field IDs that the
+same recipe-gap projection currently reports, merges the values into
+`submittedFieldSnapshot`, and records the change in activity and audit logs.
+Arbitrary snapshot keys are ignored, archived inquiries are refused, and the
+send gate re-evaluates readiness from the updated snapshot rather than trusting
+the completion action.
+
 Quote discussions are one lazily created thread per quote, stored in
 `quote_discussions` with messages in `quote_discussion_messages`. The row is
 created on the first customer or business message, never on quote creation,
@@ -337,6 +346,13 @@ short client interval, and every write still goes through an authorized
 server action with the quote's public token or the member's business context. Public writes use the same three-ceiling rate limiter as
 quote responses and revisions.
 
+The admin email detail can retry a failed or pending transactional outbox row
+after fresh password confirmation. The retry re-reads the row, reuses its
+original idempotency key so the outbox claim rules remain authoritative, and
+refuses `sent`, in-flight `sending`, `unknown`, auth, and body-redacted rows.
+Each attempt writes an `email.retry` admin audit row with the outcome; a
+provider failure leaves the row retryable and surfaces the safe error.
+
 Unattended customer emails are a paid capability. Both automatic follow-up
 paths — the quote sequence in
 [`features/quotes/jobs/auto-follow-ups.ts`](../../features/quotes/jobs/auto-follow-ups.ts)
@@ -393,6 +409,14 @@ tool steps, and retry behavior must not duplicate side effects. These
 constraints are implemented across `features/agent/`,
 `features/assistant/`, and `lib/ai/`; their tests are the executable
 contract.
+
+Fallback diagnostics are persisted in `ai_routing_events` when the caller
+supplies telemetry. Rows record the request correlation ID, task type, optional
+user/business, provider/model, stable failure kind, HTTP status, latency, and
+attempt; they never contain prompts, responses, message text, or raw provider
+error bodies. The admin AI errors page shows the newest 20 rows, and the daily
+token-log cleanup removes routing events older than 90 days with the same
+bounded-batch policy as token logs.
 
 ## Identifiers and transaction invariants
 

@@ -26,6 +26,7 @@ import {
   bulkDeleteInquiriesForBusiness,
   bulkUnarchiveInquiriesForBusiness,
   changeInquiryStatusForBusiness,
+  completeInquiryIntakeFieldsForBusiness,
   createManualInquirySubmission,
   createPublicInquirySubmission,
   deleteInquiryForBusiness,
@@ -35,6 +36,7 @@ import {
 import {
   validatePublicInquiryAttachmentUpload,
 } from "@/features/inquiries/attachments";
+import { getCriticalIntakeFieldLabelsForBusiness } from "@/features/businesses/intake-bindings";
 import { verifyInquiryAttachmentUploadToken } from "@/features/inquiries/attachment-tokens";
 import {
   getInquiryEditorServiceForBusiness,
@@ -51,9 +53,11 @@ import {
   validateManualQuickInquirySubmission,
   validatePublicInquirySubmission,
 } from "@/features/inquiries/schemas";
+import { requireCriticalInquiryFields } from "@/features/inquiries/form-config";
 import { getBusinessInquiryPath } from "@/features/businesses/routes";
 import type {
   InquiryBulkActionState,
+  InquiryIntakeCompletionActionState,
   InquiryRecordActionState,
   InquiryNoteActionState,
   InquiryStatusActionState,
@@ -204,9 +208,12 @@ export async function submitPublicInquiryAction(
 
   const plan = await getEffectivePlanForBusiness(business.id);
 
-  const effectiveFormConfig = resolveInquiryFormConfigForPlan(
-    business.inquiryFormConfig,
-    plan,
+  const effectiveFormConfig = requireCriticalInquiryFields(
+    resolveInquiryFormConfigForPlan(business.inquiryFormConfig, plan),
+    await getCriticalIntakeFieldLabelsForBusiness({
+      businessId: business.id,
+      businessType: business.businessType,
+    }),
   );
   const validationResult = validatePublicInquirySubmission(
     effectiveFormConfig,
@@ -301,9 +308,15 @@ export async function createManualInquiryAction(
     };
   }
 
-  const effectiveFormConfig = resolveInquiryFormConfigForPlan(
-    selectedService.inquiryFormConfig,
-    businessContext.business.plan,
+  const effectiveFormConfig = requireCriticalInquiryFields(
+    resolveInquiryFormConfigForPlan(
+      selectedService.inquiryFormConfig,
+      businessContext.business.plan,
+    ),
+    await getCriticalIntakeFieldLabelsForBusiness({
+      businessId: businessContext.business.id,
+      businessType: businessContext.business.businessType,
+    }),
   );
   const validationResult = validateManualQuickInquirySubmission(
     effectiveFormConfig,
@@ -428,6 +441,94 @@ export async function addInquiryNoteAction(
 
     return {
       error: "We couldn't save that note right now.",
+    };
+  }
+}
+
+const inquiryIntakeCompletionSchema = z.object({
+  fieldIds: z.array(z.string().trim().min(1).max(160)).min(1).max(24),
+});
+
+export async function completeInquiryIntakeAction(
+  inquiryId: string,
+  _prevState: InquiryIntakeCompletionActionState,
+  formData: FormData,
+): Promise<InquiryIntakeCompletionActionState> {
+  const memberAccess = await getMemberBusinessActionContext();
+
+  if (!memberAccess.ok) {
+    return { error: memberAccess.error };
+  }
+
+  const { user, businessContext } = memberAccess;
+  let parsedFieldIds: unknown;
+
+  try {
+    parsedFieldIds = JSON.parse(
+      getTextValue(formData, "fieldIds") ?? "[]",
+    ) as unknown;
+  } catch {
+    return { error: "We couldn't read the required fields. Reload and try again." };
+  }
+
+  const validationResult = inquiryIntakeCompletionSchema.safeParse({
+    fieldIds: parsedFieldIds,
+  });
+
+  if (!validationResult.success) {
+    return {
+      error:
+        validationResult.error.issues[0]?.message ??
+        "We couldn't read the required fields. Reload and try again.",
+    };
+  }
+
+  const values = Object.fromEntries(
+    validationResult.data.fieldIds.map((fieldId) => [
+      fieldId,
+      getTextValue(formData, fieldId) ?? "",
+    ]),
+  );
+
+  try {
+    const result = await completeInquiryIntakeFieldsForBusiness({
+      businessId: businessContext.business.id,
+      inquiryId,
+      actorUserId: user.id,
+      values,
+    });
+
+    if (!result) {
+      return { error: "That inquiry could not be found." };
+    }
+
+    if (result.locked) {
+      return {
+        error: "Archived inquiries can't be updated. Restore it first.",
+      };
+    }
+
+    if (!result.updated) {
+      return {
+        error: "Enter a value for at least one missing detail.",
+      };
+    }
+
+    updateCacheTags(
+      getInquiryMutationCacheTags(businessContext.business.id, inquiryId),
+    );
+
+    return {
+      success:
+        result.updatedFields.length === 1
+          ? `Saved ${result.updatedFields[0]}.`
+          : `Saved ${result.updatedFields.length} required details.`,
+    };
+  } catch (error) {
+    console.error("Failed to complete inquiry intake fields.", error);
+
+    return {
+      error: "We couldn't save those details right now.",
     };
   }
 }

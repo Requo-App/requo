@@ -9,11 +9,11 @@ import {
   type InquiryFormConfig,
   type InquiryFormCustomFieldDefinition,
   type InquiryFormFieldDefinition,
-  type InquiryFormSystemFieldDefinition,
   type InquiryContactMethod,
   type InquirySubmittedFieldSnapshot,
   type InquirySubmittedFieldSnapshotField,
-} from "@/features/inquiries/form-config";import {
+} from "@/features/inquiries/form-config";
+import {
   coercePositiveInteger,
   emptyToUndefined,
   firstString,
@@ -596,13 +596,14 @@ export function createManualQuickInquiryFormConfig(
 ): InquiryFormConfig {
   const projectFields = config.projectFields
     .filter(
-      (field): field is InquiryFormSystemFieldDefinition =>
-        field.kind === "system" && manualQuickInquiryFieldKeys.has(field.key),
+      (field) =>
+        (field.kind === "system" && manualQuickInquiryFieldKeys.has(field.key)) ||
+        (field.kind === "custom" && field.required),
     )
     .map((field) => ({
       ...field,
-      enabled: true,
-      required: field.key === "details",
+      ...(field.kind === "system" ? { enabled: true } : {}),
+      required: field.kind === "custom" ? true : field.key === "details" || field.required,
     }));
 
   return {

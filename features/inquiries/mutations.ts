@@ -33,6 +33,12 @@ import { inquirySources } from "@/features/inquiries/types";
 import { getEffectiveInquiryStatus } from "@/features/inquiries/status-sql";
 import { getInquiryStatusLabel } from "@/features/inquiries/utils";
 import type { PublicInquiryBusiness } from "@/features/inquiries/types";
+import {
+  getInquirySubmittedFieldValueDisplay,
+  getNormalizedInquirySubmittedFieldSnapshot,
+} from "@/features/inquiries/form-config";
+import { normalizeBusinessType } from "@/features/inquiries/business-types";
+import { listCriticalIntakeGaps } from "@/features/businesses/intake-bindings";
 import { and, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import { revalidateTag } from "next/cache";
 import { qualifyInquiry } from "./qualification/qualify-inquiry";
@@ -792,6 +798,178 @@ export async function updateInquiryFieldsForBusiness({
     return {
       updated: true,
       locked: false,
+    } as const;
+  });
+}
+
+type CompleteInquiryIntakeFieldsForBusinessInput = {
+  businessId: string;
+  inquiryId: string;
+  actorUserId: string;
+  values: Record<string, string>;
+};
+
+/**
+ * Collects values for critical intake questions that an older inquiry never
+ * answered. Accepted keys are resolved from the active recipe and current
+ * snapshot, so callers cannot write arbitrary snapshot fields, and the send
+ * gate continues to re-evaluate readiness on its own.
+ */
+export async function completeInquiryIntakeFieldsForBusiness({
+  businessId,
+  inquiryId,
+  actorUserId,
+  values,
+}: CompleteInquiryIntakeFieldsForBusinessInput) {
+  const gaps = await listCriticalIntakeGaps({ businessId, inquiryId });
+
+  if (!gaps.length) {
+    return {
+      updated: false,
+      locked: false,
+      updatedFields: [] as string[],
+    } as const;
+  }
+
+  const gapByFieldId = new Map(gaps.map((gap) => [gap.fieldId, gap]));
+  const acceptedValues = Object.entries(values).flatMap(([fieldId, value]) => {
+    const trimmed = value.trim().slice(0, 2000);
+    const gap = gapByFieldId.get(fieldId);
+
+    return gap && trimmed ? [[fieldId, { gap, value: trimmed }] as const] : [];
+  });
+
+  if (!acceptedValues.length) {
+    return {
+      updated: false,
+      locked: false,
+      updatedFields: [] as string[],
+    } as const;
+  }
+
+  const now = new Date();
+
+  return db.transaction(async (tx) => {
+    const [existingInquiry] = await tx
+      .select({
+        id: inquiries.id,
+        archivedAt: inquiries.archivedAt,
+        businessType: businesses.businessType,
+        submittedFieldSnapshot: inquiries.submittedFieldSnapshot,
+      })
+      .from(inquiries)
+      .innerJoin(businesses, eq(inquiries.businessId, businesses.id))
+      .where(
+        and(
+          eq(inquiries.id, inquiryId),
+          eq(inquiries.businessId, businessId),
+          isNull(inquiries.deletedAt),
+        ),
+      )
+      .limit(1);
+
+    if (!existingInquiry) {
+      return null;
+    }
+
+    if (existingInquiry.archivedAt) {
+      return {
+        updated: false,
+        locked: true,
+        lockedReason: "archived" as const,
+        updatedFields: [] as string[],
+      } as const;
+    }
+
+    const snapshot = getNormalizedInquirySubmittedFieldSnapshot(
+      existingInquiry.submittedFieldSnapshot,
+    );
+    const fields = [...(snapshot?.fields ?? [])];
+    const updatedFields: string[] = [];
+    let nextDetails: string | undefined;
+
+    for (const [fieldId, { gap, value }] of acceptedValues) {
+      const displayValue = getInquirySubmittedFieldValueDisplay(value);
+      const index = fields.findIndex((field) => field.id === fieldId);
+
+      if (index >= 0) {
+        fields[index] = { ...fields[index], value, displayValue };
+      } else if (fields.length < 40) {
+        fields.push({
+          id: fieldId,
+          label: gap.label,
+          value,
+          displayValue,
+          fieldKind: "custom",
+        });
+      } else {
+        continue;
+      }
+
+      updatedFields.push(gap.label);
+
+      if (fieldId === "details") {
+        nextDetails = value;
+      }
+    }
+
+    if (!updatedFields.length) {
+      return {
+        updated: false,
+        locked: false,
+        updatedFields: [] as string[],
+      } as const;
+    }
+
+    await tx
+      .update(inquiries)
+      .set({
+        submittedFieldSnapshot: {
+          version: 1,
+          businessType: normalizeBusinessType(existingInquiry.businessType),
+          fields,
+        },
+        ...(nextDetails !== undefined ? { details: nextDetails } : {}),
+        updatedAt: now,
+      })
+      .where(
+        and(eq(inquiries.id, inquiryId), eq(inquiries.businessId, businessId)),
+      );
+
+    await tx.insert(activityLogs).values({
+      id: newEntityId(),
+      businessId,
+      inquiryId,
+      actorUserId,
+      type: "inquiry.intake_completed",
+      summary: `Completed required intake details: ${updatedFields.join(", ")}.`,
+      metadata: {
+        fieldLabels: updatedFields,
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    await writeAuditLog(tx, {
+      businessId,
+      actorUserId,
+      entityType: "request",
+      entityId: inquiryId,
+      action: "request.updated",
+      metadata: {
+        changedFields: [
+          "submittedFieldSnapshot",
+          ...(nextDetails !== undefined ? ["details"] : []),
+        ],
+        intakeFieldLabels: updatedFields,
+      },
+      createdAt: now,
+    });
+
+    return {
+      updated: true,
+      locked: false,
+      updatedFields,
     } as const;
   });
 }
