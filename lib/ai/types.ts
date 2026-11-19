@@ -34,6 +34,16 @@ export type AiChatMessage = {
 };
 
 /**
+ * Context attached to fallback diagnostics. User/business IDs are optional so
+ * platform jobs can record routing events without inventing an owner.
+ */
+export type AiRoutingTelemetry = {
+  userId?: string | null;
+  businessId?: string | null;
+  taskType: string;
+};
+
+/**
  * Normalized request shape passed to the router.
  *
  * Each AI surface declares the kind of work via `routingProfile`; `qualityTier`
@@ -49,6 +59,11 @@ export type AiCompletionRequest = {
   routingProfile?: AiRoutingProfile;
   /** Preflight token estimate (input + output) for capacity selection. */
   estimatedTokens?: number;
+  /**
+   * Persisted fallback/latency diagnostics. Supplying it enables routing
+   * events; omitting it keeps the wrapper silent (for example in tests).
+   */
+  telemetry?: AiRoutingTelemetry;
   /**
    * End-to-end budget for this request, including fallback attempts. The
    * router applies its own default when omitted. Per-candidate provider

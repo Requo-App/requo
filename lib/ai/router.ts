@@ -179,6 +179,7 @@ export async function generateWithFallback(
     modelIds,
     maxAttempts: Math.min(NON_CHAT_MAX_ATTEMPTS, modelIds.length),
     estimatedTokens,
+    telemetry: request.telemetry,
     getTimeoutMs: ({ provider }) => providerTimeoutMs(provider),
     onModelSelected: (selected) => {
       serving = {
@@ -277,6 +278,7 @@ export async function streamWithFallback(
     modelIds,
     maxAttempts: CHAT_MAX_ATTEMPTS,
     estimatedTokens,
+    telemetry: request.telemetry,
     getTimeoutMs: ({ provider }) => providerTimeoutMs(provider),
     onModelSelected: (selected) => {
       serving = {

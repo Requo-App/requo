@@ -8,6 +8,7 @@ import {
 import { providerTimeoutMs, selectModels } from "@/lib/ai/router";
 import { noModelsAvailableError } from "@/lib/ai/routing-errors";
 import type { AiRoutingProfile } from "@/lib/ai/routing-profiles";
+import type { AiRoutingTelemetry } from "@/lib/ai/types";
 
 /**
  * Model resolution with fallback for the AI chat orchestrators.
@@ -44,6 +45,7 @@ export type ChatFallbackResolution = {
 export async function resolveChatFallbackModel(input: {
   profile: AiRoutingProfile;
   estimatedTokens: number;
+  telemetry?: AiRoutingTelemetry;
 }): Promise<ChatFallbackResolution> {
   const selectedModels = await selectModels({
     profile: input.profile,
@@ -68,6 +70,7 @@ export async function resolveChatFallbackModel(input: {
     maxAttempts: CHAT_MAX_ATTEMPTS,
     estimatedTokens: input.estimatedTokens,
     deadlineMs: CHAT_STEP_DEADLINE_MS,
+    telemetry: input.telemetry,
     getTimeoutMs: ({ provider }) => providerTimeoutMs(provider),
     onModelSelected: (selected) => {
       serving.modelId = selected.modelId;

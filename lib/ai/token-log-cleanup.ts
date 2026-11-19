@@ -1,12 +1,13 @@
 import "server-only";
 
-import { lte, sql } from "drizzle-orm";
+import { inArray, lte } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
-import { aiTokenLogs } from "@/lib/db/schema";
+import { aiRoutingEvents, aiTokenLogs } from "@/lib/db/schema";
 
 // ---------------------------------------------------------------------------
-// Token Log Cleanup — deletes ai_token_logs entries older than 90 days
+// Token Log Cleanup — deletes ai_token_logs and ai_routing_events entries
+// older than 90 days
 //
 // Runs daily via Vercel Cron at /api/cron/token-log-cleanup. Deletes in
 // batches of 1000 rows per execution to avoid long-running transactions.
@@ -20,6 +21,7 @@ const MAX_BATCHES = 20;
 
 export type TokenLogCleanupResult = {
   deletedRows: number;
+  deletedRoutingEvents: number;
 };
 
 /**
@@ -50,9 +52,7 @@ export async function cleanupTokenLogs(): Promise<TokenLogCleanupResult> {
 
     // Delete by IDs
     const idsToDelete = expiredIds.map((row) => row.id);
-    await db.execute(
-      sql`DELETE FROM ai_token_logs WHERE id = ANY(${idsToDelete})`,
-    );
+    await db.delete(aiTokenLogs).where(inArray(aiTokenLogs.id, idsToDelete));
 
     deletedRows += idsToDelete.length;
     batches += 1;
@@ -65,15 +65,44 @@ export async function cleanupTokenLogs(): Promise<TokenLogCleanupResult> {
     }
   }
 
+  let deletedRoutingEvents = 0;
+  let routingBatches = 0;
+
+  for (;;) {
+    const expiredIds = await db
+      .select({ id: aiRoutingEvents.id })
+      .from(aiRoutingEvents)
+      .where(lte(aiRoutingEvents.createdAt, cutoffDate))
+      .limit(BATCH_SIZE);
+
+    if (expiredIds.length === 0) {
+      break;
+    }
+
+    const idsToDelete = expiredIds.map((row) => row.id);
+    await db.delete(aiRoutingEvents).where(inArray(aiRoutingEvents.id, idsToDelete));
+
+    deletedRoutingEvents += idsToDelete.length;
+    routingBatches += 1;
+
+    if (routingBatches >= MAX_BATCHES) {
+      console.warn(
+        `[ai-token-log-cleanup] Reached the per-run routing-event batch cap (${MAX_BATCHES}); remaining rows are cleaned by the next run.`,
+      );
+      break;
+    }
+  }
+
   console.info(
     JSON.stringify({
       type: "token_log_cleanup",
       timestamp: new Date().toISOString(),
       deletedRows,
+      deletedRoutingEvents,
       batches,
       cutoffDate: cutoffDate.toISOString(),
     }),
   );
 
-  return { deletedRows };
+  return { deletedRows, deletedRoutingEvents };
 }

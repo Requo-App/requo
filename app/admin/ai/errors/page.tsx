@@ -8,6 +8,8 @@ import { AdminListControlsFallback } from "@/features/admin/components/list/admi
 import {
   AdminAiErrorsTableSection,
   AdminAiErrorsControlsSection,
+  AdminAiRoutingEventsFallback,
+  AdminAiRoutingEventsSection,
   AdminAiSecurityEventsFallback,
   AdminAiSecurityEventsSection,
 } from "@/features/admin/components/ai/admin-ai-errors-sections";
@@ -18,7 +20,7 @@ export const instant = true;
 
 export const metadata: Metadata = createNoIndexMetadata({
   absoluteTitle: "AI errors - Requo admin",
-  description: "Failed AI calls and security events.",
+  description: "Failed AI calls, fallback routing events, and security events.",
 });
 
 type SearchParamsRecord = Record<string, string | string[] | undefined>;
@@ -42,7 +44,7 @@ export default function AdminAiErrorsPage({
   return (
     <DashboardPage>
       <PageHeader
-        description="Failed AI calls and security events."
+        description="Failed AI calls, fallback routing events, and security events."
         title="AI errors"
       />
       <div className="dashboard-table-shell" data-list-card>
@@ -54,7 +56,10 @@ export default function AdminAiErrorsPage({
         </Suspense>
       </div>
       <Suspense fallback={<AdminAiSecurityEventsFallback />}>
-        <AdminAiSecurityEventsRegion searchParams={searchParams} />
+        <AdminAiSecurityEventsRegion />
+      </Suspense>
+      <Suspense fallback={<AdminAiRoutingEventsFallback />}>
+        <AdminAiRoutingEventsRegion />
       </Suspense>
     </DashboardPage>
   );
@@ -79,10 +84,10 @@ async function AdminAiErrorsContentRegion({
   );
 }
 
-async function AdminAiSecurityEventsRegion({
-  searchParams,
-}: AdminAiErrorsPageProps) {
-  const rawParams = await searchParams;
+function AdminAiSecurityEventsRegion() {
+  return <AdminAiSecurityEventsSection />;
+}
 
-  return <AdminAiSecurityEventsSection rawParams={rawParams} />;
+function AdminAiRoutingEventsRegion() {
+  return <AdminAiRoutingEventsSection />;
 }

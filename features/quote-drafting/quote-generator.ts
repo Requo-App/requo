@@ -1509,6 +1509,11 @@ export async function generateQuoteDraftForBusiness(
     estimatedTokens:
       estimateTokens(systemInstructions + userMessage) +
       taskConfig.maxOutputTokens,
+    telemetry: {
+      userId: input.userId,
+      businessId: input.businessId,
+      taskType,
+    },
   };
 
   // Cache fingerprint: prompt version + template hash + source data hashes.
@@ -1856,6 +1861,11 @@ export async function generateQuoteImprovementForBusiness(
     estimatedTokens:
       estimateTokens(systemInstructions + userMessage) +
       taskConfig.maxOutputTokens,
+    telemetry: {
+      userId: input.userId,
+      businessId: input.businessId,
+      taskType,
+    },
   };
 
   const cacheKey: CacheKeyComponents = {

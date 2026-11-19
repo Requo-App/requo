@@ -9,9 +9,12 @@ import type {
   LanguageModelV3StreamResult,
   LanguageModelV3Usage,
 } from "@ai-sdk/provider";
+import { after } from "next/server";
 
 import { registry } from "@/lib/ai/registry";
 import { stripReasoningMiddleware } from "@/lib/ai/strip-reasoning-middleware";
+import { logAiRoutingEvent } from "@/lib/ai/routing-events";
+import type { AiRoutingTelemetry } from "@/lib/ai/types";
 import {
   isModelDead,
   markModelDead,
@@ -26,6 +29,7 @@ import {
   classifyProviderFailure,
   getSanitizedErrorInfo,
 } from "@/lib/ai/errors";
+import { getCorrelationId, newCorrelationId } from "@/lib/observability/correlation";
 
 // ---------------------------------------------------------------------------
 // Fallback Language Model — cross-model resilience that preserves streaming
@@ -97,6 +101,12 @@ export type FallbackModelOptions = {
   deadlineMs?: number;
   onModelSelected?: (selected: FallbackModelSelected) => void;
   onAttemptFailed?: (selected: FallbackModelSelected, error: unknown) => void;
+  /**
+   * Enables persisted routing diagnostics. When present, every failed
+   * candidate and every post-failure serving model is written to
+   * `ai_routing_events` with this correlation ID and no prompt/response text.
+   */
+  telemetry?: AiRoutingTelemetry;
 };
 
 function parseModelId(modelId: `${string}:${string}` | string): FallbackModelSelected {
@@ -184,6 +194,15 @@ type AttemptOutcome = {
   providerCooled: boolean;
 };
 
+type RoutingFailureRecord = {
+  reason: string;
+  statusCode: number | null;
+  latencyMs: number;
+  attempt: number;
+};
+
+type ReportRoutingFailure = (failure: RoutingFailureRecord) => void;
+
 async function safeBookkeeping(value: Promise<unknown>): Promise<void> {
   try {
     await value;
@@ -214,6 +233,9 @@ async function noteAttemptFailed(
   reservation: ModelCapacityReservation,
   onAttemptFailed: FallbackModelOptions["onAttemptFailed"],
   turnAborted: boolean,
+  latencyMs: number,
+  attempt: number,
+  onRoutingFailure?: ReportRoutingFailure,
 ): Promise<AttemptOutcome> {
   const info = getSanitizedErrorInfo(error);
   const classification = classifyProviderFailure(error, { turnAborted });
@@ -221,6 +243,12 @@ async function noteAttemptFailed(
     `[ai-fallback] Attempt failed: model="${modelId}" kind=${classification.kind} status=${info.statusCode ?? "N/A"} retryable=${info.retryable} message="${info.message}"`,
   );
   onAttemptFailed?.(selected, error);
+  onRoutingFailure?.({
+    reason: classification.kind,
+    statusCode: info.statusCode,
+    latencyMs,
+    attempt,
+  });
 
   if (classification.kind !== "cancelled") {
     void recordModelFailure(modelId, classification.kind).catch(() => {});
@@ -449,11 +477,50 @@ export function createFallbackLanguageModel(
   const { modelIds, onModelSelected, onAttemptFailed } = opts;
   const maxAttempts = opts.maxAttempts ?? 5;
   const estimatedTokens = opts.estimatedTokens;
+  const telemetry = opts.telemetry;
+  const routingCorrelationId = telemetry
+    ? (getCorrelationId() ?? newCorrelationId("ai"))
+    : null;
   // `streamText` calls the same model once per tool step. Once a fallback
   // candidate has served a step successfully, try it first for the remaining
   // steps in that turn instead of repeatedly burning the attempt budget on
   // providers that already failed moments earlier.
   let preferredModelId: `${string}:${string}` | undefined;
+
+  function reportRoutingEvent(input: {
+    selected: FallbackModelSelected;
+    eventType: "attempt_failed" | "fallback_selected";
+    reason?: string | null;
+    statusCode?: number | null;
+    latencyMs?: number | null;
+    attempt?: number;
+  }) {
+    if (!telemetry || !routingCorrelationId) return;
+
+    const write = logAiRoutingEvent({
+      eventType: input.eventType,
+      correlationId: routingCorrelationId,
+      taskType: telemetry.taskType,
+      userId: telemetry.userId ?? null,
+      businessId: telemetry.businessId ?? null,
+      provider: input.selected.provider,
+      model: input.selected.model,
+      reason: input.reason ?? null,
+      statusCode: input.statusCode ?? null,
+      latencyMs: input.latencyMs ?? null,
+      attempt: input.attempt ?? 0,
+    });
+
+    try {
+      // Keep the write alive past the response: on serverless the runtime can
+      // freeze immediately after the turn, which would drop exactly the
+      // failed-turn diagnostics these events exist to explain.
+      after(() => write);
+    } catch {
+      // No request scope (background worker, script, test): best-effort write.
+      void write;
+    }
+  }
 
   function turnSignalFor(
     options: LanguageModelV3CallOptions,
@@ -531,6 +598,7 @@ export function createFallbackLanguageModel(
       let remaining = candidatesFor(modelIds, maxAttempts, preferredModelId);
       let lastError: unknown = null;
       let attemptsUsed = 0;
+      let routingFailures = 0;
 
       while (remaining.length > 0 && attemptsUsed < maxAttempts) {
         turnSignal?.throwIfAborted();
@@ -541,6 +609,13 @@ export function createFallbackLanguageModel(
             `[ai-fallback] Skipping model on a cooling provider (no attempt consumed): model="${candidate}"`,
           );
           onAttemptFailed?.(selected, new Error("provider auth cooldown"));
+          routingFailures += 1;
+          reportRoutingEvent({
+            selected,
+            eventType: "attempt_failed",
+            reason: "provider_cooldown",
+            attempt: routingFailures,
+          });
           continue;
         }
         try {
@@ -549,6 +624,13 @@ export function createFallbackLanguageModel(
               `[ai-fallback] Skipping dead model (no attempt consumed): model="${candidate}"`,
             );
             onAttemptFailed?.(selected, new Error("model_not_found (cached dead)"));
+            routingFailures += 1;
+            reportRoutingEvent({
+              selected,
+              eventType: "attempt_failed",
+              reason: "model_not_found",
+              attempt: routingFailures,
+            });
             continue;
           }
         } catch {
@@ -564,6 +646,13 @@ export function createFallbackLanguageModel(
           // The turn is served by a later candidate, but the attempt trail
           // should record why this one was skipped.
           onAttemptFailed?.(selected, refusal);
+          routingFailures += 1;
+          reportRoutingEvent({
+            selected,
+            eventType: "attempt_failed",
+            reason: "capacity",
+            attempt: routingFailures,
+          });
           continue;
         }
 
@@ -578,6 +667,14 @@ export function createFallbackLanguageModel(
           void recordModelSuccess(candidate, Date.now() - startedAt).catch(
             () => {},
           );
+          if (routingFailures > 0) {
+            reportRoutingEvent({
+              selected,
+              eventType: "fallback_selected",
+              latencyMs: Date.now() - startedAt,
+              attempt: routingFailures + 1,
+            });
+          }
           onModelSelected?.(selected);
           preferredModelId = candidate;
           return result;
@@ -590,6 +687,7 @@ export function createFallbackLanguageModel(
             throw error;
           }
           lastError = error;
+          routingFailures += 1;
           const outcome = await noteAttemptFailed(
             candidate,
             selected,
@@ -597,6 +695,14 @@ export function createFallbackLanguageModel(
             reservation,
             onAttemptFailed,
             turnSignal?.aborted ?? false,
+            Date.now() - startedAt,
+            routingFailures,
+            (failure) =>
+              reportRoutingEvent({
+                selected,
+                eventType: "attempt_failed",
+                ...failure,
+              }),
           );
           if (!outcome.advance) throw error;
           if (outcome.dead) {
@@ -633,6 +739,7 @@ export function createFallbackLanguageModel(
       let remaining = candidatesFor(modelIds, maxAttempts, preferredModelId);
       let lastError: unknown = null;
       let attemptsUsed = 0;
+      let routingFailures = 0;
 
       while (remaining.length > 0 && attemptsUsed < maxAttempts) {
         turnSignal?.throwIfAborted();
@@ -643,6 +750,13 @@ export function createFallbackLanguageModel(
             `[ai-fallback] Skipping model on a cooling provider (no attempt consumed): model="${candidate}"`,
           );
           onAttemptFailed?.(selected, new Error("provider auth cooldown"));
+          routingFailures += 1;
+          reportRoutingEvent({
+            selected,
+            eventType: "attempt_failed",
+            reason: "provider_cooldown",
+            attempt: routingFailures,
+          });
           continue;
         }
         try {
@@ -651,6 +765,13 @@ export function createFallbackLanguageModel(
               `[ai-fallback] Skipping dead model (no attempt consumed): model="${candidate}"`,
             );
             onAttemptFailed?.(selected, new Error("model_not_found (cached dead)"));
+            routingFailures += 1;
+            reportRoutingEvent({
+              selected,
+              eventType: "attempt_failed",
+              reason: "model_not_found",
+              attempt: routingFailures,
+            });
             continue;
           }
         } catch {
@@ -666,6 +787,13 @@ export function createFallbackLanguageModel(
           // The turn is served by a later candidate, but the attempt trail
           // should record why this one was skipped.
           onAttemptFailed?.(selected, refusal);
+          routingFailures += 1;
+          reportRoutingEvent({
+            selected,
+            eventType: "attempt_failed",
+            reason: "capacity",
+            attempt: routingFailures,
+          });
           continue;
         }
 
@@ -716,6 +844,14 @@ export function createFallbackLanguageModel(
             () => turnSignal?.aborted === true,
           );
 
+          if (routingFailures > 0) {
+            reportRoutingEvent({
+              selected,
+              eventType: "fallback_selected",
+              latencyMs: Date.now() - startedAt,
+              attempt: routingFailures + 1,
+            });
+          }
           onModelSelected?.(selected);
           preferredModelId = candidate;
           return {
@@ -732,6 +868,7 @@ export function createFallbackLanguageModel(
             throw error;
           }
           lastError = error;
+          routingFailures += 1;
           const outcome = await noteAttemptFailed(
             candidate,
             selected,
@@ -739,6 +876,14 @@ export function createFallbackLanguageModel(
             reservation,
             onAttemptFailed,
             turnSignal?.aborted ?? false,
+            Date.now() - startedAt,
+            routingFailures,
+            (failure) =>
+              reportRoutingEvent({
+                selected,
+                eventType: "attempt_failed",
+                ...failure,
+              }),
           );
           if (!outcome.advance) throw error;
           if (outcome.dead) continue;

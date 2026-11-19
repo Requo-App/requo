@@ -362,6 +362,11 @@ export async function runAssistant({
   const chatModel = await resolveChatFallbackModel({
     profile: "assistant_chat",
     estimatedTokens,
+    telemetry: {
+      userId,
+      businessId,
+      taskType: "assistant_message",
+    },
   });
   const { fallbackModel, serving, attemptTrail } = chatModel;
 

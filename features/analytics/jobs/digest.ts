@@ -97,6 +97,11 @@ async function generateRecommendations(
       qualityTier: "cheap",
       routingProfile: "short_text",
       estimatedTokens: prompt.length / 4 + 300,
+      telemetry: {
+        userId: usage.userId,
+        businessId: usage.businessId,
+        taskType: "follow_up_message",
+      },
     });
 
     // The digest is a platform-provided feature for entitled businesses, so

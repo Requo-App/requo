@@ -17,6 +17,11 @@ const mocks = vi.hoisted(() => ({
   recordFailure: vi.fn(),
   markExhausted: vi.fn(),
   markDead: vi.fn(),
+  logRoutingEvent: vi.fn(),
+}));
+
+vi.mock("@/lib/ai/routing-events", () => ({
+  logAiRoutingEvent: mocks.logRoutingEvent,
 }));
 
 vi.mock("ai", () => ({
@@ -188,5 +193,76 @@ describe("generateWithFallback", () => {
     expect(mocks.generateText).toHaveBeenCalledWith(
       expect.objectContaining({ maxRetries: 0 }),
     );
+  });
+
+  it("persists correlated fallback diagnostics without the prompt", async () => {
+    mocks.languageModel.mockImplementation((id: string) =>
+      model(async () => {
+        if (id === "groq:first") {
+          throw Object.assign(new Error("rate limit exceeded"), {
+            status: 429,
+          });
+        }
+        return generated();
+      }),
+    );
+
+    await generateWithFallback({
+      ...request,
+      telemetry: {
+        userId: "user_1",
+        businessId: "biz_1",
+        taskType: "quote_draft",
+      },
+    });
+
+    expect(mocks.logRoutingEvent).toHaveBeenCalledTimes(2);
+    expect(mocks.logRoutingEvent).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        eventType: "attempt_failed",
+        taskType: "quote_draft",
+        userId: "user_1",
+        businessId: "biz_1",
+        provider: "groq",
+        model: "first",
+        reason: "rate_limit",
+        statusCode: 429,
+        attempt: 1,
+        correlationId: expect.stringMatching(/^ai_/),
+      }),
+    );
+    expect(mocks.logRoutingEvent).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        eventType: "fallback_selected",
+        provider: "openrouter",
+        model: "second",
+        attempt: 2,
+      }),
+    );
+
+    const persistedPayloads = JSON.stringify(
+      mocks.logRoutingEvent.mock.calls.map(([event]) => event),
+    );
+    expect(persistedPayloads).not.toContain("Hi");
+    expect(persistedPayloads).not.toContain("rate limit exceeded");
+  });
+
+  it("stays silent without telemetry", async () => {
+    mocks.languageModel.mockImplementation((id: string) =>
+      model(async () => {
+        if (id === "groq:first") {
+          throw Object.assign(new Error("rate limit exceeded"), {
+            status: 429,
+          });
+        }
+        return generated();
+      }),
+    );
+
+    await generateWithFallback(request);
+
+    expect(mocks.logRoutingEvent).not.toHaveBeenCalled();
   });
 });

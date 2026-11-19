@@ -69,7 +69,8 @@ Only 1–128 characters from `[A-Za-z0-9._:-]` are accepted; anything else is
 discarded and replaced with a generated ID. The ID is carried in
 `AsyncLocalStorage`, so any line emitted through the logger inside the boundary
 picks it up automatically, including streaming callbacks and awaited provider
-calls.
+calls. AI fallback routing events reuse the request correlation ID and mint an
+`ai_*` ID when telemetry is emitted outside a request boundary.
 
 ## Following a failure
 
@@ -80,11 +81,17 @@ calls.
    include `runId`, `functionId`, `stepId`, and `stepType`.
 3. AI invocation logs keep `type: "ai_invocation"` alongside the structured
    fields for existing dashboards.
-4. Email attempts log `email.provider.attempt_started`,
+4. Fallback attempts and the model that served after them persist in
+   `ai_routing_events` with the request `correlationId`, task type, stable
+   failure kind, provider/model, HTTP status, latency, and attempt. Query that
+   table by correlation ID to reconstruct the routing trail. Rows contain no
+   prompts, responses, or raw provider error bodies, and are retained for 90
+   days. `/admin/ai/errors` shows the newest 20 rows.
+5. Email attempts log `email.provider.attempt_started`,
    `email.provider.accepted`, `email.provider.attempt_failed`, and
    `email.send.skipped_sent` with `emailOutboxId` and `idempotencyKey`.
-5. The persisted AI invocation, security-event, audit, and activity tables
-   remain the durable record; logs are the operational trail.
+6. The persisted AI invocation, AI routing-event, security-event, audit, and
+   activity tables remain the durable record; logs are the operational trail.
 
 ## Adding a boundary
 
