@@ -2271,7 +2271,9 @@ async function seedStableSmokeFixtures(input: {
       totalInCents: 230000,
       sentAt: daysAgo(2),
       publicViewedAt: daysAgo(1),
-      validUntil: toDateStr(daysFromNow(5)),
+      // Keep the primary sent fixture testable for a full audit cycle. The
+      // dedicated expired fixture below still covers the expiry state.
+      validUntil: toDateStr(daysFromNow(30)),
       createdAt: daysAgo(4),
       updatedAt: daysAgo(2),
     },

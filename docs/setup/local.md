@@ -313,8 +313,11 @@ additional Free, Pro, and Business accounts are created for plan testing.
 
 - Business name: `BrightSide Print Studio`
 - Business slug: `brightside-print-studio`
-- Sent quote token: `demoquote1002senttoken`
-- Expired quote token: `demoquote1005expiredtoken`
+- Sent quote token: `demoquote1002senttoken` (seeded with 30 days of validity
+  so customer accept/reject and discussion flows stay testable on any audit
+  date)
+- Expired quote token: `demoquote1005expiredtoken` (kept expired for
+  expired-state testing)
 - Voided quote token: `demoquote1006voidedtoken`
 
 The seed supports overriding these values through the `DEMO_*` env variables in `.env.local`.
