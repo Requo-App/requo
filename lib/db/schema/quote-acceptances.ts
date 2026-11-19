@@ -11,6 +11,35 @@ export type QuoteAcceptanceSnapshotItem = {
   position: number;
 };
 
+/**
+ * Scope is part of what the customer accepts: the acceptance text covers
+ * "the scope, pricing, and terms shown above". Storing the blocks (in display
+ * order) makes the hash cover them, so a later scope edit cannot alter the
+ * record of what was agreed.
+ */
+export type QuoteAcceptanceSnapshotScopeBlock = {
+  kind: string;
+  content: Record<string, unknown>;
+};
+
+export type QuoteAcceptanceSnapshotPaymentScheduleItem = {
+  label: string;
+  category: string;
+  amountCents: number;
+  dueDate: string | null;
+  dueCondition: string | null;
+};
+
+/**
+ * The schedule acceptance freezes. `null` when the quote had none — existing
+ * rows predate this field and remain valid because hashes are stored, not
+ * recomputed.
+ */
+export type QuoteAcceptanceSnapshotPaymentSchedule = {
+  version: number;
+  items: QuoteAcceptanceSnapshotPaymentScheduleItem[];
+} | null;
+
 export type QuoteAcceptanceSnapshot = {
   quoteNumber: string;
   quoteVersion: number;
@@ -28,6 +57,8 @@ export type QuoteAcceptanceSnapshot = {
   taxLabel: string | null;
   totalInCents: number;
   items: QuoteAcceptanceSnapshotItem[];
+  scopeBlocks: QuoteAcceptanceSnapshotScopeBlock[];
+  paymentSchedule: QuoteAcceptanceSnapshotPaymentSchedule;
   acceptanceText: string;
   acceptanceTextVersion: number;
 };

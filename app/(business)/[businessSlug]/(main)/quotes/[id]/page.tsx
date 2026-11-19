@@ -37,6 +37,10 @@ import {
   voidQuoteAction,
 } from "@/features/quotes/actions";
 import { createQuoteFollowUpAction } from "@/features/follow-ups/actions";
+import { saveQuoteScopeBlockAction, waiveQuoteScopeBlockAction } from "@/features/scope-blocks/actions";
+import { QuoteScopeEditor } from "@/features/scope-blocks/components/quote-scope-editor";
+import { listScopeBlocksForQuote } from "@/features/scope-blocks/queries";
+import { resolveActiveScopeRecipe } from "@/features/scope-blocks/required-kinds";
 import { FollowUpPanel } from "@/features/follow-ups/components/follow-up-panel";
 import {
   getContactMethodLabel,
@@ -67,6 +71,7 @@ import {
   getBusinessContactEmailForPreview,
   getQuoteActivitiesForBusiness,
   getQuoteDetailCoreForBusiness,
+  getQuoteCustomerVisibleScopeForBusiness,
   getQuoteItemsForBusiness,
   getRevisionRequestsForQuote,
 } from "@/features/quotes/queries";
@@ -367,6 +372,10 @@ async function QuoteDetailRegion({ params }: QuoteDetailPageProps) {
             />
           </Suspense>
 
+          <Suspense fallback={<DetailSectionFallback rows={3} />}>
+            <QuoteScopeEditorRegion businessId={businessId} quoteId={quote.id} businessType={businessContext.business.businessType} />
+          </Suspense>
+
           <DashboardDetailLayout className="xl:grid-cols-[1.25fr_0.75fr]">
             <DashboardSidebarStack>
               <QuoteLinkedInquirySection businessSlug={businessSlug} quote={quote} />
@@ -525,9 +534,13 @@ async function QuoteHeaderFeedActionsRegion(
     openQuoteHref: string | null;
   },
 ) {
-  const [items, gate] = await Promise.all([
+  const [items, gate, customerScope] = await Promise.all([
     getQuoteItemsForBusiness({ businessId: props.businessId, quoteId: props.quote.id }),
     resolveAutoFollowUpGate(props.businessId, props.businessPlan),
+    getQuoteCustomerVisibleScopeForBusiness({
+      businessId: props.businessId,
+      quoteId: props.quote.id,
+    }),
   ]);
 
   const isDraft = props.quote.status === "draft";
@@ -537,7 +550,7 @@ async function QuoteHeaderFeedActionsRegion(
     <>
       {isDraft ? (
         <SendQuoteDialog
-          {...buildSendDialogProps({ ...props, ...gate, items })}
+          {...buildSendDialogProps({ ...props, ...gate, ...customerScope, items })}
           compactOnMobile
         />
       ) : null}
@@ -556,6 +569,8 @@ async function QuoteHeaderFeedActionsRegion(
           token: props.quote.publicToken ?? "",
           publicViewedAt: props.quote.publicViewedAt,
           items,
+          scopeBlocks: customerScope.scopeBlocks,
+          paymentSchedule: customerScope.paymentSchedule,
         })}
         businessPlan={props.businessPlan}
         businessContactEmail={props.businessContactEmail}
@@ -567,12 +582,20 @@ async function QuoteHeaderFeedActionsRegion(
 }
 
 async function QuoteSendSectionRegion(props: SendDialogContext) {
-  const [items, gate] = await Promise.all([
+  const [items, gate, customerScope] = await Promise.all([
     getQuoteItemsForBusiness({ businessId: props.businessId, quoteId: props.quote.id }),
     resolveAutoFollowUpGate(props.businessId, props.businessPlan),
+    getQuoteCustomerVisibleScopeForBusiness({
+      businessId: props.businessId,
+      quoteId: props.quote.id,
+    }),
   ]);
 
-  return <SendQuoteDialog {...buildSendDialogProps({ ...props, ...gate, items })} />;
+  return (
+    <SendQuoteDialog
+      {...buildSendDialogProps({ ...props, ...gate, ...customerScope, items })}
+    />
+  );
 }
 
 async function QuoteEditorRegion({
@@ -651,6 +674,63 @@ async function QuoteEditorRegion({
   );
 }
 
+async function QuoteScopeEditorRegion({
+  businessId,
+  quoteId,
+  businessType,
+}: {
+  businessId: string;
+  quoteId: string;
+  businessType: Parameters<typeof resolveActiveScopeRecipe>[0]["businessType"];
+}) {
+  const { requiredKinds } = await resolveActiveScopeRecipe({
+    businessId,
+    businessType,
+  });
+
+  if (requiredKinds.length === 0) return null;
+
+  const blocks = await listScopeBlocksForQuote({ businessId, quoteId });
+  const byKind = new Map(blocks.map((block) => [block.kind, block]));
+
+  return (
+    <DashboardSection
+      description="Complete the business-required scope sections before sending this quote."
+      title="Quote scope"
+    >
+      <div className="grid gap-3">
+        {requiredKinds.map((kind) => (
+          byKind.get(kind)?.state === "waived" ? (
+            <section className="rounded-xl border border-border/70 p-4" key={kind}>
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="text-sm font-semibold">{kind.replaceAll("_", " ")}</h3>
+                <p className="text-xs text-muted-foreground">Waived</p>
+              </div>
+              {byKind.get(kind)?.waiverReason ? (
+                <p className="mt-2 text-sm leading-5 text-muted-foreground">
+                  {byKind.get(kind)?.waiverReason}
+                </p>
+              ) : null}
+            </section>
+          ) : (
+            <QuoteScopeEditor
+              block={byKind.get(kind) ?? null}
+              key={kind}
+              kind={kind}
+              saveAction={saveQuoteScopeBlockAction.bind(null, quoteId, kind)}
+              waiveAction={waiveQuoteScopeBlockAction.bind(
+                null,
+                quoteId,
+                byKind.get(kind)?.id ?? "",
+              )}
+            />
+          )
+        ))}
+      </div>
+    </DashboardSection>
+  );
+}
+
 async function QuotePreviewRegion({
   businessId,
   businessName,
@@ -665,6 +745,10 @@ async function QuotePreviewRegion({
   quote: DashboardQuoteDetailCore;
 }) {
   const items = await getQuoteItemsForBusiness({
+    businessId,
+    quoteId: quote.id,
+  });
+  const customerScope = await getQuoteCustomerVisibleScopeForBusiness({
     businessId,
     quoteId: quote.id,
   });
@@ -683,6 +767,8 @@ async function QuotePreviewRegion({
       notes={quote.notes}
       terms={quote.terms}
       items={items}
+      scopeBlocks={customerScope.scopeBlocks}
+      paymentSchedule={customerScope.paymentSchedule}
       subtotalInCents={quote.subtotalInCents}
       discountInCents={quote.discountInCents}
       taxInCents={quote.taxInCents}

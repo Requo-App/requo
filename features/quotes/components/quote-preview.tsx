@@ -2,6 +2,11 @@ import { BusinessAvatar } from "@/components/shared/business-avatar";
 import { TruncatedTextWithTooltip } from "@/components/shared/truncated-text-with-tooltip";
 import { cn } from "@/lib/utils";
 import { formatQuoteDate, formatQuoteMoney } from "@/features/quotes/utils";
+import {
+  QuoteScopeList,
+  type QuoteScopeBlock,
+} from "@/features/quotes/components/quote-scope-list";
+import type { PublicQuotePaymentSchedule } from "@/features/quotes/types";
 
 type QuotePreviewItem = {
   id: string;
@@ -22,6 +27,9 @@ type QuotePreviewProps = {
   notes?: string | null;
   terms?: string | null;
   items: QuotePreviewItem[];
+  /** Customer-visible scope blocks, rendered exactly like the public page. */
+  scopeBlocks?: QuoteScopeBlock[];
+  paymentSchedule?: PublicQuotePaymentSchedule | null;
   subtotalInCents: number;
   discountInCents: number;
   taxInCents?: number;
@@ -46,6 +54,8 @@ export function QuotePreview({
   notes,
   terms,
   items,
+  scopeBlocks = [],
+  paymentSchedule = null,
   subtotalInCents,
   discountInCents,
   taxInCents = 0,
@@ -222,6 +232,19 @@ export function QuotePreview({
             />
           </div>
         </div>
+
+        {scopeBlocks.length > 0 ? (
+          <div className="soft-panel shadow-none">
+            <p className="meta-label">Scope details</p>
+            <div className="mt-3">
+              <QuoteScopeList
+                blocks={scopeBlocks}
+                currency={currency}
+                paymentSchedule={paymentSchedule}
+              />
+            </div>
+          </div>
+        ) : null}
 
         {terms ? (
           <div className="soft-panel shadow-none">

@@ -60,6 +60,8 @@ import type {
   QuoteStatus,
 } from "@/features/quotes/types";
 import { getQuoteReminderKinds } from "@/features/quotes/utils";
+import { getCustomerScheduleForQuote } from "@/features/payment-schedules/queries";
+import { listCustomerVisibleScopeBlocksForQuote } from "@/features/scope-blocks/queries";
 import {
   getQuotePublicTokenLookupCondition,
   tryResolveStoredQuotePublicToken,
@@ -848,6 +850,41 @@ async function getCachedQuoteSendPayloadForBusiness({
   };
 }
 
+/**
+ * Customer-visible scope and the payment schedule an acceptance would freeze.
+ * Shared by the public quote page, the owner previews, and print/PDF so every
+ * surface renders the same contract.
+ */
+export async function getQuoteCustomerVisibleScopeForBusiness(input: {
+  businessId: string;
+  quoteId: string;
+}): Promise<{
+  scopeBlocks: PublicQuoteView["scopeBlocks"];
+  paymentSchedule: PublicQuoteView["paymentSchedule"];
+}> {
+  const [scopeBlocks, schedule] = await Promise.all([
+    listCustomerVisibleScopeBlocksForQuote(input),
+    getCustomerScheduleForQuote(input),
+  ]);
+
+  return {
+    scopeBlocks,
+    paymentSchedule: schedule
+      ? {
+          version: schedule.version,
+          items: schedule.items.map((item) => ({
+            id: item.id,
+            label: item.label,
+            category: item.category,
+            amountCents: item.computedAmountCents,
+            dueDate: item.dueDate,
+            dueCondition: item.dueCondition,
+          })),
+        }
+      : null,
+  };
+}
+
 async function getPublicQuoteByTokenImpl(
   token: string,
 ): Promise<PublicQuoteView | null> {
@@ -919,21 +956,29 @@ async function getPublicQuoteByTokenImpl(
     .where(eq(quoteItems.quoteId, quote.id))
     .orderBy(asc(quoteItems.position), asc(quoteItems.createdAt));
 
-  const [acceptance] = await db
-    .select({
-      id: quoteAcceptances.id,
-      quoteVersion: quoteAcceptances.quoteVersion,
-      signerName: quoteAcceptances.signerName,
-      signerEmail: quoteAcceptances.signerEmail,
-      acceptanceMethod: quoteAcceptances.acceptanceMethod,
-      acceptanceText: quoteAcceptances.acceptanceText,
-      acceptanceTextVersion: quoteAcceptances.acceptanceTextVersion,
-      snapshotHash: quoteAcceptances.snapshotHash,
-      acceptedAt: quoteAcceptances.acceptedAt,
-    })
-    .from(quoteAcceptances)
-    .where(eq(quoteAcceptances.quoteId, quote.id))
-    .limit(1);
+  const [customerScope, acceptanceRow] = await Promise.all([
+    getQuoteCustomerVisibleScopeForBusiness({
+      businessId: quote.businessId,
+      quoteId: quote.id,
+    }),
+    db
+      .select({
+        id: quoteAcceptances.id,
+        quoteVersion: quoteAcceptances.quoteVersion,
+        signerName: quoteAcceptances.signerName,
+        signerEmail: quoteAcceptances.signerEmail,
+        acceptanceMethod: quoteAcceptances.acceptanceMethod,
+        acceptanceText: quoteAcceptances.acceptanceText,
+        acceptanceTextVersion: quoteAcceptances.acceptanceTextVersion,
+        snapshotHash: quoteAcceptances.snapshotHash,
+        acceptedAt: quoteAcceptances.acceptedAt,
+      })
+      .from(quoteAcceptances)
+      .where(eq(quoteAcceptances.quoteId, quote.id))
+      .limit(1),
+  ]);
+
+  const [acceptance] = acceptanceRow;
 
   return {
     acceptedAt: quote.acceptedAt,
@@ -968,6 +1013,8 @@ async function getPublicQuoteByTokenImpl(
     totalInCents: quote.totalInCents,
     validUntil: quote.validUntil,
     items,
+    scopeBlocks: customerScope.scopeBlocks,
+    paymentSchedule: customerScope.paymentSchedule,
     acceptance: acceptance ?? null,
   };
 }

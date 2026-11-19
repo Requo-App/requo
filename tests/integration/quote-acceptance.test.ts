@@ -15,6 +15,8 @@ import {
 } from "@/features/quotes/mutations";
 import { getAcceptanceForBusiness } from "@/features/quotes/queries";
 import { hashAcceptanceSnapshot } from "@/features/quotes/acceptance";
+import { saveScheduleForQuote } from "@/features/payment-schedules/mutations";
+import { upsertScopeBlockForQuote } from "@/features/scope-blocks/mutations";
 import { quoteAcceptances, quotes } from "@/lib/db/schema";
 
 import { closeTestDb, testDb } from "@/tests/support/db";
@@ -69,6 +71,37 @@ describe("quote acceptance record", () => {
       inquiryId: ids.inquiryId,
       quote: quoteInput(),
     });
+
+    // Scope and the payment schedule are customer-visible terms: acceptance
+    // must snapshot the exact versions shown, not just line items and totals.
+    await upsertScopeBlockForQuote({
+      businessId: ids.businessId,
+      quoteId: created!.id,
+      kind: "deliverables",
+      content: { items: [{ label: "Design and install" }] },
+      actorUserId: ids.ownerUserId,
+    });
+    await saveScheduleForQuote({
+      businessId: ids.businessId,
+      quoteId: created!.id,
+      actorUserId: ids.ownerUserId,
+      actorRole: "owner",
+      items: [
+        {
+          category: "deposit",
+          label: "Deposit",
+          percentBps: 5000,
+          dueCondition: "On acceptance",
+        },
+        {
+          category: "balance",
+          label: "Balance",
+          percentBps: 5000,
+          dueCondition: "On install",
+        },
+      ],
+    });
+
     const sent = await markQuoteSentForBusiness({
       businessId: ids.businessId,
       quoteId: created!.id,
@@ -105,6 +138,31 @@ describe("quote acceptance record", () => {
     expect(acceptance!.snapshot.quoteNumber).toBe(acceptance!.snapshot.quoteNumber);
     expect(acceptance!.snapshot.totalInCents).toBeGreaterThan(0);
     expect(acceptance!.snapshot.taxLabel).toBe("VAT 12%");
+    expect(acceptance!.snapshot.scopeBlocks).toEqual([
+      {
+        kind: "deliverables",
+        content: { items: [{ label: "Design and install" }] },
+      },
+    ]);
+    expect(acceptance!.snapshot.paymentSchedule).toEqual({
+      version: 1,
+      items: [
+        {
+          label: "Deposit",
+          category: "deposit",
+          amountCents: 15_800,
+          dueDate: null,
+          dueCondition: "On acceptance",
+        },
+        {
+          label: "Balance",
+          category: "balance",
+          amountCents: 15_800,
+          dueDate: null,
+          dueCondition: "On install",
+        },
+      ],
+    });
     expect(hashAcceptanceSnapshot(acceptance!.snapshot)).toBe(acceptance!.snapshotHash);
 
     // Recomputed hash matches stored hash: snapshot is self-consistent.

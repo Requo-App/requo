@@ -8,6 +8,7 @@ import {
 import { MadeWithRequo } from "@/components/shared/made-with-requo";
 import { hasFeatureAccess } from "@/lib/plans/entitlements";
 import { formatQuoteDate, formatQuoteMoney } from "@/features/quotes/utils";
+import { QuoteScopeList } from "@/features/quotes/components/quote-scope-list";
 import type { PublicQuoteView } from "@/features/quotes/types";
 import type { PlanTier } from "@/lib/plans/plans";
 import { cn } from "@/lib/utils";
@@ -198,6 +199,21 @@ function QuotePageContent({
               </span>
             </div>
           </div>
+
+          {quote.scopeBlocks.length > 0 ? (
+            <section className="mt-4 rounded-xl border border-border/50 px-4 py-4 sm:px-5">
+              <h2 className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                Scope details
+              </h2>
+              <div className="mt-4">
+                <QuoteScopeList
+                  blocks={quote.scopeBlocks}
+                  currency={quote.currency}
+                  paymentSchedule={quote.paymentSchedule}
+                />
+              </div>
+            </section>
+          ) : null}
 
           {/* Terms & conditions */}
           {quote.terms ? (

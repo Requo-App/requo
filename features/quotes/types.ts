@@ -284,7 +284,30 @@ export type PublicQuoteView = {
   customerRespondedAt: Date | null;
   customerResponseMessage: string | null;
   items: DashboardQuoteItem[];
+  scopeBlocks: Array<{
+    kind: import("@/lib/db/schema/scope-blocks").ScopeBlockKind;
+    content: Record<string, unknown>;
+  }>;
+  /**
+   * The schedule a customer acceptance would freeze. Rendered by the
+   * `payment_schedule` scope block on every customer-facing surface.
+   */
+  paymentSchedule: PublicQuotePaymentSchedule | null;
   acceptance?: QuoteAcceptanceView | null;
+};
+
+export type PublicQuotePaymentScheduleItem = {
+  id: string;
+  label: string;
+  category: import("@/lib/db/schema/payment-schedules").PaymentScheduleItemCategory;
+  amountCents: number;
+  dueDate: string | null;
+  dueCondition: string | null;
+};
+
+export type PublicQuotePaymentSchedule = {
+  version: number;
+  items: PublicQuotePaymentScheduleItem[];
 };
 
 /**
