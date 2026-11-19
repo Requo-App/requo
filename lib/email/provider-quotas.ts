@@ -1,13 +1,19 @@
 import "server-only";
 
 import { cacheLayer } from "@/lib/ai/cache-layer";
-import { env, isBrevoConfigured, isMailtrapConfigured, isResendConfigured } from "@/lib/env";
+import {
+  env,
+  isBrevoConfigured,
+  isMailtrapConfigured,
+  isResendConfigured,
+  isSmtpConfigured,
+} from "@/lib/env";
 import { EMAIL_PROVIDER_TIMEOUT_MS } from "@/lib/email/providers/utils";
 
 export type EmailQuotaStatus = "ok" | "unavailable" | "error";
 
 export type EmailProviderQuota = {
-  provider: "resend" | "mailtrap" | "brevo";
+  provider: "resend" | "mailtrap" | "brevo" | "smtp";
   label: string;
   configured: boolean;
   dailyUsed: number | null;
@@ -19,7 +25,7 @@ export type EmailProviderQuota = {
   message: string | null;
 };
 
-const QUOTA_CACHE_KEY = "admin:email-quotas";
+const QUOTA_CACHE_KEY = "admin:email-quotas:v2";
 const QUOTA_CACHE_TTL_SECONDS = 300;
 
 function unavailable(
@@ -254,17 +260,40 @@ async function getMailtrapQuota(): Promise<EmailProviderQuota> {
   }
 }
 
+function getSmtpConfiguration(): EmailProviderQuota {
+  return {
+    provider: "smtp",
+    label: "SMTP",
+    configured: isSmtpConfigured,
+    dailyUsed: null,
+    dailyLimit: null,
+    monthlyUsed: null,
+    monthlyLimit: null,
+    resetsAt: null,
+    status: "ok",
+    message: isSmtpConfigured
+      ? "Usage limits are managed by the SMTP service."
+      : "SMTP relay is not configured.",
+  };
+}
+
 /**
  * Live provider quotas, cached 5 minutes and fail-soft.
  *
- * Order matches the send fallback chain (Resend → Mailtrap → Brevo).
+ * API-provider order matches the send fallback chain (Resend → Mailtrap → Brevo).
+ * SMTP has no quota API, so it reports configuration only.
  * Never throws — every provider maps failures to a status row.
  */
 export async function getEmailProviderQuotas(): Promise<EmailProviderQuota[]> {
   const cached = await cacheLayer.get<EmailProviderQuota[]>(QUOTA_CACHE_KEY);
   if (cached) return cached;
 
-  const quotas = await Promise.all([getResendQuota(), getMailtrapQuota(), getBrevoQuota()]);
+  const quotas = await Promise.all([
+    getResendQuota(),
+    getMailtrapQuota(),
+    getBrevoQuota(),
+    getSmtpConfiguration(),
+  ]);
   await cacheLayer.set(QUOTA_CACHE_KEY, quotas, QUOTA_CACHE_TTL_SECONDS);
   return quotas;
 }

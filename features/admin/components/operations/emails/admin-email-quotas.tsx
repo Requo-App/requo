@@ -12,8 +12,10 @@ function formatQuotaValue(used: number | null, limit: number | null): string {
 }
 
 function QuotaBadge({ quota }: { quota: AdminEmailQuota }) {
-  if (!quota.configured || quota.status === "unavailable") return <Badge variant="ghost">Unavailable</Badge>;
+  if (!quota.configured) return <Badge variant="ghost">Not configured</Badge>;
   if (quota.status === "error") return <Badge variant="destructive">Error</Badge>;
+  if (quota.provider === "smtp") return <Badge variant="secondary">Configured</Badge>;
+  if (quota.status === "unavailable") return <Badge variant="ghost">Quota unavailable</Badge>;
   return <Badge variant="secondary">Live</Badge>;
 }
 
@@ -32,7 +34,7 @@ export async function AdminEmailQuotasSection() {
       description={`Sent ${data.sentLast24h.toLocaleString("en-US")} in 24h · ${data.sentLast7d.toLocaleString("en-US")} in 7d · ${data.failedLast24h.toLocaleString("en-US")} failed in 24h. Provider quotas refresh every 5 minutes.`}
       title="Limits"
     >
-      <ul className="grid gap-3 sm:grid-cols-3">
+      <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {data.quotas.map((quota) => {
           const hasQuotaData =
             quota.dailyUsed !== null ||
@@ -79,8 +81,8 @@ export function AdminEmailQuotasFallback() {
   return (
     <div className="section-panel space-y-3">
       <Skeleton className="h-5 w-32 rounded-md" />
-      <div className="grid gap-3 sm:grid-cols-3">
-        {Array.from({ length: 3 }).map((_, index) => (
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, index) => (
           <Skeleton className="h-24 w-full rounded-lg" key={index} />
         ))}
       </div>
