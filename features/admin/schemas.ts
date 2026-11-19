@@ -79,6 +79,18 @@ export const adminForceVerifyEmailSchema = z
   })
   .strict();
 
+/**
+ * Retry a failed transactional email after the provider recovers. The
+ * outbox row is the source of truth for recipients/body, so the admin
+ * only identifies the row and confirms their password.
+ */
+export const adminRetryEmailSchema = z
+  .object({
+    emailId: adminIdSchema,
+    confirmToken: adminConfirmTokenSchema,
+  })
+  .strict();
+
 export const adminRevokeAllSessionsSchema = z
   .object({
     targetUserId: adminIdSchema,
@@ -583,6 +595,7 @@ export const adminAuditLogListFiltersSchema = z.object({  adminUserId: z
 export type AdminForceVerifyEmailInput = z.infer<
   typeof adminForceVerifyEmailSchema
 >;
+export type AdminRetryEmailInput = z.infer<typeof adminRetryEmailSchema>;
 export type AdminRevokeAllSessionsInput = z.infer<
   typeof adminRevokeAllSessionsSchema
 >;

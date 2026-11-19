@@ -11,6 +11,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AdminEmailStatusBadge } from "@/features/admin/components/primitives/admin-status-badges";
+import { AdminEmailRetryAction } from "@/features/admin/components/operations/emails/admin-email-retry-action";
 import { EmailHtmlPreview } from "@/features/admin/components/operations/emails/email-html-preview";
 import { getAdminBusinessDetailPath } from "@/features/admin/navigation";
 import type {
@@ -143,6 +144,11 @@ export function AdminEmailDeliverySection({
         <DetailRow label="Idempotency key" value={detail.idempotencyKey} />
         <DetailRow label="Updated" value={formatDateTime(detail.updatedAt)} />
       </dl>
+      <AdminEmailRetryAction
+        emailId={detail.id}
+        status={detail.status}
+        type={detail.type}
+      />
     </DashboardSection>
   );
 }

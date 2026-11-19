@@ -53,6 +53,8 @@ export const ADMIN_ACTIONS = [
   "business.archive",
   "business.restore",
   "business.delete",
+  // Email delivery recovery
+  "email.retry",
   // Impersonation lifecycle
   "impersonation.start",
   "impersonation.stop",
@@ -121,6 +123,13 @@ export const ADMIN_MAX_RECENT_ACTIVITY_LIMIT = 50;
  * window rather than a paginated list.
  */
 export const ADMIN_AI_SECURITY_EVENTS_LIMIT = 20;
+
+/**
+ * How many of the newest `ai_routing_events` rows the AI errors page
+ * shows. Routing telemetry is high-volume, so this is a fixed diagnostic
+ * window rather than a paginated list.
+ */
+export const ADMIN_AI_ROUTING_EVENTS_LIMIT = 20;
 
 /**
  * Provider ids the admin AI surface knows about.
