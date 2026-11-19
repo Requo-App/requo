@@ -59,6 +59,8 @@ export default defineConfig({
           RESEND_REPLY_TO_EMAIL: "",
           MAILTRAP_API_TOKEN: "",
           BREVO_API_KEY: "",
+          SMTP_HOST: "",
+          SMTP_PORT: "",
           UPSTASH_REDIS_REST_URL: "",
           UPSTASH_REDIS_REST_TOKEN: "",
         },
