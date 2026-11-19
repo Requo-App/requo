@@ -69,6 +69,11 @@ root [`SECURITY.md`](../../SECURITY.md).
   [`features/admin/access.ts`](../../features/admin/access.ts),
   [`lib/auth/admin-identity.ts`](../../lib/auth/admin-identity.ts), and
   [`lib/auth/config.ts`](../../lib/auth/config.ts) before changing this boundary.
+- Admin email retry is a password-confirmed action. The server action re-reads
+  the outbox row, refuses `sent`, in-flight `sending`, `unknown`, auth, and
+  body-redacted rows, reuses the original idempotency key, and records an
+  `email.retry` audit row with the outcome. The confirmation token gates the
+  action; the outbox claim rules remain the duplicate-send guard.
 
 ## Public capabilities and files
 

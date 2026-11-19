@@ -48,6 +48,7 @@ export const adminActionLabels: Record<AdminAction, string> = {
   "business.archive": "Archived business",
   "business.restore": "Restored business",
   "business.delete": "Deleted business",
+  "email.retry": "Retried email delivery",
   "impersonation.start": "Started impersonation",
   "impersonation.stop": "Stopped impersonation",
   "confirmation.failed": "Password re-confirmation failed",

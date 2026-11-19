@@ -23,6 +23,7 @@ import {
   adminForceVerifyEmailSchema,
   adminManualPlanOverrideSchema,
   adminPromoteUserSchema,
+  adminRetryEmailSchema,
   adminRevokeAllSessionsSchema,
   adminStartImpersonationSchema,
   adminSuspendUserSchema,
@@ -43,12 +44,14 @@ import {
   type AdminCancelBusinessSubscriptionInput,
   type AdminManualPlanOverrideInput,
   type AdminPromoteUserInput,
+  type AdminRetryEmailInput,
   type AdminRevokeAllSessionsInput,
   type AdminStartImpersonationInput,
   type AdminSuspendUserInput,
   type AdminUnsuspendUserInput,
 } from "@/features/admin/schemas";
 import type { AdminActionResult } from "@/features/admin/types";
+import { buildEmailRetryInput, getEmailRetryBlockReason } from "@/features/admin/email-retry";
 import { writeAccountAuditLogsForUser } from "@/features/audit/mutations";
 import type { AuditAction } from "@/features/audit/types";
 import { getUserSafeErrorMessage } from "@/lib/action-state";
@@ -84,9 +87,12 @@ import { db } from "@/lib/db/client";
 import {
   businessSubscriptions,
   businesses,
+  emailOutbox,
   session,
   user,
 } from "@/lib/db/schema";
+import { sendEmailWithFallback } from "@/lib/email";
+import { EmailSendError } from "@/lib/email/errors";
 import type { PlanTier } from "@/lib/plans/plans";
 
 /* ──────────────────────────────────────────────────────────────────────────
@@ -407,6 +413,138 @@ export async function forceVerifyEmailAction(
   return {
     ok: true,
     message: `Email verified for ${target.email}.`,
+  };
+}
+
+/**
+ * Retry a failed transactional email from its outbox row (support
+ * recovery). Reuses the original idempotency key so the existing
+ * claim/retry guards remain authoritative: `unknown` delivery, fresh
+ * `sending` claims, and already-`sent` rows are refused. Auth emails are
+ * refused because their stored body is redacted.
+ *
+ * The provider call cannot join the audit transaction (it is an external
+ * side effect), so the audit row is written immediately after the attempt
+ * with the outcome. A failed audit write never hides the delivery result
+ * from the admin; it is logged for follow-up.
+ */
+export async function retryEmailAction(
+  input: AdminRetryEmailInput,
+): Promise<AdminActionResult> {
+  const { session: authSession, user: admin } = await requireAdminUser();
+  const auditContext = resolveAuditContext(admin, authSession);
+
+  const parsed = adminRetryEmailSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: "We couldn't verify that request. Refresh and try again.",
+      fieldErrors: mapZodFieldErrors(parsed.error.issues),
+    };
+  }
+
+  const { emailId, confirmToken } = parsed.data;
+
+  const tokenResult = await processConfirmToken(
+    auditContext,
+    confirmToken,
+    "email.retry",
+    emailId,
+    "email",
+  );
+  if (!tokenResult.ok) {
+    return tokenResult;
+  }
+
+  const [row] = await db
+    .select({
+      businessId: emailOutbox.businessId,
+      userId: emailOutbox.userId,
+      type: emailOutbox.type,
+      to: emailOutbox.to,
+      cc: emailOutbox.cc,
+      bcc: emailOutbox.bcc,
+      from: emailOutbox.from,
+      subject: emailOutbox.subject,
+      html: emailOutbox.html,
+      textBody: emailOutbox.textBody,
+      status: emailOutbox.status,
+      idempotencyKey: emailOutbox.idempotencyKey,
+      metadata: emailOutbox.metadata,
+    })
+    .from(emailOutbox)
+    .where(eq(emailOutbox.id, emailId))
+    .limit(1);
+
+  if (!row) {
+    return { ok: false, error: "That email no longer exists." };
+  }
+
+  const blockReason = getEmailRetryBlockReason(row);
+  if (blockReason) {
+    return { ok: false, error: blockReason };
+  }
+
+  let provider: string | null = null;
+  let failureMessage: string | null = null;
+  let failureCode: string | null = null;
+
+  try {
+    const result = await sendEmailWithFallback(buildEmailRetryInput(row));
+    provider = result.provider;
+  } catch (error) {
+    failureMessage =
+      getUserSafeErrorMessage(
+        error,
+        "The email still couldn't be delivered. Check the provider status and try again.",
+      ).slice(0, 500) ||
+      "The email still couldn't be delivered. Check the provider status and try again.";
+    failureCode = error instanceof EmailSendError ? error.code : null;
+    console.error("Admin email retry failed.", error);
+  }
+
+  let auditFailure = false;
+
+  try {
+    await writeAdminAuditLog({
+      context: auditContext,
+      action: "email.retry",
+      targetType: "email",
+      targetId: emailId,
+      metadata: {
+        outcome: failureMessage ? "failed" : "sent",
+        emailType: row.type,
+        subject: row.subject,
+        provider,
+        ...(failureCode ? { errorCode: failureCode } : {}),
+      },
+    });
+  } catch (error) {
+    // A privileged retry must not look successful without its audit row.
+    // Surface it so an operator can reconcile the attempt.
+    auditFailure = true;
+    console.error("Failed to write email.retry admin audit log.", error);
+  }
+
+  revalidateTag(adminEmailsTag(), "max");
+  revalidateTag(adminAuditTag(), "max");
+  revalidateTag(adminDashboardTag(), "max");
+
+  if (failureMessage) {
+    return { ok: false, error: failureMessage };
+  }
+
+  if (auditFailure) {
+    return {
+      ok: false,
+      error:
+        "The email was sent, but the audit record for this retry could not be written. Report this so the attempt can be reconciled.",
+    };
+  }
+
+  return {
+    ok: true,
+    message: `Email retry accepted by ${provider ?? "the configured provider"}.`,
   };
 }
 
