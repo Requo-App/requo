@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
@@ -68,6 +69,7 @@ import {
   } from "@/features/quotes/schemas";
 import {
   getBusinessQuotePath,
+  getBusinessQuotesPath,
 } from "@/features/businesses/routes";
 import type {
   PublicQuoteResponseActionState,
@@ -652,6 +654,16 @@ export async function sendQuoteAction(
       ),
     );
 
+    // Quote links carry a public cache header so customers can read them
+    // quickly. `revalidatePath` clears the Next.js server cache for the route,
+    // but the CDN copy (`/quote/:path*`, `s-maxage=60`,
+    // `stale-while-revalidate=300` in next.config.ts) can keep serving a
+    // cached draft 404 until its TTL expires. That ~60s window is accepted:
+    // the page is request-time rendered on the next origin fetch, and there is
+    // no CDN purge hook in this deployment.
+    revalidatePath(getBusinessQuotesPath(businessContext.business.slug));
+    revalidatePath(getPublicQuoteUrl(quote.publicToken));
+
     return {
       success:
         deliveryMethod === "manual"
@@ -903,6 +915,9 @@ export async function respondToPublicQuoteAction(
         error: "This quote is not accepting responses right now.",
       };
     }
+
+    revalidatePath(getBusinessQuotePath(result.businessSlug, result.quoteId));
+    revalidatePath(getBusinessQuotesPath(result.businessSlug));
 
     // Owner notifications for accepted/rejected quotes are handled natively in
     // respondToPublicQuoteByToken (in-app) and sendPushQuoteResponseEvent (push).
