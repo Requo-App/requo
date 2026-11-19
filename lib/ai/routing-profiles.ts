@@ -63,7 +63,6 @@ const ASSISTANT_CHAT_ORDER = withCustom([
   "groq:openai/gpt-oss-20b",
   "cloudflare:@cf/openai/gpt-oss-120b",
   "cloudflare:@cf/openai/gpt-oss-20b",
-  "openrouter:nvidia/nemotron-3-super-120b-a12b:free",
   "openrouter:nvidia/nemotron-3-ultra-550b-a55b:free",
   "openrouter:nvidia/nemotron-3.5-lightning:free",
 ] as Array<`${string}:${string}`>);
@@ -83,7 +82,6 @@ const AGENT_CHAT_ORDER = withCustom([
   "groq:qwen/qwen3.8-27b",
   "cloudflare:@cf/openai/gpt-oss-20b",
   "cloudflare:@cf/openai/gpt-oss-120b",
-  "openrouter:nvidia/nemotron-3-super-120b-a12b:free",
   "openrouter:nvidia/nemotron-3-ultra-550b-a55b:free",
   "openrouter:nvidia/nemotron-3.5-lightning:free",
 ] as Array<`${string}:${string}`>);
@@ -100,7 +98,6 @@ const QUOTE_ORDER = withCustom([
   "google:gemini-3.1-flash-lite",
   "google:gemini-3.5-flash-lite",
   "openrouter:nvidia/nemotron-3-ultra-550b-a55b:free",
-  "openrouter:nvidia/nemotron-3-super-120b-a12b:free",
   "openrouter:nvidia/nemotron-3.5-lightning:free",
   "openrouter:google/gemma-4-31b-it:free",
   "cloudflare:@cf/openai/gpt-oss-120b",
