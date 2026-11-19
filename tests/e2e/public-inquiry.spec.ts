@@ -64,6 +64,14 @@ test("public inquiry page accepts a new submission @smoke", async ({ page }) => 
     .fill(
       "Need two front-window vinyl panels and a smaller door decal for a spring refresh.",
     );
+  // The print/signage recipe marks these as critical, so the public form makes
+  // them required even though the seeded form config did not include them.
+  await page
+    .locator("#inquiry-custom_recipe-dimensions:visible")
+    .fill("24 x 36 in");
+  await page
+    .locator("#inquiry-custom_recipe-material:visible")
+    .fill("13 oz vinyl");
 
   await page.getByRole("button", { name: "Send" }).click();
 

@@ -1222,6 +1222,124 @@ export function getInquiryFormFieldInputName(
   return `custom_${field.id}`;
 }
 
+/**
+ * Stable input id for a recipe critical field. This is the legacy shape: it
+ * slugifies the label, so two different labels can collide (for example
+ * "Site size (sq ft)" and "Site size sq ft"). New fields use
+ * `getRecipeCriticalFieldIdForLabel`; this stays exported for existing
+ * snapshots and id aliases.
+ */
+export function getRecipeCriticalFieldId(label: string) {
+  const normalizedLabel = label.trim().toLowerCase();
+  const idSuffix = normalizedLabel
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 100);
+
+  return `recipe-${idSuffix || "critical-field"}`;
+}
+
+/**
+ * Deterministic short suffix (FNV-1a) of the original label. Pure JS so the
+ * same derivation works in server code and in client form components.
+ */
+function getLabelHashSuffix(label: string) {
+  const value = label.trim().toLowerCase();
+  let hash = 0x811c9dc5;
+
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+
+  return (hash >>> 0).toString(36).padStart(7, "0").slice(0, 7);
+}
+
+/**
+ * Collision-resistant stable id for a derived critical field. Labels that
+ * slugify identically (punctuation, non-Latin scripts) still get distinct
+ * ids, so neither question is silently skipped.
+ */
+export function getRecipeCriticalFieldIdForLabel(label: string) {
+  return `${getRecipeCriticalFieldId(label)}-${getLabelHashSuffix(label)}`;
+}
+
+/**
+ * Makes the active intake recipe's critical questions available on the form.
+ * Existing fields keep their configured input type; missing questions use a
+ * short text input so the owner/customer can provide the required value. The
+ * standard details field remains the source for the recipe's Project details
+ * question and is matched by its stable system key in readiness evaluation.
+ */
+export function requireCriticalInquiryFields(
+  config: InquiryFormConfig,
+  criticalLabels: string[],
+): InquiryFormConfig {
+  const projectFields = [...config.projectFields];
+  const normalizedLabels = new Set(
+    projectFields.map((field) => field.label.trim().toLowerCase()),
+  );
+  const criticalDetailsLabels = new Set([
+    "project details",
+    "project brief",
+    "challenge or goal",
+  ]);
+
+  for (const rawLabel of criticalLabels) {
+    const label = rawLabel.trim();
+    const normalizedLabel = label.toLowerCase();
+
+    if (!label || normalizedLabels.has(normalizedLabel)) {
+      const matchingIndex = projectFields.findIndex(
+        (field) => field.label.trim().toLowerCase() === normalizedLabel,
+      );
+      const matchingField = projectFields[matchingIndex];
+
+      if (matchingField && !matchingField.required) {
+        projectFields[matchingIndex] = {
+          ...matchingField,
+          required: true,
+          ...(matchingField.kind === "system" ? { enabled: true } : {}),
+        };
+      }
+
+      continue;
+    }
+
+    if (
+      criticalDetailsLabels.has(normalizedLabel) &&
+      projectFields.some(
+        (field) => field.kind === "system" && field.key === "details",
+      )
+    ) {
+      continue;
+    }
+
+    // This is derived from the active recipe label, not persisted as a new
+    // service setting. Stable, collision-resistant IDs keep the render and
+    // action configs aligned even when two labels slugify identically.
+    const id = getRecipeCriticalFieldIdForLabel(label);
+
+    if (projectFields.some((field) => field.kind === "custom" && field.id === id)) {
+      continue;
+    }
+
+    // The 24-field cap applies to the owner's persisted form config. A
+    // required question must never be dropped here: readiness would then block
+    // every inquiry with no way for the owner to answer it.
+    projectFields.push({
+      kind: "custom",
+      id,
+      fieldType: "short_text",
+      label,
+      required: true,
+    });
+    normalizedLabels.add(normalizedLabel);
+  }
+
+  return { ...config, projectFields };
+}
+
 export function getInquirySubmittedFieldValueDisplay(
   value: string | string[] | boolean | null,
 ) {

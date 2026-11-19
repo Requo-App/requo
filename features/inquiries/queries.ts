@@ -27,7 +27,12 @@ export const getInquiryRecordState = inquiryRecordState;
 import {
   getNormalizedInquiryFormConfig,
   getNormalizedInquirySubmittedFieldSnapshot,
+  requireCriticalInquiryFields,
 } from "@/features/inquiries/form-config";
+import {
+  getCriticalIntakeFieldLabelsForBusiness,
+  listCriticalIntakeGaps,
+} from "@/features/businesses/intake-bindings";
 import {
   getEffectiveInquiryStatus as effectiveInquiryStatus,
   getInquiryRecordState as inquiryRecordState,
@@ -46,6 +51,7 @@ import {
   getServiceCacheTags,
   getServicesCacheTags,
   getBusinessInquiryListCacheTags,
+  getBusinessPackCacheTags,
   hotBusinessCacheLife,
 } from "@/lib/cache/business-tags";
 import { withCircuitBreaker } from "@/lib/db/circuit-breaker";
@@ -99,6 +105,7 @@ async function getCachedPublicInquiryBusinessBySlug(
     cacheTag(
       ...getServicesCacheTags(business.id),
       ...getServiceCacheTags(business.id, business.form.slug),
+      ...getBusinessPackCacheTags(business.id),
     );
   }
 
@@ -171,11 +178,19 @@ async function getInquiryBusinessBySlug({
   // visitor gave to fields the render path showed but the action dropped.
   const effectivePlan = await getCachedEffectivePlanForBusiness(business.id);
 
-  const inquiryFormConfig = getNormalizedInquiryFormConfig(
+  const normalizedFormConfig = getNormalizedInquiryFormConfig(
     business.inquiryFormConfig,
     {
       businessType: formBusinessType,
     },
+  );
+  const criticalLabels = await getCriticalIntakeFieldLabelsForBusiness({
+    businessId: business.id,
+    businessType: formBusinessType,
+  });
+  const inquiryFormConfig = requireCriticalInquiryFields(
+    resolveInquiryFormConfigForPlan(normalizedFormConfig, effectivePlan),
+    criticalLabels,
   );
   const inquiryPageConfig = getNormalizedInquiryPageConfig(
     business.inquiryPageConfig,
@@ -205,10 +220,7 @@ async function getInquiryBusinessBySlug({
       isDefault: business.formIsDefault,
       publicInquiryEnabled: business.formPublicInquiryEnabled,
     },
-    inquiryFormConfig: resolveInquiryFormConfigForPlan(
-      inquiryFormConfig,
-      effectivePlan,
-    ),
+    inquiryFormConfig,
     inquiryPageConfig: resolveInquiryPageConfigForPlan(
       inquiryPageConfig,
       effectivePlan,
@@ -250,6 +262,7 @@ async function getCachedPublicInquiryBusinessByServiceSlug({
     cacheTag(
       ...getServicesCacheTags(business.id),
       ...getServiceCacheTags(business.id, business.form.slug),
+      ...getBusinessPackCacheTags(business.id),
     );
   }
 
@@ -290,6 +303,7 @@ async function getCachedInquiryBusinessPreviewByServiceSlug({
     cacheTag(
       ...getServicesCacheTags(business.id),
       ...getServiceCacheTags(business.id, business.form.slug),
+      ...getBusinessPackCacheTags(business.id),
     );
   }
 
@@ -364,11 +378,19 @@ async function getInquiryBusinessByServiceSlug({
   // visitor gave to fields the render path showed but the action dropped.
   const effectivePlan = await getCachedEffectivePlanForBusiness(business.id);
 
-  const inquiryFormConfig = getNormalizedInquiryFormConfig(
+  const normalizedFormConfig = getNormalizedInquiryFormConfig(
     business.inquiryFormConfig,
     {
       businessType: formBusinessType,
     },
+  );
+  const criticalLabels = await getCriticalIntakeFieldLabelsForBusiness({
+    businessId: business.id,
+    businessType: formBusinessType,
+  });
+  const inquiryFormConfig = requireCriticalInquiryFields(
+    resolveInquiryFormConfigForPlan(normalizedFormConfig, effectivePlan),
+    criticalLabels,
   );
   const inquiryPageConfig = getNormalizedInquiryPageConfig(
     business.inquiryPageConfig,
@@ -398,10 +420,7 @@ async function getInquiryBusinessByServiceSlug({
       isDefault: business.formIsDefault,
       publicInquiryEnabled: business.formPublicInquiryEnabled,
     },
-    inquiryFormConfig: resolveInquiryFormConfigForPlan(
-      inquiryFormConfig,
-      effectivePlan,
-    ),
+    inquiryFormConfig,
     inquiryPageConfig: resolveInquiryPageConfigForPlan(
       inquiryPageConfig,
       effectivePlan,
@@ -1078,13 +1097,28 @@ export async function getInquiryRelatedQuotesForBusiness({
   return getCachedInquiryRelatedQuotes({ businessId, inquiryId });
 }
 
+/**
+ * Missing critical intake answers for an older inquiry. Historical form
+ * versions could omit a field that the active recipe now requires; the owner
+ * collects the value here rather than recreating the inquiry.
+ */
+export async function getInquiryIntakeGapsForBusiness({
+  businessId,
+  inquiryId,
+}: GetInquiryDetailForBusinessInput) {
+  return listCriticalIntakeGaps({ businessId, inquiryId });
+}
+
 export async function getServiceOptionsForBusiness(
   businessId: string,
 ) {
   "use cache";
 
   cacheLife(hotBusinessCacheLife);
-  cacheTag(...getServicesCacheTags(businessId));
+  cacheTag(
+    ...getServicesCacheTags(businessId),
+    ...getBusinessPackCacheTags(businessId),
+  );
 
   return db
     .select({
@@ -1105,7 +1139,10 @@ export async function getInquiryEditorServicesForBusiness(
   "use cache";
 
   cacheLife(hotBusinessCacheLife);
-  cacheTag(...getServicesCacheTags(businessId));
+  cacheTag(
+    ...getServicesCacheTags(businessId),
+    ...getBusinessPackCacheTags(businessId),
+  );
 
   const serviceRows = await db
     .select({
@@ -1129,6 +1166,11 @@ export async function getInquiryEditorServicesForBusiness(
   // Same plan source as the public inquiry path — the authoritative
   // subscription, not the denormalized `businesses.plan` read cache.
   const effectivePlan = await getCachedEffectivePlanForBusiness(businessId);
+  const businessType = normalizeBusinessType(serviceRows[0]?.businessType);
+  const criticalLabels = await getCriticalIntakeFieldLabelsForBusiness({
+    businessId,
+    businessType,
+  });
 
   return serviceRows.map((service) => {
     const businessType = normalizeBusinessType(service.businessType);
@@ -1140,11 +1182,14 @@ export async function getInquiryEditorServicesForBusiness(
       businessType,
       isDefault: service.isDefault,
       publicInquiryEnabled: service.publicInquiryEnabled,
-      inquiryFormConfig: resolveInquiryFormConfigForPlan(
-        getNormalizedInquiryFormConfig(service.inquiryFormConfig, {
-          businessType,
-        }),
-        effectivePlan,
+      inquiryFormConfig: requireCriticalInquiryFields(
+        resolveInquiryFormConfigForPlan(
+          getNormalizedInquiryFormConfig(service.inquiryFormConfig, {
+            businessType,
+          }),
+          effectivePlan,
+        ),
+        criticalLabels,
       ),
     } satisfies InquiryEditorService;
   });
@@ -1163,6 +1208,7 @@ export async function getInquiryEditorServiceForBusiness({
   cacheTag(
     ...getServicesCacheTags(businessId),
     ...getServiceCacheTags(businessId, serviceSlug),
+    ...getBusinessPackCacheTags(businessId),
   );
 
   const [service] = await db
@@ -1194,6 +1240,10 @@ export async function getInquiryEditorServiceForBusiness({
   // Same plan source as the public inquiry path — the authoritative
   // subscription, not the denormalized `businesses.plan` read cache.
   const effectivePlan = await getCachedEffectivePlanForBusiness(businessId);
+  const criticalLabels = await getCriticalIntakeFieldLabelsForBusiness({
+    businessId,
+    businessType,
+  });
 
   return {
     id: service.id,
@@ -1202,11 +1252,14 @@ export async function getInquiryEditorServiceForBusiness({
     businessType,
     isDefault: service.isDefault,
     publicInquiryEnabled: service.publicInquiryEnabled,
-    inquiryFormConfig: resolveInquiryFormConfigForPlan(
-      getNormalizedInquiryFormConfig(service.inquiryFormConfig, {
-        businessType,
-      }),
-      effectivePlan,
+    inquiryFormConfig: requireCriticalInquiryFields(
+      resolveInquiryFormConfigForPlan(
+        getNormalizedInquiryFormConfig(service.inquiryFormConfig, {
+          businessType,
+        }),
+        effectivePlan,
+      ),
+      criticalLabels,
     ),
   } satisfies InquiryEditorService;
 }

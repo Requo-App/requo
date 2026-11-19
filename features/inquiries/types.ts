@@ -260,6 +260,11 @@ export type InquiryRecordActionState = {
   success?: string;
 };
 
+export type InquiryIntakeCompletionActionState = {
+  error?: string;
+  success?: string;
+};
+
 export type PublicInquiryBusiness = {
   id: string;
   name: string;

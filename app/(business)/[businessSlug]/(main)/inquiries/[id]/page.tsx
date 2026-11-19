@@ -58,11 +58,13 @@ import {
   addInquiryNoteAction,
   archiveInquiryAction,
   changeInquiryStatusAction,
+  completeInquiryIntakeAction,
   deleteInquiryAction,
   unarchiveInquiryAction,
 } from "@/features/inquiries/actions";
 import { CopyEmailButton } from "@/features/inquiries/components/copy-email-button";
 import { AgentTranscriptSection } from "@/features/inquiries/components/agent-transcript-section";
+import { InquiryIntakeCompletion } from "@/features/inquiries/components/inquiry-intake-completion";
 import { InquiryDuplicateBanner } from "@/features/inquiries/components/inquiry-duplicate-banner";
 import { InquiryQuoteActions } from "@/features/inquiries/components/inquiry-quote-actions";
 import { InquiryRecordStateBadge } from "@/features/inquiries/components/inquiry-record-state-badge";
@@ -74,6 +76,7 @@ import {
   getInquiryAttachmentsForBusiness,
   getInquiryDetailCoreForBusiness,
   getInquiryDuplicateForBusiness,
+  getInquiryIntakeGapsForBusiness,
   getInquiryNotesForBusiness,
   getInquiryRelatedQuotesForBusiness,
 } from "@/features/inquiries/queries";
@@ -196,6 +199,10 @@ async function InquiryDetailRegion({
   const archiveAction = archiveInquiryAction.bind(null, inquiry.id);
   const unarchiveAction = unarchiveInquiryAction.bind(null, inquiry.id);
   const deleteAction = deleteInquiryAction.bind(null, inquiry.id);
+  const intakeCompletionAction = completeInquiryIntakeAction.bind(
+    null,
+    inquiry.id,
+  );
   const createFollowUpAction = createInquiryFollowUpAction.bind(null, inquiry.id);
   const customFields = getCustomSubmittedFields(
     inquiry.submittedFieldSnapshot,
@@ -320,6 +327,14 @@ async function InquiryDetailRegion({
             customFields={customFields}
             inquiry={inquiry}
           />
+
+          <Suspense fallback={null}>
+            <InquiryIntakeCompletionRegion
+              action={intakeCompletionAction}
+              businessId={businessId}
+              inquiryId={inquiry.id}
+            />
+          </Suspense>
 
           <Suspense fallback={null}>
             <InquiryAttachmentsRegion
@@ -759,6 +774,24 @@ function InquiryOverviewSection({
       ) : null}
     </DashboardSection>
   );
+}
+
+async function InquiryIntakeCompletionRegion({
+  action,
+  businessId,
+  inquiryId,
+}: {
+  action: React.ComponentProps<typeof InquiryIntakeCompletion>["action"];
+  businessId: string;
+  inquiryId: string;
+}) {
+  const gaps = await getInquiryIntakeGapsForBusiness({ businessId, inquiryId });
+
+  if (!gaps.length) {
+    return null;
+  }
+
+  return <InquiryIntakeCompletion action={action} gaps={gaps} />;
 }
 
 function InquiryContactSection({

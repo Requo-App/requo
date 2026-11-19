@@ -1,13 +1,21 @@
 import "server-only";
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 
-import type { BehaviorPackKey } from "@/features/businesses/behavior-packs";
+import {
+  getBehaviorPack,
+  type BehaviorPackKey,
+} from "@/features/businesses/behavior-packs";
+import {
+  normalizeBusinessType,
+  type BusinessType,
+} from "@/features/inquiries/business-types";
 import {
   type IntakeBindingBehavior,
   intakeBindingBehaviors,
 } from "@/features/businesses/pack-recipe-defaults";
 import { getActiveRecipeForBusiness } from "@/features/businesses/pack-recipes";
+import { getRecipeCriticalFieldIdForLabel } from "@/features/inquiries/form-config";
 import { db } from "@/lib/db/client";
 import { businesses, inquiries } from "@/lib/db/schema";
 import type { PackRecipeKind } from "@/lib/db/schema/pack-recipes";
@@ -23,6 +31,111 @@ export type ReadinessEvaluation = {
   warnings: string[];
 };
 
+export type CriticalIntakeFieldDefinition = {
+  label: string;
+  normalizedLabel: string;
+  criticality: string;
+  behaviors: unknown[];
+};
+
+export type CriticalIntakeGap = {
+  /** Existing snapshot field id, or the stable recipe-derived input id. */
+  fieldId: string;
+  label: string;
+  reason: "missing" | "empty";
+};
+
+async function loadCriticalIntakeFields(input: {
+  businessId: string;
+  businessType: BusinessType;
+}): Promise<CriticalIntakeFieldDefinition[] | null> {
+  const pack = getBehaviorPack(input.businessType);
+  if (!pack) return [];
+
+  const recipe = await getActiveRecipeForBusiness(
+    input.businessId,
+    "intake" satisfies PackRecipeKind,
+    pack,
+  );
+
+  return extractCriticalFields(recipe.config);
+}
+
+export async function getCriticalIntakeFieldLabelsForBusiness(input: {
+  businessId: string;
+  businessType: BusinessType;
+}): Promise<string[]> {
+  const fields = await loadCriticalIntakeFields(input);
+
+  return (fields ?? [])
+    .filter((field) => field.criticality === "critical")
+    .map((field) => field.label);
+}
+
+/**
+ * Critical questions this inquiry cannot answer from its submitted snapshot.
+ * Read-only projection of the same resolver the send gate uses; the owner UI
+ * uses it to collect historical values without weakening the server checks.
+ */
+export async function listCriticalIntakeGaps(input: {
+  businessId: string;
+  inquiryId: string;
+}): Promise<CriticalIntakeGap[]> {
+  const [business] = await db
+    .select({ businessType: businesses.businessType })
+    .from(businesses)
+    .where(eq(businesses.id, input.businessId))
+    .limit(1);
+
+  if (!business) return [];
+
+  const fields = await loadCriticalIntakeFields({
+    businessId: input.businessId,
+    businessType: normalizeBusinessType(business.businessType),
+  });
+
+  if (!fields) return [];
+
+  const [inquiry] = await db
+    .select({ submittedFieldSnapshot: inquiries.submittedFieldSnapshot })
+    .from(inquiries)
+    .where(
+      and(
+        eq(inquiries.id, input.inquiryId),
+        eq(inquiries.businessId, input.businessId),
+        isNull(inquiries.deletedAt),
+      ),
+    )
+    .limit(1);
+
+  if (!inquiry) return [];
+
+  const snapshotFields = inquiry.submittedFieldSnapshot?.fields ?? [];
+  const gaps: CriticalIntakeGap[] = [];
+
+  for (const field of fields) {
+    if (field.criticality !== "critical") continue;
+
+    const submittedField = resolveSubmittedField(snapshotFields, field);
+
+    if (!submittedField) {
+      gaps.push({
+        fieldId: getRecipeCriticalFieldIdForLabel(field.label),
+        label: field.label,
+        reason: "missing",
+      });
+    } else if (!isValuePresent(submittedField.value)) {
+      gaps.push({
+        fieldId: submittedField.id,
+        label: field.label,
+        reason: "empty",
+      });
+    }
+  }
+
+  return gaps;
+}
+
 function normalizeLabel(value: string) {
   return value.trim().toLowerCase();
 }
@@ -32,6 +145,40 @@ function isValuePresent(value: string | string[] | boolean | null) {
   if (typeof value === "boolean") return value;
   if (Array.isArray(value)) return value.some((entry) => String(entry).trim().length > 0);
   return String(value).trim().length > 0;
+}
+
+/**
+ * The standard inquiry `details` field is the canonical project brief on both
+ * the public form and the owner's quick-add form. Older form labels such as
+ * "What do you need help with?" do not necessarily match a pack's "Project
+ * details" recipe label, so use the stable system field key as a fallback when
+ * there is no exact label match.
+ */
+const projectDetailsFieldLabels = new Set([
+  "project details",
+  "project brief",
+  "challenge or goal",
+]);
+
+function resolveSubmittedField(
+  fields: Array<{
+    id: string;
+    label: string;
+    value: string | string[] | boolean | null;
+  }>,
+  field: CriticalIntakeFieldDefinition,
+) {
+  const exact = fields.find(
+    (entry) => normalizeLabel(entry.label) === field.normalizedLabel,
+  );
+
+  if (exact) return exact;
+
+  if (projectDetailsFieldLabels.has(field.normalizedLabel)) {
+    return fields.find((entry) => entry.id === "details");
+  }
+
+  return undefined;
 }
 
 function isKnownBehavior(value: unknown): value is IntakeBindingBehavior {
@@ -136,12 +283,7 @@ export async function evaluateIntakeReadiness(input: {
     };
   }
 
-  const submitted = new Map<string, string | string[] | boolean | null>();
-
-  for (const field of inquiry.submittedFieldSnapshot?.fields ?? []) {
-    submitted.set(normalizeLabel(field.label), field.value);
-  }
-
+  const snapshotFields = inquiry.submittedFieldSnapshot?.fields ?? [];
   const blockedReasons: string[] = [];
   const warnings: string[] = [];
 
@@ -155,7 +297,9 @@ export async function evaluateIntakeReadiness(input: {
       }
     }
 
-    if (!submitted.has(field.normalizedLabel)) {
+    const submittedField = resolveSubmittedField(snapshotFields, field);
+
+    if (!submittedField) {
       if (field.criticality === "critical") {
         blockedReasons.push(
           `Critical intake field "${field.label}" is not present on this inquiry; failing closed.`,
@@ -167,7 +311,10 @@ export async function evaluateIntakeReadiness(input: {
       continue;
     }
 
-    if (field.criticality === "critical" && !isValuePresent(submitted.get(field.normalizedLabel) ?? null)) {
+    if (
+      field.criticality === "critical" &&
+      !isValuePresent(submittedField.value)
+    ) {
       blockedReasons.push(`Critical intake field "${field.label}" is empty.`);
     }
   }
