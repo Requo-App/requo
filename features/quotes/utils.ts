@@ -791,6 +791,8 @@ export function toPublicQuoteView({
   token,
   publicViewedAt,
   items,
+  scopeBlocks,
+  paymentSchedule,
 }: {
   quote: DashboardQuoteDetailCore;
   business: {
@@ -804,6 +806,8 @@ export function toPublicQuoteView({
   token: string;
   publicViewedAt: Date | null;
   items: DashboardQuoteItem[];
+  scopeBlocks: PublicQuoteView["scopeBlocks"];
+  paymentSchedule: PublicQuoteView["paymentSchedule"];
 }): PublicQuoteView {
   return {
     id: quote.id,
@@ -838,5 +842,7 @@ export function toPublicQuoteView({
     customerRespondedAt: quote.customerRespondedAt ?? null,
     customerResponseMessage: quote.customerResponseMessage ?? null,
     items,
+    scopeBlocks,
+    paymentSchedule,
   };
 }

@@ -6,6 +6,7 @@ import { DashboardDetailPageSkeleton } from "@/components/shell/dashboard-detail
 import { BusinessQuotePreviewShell } from "@/features/quotes/components/business-quote-preview-shell";
 import {
   getBusinessContactEmailForPreview,
+  getQuoteCustomerVisibleScopeForBusiness,
   getQuoteDetailForBusiness,
 } from "@/features/quotes/queries";
 import { quoteRouteParamsSchema } from "@/features/quotes/schemas";
@@ -53,12 +54,16 @@ async function QuotePreviewRegion({ params }: QuotePreviewPageProps) {
   }
 
   const businessSlug = businessContext.business.slug;
-  const [quote, businessContactEmail] = await Promise.all([
+  const [quote, businessContactEmail, customerScope] = await Promise.all([
     getQuoteDetailForBusiness({
       businessId: businessContext.business.id,
       quoteId: parsedParams.data.id,
     }),
     getBusinessContactEmailForPreview(businessContext.business.id),
+    getQuoteCustomerVisibleScopeForBusiness({
+      businessId: businessContext.business.id,
+      quoteId: parsedParams.data.id,
+    }),
   ]);
 
   if (!quote) {
@@ -75,6 +80,8 @@ async function QuotePreviewRegion({ params }: QuotePreviewPageProps) {
     token: "",
     publicViewedAt: null,
     items: quote.items,
+    scopeBlocks: customerScope.scopeBlocks,
+    paymentSchedule: customerScope.paymentSchedule,
   });
 
   return (

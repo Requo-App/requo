@@ -211,6 +211,68 @@ describe("send gates", () => {
     });
 
     expect(sent?.changed).toBe(true);
+
+    const [persistedQuote] = await testDb
+      .select({ status: quotes.status, sentAt: quotes.sentAt })
+      .from(quotes)
+      .where(eq(quotes.id, fullQuote!.id))
+      .limit(1);
+
+    expect(persistedQuote).toMatchObject({ status: "sent" });
+    expect(persistedQuote?.sentAt).toBeInstanceOf(Date);
+  }, 30_000);
+
+  it("blocks an incomplete required scope section on an unpacked legacy business", async () => {
+    const { userId, businessId } = await setupPackedBusiness("legacy");
+
+    // Simulate a business created before pack assignments/recipe rows existed:
+    // required kinds must still resolve from the business-type code defaults.
+    await testDb
+      .delete(packRecipes)
+      .where(eq(packRecipes.businessId, businessId));
+    await testDb
+      .delete(businessPackAssignmentHistory)
+      .where(eq(businessPackAssignmentHistory.businessId, businessId));
+    await testDb
+      .delete(businessPackAssignments)
+      .where(eq(businessPackAssignments.businessId, businessId));
+
+    const quote = await createQuoteForBusiness({
+      businessId,
+      actorUserId: userId,
+      currency: "USD",
+      inquiryId: null,
+      quote: quoteInput(),
+    });
+
+    const { upsertScopeBlockForQuote } = await import(
+      "@/features/scope-blocks/mutations"
+    );
+    const saved = await upsertScopeBlockForQuote({
+      businessId,
+      quoteId: quote!.id,
+      kind: "exclusions",
+      content: { items: [] },
+      actorUserId: userId,
+    });
+
+    // The write-time stamp must use the code-recipe fallback, not a missing
+    // pack assignment, or the gate below would skip the row.
+    expect(saved).toMatchObject({ required: true, state: "incomplete" });
+
+    const blocked = await markQuoteSentForBusiness({
+      businessId,
+      quoteId: quote!.id,
+      actorUserId: userId,
+      sendMethod: "manual",
+    });
+
+    expect(blocked).toMatchObject({ changed: false, blocked: true });
+    expect(
+      (blocked as { blockers: string[] }).blockers,
+    ).toContainEqual(
+      expect.stringContaining('Required scope section "exclusions" is incomplete'),
+    );
   }, 30_000);
 
   it("fails closed on unknown binding versions", async () => {

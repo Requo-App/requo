@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 
 import { PrintPageShell } from "@/components/shared/print-page-shell";
 import { QuotePrintDocument } from "@/features/quotes/components/quote-print-document";
-import { getAcceptanceForBusiness, getQuoteDetailForBusiness } from "@/features/quotes/queries";
+import { getAcceptanceForBusiness, getQuoteCustomerVisibleScopeForBusiness, getQuoteDetailForBusiness } from "@/features/quotes/queries";
 import { quoteRouteParamsSchema } from "@/features/quotes/schemas";
 import { getBusinessQuotePath } from "@/features/businesses/routes";
 import { requireExportRequestContext } from "@/lib/exports";
@@ -36,7 +36,7 @@ export default async function QuotePrintPage({
     notFound();
   }
 
-  const [quote, acceptance] = await Promise.all([
+  const [quote, acceptance, customerScope] = await Promise.all([
     getQuoteDetailForBusiness({
       businessId: requestContext.businessContext.business.id,
       quoteId: parsedParams.data.id,
@@ -45,6 +45,10 @@ export default async function QuotePrintPage({
       businessId: requestContext.businessContext.business.id,
       quoteId: parsedParams.data.id,
     }).catch(() => null),
+    getQuoteCustomerVisibleScopeForBusiness({
+      businessId: requestContext.businessContext.business.id,
+      quoteId: parsedParams.data.id,
+    }),
   ]);
 
   if (!quote) {
@@ -63,6 +67,8 @@ export default async function QuotePrintPage({
         businessLogoStoragePath={requestContext.businessContext.business.logoStoragePath}
         businessSlug={resolvedParams.businessSlug}
         quote={quote}
+        scopeBlocks={customerScope.scopeBlocks}
+        paymentSchedule={customerScope.paymentSchedule}
         acceptance={acceptance}
       />
     </PrintPageShell>

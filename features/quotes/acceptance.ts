@@ -81,6 +81,22 @@ export function buildAcceptanceSnapshot(
         lineTotalInCents: item.lineTotalInCents,
         position: item.position,
       })),
+    scopeBlocks: input.scopeBlocks.map((block) => ({
+      kind: block.kind,
+      content: block.content,
+    })),
+    paymentSchedule: input.paymentSchedule
+      ? {
+          version: input.paymentSchedule.version,
+          items: input.paymentSchedule.items.map((item) => ({
+            label: item.label,
+            category: item.category,
+            amountCents: item.amountCents,
+            dueDate: item.dueDate,
+            dueCondition: item.dueCondition,
+          })),
+        }
+      : null,
     acceptanceText,
     acceptanceTextVersion,
   };

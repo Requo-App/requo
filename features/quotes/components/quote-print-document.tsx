@@ -1,12 +1,16 @@
 import { BusinessAvatar } from "@/components/shared/business-avatar";
 import { formatQuoteDate, formatQuoteDateTime, formatQuoteMoney } from "@/features/quotes/utils";
-import type { DashboardQuoteDetail } from "@/features/quotes/types";
+import type { DashboardQuoteDetail, PublicQuoteView } from "@/features/quotes/types";
+import { QuoteScopeList } from "@/features/quotes/components/quote-scope-list";
 
 type QuotePrintDocumentProps = {
   businessName: string;
   businessLogoStoragePath?: string | null;
   businessSlug?: string;
   quote: DashboardQuoteDetail;
+  /** Customer-visible scope blocks, rendered exactly like the public page. */
+  scopeBlocks: PublicQuoteView["scopeBlocks"];
+  paymentSchedule: PublicQuoteView["paymentSchedule"];
   acceptance?: {
     signerName: string;
     acceptedAt: Date | string;
@@ -19,6 +23,8 @@ export function QuotePrintDocument({
   businessLogoStoragePath,
   businessSlug,
   quote,
+  scopeBlocks,
+  paymentSchedule,
   acceptance,
 }: QuotePrintDocumentProps) {
   const logoUrl =
@@ -197,6 +203,19 @@ export function QuotePrintDocument({
           </section>
         </aside>
       </div>
+
+      {scopeBlocks.length ? (
+        <section className="rounded-xl border border-border/75 bg-background/95 px-4 py-4 print:border-border/70 print:bg-transparent sm:px-5">
+          <p className="meta-label">Scope details</p>
+          <div className="mt-4">
+            <QuoteScopeList
+              blocks={scopeBlocks}
+              currency={quote.currency}
+              paymentSchedule={paymentSchedule}
+            />
+          </div>
+        </section>
+      ) : null}
     </article>
   );
 }

@@ -14,8 +14,10 @@ import {
   quoteAcceptances,
   quoteItems,
   quotes,
+  quoteScopeBlocks,
   businesses,
   } from "@/lib/db/schema";
+import { getLatestScheduleForQuote } from "@/features/payment-schedules/queries";
 import {
   QUOTE_ACCEPTANCE_METHOD_TYPED_NAME,
   QUOTE_ACCEPTANCE_TEXT,
@@ -1409,7 +1411,7 @@ export async function markQuoteSentForBusiness({
       };
     }
 
-    await tx
+    const [updatedQuote] = await tx
       .update(quotes)
       .set({
         status: "sent",
@@ -1423,7 +1425,26 @@ export async function markQuoteSentForBusiness({
         autoFollowUpLastSentAt: null,
         updatedAt: now,
       })
-      .where(and(eq(quotes.id, quoteId), eq(quotes.businessId, businessId)));
+      .where(
+        and(
+          eq(quotes.id, quoteId),
+          eq(quotes.businessId, businessId),
+          eq(quotes.status, "draft"),
+          isNull(quotes.archivedAt),
+          isNull(quotes.deletedAt),
+        ),
+      )
+      .returning({ id: quotes.id });
+
+    if (!updatedQuote) {
+      return {
+        changed: false,
+        status: existingQuote.status,
+        quoteNumber: existingQuote.quoteNumber,
+        inquiryId: existingQuote.inquiryId,
+        publicToken: tryResolveStoredQuotePublicToken(existingQuote),
+      };
+    }
 
     await maybeMoveInquiryToQuoted(tx, businessId, existingQuote.inquiryId, now);
 
@@ -1852,6 +1873,29 @@ export async function respondToPublicQuoteByToken({
         .from(quoteItems)
         .where(eq(quoteItems.quoteId, existingQuote.id));
 
+      // Scope and the payment schedule are customer-visible contract terms:
+      // fetch them inside the transaction so the snapshot (and its hash)
+      // covers exactly what the acceptance text refers to.
+      const [sourceScopeBlocks, sourceSchedule] = await Promise.all([
+        tx
+          .select({
+            kind: quoteScopeBlocks.kind,
+            content: quoteScopeBlocks.content,
+          })
+          .from(quoteScopeBlocks)
+          .where(
+            and(
+              eq(quoteScopeBlocks.businessId, existingQuote.businessId),
+              eq(quoteScopeBlocks.quoteId, existingQuote.id),
+              eq(quoteScopeBlocks.state, "complete"),
+            ),
+          ),
+        getLatestScheduleForQuote(tx, {
+          businessId: existingQuote.businessId,
+          quoteId: existingQuote.id,
+        }),
+      ]);
+
       const snapshot = buildAcceptanceSnapshot({
         quoteNumber: existingQuote.quoteNumber,
         quoteVersion: existingQuote.version,
@@ -1869,6 +1913,19 @@ export async function respondToPublicQuoteByToken({
         taxLabel: existingQuote.taxLabel,
         totalInCents: existingQuote.totalInCents,
         items: sourceItems,
+        scopeBlocks: sourceScopeBlocks,
+        paymentSchedule: sourceSchedule
+          ? {
+              version: sourceSchedule.version,
+              items: sourceSchedule.items.map((item) => ({
+                label: item.label,
+                category: item.category,
+                amountCents: item.computedAmountCents,
+                dueDate: item.dueDate,
+                dueCondition: item.dueCondition,
+              })),
+            }
+          : null,
       });
       snapshotHash = hashAcceptanceSnapshot(snapshot);
       const acceptanceRowId = newEntityId();

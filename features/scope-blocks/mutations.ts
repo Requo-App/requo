@@ -3,7 +3,7 @@ import "server-only";
 import { and, eq } from "drizzle-orm";
 
 import { writeAuditLog } from "@/features/audit/mutations";
-import { getActiveRecipeForBusiness } from "@/features/businesses/pack-recipes";
+import { resolveRequiredScopeKinds } from "@/features/scope-blocks/required-kinds";
 import {
   isScopeBlockContentComplete,
   isScopeBlockKind,
@@ -21,12 +21,6 @@ import {
 import { newEntityId } from "@/lib/ids";
 
 type DatabaseTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
-
-function requiredKindsFromRecipe(config: Record<string, unknown>) {
-  const raw = config["requiredKinds"];
-  if (!Array.isArray(raw)) return new Set<ScopeBlockKind>();
-  return new Set(raw.filter(isScopeBlockKind));
-}
 
 /**
  * Upsert a scope block on a draft quote. Requiredness is stamped from the
@@ -75,13 +69,14 @@ export async function upsertScopeBlockForQuote(input: {
       )
       .limit(1);
 
-    // Requiredness pinned from the active recipe at write time.
-    const { getPackAssignmentForBusiness } = await import(
-      "@/features/businesses/pack-assignments"
-    );
-    const assignment = await getPackAssignmentForBusiness(input.businessId);
-    const recipe = await getActiveRecipeForBusiness(input.businessId, "scope", assignment?.pack ?? null);
-    const required = requiredKindsFromRecipe(recipe.config).has(input.kind);
+    // Requiredness pinned from the active recipe at write time, using the same
+    // resolver as the owner editor and the send gate so a legacy/unpacked
+    // business cannot be stamped `required = false` while the editor still
+    // renders the section as required.
+    const requiredKinds = await resolveRequiredScopeKinds({
+      businessId: input.businessId,
+    });
+    const required = requiredKinds.includes(input.kind);
     const complete = isScopeBlockContentComplete(input.kind, content);
     const state: ScopeBlockState = complete ? "complete" : "incomplete";
 
@@ -154,10 +149,16 @@ export async function upsertScopeBlockForQuote(input: {
 /**
  * Waive a required block: manager-or-above, audit-logged with actor/reason,
  * pinned at acceptance via the block row. Supersession, never un-waiving.
+ *
+ * A required kind with no row yet can also be waived: the send gate reports
+ * missing required sections, and the owner needs a way to omit one that does
+ * not apply without fabricating content.
  */
 export async function waiveScopeBlockForQuote(input: {
   businessId: string;
-  blockId: string;
+  blockId?: string | null;
+  quoteId?: string;
+  kind?: ScopeBlockKind;
   reason: string;
   actorUserId: string;
   actorRole: BusinessMemberRole;
@@ -173,25 +174,34 @@ export async function waiveScopeBlockForQuote(input: {
     throw new Error("A waiver reason is required.");
   }
 
+  if (input.kind !== undefined && !isScopeBlockKind(input.kind)) {
+    throw new Error("Unknown scope block kind.");
+  }
+
   const now = input.now ?? new Date();
 
   return db.transaction(async (tx) => {
-    const [block] = await tx
-      .select()
-      .from(quoteScopeBlocks)
-      .where(
-        and(
-          eq(quoteScopeBlocks.id, input.blockId),
-          eq(quoteScopeBlocks.businessId, input.businessId),
-        ),
-      )
-      .limit(1);
+    const [block] = input.blockId
+      ? await tx
+          .select()
+          .from(quoteScopeBlocks)
+          .where(
+            and(
+              eq(quoteScopeBlocks.id, input.blockId),
+              eq(quoteScopeBlocks.businessId, input.businessId),
+            ),
+          )
+          .limit(1)
+      : [];
 
-    if (!block) {
+    if (!block && (!input.kind || !input.quoteId)) {
       throw new Error("Scope block not found.");
     }
 
-    if (block.state === "waived") {
+    const quoteId = block?.quoteId ?? input.quoteId!;
+    const kind = block?.kind ?? input.kind!;
+
+    if (block?.state === "waived") {
       return block;
     }
 
@@ -200,24 +210,66 @@ export async function waiveScopeBlockForQuote(input: {
     const [parentQuote] = await tx
       .select({ status: quotes.status })
       .from(quotes)
-      .where(and(eq(quotes.id, block.quoteId), eq(quotes.businessId, input.businessId)))
+      .where(and(eq(quotes.id, quoteId), eq(quotes.businessId, input.businessId)))
       .limit(1);
 
     if (!parentQuote || ["accepted", "rejected", "expired", "voided"].includes(parentQuote.status)) {
       throw new Error("Scope sections cannot be waived after the quote is decided.");
     }
 
-    const [updated] = await tx
-      .update(quoteScopeBlocks)
-      .set({
-        state: "waived",
-        waiverActorUserId: input.actorUserId,
-        waivedAt: now,
-        waiverReason: input.reason.trim().slice(0, 500),
-        updatedAt: now,
-      })
-      .where(eq(quoteScopeBlocks.id, block.id))
-      .returning();
+    if (parentQuote.status !== "draft" && parentQuote.status !== "sent") {
+      throw new Error("Scope sections can only be waived on an active quote.");
+    }
+
+    let updated;
+
+    if (block) {
+      [updated] = await tx
+        .update(quoteScopeBlocks)
+        .set({
+          state: "waived",
+          waiverActorUserId: input.actorUserId,
+          waivedAt: now,
+          waiverReason: input.reason.trim().slice(0, 500),
+          updatedAt: now,
+        })
+        .where(eq(quoteScopeBlocks.id, block.id))
+        .returning();
+    } else {
+      const siblings = await tx
+        .select({ position: quoteScopeBlocks.position })
+        .from(quoteScopeBlocks)
+        .where(
+          and(
+            eq(quoteScopeBlocks.businessId, input.businessId),
+            eq(quoteScopeBlocks.quoteId, quoteId),
+          ),
+        );
+
+      const position =
+        siblings.length === 0
+          ? 0
+          : Math.max(...siblings.map((row) => row.position)) + 1;
+
+      [updated] = await tx
+        .insert(quoteScopeBlocks)
+        .values({
+          id: newEntityId(),
+          businessId: input.businessId,
+          quoteId,
+          kind,
+          position,
+          content: {},
+          required: true,
+          state: "waived",
+          waiverActorUserId: input.actorUserId,
+          waivedAt: now,
+          waiverReason: input.reason.trim().slice(0, 500),
+          createdAt: now,
+          updatedAt: now,
+        })
+        .returning();
+    }
 
     await writeAuditLog(tx, {
       businessId: input.businessId,
@@ -225,10 +277,10 @@ export async function waiveScopeBlockForQuote(input: {
       actorName: input.actorName,
       actorEmail: input.actorEmail,
       entityType: "quote",
-      entityId: block.quoteId,
+      entityId: quoteId,
       action: "quote.scope_waived",
       metadata: {
-        scopeBlockKind: block.kind,
+        scopeBlockKind: kind,
         waiverReason: input.reason.trim().slice(0, 500),
       },
       createdAt: now,

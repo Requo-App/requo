@@ -56,8 +56,9 @@ import {
 } from "@/features/quotes/utils";
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
 import { useDeferredRefresh } from "@/hooks/use-deferred-refresh";
-import { useOptimisticMutation } from "@/hooks/use-optimistic-mutation";
 import { QuotePreview } from "@/features/quotes/components/quote-preview";
+import type { QuoteScopeBlock } from "@/features/quotes/components/quote-scope-list";
+import type { PublicQuotePaymentSchedule } from "@/features/quotes/types";
 
 /* -------------------------------------------------------------------------- */
 
@@ -148,6 +149,8 @@ type SendQuoteDialogProps = {
     notes: string | null;
     terms: string | null;
     items: QuotePreviewItem[];
+    scopeBlocks: QuoteScopeBlock[];
+    paymentSchedule: PublicQuotePaymentSchedule | null;
     subtotalInCents: number;
     discountInCents: number;
     taxInCents: number;
@@ -193,17 +196,22 @@ export function SendQuoteDialog({
   compactOnMobile = false,
 }: SendQuoteDialogProps) {
   const [open, setOpen] = useState(false);
-  const [step, setStep] = useState<"ready" | "sent">("ready");
+  const [step, setStep] = useState<"ready" | "sending" | "sent">("ready");
   const [optimisticStep, setOptimisticStep] = useOptimistic(
     step,
-    (_current, nextStep: "ready" | "sent") => nextStep,
+    (_current, next: "ready" | "sending" | "sent") => next,
   );
   const [showPreview, setShowPreview] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
-  const { runMutation, isPendingKey } = useOptimisticMutation();
+  // Tracks dialog state for the send success path: an owner can dismiss the
+  // dialog while the send is in flight, and the page must still refresh once
+  // the action resolves.
+  const openRef = useRef(false);
+  const sendSucceededRef = useRef(false);
   const { scheduleRefresh } = useDeferredRefresh();
   const [sendSuccessMessage, setSendSuccessMessage] = useState<string | undefined>();
-  const isPending = isPendingKey("send");
+  const [sendError, setSendError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
   const [, startLogging] = useTransition();
 
   const detectedChannel = getDefaultSendChannel(quote.customerContactMethod);
@@ -233,12 +241,17 @@ export function SendQuoteDialog({
     if (next) {
       setStep("ready");
       setSendSuccessMessage(undefined);
+      setSendError(null);
       setShowPreview(false);
       setSelectedChannel(detectedChannel);
       setEditedMessage(getChannelMessage(detectedChannel, templateInput));
       setCopiedField(null);
       setAiAcknowledged(false);
+      sendSucceededRef.current = false;
+    } else if (step === "sent" || sendSucceededRef.current) {
+      scheduleRefresh();
     }
+    openRef.current = next;
     setOpen(next);
   }
 
@@ -291,22 +304,47 @@ export function SendQuoteDialog({
     return formData;
   }
 
-  function submitSend(deliveryMethod: "requo" | "manual") {
-    runMutation({
-      applyOptimistic: () => {
-        setOptimisticStep("sent");
-      },
-      revertOptimistic: () => {
-        setOptimisticStep("ready");
-      },
-      mutation: () => sendAction(initialSendState, buildSendFormData(deliveryMethod)),
-      pendingKey: "send",
-      refreshOnSuccess: false,
-      onSuccess: (result) => {
+  async function submitSend(deliveryMethod: "requo" | "manual") {
+    if (isPending) return;
+
+    startTransition(async () => {
+      setSendError(null);
+      setOptimisticStep("sending");
+
+      try {
+        const result = await sendAction(
+          initialSendState,
+          buildSendFormData(deliveryMethod),
+        );
+
+        if (result.error) {
+          setSendError(result.error);
+          toast.error(result.error);
+          return;
+        }
+
+        if (!result.success) {
+          const message =
+            "We couldn't confirm that the quote was sent. Try again.";
+          setSendError(message);
+          toast.error(message);
+          return;
+        }
+
         setSendSuccessMessage(result.success);
+        sendSucceededRef.current = true;
         setStep("sent");
-        scheduleRefresh();
-      },
+
+        // If the dialog was dismissed while this send was in flight, nothing
+        // will close it again — refresh now so the quote status is current.
+        if (!openRef.current) {
+          scheduleRefresh();
+        }
+      } catch {
+        const message = "We couldn't send that quote right now.";
+        setSendError(message);
+        toast.error(message);
+      }
     });
   }
 
@@ -443,6 +481,8 @@ export function SendQuoteDialog({
                     notes={previewData.notes}
                     terms={previewData.terms}
                     items={previewData.items}
+                    scopeBlocks={previewData.scopeBlocks}
+                    paymentSchedule={previewData.paymentSchedule}
                     subtotalInCents={previewData.subtotalInCents}
                     discountInCents={previewData.discountInCents}
                     taxInCents={previewData.taxInCents}
@@ -473,7 +513,7 @@ export function SendQuoteDialog({
               </Button>
             </ResponsiveOverlayFooter>
           </>
-        ) : displayStep === "ready" ? (
+        ) : displayStep !== "sent" ? (
           <>
             <ResponsiveOverlayHeader>
               <ResponsiveOverlayTitle>Send quote</ResponsiveOverlayTitle>
@@ -483,6 +523,13 @@ export function SendQuoteDialog({
             </ResponsiveOverlayHeader>
 
             <ResponsiveOverlayBody className="flex flex-col gap-5 pt-1">
+              {sendError ? (
+                <Alert variant="destructive">
+                  <AlertTitle>Quote not sent</AlertTitle>
+                  <AlertDescription>{sendError}</AlertDescription>
+                </Alert>
+              ) : null}
+
               {unpricedItemCount > 0 ? (
                 <Alert className="border-warning/30 bg-warning/10">
                   <AlertTitle>
@@ -795,7 +842,7 @@ export function SendQuoteDialog({
             </ResponsiveOverlayBody>
 
             <ResponsiveOverlayFooter>
-              <Button className="w-full" onClick={() => setOpen(false)} type="button">
+              <Button className="w-full" onClick={() => handleOpenChange(false)} type="button">
                 Done
               </Button>
             </ResponsiveOverlayFooter>

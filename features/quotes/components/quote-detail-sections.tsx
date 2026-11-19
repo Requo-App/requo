@@ -517,9 +517,15 @@ export function buildSendDialogProps({
   needsAiConfirmation,
   previewHref,
   quote,
+  scopeBlocks,
+  paymentSchedule,
   sendAction,
 }: SendDialogContext & {
   items: React.ComponentProps<typeof QuotePreview>["items"];
+  scopeBlocks: NonNullable<
+    React.ComponentProps<typeof QuotePreview>["scopeBlocks"]
+  >;
+  paymentSchedule: React.ComponentProps<typeof QuotePreview>["paymentSchedule"];
   canAutoFollowUp: boolean;
   autoFollowUpUnavailableNote?: string;
 }): React.ComponentProps<typeof SendQuoteDialog> {
@@ -554,6 +560,8 @@ export function buildSendDialogProps({
       notes: quote.notes,
       terms: quote.terms,
       items,
+      scopeBlocks,
+      paymentSchedule: paymentSchedule ?? null,
       subtotalInCents: quote.subtotalInCents,
       discountInCents: quote.discountInCents,
       taxInCents: quote.taxInCents,
