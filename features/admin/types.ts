@@ -759,10 +759,29 @@ export type AdminAiSecurityEvent = {
   createdAt: Date;
 };
 
+/**
+ * Failed fallback attempt or post-failure serving model. Never contains
+ * prompts, responses, or raw provider error bodies.
+ */
+export type AdminAiRoutingEvent = {
+  id: string;
+  correlationId: string;
+  eventType: string;
+  taskType: string;
+  userId: string | null;
+  businessId: string | null;
+  provider: string;
+  model: string;
+  reason: string | null;
+  statusCode: number | null;
+  latencyMs: number | null;
+  attempt: number;
+  createdAt: Date;
+};
+
 export type AdminAiErrorsResult = {
   items: AdminAiErrorRow[];
   total: number;
-  securityEvents: AdminAiSecurityEvent[];
 };
 
 export type AdminAiProvider = {
@@ -809,7 +828,7 @@ export type AdminAiCapacityEntry = {
 
 /** Live email quota for one provider (local + polled, fail-soft). */
 export type AdminEmailQuota = {
-  provider: "resend" | "mailtrap" | "brevo";
+  provider: "resend" | "mailtrap" | "brevo" | "smtp";
   label: string;
   configured: boolean;
   dailyUsed: number | null;

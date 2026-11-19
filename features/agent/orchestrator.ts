@@ -496,6 +496,11 @@ export async function runAgent({
     const chatModel = await resolveChatFallbackModel({
       profile: "agent_chat",
       estimatedTokens,
+      telemetry: {
+        userId: AGENT_SYSTEM_USER_ID,
+        businessId: business.id,
+        taskType: "agent_conversation",
+      },
     });
     const { fallbackModel, serving, attemptTrail } = chatModel;
 

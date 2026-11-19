@@ -16,9 +16,17 @@ import {
   ADMIN_AI_PROVIDER_LABELS,
 } from "@/features/admin/constants";
 import { ADMIN_AI_ERRORS_PATH } from "@/features/admin/navigation";
-import { listAdminAiErrors } from "@/features/admin/queries";
+import {
+  countAdminAiErrors,
+  listAdminAiErrors,
+  listAdminAiRoutingEvents,
+  listAdminAiSecurityEvents,
+} from "@/features/admin/queries";
 import { adminAiErrorsFiltersSchema } from "@/features/admin/schemas";
-import type { AdminAiSecurityEvent } from "@/features/admin/types";
+import type {
+  AdminAiRoutingEvent,
+  AdminAiSecurityEvent,
+} from "@/features/admin/types";
 import { formatAiDateTime } from "@/features/admin/components/ai/admin-ai-format";
 
 type SearchParamsRecord = Record<string, string | string[] | undefined>;
@@ -67,12 +75,12 @@ export async function AdminAiErrorsControlsSection({
     page: 1,
     pageSize: 25,
   };
-  const { total } = await listAdminAiErrors(filters);
+  const total = await countAdminAiErrors(filters);
 
   return (
     <div className="data-list-toolbar-strip">
       <AdminListToolbar
-        description="Only persisted failures are listed: failed calls plus security events. Rate-limit, exhaustion, and fallback events are console logs — never stored — so they cannot appear here."
+        description="Only persisted failures are listed: failed calls, fallback routing attempts, and security events. Prompts and responses are never stored."
         fields={aiErrorToolbarFields}
         resultLabel={`${total.toLocaleString("en-US")} ${total === 1 ? "error" : "errors"}`}
         values={toolbarValues(rawParams)}
@@ -115,18 +123,8 @@ export async function AdminAiErrorsTableSection({
   );
 }
 
-export async function AdminAiSecurityEventsSection({
-  rawParams,
-}: AdminAiErrorsSectionsProps) {
-  // `listAdminAiErrors` is React-cached, so this shares the table section's
-  // fetch instead of running the queries twice.
-  const filters =
-    adminAiErrorsFiltersSchema.safeParse(rawParams).data ?? {
-      page: 1,
-      pageSize: 25,
-    };
-  const { securityEvents } = await listAdminAiErrors(filters);
-  const events: AdminAiSecurityEvent[] = securityEvents;
+export async function AdminAiSecurityEventsSection() {
+  const events: AdminAiSecurityEvent[] = await listAdminAiSecurityEvents();
   return (
     <DashboardSection
       description="Newest input-safety and output-filtering events. No prompts or responses are stored — only the event type and matched pattern."
@@ -163,6 +161,64 @@ export async function AdminAiSecurityEventsSection({
   );
 }
 
+export async function AdminAiRoutingEventsSection() {
+  const events: AdminAiRoutingEvent[] = await listAdminAiRoutingEvents();
+
+  return (
+    <DashboardSection
+      description="Newest fallback attempts and post-fallback serving models. Each row carries a request correlation ID and stable failure kind — never prompts, responses, or raw provider error bodies."
+      title={`Fallback routing events (${events.length})`}
+    >
+      {events.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          No fallback routing events on record.
+        </p>
+      ) : (
+        <DashboardDetailFeed>
+          {events.map((event) => (
+            <DashboardDetailFeedItem
+              key={event.id}
+              meta={
+                <>
+                  <span className="font-mono text-xs">
+                    {event.correlationId}
+                  </span>
+                  <span aria-hidden="true">·</span>
+                  <span className="font-mono text-xs">{event.taskType}</span>
+                  <span aria-hidden="true">·</span>
+                  <span>{formatAiDateTime(event.createdAt)}</span>
+                  {event.latencyMs !== null ? (
+                    <>
+                      <span aria-hidden="true">·</span>
+                      <span>{event.latencyMs.toLocaleString("en-US")} ms</span>
+                    </>
+                  ) : null}
+                  {event.statusCode !== null ? (
+                    <>
+                      <span aria-hidden="true">·</span>
+                      <span>HTTP {event.statusCode}</span>
+                    </>
+                  ) : null}
+                  {event.reason ? (
+                    <>
+                      <span aria-hidden="true">·</span>
+                      <span className="capitalize">
+                        {event.reason.replaceAll("_", " ")}
+                      </span>
+                    </>
+                  ) : null}
+                </>
+              }
+              title={`${event.eventType === "attempt_failed" ? "Attempt failed" : "Fallback served"} · ${event.provider}:${event.model}`}
+              titleLines={2}
+            />
+          ))}
+        </DashboardDetailFeed>
+      )}
+    </DashboardSection>
+  );
+}
+
 export function AdminAiSecurityEventsFallback() {
   return (
     <div className="section-panel space-y-4">
@@ -175,3 +231,5 @@ export function AdminAiSecurityEventsFallback() {
     </div>
   );
 }
+
+export const AdminAiRoutingEventsFallback = AdminAiSecurityEventsFallback;

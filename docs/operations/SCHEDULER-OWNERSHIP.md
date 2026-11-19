@@ -57,7 +57,7 @@ fails closed when the secret is missing.
 |---|---|---|---|---|
 | Expire stale quotes | `/api/cron/expire-quotes` | `0 1 * * *` | Conditional update of still-`sent`, still-expired rows in bounded batches | Vercel cron run log and non-2xx response |
 | Expire subscriptions and trials | `/api/cron/expire-subscriptions` | `0 2 * * *` | Expiry transition is conditional on the observed subscription state | Vercel cron run log and non-2xx response |
-| Delete AI token logs past retention | `/api/cron/token-log-cleanup` | `0 3 * * *` | Age-bounded batch deletes | Vercel cron run log and non-2xx response |
+| Delete AI token logs and routing events past retention | `/api/cron/token-log-cleanup` | `0 3 * * *` | Age-bounded batch deletes | Vercel cron run log and non-2xx response |
 | Expire approvals and send reminders | `/api/cron/expire-approvals` | `0 4 * * *` | Exact-version pending-state gates; `reminderSentAt` claim | Vercel cron run log and non-2xx response |
 | Remove orphaned inquiry uploads | `/api/cron/cleanup-inquiry-uploads` | `0 5 * * *` | Age cutoff plus attachment-table check before removal | Vercel cron run log and non-2xx response |
 

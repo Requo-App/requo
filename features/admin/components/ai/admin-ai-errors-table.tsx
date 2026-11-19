@@ -79,10 +79,10 @@ type AdminAiErrorsTableProps = {
  * server/client boundary. The server section fetches and passes plain rows.
  *
  * Fixed `createdAt DESC` ordering — no sortable columns, no row detail page.
- * Only persisted failures appear; rate-limit, exhaustion, and fallback events
- * are console logs and are never stored. `flush` renders the table edge to
- * edge inside the page's list card (one frame, like the inquiries list)
- * instead of nesting a second bordered container.
+ * Only persisted failed token logs appear here; fallback routing and security
+ * events render in their own sections on the same page. `flush` renders the
+ * table edge to edge inside the page's list card (one frame, like the
+ * inquiries list) instead of nesting a second bordered container.
  */
 export function AdminAiErrorsTable({
   items,

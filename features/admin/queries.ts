@@ -27,6 +27,7 @@ import {
   ADMIN_AI_PROVIDERS,
   ADMIN_AI_PROVIDER_LABELS,
   ADMIN_AI_SECURITY_EVENTS_LIMIT,
+  ADMIN_AI_ROUTING_EVENTS_LIMIT,
   ADMIN_DASHBOARD_TARGET_ID,
   ADMIN_MAX_RECENT_ACTIVITY_LIMIT,
   ADMIN_RECENT_ACTIVITY_LIMIT,
@@ -77,6 +78,7 @@ import type {
   AdminAiRequestRow,
   AdminAiRoutingProfile,
   AdminAiSecurityEvent,
+  AdminAiRoutingEvent,
   AdminAiSessionBreakdown,
   AdminAiTaskBreakdown,
   AdminAiWindowStats,
@@ -164,6 +166,7 @@ import { db } from "@/lib/db/client";
 import {
   adminAuditLogs,
   agentSessions,
+  aiRoutingEvents,
   aiSecurityEvents,
   aiTokenLogs,
   billingEvents,
@@ -2838,12 +2841,8 @@ export const listAdminAiRequests = cache(
   },
 );
 
-async function listAdminAiErrorsInner(
-  filters: AdminAiErrorsListFilters,
-): Promise<AdminAiErrorsResult> {
-  const { page, pageSize, provider, model, taskType } = filters;
-  const offset = toOffset(page, pageSize);
-
+function buildAdminAiErrorsWhere(filters: AdminAiErrorsListFilters) {
+  const { provider, model, taskType } = filters;
   const conditions: SQL[] = [eq(aiTokenLogs.status, "error")];
 
   if (provider) {
@@ -2858,9 +2857,17 @@ async function listAdminAiErrorsInner(
     conditions.push(ilike(aiTokenLogs.taskType, likePattern(taskType)));
   }
 
-  const where = and(...conditions);
+  return and(...conditions);
+}
 
-  const [errorRows, errorTotalRows, securityRows] = await Promise.all([
+async function listAdminAiErrorRowsInner(
+  filters: AdminAiErrorsListFilters,
+): Promise<AdminAiErrorsResult> {
+  const { page, pageSize } = filters;
+  const offset = toOffset(page, pageSize);
+  const where = buildAdminAiErrorsWhere(filters);
+
+  const [errorRows, errorTotalRows] = await Promise.all([
     db
       .select({
         id: aiTokenLogs.id,
@@ -2876,17 +2883,6 @@ async function listAdminAiErrorsInner(
       .limit(pageSize)
       .offset(offset),
     db.select({ count: count() }).from(aiTokenLogs).where(where),
-    db
-      .select({
-        id: aiSecurityEvents.id,
-        eventType: aiSecurityEvents.eventType,
-        patternMatched: aiSecurityEvents.patternMatched,
-        businessId: aiSecurityEvents.businessId,
-        createdAt: aiSecurityEvents.createdAt,
-      })
-      .from(aiSecurityEvents)
-      .orderBy(desc(aiSecurityEvents.createdAt), desc(aiSecurityEvents.id))
-      .limit(ADMIN_AI_SECURITY_EVENTS_LIMIT),
   ]);
 
   const items: AdminAiErrorRow[] = errorRows.map((row) => ({
@@ -2898,35 +2894,131 @@ async function listAdminAiErrorsInner(
     createdAt: row.createdAt,
   }));
 
-  const securityEvents: AdminAiSecurityEvent[] = securityRows.map((row) => ({
+  return {
+    items,
+    total: Number(errorTotalRows[0]?.count ?? 0),
+  };
+}
+
+async function countAdminAiErrorsInner(
+  filters: AdminAiErrorsListFilters,
+): Promise<number> {
+  const [row] = await db
+    .select({ count: count() })
+    .from(aiTokenLogs)
+    .where(buildAdminAiErrorsWhere(filters));
+
+  return Number(row?.count ?? 0);
+}
+
+async function listAdminAiSecurityEventsInner(): Promise<
+  AdminAiSecurityEvent[]
+> {
+  const securityRows = await db
+    .select({
+      id: aiSecurityEvents.id,
+      eventType: aiSecurityEvents.eventType,
+      patternMatched: aiSecurityEvents.patternMatched,
+      businessId: aiSecurityEvents.businessId,
+      createdAt: aiSecurityEvents.createdAt,
+    })
+    .from(aiSecurityEvents)
+    .orderBy(desc(aiSecurityEvents.createdAt), desc(aiSecurityEvents.id))
+    .limit(ADMIN_AI_SECURITY_EVENTS_LIMIT);
+
+  return securityRows.map((row) => ({
     id: row.id,
     eventType: row.eventType,
     patternMatched: row.patternMatched,
     businessId: row.businessId,
     createdAt: row.createdAt,
   }));
+}
 
-  return {
-    items,
-    total: Number(errorTotalRows[0]?.count ?? 0),
-    securityEvents,
-  };
+async function listAdminAiRoutingEventsInner(): Promise<
+  AdminAiRoutingEvent[]
+> {
+  const routingRows = await db
+    .select({
+      id: aiRoutingEvents.id,
+      correlationId: aiRoutingEvents.correlationId,
+      eventType: aiRoutingEvents.eventType,
+      taskType: aiRoutingEvents.taskType,
+      userId: aiRoutingEvents.userId,
+      businessId: aiRoutingEvents.businessId,
+      provider: aiRoutingEvents.provider,
+      model: aiRoutingEvents.model,
+      reason: aiRoutingEvents.reason,
+      statusCode: aiRoutingEvents.statusCode,
+      latencyMs: aiRoutingEvents.latencyMs,
+      attempt: aiRoutingEvents.attempt,
+      createdAt: aiRoutingEvents.createdAt,
+    })
+    .from(aiRoutingEvents)
+    .orderBy(desc(aiRoutingEvents.createdAt), desc(aiRoutingEvents.id))
+    .limit(ADMIN_AI_ROUTING_EVENTS_LIMIT);
+
+  return routingRows.map((row) => ({
+    id: row.id,
+    correlationId: row.correlationId,
+    eventType: row.eventType,
+    taskType: row.taskType,
+    userId: row.userId,
+    businessId: row.businessId,
+    provider: row.provider,
+    model: row.model,
+    reason: row.reason,
+    statusCode: row.statusCode,
+    latencyMs: row.latencyMs,
+    attempt: row.attempt,
+    createdAt: row.createdAt,
+  }));
 }
 
 /**
- * Failed AI calls plus the newest security events for `/admin/ai/errors`.
+ * Failed AI calls for `/admin/ai/errors`, plus the page total.
  *
- * Only persisted failures are shown: `ai_token_logs.status = 'error'` and
- * `ai_security_events`. Rate-limit / exhaustion / fallback events are
- * `console.warn` only and are never persisted, so no such panel exists —
- * the page says so rather than faking it.
+ * Only persisted telemetry is shown: `ai_token_logs.status = 'error'`.
+ * Security events and fallback routing events have their own queries so each
+ * streamed section fetches exactly what it renders — four separate call sites
+ * must not each run the same four-query bundle.
  */
 export const listAdminAiErrors = cache(
   async (input: AdminAiErrorsListFilters): Promise<AdminAiErrorsResult> => {
     await requireAdminUser();
 
-    const filters = adminAiErrorsFiltersSchema.parse(input);
-    return listAdminAiErrorsInner(filters);
+    return listAdminAiErrorRowsInner(adminAiErrorsFiltersSchema.parse(input));
+  },
+);
+
+/** Total failed AI calls for the list toolbar's result count. */
+export const countAdminAiErrors = cache(
+  async (input: AdminAiErrorsListFilters): Promise<number> => {
+    await requireAdminUser();
+
+    return countAdminAiErrorsInner(adminAiErrorsFiltersSchema.parse(input));
+  },
+);
+
+/** Newest input-safety and output-filtering events (`/admin/ai/errors`). */
+export const listAdminAiSecurityEvents = cache(
+  async (): Promise<AdminAiSecurityEvent[]> => {
+    await requireAdminUser();
+
+    return listAdminAiSecurityEventsInner();
+  },
+);
+
+/**
+ * Newest fallback attempts and post-fallback serving models
+ * (`/admin/ai/errors`). Routing rows carry a correlation ID and stable
+ * failure kind — never prompts, responses, or raw provider error bodies.
+ */
+export const listAdminAiRoutingEvents = cache(
+  async (): Promise<AdminAiRoutingEvent[]> => {
+    await requireAdminUser();
+
+    return listAdminAiRoutingEventsInner();
   },
 );
 
